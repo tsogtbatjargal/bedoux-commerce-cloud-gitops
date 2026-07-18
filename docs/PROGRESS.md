@@ -9,12 +9,12 @@ checked here and its evidence is recorded in the session log.
 | Field | Value |
 |---|---|
 | State | IN PROGRESS |
-| Active phase | P0 — Bootstrap |
-| Active task | P0 gate — awaiting owner approval to activate P1 |
+| Active phase | P1 — Local tooling |
+| Active task | P1.1 — install/pin toolchain until `make tools-check` is green (NOT STARTED) |
 | Last verified | 2026-07-18 — T-001..T-006 all pass; main pushed to origin |
 | AWS resources currently live | **NONE** (no AWS account activity yet) |
 | Month-to-date estimated AWS spend | USD 0 |
-| Next operator action | approve the P0 gate (gate commit activates P1) |
+| Next operator action | start P1.1 in a new or current session |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -47,6 +47,8 @@ Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
       (ADR 0004) from bedoux-vm's gh, `tsogtbatjargal` added as push collaborator, `main`
       pushed from the workstation. Evidence: T-002 — `git remote -v` shows origin;
       push output `* [new branch] main -> main`; session log 2026-07-18.
+
+**P0 gate approved by owner 2026-07-18** (evidence: T-001..T-006 above; gate commit in git log).
 
 ### P1 — Local tooling
 

@@ -20,8 +20,8 @@ AWS EKS commerce learning project with a hard USD 20/month budget.
   commands, diagrams + SVG exports; all T-001..T-006 evidence in docs/PROGRESS.md.
 - main is pushed to the PRIVATE repo bedoux-tech/bedoux-commerce-cloud (created from
   bedoux-vm's gh; local pushes as collaborator tsogtbatjargal over SSH).
-- If the P0 gate commit ("Phase 0 gate approved by owner; activate Phase 1") is absent from
-  git log, the gate is still pending owner approval — do not start P1 without it.
+- P0 gate approved by owner 2026-07-18 (gate commit in git log). Active phase: P1, next
+  task P1.1 (install/pin toolchain).
 - No AWS account activity yet. Region not pinned. aws CLI not installed; /aws-* commands
   must refuse. make and xmllint are also missing on this host — installing the toolchain
   is P1.1.

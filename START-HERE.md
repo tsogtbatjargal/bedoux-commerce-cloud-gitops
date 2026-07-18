@@ -16,13 +16,12 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
 
 ## Current checkpoint
 
-- Project state: **Phase 0 complete (2026-07-18) — all T-001..T-006 evidence recorded;
-  `main` pushed to private repo `bedoux-tech/bedoux-commerce-cloud` (ADR 0004). Awaiting
-  the owner's P0 gate approval.**
-- Active phase: **P0 — Bootstrap (gate pending).**
-- Next action: **owner approves the P0 gate (gate commit activates P1); then P1.1 —
-  install and pin the local toolchain until `make tools-check` is green (`make`,
-  `xmllint`, `aws` are missing on this host).**
+- Project state: **Phase 0 complete and gate approved by owner (2026-07-18); `main` pushed
+  to private repo `bedoux-tech/bedoux-commerce-cloud` (ADR 0004).**
+- Active phase: **P1 — Local tooling.**
+- Next action: **P1.1 — install and pin the local toolchain until `make tools-check` is
+  green (`make`, `xmllint`, `aws`, `kubectl`, `eksctl`, `kind`, `helm`, `terraform` —
+  several missing on this Silverblue host; a toolbox/Homebrew approach is likely).**
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 
