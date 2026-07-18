@@ -16,11 +16,12 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
 
 ## Current checkpoint
 
-- Project state: **Phase 0 (bootstrap) in progress — doc spine, git repo, and agent config
-  being created (2026-07-17).**
+- Project state: **Phase 0 (bootstrap) nearly complete — P0.1–P0.5 done and committed
+  (2026-07-18); only P0.6 (GitHub repo creation + push) remains.**
 - Active phase: **P0 — Bootstrap.**
-- Next action: **finish P0 checklist in `docs/PROGRESS.md`, then P1.1 — install and pin the
-  local toolchain until `make tools-check` is green.**
+- Next action: **P0.6 — create `bedoux-tech/bedoux-commerce-cloud` on GitHub and push,
+  after the owner confirms repo visibility (public per ADR 0003). Then P1.1 — install and
+  pin the local toolchain until `make tools-check` is green.**
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

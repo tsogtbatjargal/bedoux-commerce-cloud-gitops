@@ -11,7 +11,7 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P0 — Bootstrap |
 | Active task | P0.6 — GitHub repo creation + push |
-| Last verified | 2026-07-17 — `make docs-check` (pre-bootstrap version) |
+| Last verified | 2026-07-18 — docs-check OK; T-003 sweep clean; T-005 cold-start test passed |
 | AWS resources currently live | **NONE** (no AWS account activity yet) |
 | Month-to-date estimated AWS spend | USD 0 |
 | Next operator action | review bootstrap, confirm GitHub repo visibility (public) before push |
@@ -115,6 +115,25 @@ Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-18 — P0 verification + commits — Claude Code (operator: Tsogo)
+
+- **Phase/task:** P0 gate verification (T-001, T-003, T-005, T-006); P0.6 pending.
+- **Changed:** five convention commits P0.1–P0.5 (`7633b33`..`4a3c30c`); START-HERE
+  checkpoint refreshed; `scripts/check-tools.sh` now also requires `make` + `xmllint`
+  (both missing from this Silverblue host's base — install in P1).
+- **AWS:** none. Estimated session cost: USD 0.
+- **Commands/tests:** docs-check logic OK (run via bash; `make` not on host yet);
+  secrets sweep over `git ls-files` clean; T-005 cold-start test passed — a fresh agent
+  reported state ("P0 nearly complete") and next action (P0.6 after visibility
+  confirmation) from the spine alone, and caught the then-uncommitted checkpoint edit;
+  T-006: the four slash commands are registered, `aws` CLI absent so `/aws-*` refuse
+  safely. Diagram SVGs exported via podman `docker.io/rlespinasse/drawio-export`.
+- **Decisions:** none new.
+- **Next action:** P0.6 — owner confirms repo visibility (public per ADR 0003) and which
+  GitHub account hosts it: local `gh` is authed as the owner's personal account, not
+  `bedoux-tech`; then create + push, record T-002 evidence, close the P0 gate.
+- **Blockers:** none.
 
 ### 2026-07-17 — P0 bootstrap — Claude Code (operator: Tsogo)
 
