@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git show:*)",
+      "Bash(git ls-files:*)",
+      "Bash(git remote -v)",
+      "Bash(make docs-check:*)",
+      "Bash(make tools-check:*)",
+      "Bash(./scripts/check-tools.sh:*)",
+      "Bash(aws sts get-caller-identity:*)",
+      "Bash(aws ce get-cost-and-usage:*)",
+      "Bash(aws budgets describe-budgets:*)",
+      "Bash(aws resourcegroupstaggingapi get-resources:*)",
+      "Bash(aws eks list-clusters:*)",
+      "Bash(aws eks describe-cluster:*)",
+      "Bash(aws ec2 describe-instances:*)",
+      "Bash(aws ec2 describe-volumes:*)",
+      "Bash(aws ec2 describe-addresses:*)",
+      "Bash(aws ec2 describe-nat-gateways:*)",
+      "Bash(aws elbv2 describe-load-balancers:*)",
+      "Bash(aws elbv2 describe-target-groups:*)",
+      "Bash(aws rds describe-db-instances:*)",
+      "Bash(aws rds describe-db-snapshots:*)",
+      "Bash(aws cloudformation list-stacks:*)",
+      "Bash(aws ecr describe-repositories:*)",
+      "Bash(aws s3 ls:*)",
+      "Bash(kubectl get:*)",
+      "Bash(kubectl describe:*)",
+      "Bash(kubectl logs:*)",
+      "Bash(terraform validate:*)",
+      "Bash(terraform plan:*)",
+      "Bash(terraform show:*)",
+      "Bash(helm lint:*)",
+      "Bash(helm template:*)",
+      "Bash(helm list:*)"
+    ]
+  }
+}
