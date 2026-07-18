@@ -16,15 +16,19 @@ AWS EKS commerce learning project with a hard USD 20/month budget.
 2. Verify the last checkpoint before changing anything.
 
 ## Current state (as of 2026-07-18)
-- Phase 0 (bootstrap) complete: doc spine, git repo, ADRs 0001-0004, .claude config, slash
-  commands, diagrams + SVG exports; all T-001..T-006 evidence in docs/PROGRESS.md.
-- main is pushed to the PRIVATE repo bedoux-tech/bedoux-commerce-cloud (created from
-  bedoux-vm's gh; local pushes as collaborator tsogtbatjargal over SSH).
-- P0 gate approved by owner 2026-07-18 (gate commit in git log). Active phase: P1, next
-  task P1.1 (install/pin toolchain).
-- No AWS account activity yet. Region not pinned. aws CLI not installed; /aws-* commands
-  must refuse. make and xmllint are also missing on this host — installing the toolchain
-  is P1.1.
+- Phase 0 (bootstrap) complete and gate approved: doc spine, git repo, ADRs 0001-0004,
+  .claude config, slash commands, diagrams + SVG exports; all T-001..T-006 evidence in
+  docs/PROGRESS.md. main is pushed to the PRIVATE repo bedoux-tech/bedoux-commerce-cloud
+  (local pushes as collaborator tsogtbatjargal over SSH).
+- Phase 1 (local toolchain) complete: aws/kubectl/eksctl/kind/helm/terraform installed as
+  static binaries at host ~/.local/bin; make lives in the bedoux-aws toolbox with a
+  ~/.local/bin/make wrapper (must call /usr/bin/make by absolute path inside the toolbox
+  — a bare `make` recurses, see docs/local-tooling.md). `make tools-check` and
+  `make docs-check` both pass from a plain host shell. P1 gate pending owner approval.
+- No AWS account activity yet; aws CLI installed but never configured/contacted.
+  /aws-* commands must still refuse until credentials exist.
+- Known gap for P3: `kind create cluster` against rootless Podman needs a systemd
+  cgroup `Delegate=yes` drop-in — not yet fixed, must be step one of P3.1.
 
 ## Locked decisions (do not revisit without a new ADR in docs/decisions/)
 - ADR 0001: small stack — React/Vite/TS, FastAPI, PostgreSQL, image-storage adapter boundary.
@@ -37,5 +41,6 @@ AWS EKS commerce learning project with a hard USD 20/month budget.
 ## What I want next
 Continue the single task marked IN PROGRESS in docs/PROGRESS.md. Work one item at a time,
 record evidence before checking anything off, and never create AWS resources outside a
-session opened via docs/runbooks/aws-session.md.
+session opened via docs/runbooks/aws-session.md. If asked to approve the P1 gate, make that
+its own commit ("Phase 1 gate approved by owner; activate Phase 2") before starting P2 work.
 ```

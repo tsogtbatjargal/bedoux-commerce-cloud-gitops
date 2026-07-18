@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P1 — Local tooling |
-| Active task | P1.1 — install/pin toolchain until `make tools-check` is green (NOT STARTED) |
-| Last verified | 2026-07-18 — T-001..T-006 all pass; main pushed to origin |
-| AWS resources currently live | **NONE** (no AWS account activity yet) |
+| Active task | P1 gate — awaiting owner approval to activate P2 |
+| Last verified | 2026-07-18 — T-011 `make tools-check` all-green from a plain host shell |
+| AWS resources currently live | **NONE** (no AWS account activity yet; no AWS account contacted) |
 | Month-to-date estimated AWS spend | USD 0 |
-| Next operator action | start P1.1 in a new or current session |
+| Next operator action | approve the P1 gate, or review the P3 rootless-Podman gap noted below |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -52,8 +52,15 @@ Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
 ### P1 — Local tooling
 
-- [ ] P1.1 NOT STARTED — install/pin missing tools until `make tools-check` is green.
-- [ ] P1.2 NOT STARTED — record pinned versions in `docs/local-tooling.md`.
+- [x] P1.1 COMPLETE — aws/kubectl/eksctl/kind/helm/terraform installed as static binaries
+      to host `~/.local/bin` (Silverblue-clean, no rpm-ostree layering); `make` (+ podman
+      package for presence-check parity) installed via dnf in the pre-existing `bedoux-aws`
+      toolbox; `~/.local/bin/make` wrapper makes `make <target>` work transparently from a
+      host shell. Evidence: T-011 — `make tools-check` → "All project prerequisites are
+      available." from a plain host shell; `make docs-check` → "docs-check OK".
+- [x] P1.2 COMPLETE — pinned versions + install method recorded in
+      `docs/local-tooling.md`, including the make-wrapper recursion pitfall and a known
+      P3 gap (kind + rootless Podman needs cgroup `Delegate=yes`, not yet fixed).
 
 ### P2 — Local application slice
 
@@ -121,6 +128,34 @@ Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-18 — P1 local toolchain — Claude Code (operator: Tsogo)
+
+- **Phase/task:** P1.1 and P1.2 complete; P1 gate ready for owner approval.
+- **Changed:** installed aws-cli 2.36.2, kubectl v1.36.2, eksctl 0.229.0, kind v0.32.0,
+  helm v3.21.3, terraform v1.15.8 as static binaries to host `~/.local/bin`; installed
+  `make` (GNU Make 4.4.1) + `podman` package into the toolbox `bedoux-aws` via dnf;
+  added `~/.local/bin/make` wrapper (`toolbox run -c bedoux-aws /usr/bin/make "$@"`);
+  updated `docs/local-tooling.md` with full version/method table and a documented
+  rootless-Podman gap for `kind` (needs cgroup `Delegate=yes`) deferred to P3.1.
+- **AWS:** none. No AWS account contacted; `aws configure` was never run. Estimated
+  session cost: USD 0.
+- **Commands/tests (T-011):** `make tools-check` from a plain host shell →
+  "All project prerequisites are available."; `make docs-check` → "docs-check OK".
+- **Decisions:** chose host-`~/.local/bin` static binaries over toolbox-only install for
+  the AWS/K8s CLIs, so `kind` shares the host's real Podman instead of a nested one —
+  this is an environment detail, not an architecture decision, so no new ADR.
+- **Incident (self-caught, no lasting harm):** the first version of the `make` wrapper
+  called `toolbox run -c bedoux-aws make "$@"` (by name). Since the toolbox shares
+  `$HOME`, `make` inside the toolbox also resolved to this same wrapper, recursing until
+  the process/fork limit was hit (`fork: retry: Resource temporarily unavailable`).
+  Killed with `pkill -9 -f "toolbox run"`; process count returned to normal (~430) within
+  seconds; no kind/podman resources were ever created, nothing to tear down. Fixed by
+  calling `/usr/bin/make` (absolute path) inside the toolbox; re-verified clean.
+- **Next action:** owner approves the P1 gate; then P2.1 — FastAPI skeleton + health
+  endpoint + tests (Compose). Separately, P3.1 must start with the rootless-Podman
+  `Delegate=yes` fix before a real kind cluster can be created.
+- **Blockers:** none for P1. Noted (not blocking): kind + rootless Podman gap for P3.
 
 ### 2026-07-18 — P0.6 GitHub push + ADR 0004 — Claude Code (operator: Tsogo)
 

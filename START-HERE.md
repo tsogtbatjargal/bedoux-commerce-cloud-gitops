@@ -16,12 +16,13 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
 
 ## Current checkpoint
 
-- Project state: **Phase 0 complete and gate approved by owner (2026-07-18); `main` pushed
-  to private repo `bedoux-tech/bedoux-commerce-cloud` (ADR 0004).**
-- Active phase: **P1 — Local tooling.**
-- Next action: **P1.1 — install and pin the local toolchain until `make tools-check` is
-  green (`make`, `xmllint`, `aws`, `kubectl`, `eksctl`, `kind`, `helm`, `terraform` —
-  several missing on this Silverblue host; a toolbox/Homebrew approach is likely).**
+- Project state: **Phase 0 complete (gate approved 2026-07-18). Phase 1 (local toolchain)
+  complete — `make tools-check` is green from a plain host shell. P1 gate pending owner
+  approval.**
+- Active phase: **P1 — Local tooling (gate pending).**
+- Next action: **owner approves the P1 gate; then P2.1 — FastAPI skeleton + health
+  endpoint + tests. Separately: P3.1 must start by fixing the known rootless-Podman
+  `Delegate=yes` gap (see `docs/local-tooling.md`) before `kind create cluster` works.**
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 
