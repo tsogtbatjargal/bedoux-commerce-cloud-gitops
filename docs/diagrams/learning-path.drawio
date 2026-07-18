@@ -1,0 +1,76 @@
+<mxfile host="app.diagrams.net" modified="2026-07-18T00:00:00.000Z" agent="Claude Code" version="24.7.17" type="device">
+  <diagram id="bedoux-learning-path" name="Learning Path">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="Bedoux Commerce Cloud — Phases P0–P9 (gates require owner approval; see docs/IMPLEMENTATION-PLAN.md)" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;fontSize=22;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="250" y="30" width="1100" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="p0" value="P0 — Bootstrap&#xa;&#xa;doc spine, git, .claude,&#xa;diagrams&#xa;&#xa;$0" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="140" width="240" height="170" as="geometry"/>
+        </mxCell>
+        <mxCell id="p1" value="P1 — Local tooling&#xa;&#xa;pinned aws / kubectl / eksctl&#xa;kind / helm / terraform&#xa;make tools-check green&#xa;&#xa;$0" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="320" y="140" width="240" height="170" as="geometry"/>
+        </mxCell>
+        <mxCell id="p2" value="P2 — Local app on Compose&#xa;&#xa;FastAPI + PostgreSQL +&#xa;React catalog/cart&#xa;tests, non-root images&#xa;&#xa;$0" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="600" y="140" width="240" height="170" as="geometry"/>
+        </mxCell>
+        <mxCell id="p3" value="P3 — Local Kubernetes&#xa;&#xa;kind: manifests → Helm&#xa;probes, limits, Ingress&#xa;rollback drills&#xa;&#xa;$0" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="880" y="140" width="240" height="170" as="geometry"/>
+        </mxCell>
+        <mxCell id="p4" value="P4 — AWS account readiness&#xa;&#xa;root MFA, region pinned,&#xa;USD 20 budget + 5/10/16/20&#xa;alerts, anomaly detection&#xa;&#xa;~$0" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1160" y="140" width="240" height="170" as="geometry"/>
+        </mxCell>
+        <mxCell id="p5" value="P5 — Manual EKS session&#xa;&#xa;eksctl + ECR + ALB controller&#xa;app via ALB DNS name&#xa;same-day teardown&#xa;&#xa;$2–4 / session" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1160" y="420" width="240" height="170" as="geometry"/>
+        </mxCell>
+        <mxCell id="p6" value="P6 — Terraform + CI/CD&#xa;&#xa;Terraform recreates P5;&#xa;GitHub Actions OIDC deploy,&#xa;smoke test, rollback&#xa;&#xa;$2–4 / session" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="880" y="420" width="240" height="170" as="geometry"/>
+        </mxCell>
+        <mxCell id="p7" value="P7 — Managed data services&#xa;&#xa;short-lived Single-AZ RDS,&#xa;S3 images via adapter,&#xa;Secrets Manager&#xa;&#xa;$3–5 / session" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="600" y="420" width="240" height="170" as="geometry"/>
+        </mxCell>
+        <mxCell id="p8" value="P8 — Observability + drills&#xa;&#xa;JSON logs, CloudWatch&#xa;dashboards + alarms,&#xa;troubleshooting drills&#xa;&#xa;$2–4 / session" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="320" y="420" width="240" height="170" as="geometry"/>
+        </mxCell>
+        <mxCell id="p9" value="P9 — Interview package&#xa;&#xa;15-minute walkthrough,&#xa;final diagrams,&#xa;evidence reel&#xa;&#xa;$0" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="420" width="240" height="170" as="geometry"/>
+        </mxCell>
+        <mxCell id="e01" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="p0" target="p1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e12" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="p1" target="p2">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e23" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="p2" target="p3">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e34" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="p3" target="p4">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e45" value="AWS spending begins" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="p4" target="p5">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e56" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="p5" target="p6">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e67" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="p6" target="p7">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e78" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="p7" target="p8">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e89" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="p8" target="p9">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="track" value="Parallel track (non-gating): AWS Educate + free Builder Labs&#xa;IAM, VPC, EC2/EBS, S3, RDS, cost controls — logged in PROGRESS, never blocks a gate" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=20;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;align=center;" vertex="1" parent="1">
+          <mxGeometry x="40" y="660" width="640" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="rule" value="Rules: a milestone must work locally before it can spend AWS budget.&#xa;Every AWS session opens with docs/runbooks/aws-session.md and ends with a verified same-day teardown." style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=20;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=14;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="760" y="660" width="640" height="90" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

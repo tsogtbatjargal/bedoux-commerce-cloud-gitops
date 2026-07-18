@@ -1,0 +1,122 @@
+<mxfile host="app.diagrams.net" modified="2026-07-17T00:00:00.000Z" agent="Codex" version="24.7.17" type="device">
+  <diagram id="bedoux-system-context" name="System Context">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="Bedoux Commerce Cloud — System Context" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;fontSize=24;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="530" y="20" width="500" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="user" value="Customer&#xa;Web browser" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="300" width="150" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="aws" value="AWS account — short-lived learning environment" style="swimlane;html=1;horizontal=1;startSize=38;rounded=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=16;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="260" y="90" width="1040" height="600" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge" value="Route 53 + ACM&#xa;production profile only&#xa;(deferred — ADR 0002)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=13;dashed=1;opacity=60;" vertex="1" parent="aws">
+          <mxGeometry x="40" y="100" width="190" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="alb" value="Application Load Balancer&#xa;one shared public entry point&#xa;MVP: reached by ALB DNS name, HTTP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=13;fontStyle=1;" vertex="1" parent="aws">
+          <mxGeometry x="40" y="240" width="190" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="eks" value="Amazon EKS" style="swimlane;html=1;horizontal=1;startSize=35;rounded=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=15;fontStyle=1;" vertex="1" parent="aws">
+          <mxGeometry x="300" y="80" width="400" height="400" as="geometry"/>
+        </mxCell>
+        <mxCell id="controller" value="AWS Load Balancer Controller&#xa;Ingress reconciliation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="eks">
+          <mxGeometry x="80" y="55" width="240" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="frontend" value="Frontend&#xa;React + Nginx&#xa;Deployment / Service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13;fontStyle=1;" vertex="1" parent="eks">
+          <mxGeometry x="35" y="175" width="145" height="95" as="geometry"/>
+        </mxCell>
+        <mxCell id="api" value="Products and Orders API&#xa;FastAPI&#xa;Deployment / Service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=13;fontStyle=1;" vertex="1" parent="eks">
+          <mxGeometry x="220" y="175" width="150" height="95" as="geometry"/>
+        </mxCell>
+        <mxCell id="ingress" value="Ingress&#xa;/ → frontend&#xa;/api → API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="eks">
+          <mxGeometry x="35" y="305" width="145" height="75" as="geometry"/>
+        </mxCell>
+        <mxCell id="pg" value="PostgreSQL (in-cluster)&#xa;MVP database until P7" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="eks">
+          <mxGeometry x="220" y="300" width="150" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="rds" value="RDS PostgreSQL&#xa;deferred to P7 sessions&#xa;(ADR 0002)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13;dashed=1;opacity=60;" vertex="1" parent="aws">
+          <mxGeometry x="780" y="100" width="190" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="s3" value="Amazon S3 product images&#xa;deferred to P7 (ADR 0002)&#xa;MVP: static files in frontend" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;dashed=1;opacity=60;" vertex="1" parent="aws">
+          <mxGeometry x="780" y="250" width="190" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="cw" value="CloudWatch&#xa;logs, metrics, alarms" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=13;" vertex="1" parent="aws">
+          <mxGeometry x="780" y="390" width="190" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="github" value="GitHub Actions&#xa;tests, build, scan, deploy" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1360" y="200" width="190" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="ecr" value="Amazon ECR&#xa;immutable images" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="1360" y="370" width="190" height="75" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-user-alb" value="HTTP (ALB DNS, MVP)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;exitX=1;exitY=0.75;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="user" target="alb">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-user-edge" value="HTTPS (prod)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;endArrow=block;endFill=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="user" target="edge">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-edge-alb" value="DNS / TLS" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;endArrow=block;endFill=1;" edge="1" parent="aws" source="edge" target="alb">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-alb-ingress" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="aws" source="alb" target="ingress">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-controller-alb" value="reconciles" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;endArrow=block;endFill=1;" edge="1" parent="aws" source="controller" target="alb">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-ingress-front" value="/" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;exitX=0.25;exitY=0;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="eks" source="ingress" target="frontend">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-ingress-api" value="/api" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;exitX=0.75;exitY=0;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="eks" source="ingress" target="api">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="180" y="290"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e-api-pg" value="SQL (MVP)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;exitX=0.75;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="eks" source="api" target="pg">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-api-rds" value="SQL + TLS (P7)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;endArrow=block;endFill=1;exitX=1;exitY=0.25;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="aws" source="api" target="rds">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="740" y="145"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e-api-s3" value="Pod Identity (P7)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;endArrow=block;endFill=1;exitX=1;exitY=0.75;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="aws" source="api" target="s3">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-eks-cw" value="telemetry" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;endArrow=block;endFill=1;" edge="1" parent="aws" source="eks" target="cw">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-github-ecr" value="push SHA-tagged images" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" edge="1" parent="1" source="github" target="ecr">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-github-eks" value="OIDC + Helm" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;exitX=0;exitY=0.25;exitDx=0;exitDy=0;entryX=1;entryY=0.1;entryDx=0;entryDy=0;" edge="1" parent="1" source="github" target="eks">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1330" y="140"/>
+              <mxPoint x="1000" y="140"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e-ecr-eks" value="image pull" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;endArrow=block;endFill=1;exitX=0;exitY=0.75;exitDx=0;exitDy=0;entryX=1;entryY=0.9;entryDx=0;entryDy=0;" edge="1" parent="1" source="ecr" target="eks">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1330" y="620"/>
+              <mxPoint x="1000" y="620"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="note" value="Solid = learning MVP (one Spot node, one replica, in-cluster PostgreSQL, HTTP via ALB DNS, same-day teardown).&#xa;Dashed = deferred per ADR 0002: RDS / S3 / Secrets Manager return in P7 sessions; Route 53 + ACM stay documented in the production profile&#xa;(private multi-AZ nodes, multiple replicas, Multi-AZ RDS, autoscaling, WAF)." style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=20;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="330" y="730" width="900" height="110" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
+
