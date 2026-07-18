@@ -10,7 +10,8 @@ and flip the old one's status to `Superseded by NNNN`.
 |---|---|---|---|
 | [0001](0001-application-stack.md) | Keep the application stack small | Accepted | 2026-07-17 |
 | [0002](0002-mvp-aws-service-deferrals.md) | Defer Route 53/ACM, RDS, S3 images, and Secrets Manager from the MVP | Accepted | 2026-07-17 |
-| [0003](0003-repo-hosting-and-branch-discipline.md) | Public bedoux-tech repo; direct-to-main until CI/CD | Accepted | 2026-07-17 |
+| [0003](0003-repo-hosting-and-branch-discipline.md) | Public bedoux-tech repo; direct-to-main until CI/CD | Superseded by 0004 | 2026-07-17 |
+| [0004](0004-start-private-flip-public-later.md) | Host at bedoux-tech, start private, flip public before P9 | Accepted | 2026-07-18 |
 
 ## Template
 

@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P0 — Bootstrap |
-| Active task | P0.6 — GitHub repo creation + push |
-| Last verified | 2026-07-18 — docs-check OK; T-003 sweep clean; T-005 cold-start test passed |
+| Active task | P0 gate — awaiting owner approval to activate P1 |
+| Last verified | 2026-07-18 — T-001..T-006 all pass; main pushed to origin |
 | AWS resources currently live | **NONE** (no AWS account activity yet) |
 | Month-to-date estimated AWS spend | USD 0 |
-| Next operator action | review bootstrap, confirm GitHub repo visibility (public) before push |
+| Next operator action | approve the P0 gate (gate commit activates P1) |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -22,7 +22,9 @@ Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
 - AWS region: **not pinned yet** (pinned in P4.3; recorded here when chosen).
 - AWS account: none configured on this workstation yet; `/aws-*` commands must refuse.
-- GitHub org: `bedoux-tech` (repo created in P0.6).
+- GitHub: `bedoux-tech/bedoux-commerce-cloud`, **private** until a pre-P9 history sweep
+  (ADR 0004); `tsogtbatjargal` pushes over SSH from the workstation; the `bedoux-tech` gh
+  auth lives on bedoux-vm (openclaw user).
 - Standard tags for every AWS resource: `project=bedoux-commerce-cloud`, `environment=learning`.
 
 ## Phase checklist
@@ -41,8 +43,10 @@ Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 - [x] P0.5 COMPLETE — diagrams revised (system-context deferral styling, learning-path
       → P0–P9) and exported to SVG via podman `rlespinasse/drawio-export`. Evidence:
       `make docs-check` OK 2026-07-18; visual self-check of PNG previews passed.
-- [ ] P0.6 NOT STARTED — GitHub repo `bedoux-tech/bedoux-commerce-cloud` created and pushed.
-      Evidence: T-002.
+- [x] P0.6 COMPLETE — GitHub repo `bedoux-tech/bedoux-commerce-cloud` created **private**
+      (ADR 0004) from bedoux-vm's gh, `tsogtbatjargal` added as push collaborator, `main`
+      pushed from the workstation. Evidence: T-002 — `git remote -v` shows origin;
+      push output `* [new branch] main -> main`; session log 2026-07-18.
 
 ### P1 — Local tooling
 
@@ -115,6 +119,22 @@ Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-18 — P0.6 GitHub push + ADR 0004 — Claude Code (operator: Tsogo)
+
+- **Phase/task:** P0.6 complete; P0 gate ready for owner approval.
+- **Changed:** ADR 0004 (start private, flip public before P9 after a full-history secrets
+  sweep) supersedes 0003; repo `bedoux-tech/bedoux-commerce-cloud` created private via
+  bedoux-vm's openclaw gh; collaborator invite to `tsogtbatjargal` accepted via API;
+  `origin` added; `main` pushed.
+- **AWS:** none. Estimated session cost: USD 0.
+- **Commands/tests:** `gh repo create --private` (on bedoux-vm), `gh api PUT .../collaborators`,
+  local `gh api PATCH user/repository_invitations/<id>`, `git push -u origin main` →
+  `* [new branch] main -> main` (T-002).
+- **Decisions:** ADR 0004 accepted by owner ("lets start with private").
+- **Next action:** owner approves the P0 gate; gate commit activates P1 (P1.1 install/pin
+  toolchain — note `make`, `xmllint`, `aws` missing on this host).
+- **Blockers:** none.
 
 ### 2026-07-18 — P0 verification + commits — Claude Code (operator: Tsogo)
 

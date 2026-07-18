@@ -1,6 +1,6 @@
 # ADR 0003: Public bedoux-tech repo; direct-to-main until CI/CD
 
-- Status: Accepted
+- Status: Superseded by 0004
 - Date: 2026-07-17
 
 ## Context
