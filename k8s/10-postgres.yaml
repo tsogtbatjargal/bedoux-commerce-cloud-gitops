@@ -10,6 +10,10 @@ stringData:
   POSTGRES_USER: bedoux
   POSTGRES_PASSWORD: bedoux
   POSTGRES_DB: bedoux
+  # Consumed by the api Deployment. Kept in this Secret (not a ConfigMap) because it
+  # embeds the password above — a ConfigMap is plaintext-readable by anyone with
+  # namespace read access, a Secret at least gets base64 + RBAC-gated access.
+  DATABASE_URL: postgresql+psycopg://bedoux:bedoux@postgres:5432/bedoux
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -55,6 +59,29 @@ spec:
             # mount root (e.g. lost+found).
             - name: PGDATA
               value: /var/lib/postgresql/data/pgdata
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          # No probes during initdb's restart cycle (P3.1 hit exactly this: a pod
+          # reporting Ready before postgres had finished its first-run restart).
+          # initialDelaySeconds + periodSeconds give it room without masking real
+          # failures forever.
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "bedoux"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "bedoux"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 3
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data

@@ -24,12 +24,15 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   confirmed in Postgres — see `docs/local-tooling.md` and `docs/PROGRESS.md`'s
   2026-07-19 session log entries. **P3.1 complete**: kind cluster `bedoux` is up with
   plain manifests (`k8s/`) for postgres/api/web, verified via `curl` and a real browser
-  through the NodePort — cluster is left running for the rest of P3.
+  through the NodePort. **P3.2 complete**: readiness/liveness probes, resource
+  requests/limits, and a Secret-vs-ConfigMap split by whether config embeds a
+  credential; the exact race hit in P3.1 is now architecturally prevented by an
+  init container on the api Deployment, proven with a real drill (scaled postgres to 0,
+  restarted api, watched it correctly block instead of racing, then recover cleanly).
+  Cluster is left running for the rest of P3.
 - Active phase: **P3 — Local Kubernetes (kind).**
-- Next action: **P3.2 — readiness/liveness probes, resource requests/limits, move the
-  DB URL into a ConfigMap.** (A real gap surfaced in P3.1 that P3.2 exists to close: no
-  readiness probe yet means `kubectl` reports a pod `Ready` before Postgres has actually
-  finished its first-run init cycle.)
+- Next action: **P3.3 — Ingress routing** (`/` and `/api` through one entrypoint,
+  replacing the P3.1 NodePort stopgap).
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

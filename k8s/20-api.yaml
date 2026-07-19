@@ -13,6 +13,17 @@ spec:
       labels:
         app: api
     spec:
+      # Fixes the exact race hit in P3.1: without this, the api container starts
+      # immediately regardless of whether postgres has finished its first-run initdb
+      # restart cycle. This blocks pod startup on a real TCP-level readiness check
+      # instead of relying on an operator to `kubectl wait` at the right moment.
+      initContainers:
+        - name: wait-for-postgres
+          image: docker.io/library/postgres:16-alpine
+          command:
+            - sh
+            - -c
+            - until pg_isready -h postgres -p 5432 -U bedoux; do sleep 1; done
       containers:
         - name: api
           image: localhost/bedoux-api:p3
@@ -21,7 +32,35 @@ spec:
             - containerPort: 8000
           env:
             - name: BEDOUX_DATABASE_URL
-              value: postgresql+psycopg://bedoux:bedoux@postgres:5432/bedoux
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: DATABASE_URL
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          # /health deliberately never touches the database (see app/main.py) — a
+          # liveness probe that depends on a downstream service risks restart storms
+          # when that dependency has its own outage. DB reachability is instead
+          # guaranteed at startup by the init container above.
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
 ---
 apiVersion: v1
 kind: Service

@@ -1,3 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: web-config
+  namespace: bedoux
+data:
+  # No secret here — just the in-cluster DNS name of the api Service. Contrast with
+  # postgres-credentials above, which holds the same shape of "connection info" but
+  # embeds a password and is a Secret instead.
+  API_UPSTREAM: api:8000
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -19,9 +30,30 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
-          env:
-            - name: API_UPSTREAM
-              value: api:8000
+          envFrom:
+            - configMapRef:
+                name: web-config
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
 ---
 apiVersion: v1
 kind: Service

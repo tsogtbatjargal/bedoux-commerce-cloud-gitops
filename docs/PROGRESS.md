@@ -10,8 +10,8 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P3 — Local Kubernetes (kind) |
-| Active task | P3.2 — probes, limits, config |
-| Last verified | 2026-07-19 — kind cluster `bedoux` up with all 3 workloads Running; catalog + order round-trip verified via `curl` and a real Chrome browser, order confirmed present in the in-cluster Postgres |
+| Active task | P3.3 — Ingress routing |
+| Last verified | 2026-07-19 — postgres-outage drill: scaled postgres to 0, restarted api, new pod correctly blocked at `Init:0/1` for the whole outage instead of racing; recovered cleanly the instant postgres came back, full catalog verified afterward |
 | AWS resources currently live | **NONE** (no AWS account activity yet; no AWS account contacted) |
 | Month-to-date estimated AWS spend | USD 0 |
 | Next operator action | none — agent continuing P3 |
@@ -211,7 +211,26 @@ API base image, no upstream fix available — see "Known open issues" above.
       Cluster, pods, and data are left running (not torn down) — this is the ongoing
       local dev cluster for P3.2–P3.5, unlike the throwaway Compose verification
       containers in earlier phases.
-- [ ] P3.2 NOT STARTED — probes, limits, config.
+- [x] P3.2 COMPLETE — readiness/liveness probes (postgres: `pg_isready` exec; api/web:
+      `httpGet /health` and `/`), resource requests/limits on all three (postgres
+      100m/128Mi→500m/256Mi; api 50m/64Mi→250m/256Mi; web 25m/32Mi→100m/64Mi), config
+      split into a Secret vs. ConfigMap by whether it embeds a credential
+      (`postgres-credentials` Secret gained a `DATABASE_URL` key the api Deployment
+      reads via `secretKeyRef`; `web-config` ConfigMap holds the non-secret
+      `API_UPSTREAM`), and an `initContainers` entry on the api Deployment
+      (`wait-for-postgres`, blocks on `pg_isready` before the main container starts).
+      Evidence: `kubectl apply` rolled out clean, all 3 pods `Running`/`1/1`, data
+      (6 products, the P3.1 order) intact across the rollout since only Deployments
+      changed, not the PVC; catalog re-verified reachable via `curl` through the same
+      hostPort chain as P3.1.
+      **Real drill, not just config review:** scaled `postgres` to 0 replicas, then
+      `kubectl rollout restart deployment/api` — the new pod sat at `Init:0/1` for the
+      entire outage instead of racing ahead and crash-looping against a database that
+      wasn't there (exactly what happened, uncaught, in P3.1). Scaled `postgres` back to
+      1; the instant it was ready, the blocked `api` pod's init container completed and
+      the main container started and became `1/1 Ready` — `kubectl wait
+      --for=condition=ready` confirmed both transitions. Full stack re-verified healthy
+      afterward (catalog `curl` 200, product count still 6).
 - [ ] P3.3 NOT STARTED — Ingress routing.
 - [ ] P3.4 NOT STARTED — Helm chart.
 - [ ] P3.5 NOT STARTED — drills (scale, delete, break, rollback).
@@ -266,6 +285,35 @@ API base image, no upstream fix available — see "Known open issues" above.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-19 — P3.2 probes, limits, config — Claude Code (operator: Tsogo)
+
+- **Phase/task:** P3.2 complete (see phase-checklist entry above for full evidence).
+- **Changed:** `k8s/10-postgres.yaml` (`DATABASE_URL` added to the existing Secret,
+  `pg_isready` readiness+liveness probes, resource requests/limits), `k8s/20-api.yaml`
+  (`wait-for-postgres` init container, `BEDOUX_DATABASE_URL` now via `secretKeyRef`
+  instead of a plaintext duplicate, `/health` readiness+liveness probes, resource
+  requests/limits), `k8s/30-web.yaml` (new `web-config` ConfigMap for the non-secret
+  `API_UPSTREAM`, `/` readiness+liveness probes, resource requests/limits).
+- **AWS:** none. Estimated session cost: USD 0.
+- **Decision (in-flight correction of the original plan):** the plan said "move DB URL
+  into a ConfigMap" — corrected to a Secret instead, since `BEDOUX_DATABASE_URL` embeds
+  the Postgres password. ConfigMaps are plaintext-readable by anyone with namespace read
+  access; ended up with a clean rule instead: credential-bearing config → Secret,
+  everything else → ConfigMap. `API_UPSTREAM` (no credential) is the ConfigMap example.
+- **Verification:** `kubectl apply` rolled out clean; confirmed via `kubectl describe
+  pod` that all probes/limits/env sources are live as specified. Data survived the
+  rollout (PVC untouched). Then ran a real failure drill instead of trusting the YAML:
+  scaled `postgres` to 0 replicas and restarted `api` — the new pod sat at `Init:0/1`
+  for the whole outage (proof the P3.1 race — a pod starting before postgres finished
+  its first-run init — is now architecturally prevented, not just probed around).
+  Scaled `postgres` back to 1; the blocked `api` pod's init container completed and the
+  pod became `1/1 Ready` the moment postgres was reachable, confirmed with `kubectl
+  wait --for=condition=ready`. Re-verified the full catalog through the same hostPort
+  chain as P3.1 afterward — 200, 6 products, unaffected by the drill.
+- **Next action:** P3.3 — Ingress routing (`/` and `/api` through one entrypoint,
+  replacing the P3.1 NodePort stopgap).
+- **Blockers:** none.
 
 ### 2026-07-19 — P3.1 kind cluster + plain manifests — Claude Code (operator: Tsogo)
 
