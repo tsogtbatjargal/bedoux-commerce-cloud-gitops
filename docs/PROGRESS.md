@@ -11,7 +11,7 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P2 — Local application slice on Compose |
 | Active task | P2 gate — awaiting owner approval to activate P3 |
-| Last verified | 2026-07-18 — full three-container stack (postgres+api+web) verified on an isolated podman network; both images scanned 0 HIGH/CRITICAL app-level vulns |
+| Last verified | 2026-07-19 — full golden path (catalog → detail → cart → checkout → confirmation) driven in a real Chrome browser via Playwright MCP over CDP; order confirmed present in Postgres |
 | AWS resources currently live | **NONE** (no AWS account activity yet; no AWS account contacted) |
 | Month-to-date estimated AWS spend | USD 0 |
 | Next operator action | none — agent continuing P2 |
@@ -271,9 +271,47 @@ Append newest entries immediately below this heading. Never include secrets or A
 - **Next action:** owner approves the P2 gate; then P3.1 — kind cluster + plain manifests
   (must start by fixing the rootless-Podman `Delegate=yes` gap noted in
   `docs/local-tooling.md`).
-- **Blockers:** none. Carry-forward items for later phases: no real-browser visual check
-  yet (P2.4 gap, flagged to owner); 22 unfixed OS-level CVEs on the API base image
-  (re-scan later); kind/rootless-Podman fix (P3.1).
+- **Blockers:** none. Carry-forward items for later phases: 22 unfixed OS-level CVEs on
+  the API base image (re-scan later, no upstream fix exists yet). kind/rootless-Podman
+  fix and the real-browser visual check were both closed out on 2026-07-19 — see entries
+  below.
+
+### 2026-07-19 — Browser verification (Playwright MCP + real Chrome) — Claude Code (operator: Tsogo)
+
+- **Phase/task:** closes the P2.4 real-browser gap flagged 2026-07-18 (no
+  browser-automation tool was available at that time).
+- **Changed:** none in-repo except this record and the `local-tooling.md` kind fix
+  below — this was verification, not implementation.
+- **Setup:** registered Playwright MCP (`claude mcp add playwright`) scoped locally to
+  this project, configured to attach via `--cdp-endpoint` to a real, separately-launched
+  **Google Chrome** (Flatpak `com.google.Chrome`, not a bundled Chromium) running with
+  `--remote-debugging-port=9222` and a throwaway `--user-data-dir=/tmp/chrome-mcp-profile`
+  (never the owner's real Chrome profile). This guarantees only actual Chrome is driven,
+  per the owner's explicit requirement.
+- **Verification:** built `bedoux-api:verify` and `bedoux-web:verify` fresh from the
+  current Dockerfiles; ran postgres+api+web as three podman containers on an isolated
+  network (no compose CLI available on this host, same workaround as P2.5); ran
+  migrations + seed inside the deployed API container; confirmed `/health` and the
+  nginx `/api` proxy both green. Then drove the **actual rendered page** in Chrome via
+  Playwright MCP: loaded the catalog (all 6 seeded products visible with correct
+  prices/categories/search box), opened the Bedoux Canvas Tote detail page, clicked
+  "Add to cart" (cart badge updated 0→1 live, confirmation toast appeared), opened
+  `/cart` (correct item/qty/total), clicked "Submit order", landed on the real order
+  confirmation page (`status: submitted`, correct line item and total). Cross-checked
+  directly in Postgres: `select * from orders` showed the same order id with
+  `total_cents: 2200`, matching the $22.00 shown on screen — proving the order is a real
+  server-side row, not just client state.
+- **Cleanup:** all three verify containers, the temporary network, and both `:verify`
+  images removed; confirmed via `podman ps -a` clean.
+- **Decisions:** none new.
+- **Gap closed:** T-101 (browser happy path) can now be treated as fully verified —
+  no longer just DOM-test/curl coverage.
+- **Next action:** owner approves the P2 gate; then P3.1.
+- **Blockers:** none. Note for future sessions: the debug Chrome instance is a
+  background process tied to the shell that launched it — if the agent session or host
+  restarts, relaunch with
+  `flatpak run com.google.Chrome --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-mcp-profile`
+  before Playwright MCP tools will work again.
 
 ### 2026-07-18 — P2.4 React frontend — Claude Code (operator: Tsogo)
 

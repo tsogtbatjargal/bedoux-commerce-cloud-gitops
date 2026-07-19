@@ -118,6 +118,33 @@ Verified end-to-end 2026-07-19: cluster created, `kubectl get nodes` showed a re
 `kind delete cluster` removed it cleanly, `kind get clusters` confirmed none left. P3.1 can
 create its real cluster directly; no gap remains.
 
+## Real-browser verification via Playwright MCP (added 2026-07-19)
+
+This host has no other browser-automation tool, and the owner requires that any
+browser driven here be **actual Google Chrome** (installed as Flatpak `com.google.Chrome`
+— there is no native `google-chrome` binary on this Fedora Silverblue host, so
+Playwright's `--browser chrome` channel auto-detect won't find it). The working setup
+instead attaches Playwright MCP to a real Chrome via CDP:
+
+```bash
+# 1. Launch real Chrome with a debug port, throwaway profile (never the owner's real one)
+flatpak run com.google.Chrome --remote-debugging-port=9222 \
+  --user-data-dir=/tmp/chrome-mcp-profile --no-first-run about:blank &
+disown
+
+# 2. Confirm the CDP endpoint is up
+curl -s http://127.0.0.1:9222/json/version
+
+# 3. Playwright MCP is registered (once) to attach, not launch its own browser:
+claude mcp add playwright -s local -- npx -y @playwright/mcp@latest --cdp-endpoint http://127.0.0.1:9222
+```
+
+**Known gotcha:** the Chrome process from step 1 is a plain background job. It does not
+survive an agent-session restart or host reboot — relaunch it first, or the
+`mcp__playwright__*` tools will fail to connect. Newly-added/changed MCP servers also
+don't appear in an already-running agent session's tool list — the session itself needs
+restarting once after `claude mcp add`/`remove`.
+
 ## Scanning container images (added P2.5)
 
 No podman socket is active by default on this host, so `trivy image <name>` (which looks for
