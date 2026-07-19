@@ -103,9 +103,12 @@ phase below.
    the desired behavior, not something to suppress. Once schemas evolve, require
    backward-compatible / expand-contract migrations (a migration must work with both
    the old and new app version mid-rollout). Seeding must be a separate, explicitly
-   enabled learning-profile Job — never part of every upgrade. **Write an ADR for this
-   before starting P3.4**, including the rollback-hook fact above as a stated finding,
-   not an assumption.
+   enabled learning-profile Job — never part of every upgrade. **ADR written and
+   accepted 2026-07-19: [0005](decisions/0005-helm-migration-hook-job.md)** — the
+   rollback-hook fact above was verified live with a scratch chart (`helm install` →
+   `upgrade` → `rollback`, confirmed via `kubectl get jobs`/`events` that rollback
+   fired no hook), not left as an assumption. The chart itself is still P3.4's
+   remaining work.
 
 2. **P6/P7 boundary — S3 image adapter shape.** Record near the end of P6 or when P7
    opens, before implementing: the API decides `image_url` based on mode — local mode

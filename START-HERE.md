@@ -31,11 +31,14 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   restarted api, watched it correctly block instead of racing, then recover cleanly).
   **P3.3 complete**: ingress-nginx (`controller-v1.15.1`) routes `/` to web and `/api`
   (prefix-stripped) directly to api — the same shape P5's ALB Ingress will use, not a
-  kind-only workaround. Cluster is left running for the rest of P3.
+  kind-only workaround. **ADR 0005 written and accepted** (migration hook Job design
+  for P3.4; the central "rollback never re-fires pre-upgrade hooks" claim was verified
+  live with a scratch chart, not assumed). Cluster is left running for the rest of P3.
 - Active phase: **P3 — Local Kubernetes (kind).**
-- Next action: **P3.4 — convert to a Helm chart.** Read
-  `docs/IMPLEMENTATION-PLAN.md`'s "Pending owner-approved decisions" #1 and write the
-  required ADR for the migration-hook-Job design **before** starting the chart itself.
+- Next action: **P3.4 — build the Helm chart** from `k8s/`, following ADR 0005's
+  design (migration hook Job, seed as a separate opt-in Job, values for image
+  tags/replicas/resources), then `helm lint` clean and a real install/upgrade/rollback
+  cycle against the live cluster.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

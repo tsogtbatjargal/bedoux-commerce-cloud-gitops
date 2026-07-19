@@ -11,7 +11,7 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P3 — Local Kubernetes (kind) |
 | Active task | P3.4 — convert to Helm chart |
-| Last verified | 2026-07-19 — ingress-nginx routing verified: catalog, nested product lookup, and a real order round-trip all through the Ingress port, cross-checked in Postgres, and re-driven in a real Chrome browser |
+| Last verified | 2026-07-19 — ADR 0005's central claim (helm rollback never re-fires pre-upgrade hooks) confirmed live with a scratch chart, not just documented from memory |
 | AWS resources currently live | **NONE** (no AWS account activity yet; no AWS account contacted) |
 | Month-to-date estimated AWS spend | USD 0 |
 | Next operator action | none — agent continuing P3 |
@@ -38,8 +38,10 @@ section (also flagged inline at each phase there). One-line index so a phase-sta
 check can't miss them:
 
 - **P3.4**: migrations via a Helm `pre-install,pre-upgrade` hook Job; seed is a separate
-  opt-in Job; write an ADR first (includes the confirmed fact that `helm rollback`
-  never re-fires `pre-upgrade` hooks, so no downgrade-suppression logic is needed).
+  opt-in Job. **ADR written and accepted 2026-07-19**:
+  [0005](decisions/0005-helm-migration-hook-job.md) — the `helm rollback` /
+  `pre-upgrade` hook claim was verified live with a scratch chart, not just documented
+  from memory. The chart itself (P3.4) still needs to be built against this design.
 - **P6/P7 boundary**: S3 image adapter — API returns `image_url`, presigned URL via IRSA
   in S3 mode, frontend storage-agnostic.
 - **P5**: accept Spot-node interruption risk (document, don't engineer around it);
@@ -330,6 +332,34 @@ API base image, no upstream fix available — see "Known open issues" above.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-19 — ADR 0005: Helm migration hook Job — Claude Code (operator: Tsogo)
+
+- **Phase/task:** required prerequisite for P3.4 (per the pending owner-approved
+  decision recorded earlier this session) — the ADR only, not the Helm chart itself,
+  which is still NOT STARTED.
+- **Changed:** `docs/decisions/0005-helm-migration-hook-job.md` (new), `docs/decisions/
+  README.md` (index entry).
+- **AWS:** none. Estimated session cost: USD 0.
+- **Decision:** migrations run as a `pre-install,pre-upgrade` Helm hook Job
+  (`alembic upgrade head` only, `backoffLimit`+`activeDeadlineSeconds` set, kept around
+  after success via `hook-delete-policy: before-hook-creation`); no automatic
+  `alembic downgrade` on rollback; seed becomes a separate opt-in Job, off by default.
+  Full detail and consequences in the ADR.
+- **Verification (not just documentation):** built a scratch Helm chart in `/tmp` with
+  a `pre-install,pre-upgrade`-hooked Job, ran `helm install` (hook fired, `hook-job-1`),
+  `helm upgrade` (hook fired again, `hook-job-2`), then `helm rollback` to revision 1 —
+  confirmed via `kubectl get jobs` and `kubectl get events` that **no new hook Job ran
+  and no hook-related event appeared** during the rollback; only the Deployment's pods
+  reverted. This directly confirms the ADR's central claim instead of assuming it from
+  memory of Helm's docs. Scratch chart, namespace, and release fully torn down
+  afterward; confirmed the real `bedoux` namespace/app were unaffected throughout
+  (catalog still `curl`-reachable, 200, immediately after cleanup).
+- **Next action:** P3.4 — build the actual Helm chart from `k8s/` against this ADR's
+  design (migration hook Job, seed as an opt-in Job, values for image tags/replicas/
+  resources), then `helm lint` clean and a real `helm install`/`upgrade`/`rollback`
+  cycle against the live cluster.
+- **Blockers:** none.
 
 ### 2026-07-19 — P3.3 Ingress routing — Claude Code (operator: Tsogo)
 
