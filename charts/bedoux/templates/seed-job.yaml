@@ -1,0 +1,45 @@
+{{- if .Values.seed.enabled }}
+# Per ADR 0005: seeding is never part of the standard install/upgrade path — this
+# entire Job only renders when explicitly enabled (--set seed.enabled=true), for
+# bootstrapping a fresh learning-profile environment. app/seed.py is idempotent
+# (checks existing SKUs before inserting) but running it by default against a database
+# with real order data is still not something this chart should do silently.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: bedoux-seed-{{ .Release.Revision }}
+  labels:
+    {{- include "bedoux.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation
+    "helm.sh/hook-weight": "1"
+spec:
+  backoffLimit: {{ .Values.migration.backoffLimit }}
+  activeDeadlineSeconds: {{ .Values.migration.activeDeadlineSeconds }}
+  template:
+    metadata:
+      labels:
+        {{- include "bedoux.labels" . | nindent 8 }}
+        app: bedoux-seed
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: wait-for-postgres
+          image: "{{ .Values.postgres.image.repository }}:{{ .Values.postgres.image.tag }}"
+          command:
+            - sh
+            - -c
+            - until pg_isready -h postgres -p 5432 -U {{ .Values.postgres.user }}; do sleep 1; done
+      containers:
+        - name: seed
+          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
+          imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+          command: ["python", "-m", "app.seed"]
+          env:
+            - name: BEDOUX_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: DATABASE_URL
+{{- end }}

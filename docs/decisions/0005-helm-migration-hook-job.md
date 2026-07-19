@@ -1,7 +1,7 @@
-# ADR 0005: Database migrations run as a Helm pre-install/pre-upgrade hook Job
+# ADR 0005: Database migrations run as a Helm post-install/pre-upgrade hook Job
 
 - Status: Accepted
-- Date: 2026-07-19
+- Date: 2026-07-19 (hook trigger corrected same-day during P3.4 — see note below)
 
 ## Context
 
@@ -19,10 +19,28 @@ and a botched automatic downgrade could destroy data.
 
 ## Decision
 
-Migrations run as a Kubernetes `Job` installed via Helm's `pre-install,pre-upgrade` hook
-annotations (`helm.sh/hook: pre-install,pre-upgrade`), not as a manual or CI-only step.
-This keeps the chart independently deployable — `helm install`/`helm upgrade` alone
-produces a working release.
+Migrations run as a Kubernetes `Job` installed via Helm's `post-install,pre-upgrade`
+hook annotations (`helm.sh/hook: post-install,pre-upgrade`), not as a manual or CI-only
+step. This keeps the chart independently deployable — `helm install`/`helm upgrade`
+alone produces a working release.
+
+> **Correction, same day, during P3.4 chart-building:** this ADR originally specified
+> `pre-install,pre-upgrade`. Building the actual chart caught a real bug in that choice
+> before it ever ran against a live release: a `pre-install` hook fires **before** any
+> of the chart's own non-hook resources exist — verified live with a second scratch
+> chart (a Secret templated as a normal resource, a `pre-install`-hooked Job reading it
+> via `secretKeyRef`; `helm install` failed with `DeadlineExceeded`, no pod ever
+> scheduled, because the Secret didn't exist yet when the hook tried to run). This
+> chart's migration Job depends on exactly that kind of Secret
+> (`postgres-credentials`), so it would have failed the same way on every fresh
+> install. Switching to `post-install` (confirmed via the same scratch-chart method:
+> fires after install-time resources exist, still fires before an existing release's
+> resources are upgraded via `pre-upgrade`, and still never fires on rollback) fixes it
+> without changing any of the decision's actual intent — fail-fast, no auto-downgrade,
+> opt-in seed all stand as originally decided. Corrected in place rather than
+> superseded, since this is a same-day factual fix to an implementation detail caught
+> before any chart depended on the wrong version, not a reconsidered tradeoff (same
+> discipline as the P2.3 Numeric→Integer migration fix in `docs/PROGRESS.md`).
 
 The Job:
 
@@ -39,17 +57,25 @@ The Job:
 **No automatic `alembic downgrade` runs on `helm rollback`, and none is added.** This
 isn't a safety feature bolted on top — it's already the default behavior. Verified
 directly (not assumed) against Helm's hook model: `helm rollback` only fires
-`pre-rollback`/`post-rollback` hooks. A Job hooked to `pre-install,pre-upgrade` simply
+`pre-rollback`/`post-rollback` hooks. A Job hooked to `post-install,pre-upgrade` simply
 never executes during a rollback, so there is no downgrade path to suppress. Rollback
 reverts the release's Kubernetes objects (Deployments, Services, config) to a prior
 revision; it does not and will not touch schema state.
 
-Confirmed live, not just from documentation: built a scratch chart with a
-`pre-install,pre-upgrade`-hooked Job, `helm install`'d it (hook ran, `hook-job-1`),
-`helm upgrade`'d it (hook ran again, `hook-job-2`), then `helm rollback`'d to revision 1
-— only the Deployment's pods reverted; no `hook-job-3` was created and `kubectl get
-events` showed no hook-related activity at all during the rollback. Torn down
-afterward, no leftover namespace or resources.
+Confirmed live, not just from documentation, in two rounds: first with a scratch chart
+using `pre-install,pre-upgrade` (`helm install` → hook ran as `hook-job-1`, `helm
+upgrade` → hook ran again as `hook-job-2`, `helm rollback` to revision 1 → no
+`hook-job-3` created, no hook-related events at all) — this proved the rollback claim
+but the trigger was later found to be wrong for a fresh install (see the correction
+note above). Re-run against a second scratch chart using the corrected
+`post-install,pre-upgrade`: fresh `helm install` succeeded (hook correctly saw its
+dependency Secret already created), `helm upgrade` fired the hook again exactly once,
+and `helm rollback` again produced zero new hook Jobs. Then confirmed a third time
+against this project's actual `charts/bedoux` chart and live kind cluster during P3.4
+(see `docs/PROGRESS.md`'s P3.4 evidence): real install, real upgrade, a deliberately
+broken upgrade that failed safely without touching the running app, recovery, and a
+real `helm rollback` with all data intact. All scratch resources torn down after each
+round, no leftover namespaces.
 
 Because rollback never runs a downgrade, every migration must be written to be
 **backward-compatible (expand/contract style)** once the schema has more than one

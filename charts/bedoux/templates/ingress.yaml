@@ -1,0 +1,43 @@
+# Two Ingress objects, not one — nginx.ingress.kubernetes.io/rewrite-target applies to
+# the whole Ingress resource, not per-path, and only /api needs its prefix stripped.
+# Mirrors the real production shape (docs/architecture.md: the ALB routes straight to
+# pod IPs per target group), not a kind-only workaround.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bedoux-api
+  labels:
+    {{- include "bedoux.labels" . | nindent 4 }}
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  rules:
+    - http:
+        paths:
+          - path: /api(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: api
+                port:
+                  number: 8000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bedoux-web
+  labels:
+    {{- include "bedoux.labels" . | nindent 4 }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web
+                port:
+                  number: 8080

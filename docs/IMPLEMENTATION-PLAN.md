@@ -93,22 +93,13 @@ starts rather than implemented early. Whichever agent/session opens that phase m
 implement these, not rediscover or re-litigate them. Each is flagged again inline at its
 phase below.
 
-1. **P3.4 (Helm chart) — migrations via a Helm hook Job, seed as a separate opt-in Job.**
-   Use a `pre-install,pre-upgrade` hook Job running `alembic upgrade head`; fail the
-   release on migration failure; set `backoffLimit` and `activeDeadlineSeconds`; keep
-   the completed Job around until the next release (don't use a `hook-succeeded` delete
-   policy) for inspection. Do **not** add any `alembic downgrade` step for rollback —
-   confirmed `helm rollback` only fires `pre-rollback`/`post-rollback` hooks, never
-   `pre-upgrade`, so a migration hook simply doesn't run on rollback; this is already
-   the desired behavior, not something to suppress. Once schemas evolve, require
-   backward-compatible / expand-contract migrations (a migration must work with both
-   the old and new app version mid-rollout). Seeding must be a separate, explicitly
-   enabled learning-profile Job — never part of every upgrade. **ADR written and
-   accepted 2026-07-19: [0005](decisions/0005-helm-migration-hook-job.md)** — the
-   rollback-hook fact above was verified live with a scratch chart (`helm install` →
-   `upgrade` → `rollback`, confirmed via `kubectl get jobs`/`events` that rollback
-   fired no hook), not left as an assumption. The chart itself is still P3.4's
-   remaining work.
+1. **P3.4 (Helm chart) — migrations via a Helm hook Job, seed as a separate opt-in
+   Job. DONE 2026-07-19** — implemented in `charts/bedoux/`, per
+   [ADR 0005](decisions/0005-helm-migration-hook-job.md) (`post-install,pre-upgrade`,
+   corrected same-day from an initial `pre-install` design that would have failed on
+   every fresh install — see the ADR's correction note). Full evidence — install,
+   upgrade, a deliberately failed upgrade that didn't touch the running app, and a real
+   rollback with data intact — in `docs/PROGRESS.md`'s P3.4 entry.
 
 2. **P6/P7 boundary — S3 image adapter shape.** Record near the end of P6 or when P7
    opens, before implementing: the API decides `image_url` based on mode — local mode

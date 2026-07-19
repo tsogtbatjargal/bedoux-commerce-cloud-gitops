@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  labels:
+    {{- include "bedoux.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.api.replicas }}
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      # Fixes the exact race hit in P3.1: without this, the api container starts
+      # immediately regardless of whether postgres has finished its first-run initdb
+      # restart cycle.
+      initContainers:
+        - name: wait-for-postgres
+          image: "{{ .Values.postgres.image.repository }}:{{ .Values.postgres.image.tag }}"
+          command:
+            - sh
+            - -c
+            - until pg_isready -h postgres -p 5432 -U {{ .Values.postgres.user }}; do sleep 1; done
+      containers:
+        - name: api
+          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
+          imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+          ports:
+            - containerPort: 8000
+          env:
+            - name: BEDOUX_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: DATABASE_URL
+          resources:
+            {{- toYaml .Values.api.resources | nindent 12 }}
+          # /health deliberately never touches the database (see apps/api/app/main.py)
+          # — DB reachability is guaranteed at startup by the init container above.
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  labels:
+    {{- include "bedoux.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: api
+  ports:
+    - port: 8000
+      targetPort: 8000

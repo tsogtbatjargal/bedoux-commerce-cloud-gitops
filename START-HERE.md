@@ -31,14 +31,19 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   restarted api, watched it correctly block instead of racing, then recover cleanly).
   **P3.3 complete**: ingress-nginx (`controller-v1.15.1`) routes `/` to web and `/api`
   (prefix-stripped) directly to api — the same shape P5's ALB Ingress will use, not a
-  kind-only workaround. **ADR 0005 written and accepted** (migration hook Job design
-  for P3.4; the central "rollback never re-fires pre-upgrade hooks" claim was verified
-  live with a scratch chart, not assumed). Cluster is left running for the rest of P3.
+  kind-only workaround. **P3.4 complete**: `charts/bedoux/` Helm chart per ADR 0005
+  (`post-install,pre-upgrade` migration hook — corrected same-day from an initial
+  `pre-install` design that would have failed every fresh install, caught by live
+  testing before it ran for real). Proven against the live cluster: install, upgrade,
+  a deliberately broken upgrade that failed safely without touching the running app,
+  and a real `helm rollback` with all data intact. `charts/bedoux/` is now the live
+  deployment artifact; `k8s/*.yaml` stays only as the P3.1–P3.3 historical record.
+  Cluster is left running for the rest of P3.
 - Active phase: **P3 — Local Kubernetes (kind).**
-- Next action: **P3.4 — build the Helm chart** from `k8s/`, following ADR 0005's
-  design (migration hook Job, seed as a separate opt-in Job, values for image
-  tags/replicas/resources), then `helm lint` clean and a real install/upgrade/rollback
-  cycle against the live cluster.
+- Next action: **P3.5 — drills** (scale, pod deletion, broken config, rollback).
+  Much of the rollback drill's core mechanics were already exercised while building
+  the chart (P3.4's session log has the detail) — P3.5 should formalize and extend
+  that, not repeat it from zero.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

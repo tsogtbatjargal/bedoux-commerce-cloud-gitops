@@ -1,0 +1,57 @@
+# Per ADR 0005 (docs/decisions/0005-helm-migration-hook-job.md): runs alembic upgrade
+# head so the chart is independently deployable — no manual `kubectl exec` step
+# required. Fails the release if migration fails (Helm's default behavior for a failed
+# hook Job). Never fires on `helm rollback` — verified live, not assumed — so there is
+# deliberately no downgrade counterpart to this Job.
+#
+# post-install (not pre-install), pre-upgrade: a pre-install hook runs BEFORE any of
+# the chart's own non-hook resources exist — verified live, this chart's first attempt
+# used pre-install,pre-upgrade and failed on a genuinely fresh install because the
+# postgres-credentials Secret this Job depends on didn't exist yet. post-install fires
+# after install-time resources are created (this Job's own wait-for-postgres init
+# container still handles postgres not being Ready yet, same pattern as api's).
+# pre-upgrade still fires before an existing release's resources are upgraded, which is
+# what schema-before-rollout requires.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  # Unique per release revision so hook-delete-policy has something to delete before
+  # creating the next one, and so a failed Job's logs from THIS revision aren't
+  # immediately overwritten if a retry happens before the delete fires.
+  name: bedoux-migrate-{{ .Release.Revision }}
+  labels:
+    {{- include "bedoux.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,pre-upgrade
+    # Delete the PREVIOUS hook Job right before creating this one — not
+    # hook-succeeded — so the completed Job stays inspectable until the next release.
+    "helm.sh/hook-delete-policy": before-hook-creation
+    "helm.sh/hook-weight": "0"
+spec:
+  backoffLimit: {{ .Values.migration.backoffLimit }}
+  activeDeadlineSeconds: {{ .Values.migration.activeDeadlineSeconds }}
+  template:
+    metadata:
+      labels:
+        {{- include "bedoux.labels" . | nindent 8 }}
+        app: bedoux-migrate
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: wait-for-postgres
+          image: "{{ .Values.postgres.image.repository }}:{{ .Values.postgres.image.tag }}"
+          command:
+            - sh
+            - -c
+            - until pg_isready -h postgres -p 5432 -U {{ .Values.postgres.user }}; do sleep 1; done
+      containers:
+        - name: migrate
+          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
+          imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+          command: ["python", "-m", "alembic", "upgrade", "head"]
+          env:
+            - name: BEDOUX_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: DATABASE_URL

@@ -1,0 +1,67 @@
+# Local-dev-only defaults throughout this file — see postgres.password below. Real
+# deployments override every value here per environment (kind/AWS session use
+# different -f values files or --set flags); nothing here is a production default.
+
+api:
+  image:
+    repository: localhost/bedoux-api
+    tag: p3
+    pullPolicy: IfNotPresent
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+web:
+  image:
+    repository: localhost/bedoux-web
+    tag: p3
+    pullPolicy: IfNotPresent
+  replicas: 1
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
+
+postgres:
+  image:
+    repository: docker.io/library/postgres
+    tag: 16-alpine
+  replicas: 1
+  # Local-dev-only credential, identical to docker-compose.yml and the k8s/ plain
+  # manifests it replaces — never a production secret. Real credentials return via AWS
+  # Secrets Manager in P7 (ADR 0002).
+  user: bedoux
+  password: bedoux
+  database: bedoux
+  storage: 1Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+# Per ADR 0005: fail-fast migration hook, no automatic downgrade on rollback (helm
+# rollback doesn't re-fire pre-upgrade hooks at all, verified live — nothing to
+# configure for that here).
+migration:
+  backoffLimit: 2
+  activeDeadlineSeconds: 120
+
+# Per ADR 0005: off by default everywhere, including the learning AWS profile. Turn on
+# explicitly (--set seed.enabled=true) only to bootstrap a fresh environment — never
+# wired on by default where it could re-run against a database with real order data.
+seed:
+  enabled: false
+
+ingress:
+  className: nginx

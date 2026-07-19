@@ -10,8 +10,8 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P3 — Local Kubernetes (kind) |
-| Active task | P3.4 — convert to Helm chart |
-| Last verified | 2026-07-19 — ADR 0005's central claim (helm rollback never re-fires pre-upgrade hooks) confirmed live with a scratch chart, not just documented from memory |
+| Active task | P3.5 — drills (scale, pod deletion, broken config, rollback) |
+| Last verified | 2026-07-19 — real Helm install/upgrade/failed-upgrade/rollback cycle against the live cluster: a deliberately broken upgrade failed safely without touching the running app, and `helm rollback` left all data intact |
 | AWS resources currently live | **NONE** (no AWS account activity yet; no AWS account contacted) |
 | Month-to-date estimated AWS spend | USD 0 |
 | Next operator action | none — agent continuing P3 |
@@ -37,11 +37,10 @@ Full detail in `docs/IMPLEMENTATION-PLAN.md`'s "Pending owner-approved decisions
 section (also flagged inline at each phase there). One-line index so a phase-start
 check can't miss them:
 
-- **P3.4**: migrations via a Helm `pre-install,pre-upgrade` hook Job; seed is a separate
-  opt-in Job. **ADR written and accepted 2026-07-19**:
-  [0005](decisions/0005-helm-migration-hook-job.md) — the `helm rollback` /
-  `pre-upgrade` hook claim was verified live with a scratch chart, not just documented
-  from memory. The chart itself (P3.4) still needs to be built against this design.
+- ~~**P3.4**~~ — **DONE 2026-07-19.** Helm chart built in `charts/bedoux/` per
+  [ADR 0005](decisions/0005-helm-migration-hook-job.md) (`post-install,pre-upgrade`,
+  corrected same-day from an initial `pre-install` design — see the ADR). Full
+  install/upgrade/failure/rollback evidence in this file's P3.4 entry below.
 - **P6/P7 boundary**: S3 image adapter — API returns `image_url`, presigned URL via IRSA
   in S3 mode, frontend storage-agnostic.
 - **P5**: accept Spot-node interruption risk (document, don't engineer around it);
@@ -279,7 +278,49 @@ API base image, no upstream fix available — see "Known open issues" above.
       (Playwright MCP) against the Ingress URL and confirmed the catalog rendered
       correctly (leftover `Cart (2)` badge was expected `localStorage` persistence from
       the browser's throwaway profile, not a bug).
-- [ ] P3.4 NOT STARTED — Helm chart.
+- [x] P3.4 COMPLETE — `charts/bedoux/` Helm chart: templatized versions of all `k8s/`
+      resources (postgres, api, web, ingress), plus two hook Jobs per ADR 0005
+      (`docs/decisions/0005-helm-migration-hook-job.md`): `bedoux-migrate` (fail-fast
+      `alembic upgrade head`) and `bedoux-seed` (opt-in via `--set seed.enabled=true`).
+      `values.yaml` parametrizes image tags, replicas, resources, Postgres credentials
+      (still the same local-dev-only placeholder), and the migration Job's
+      `backoffLimit`/`activeDeadlineSeconds`. `helm lint` clean.
+      **Real correction to ADR 0005 found during this task**: the ADR's originally
+      accepted hook trigger, `pre-install,pre-upgrade`, is wrong for a fresh install —
+      verified live with a second scratch-chart test that a `pre-install` hook runs
+      *before* the chart's own non-hook resources exist, so the migration Job's
+      `secretKeyRef` to `postgres-credentials` would fail on a genuinely fresh
+      `helm install` (confirmed: the scratch test failed with `DeadlineExceeded`, no
+      pod ever scheduled). Fixed to **`post-install,pre-upgrade`** — verified this
+      combination fires after install-time resources exist, fires before an existing
+      release's resources upgrade, and still never fires on rollback (re-confirmed with
+      the same scratch-chart method as ADR 0005's original test). ADR 0005 corrected in
+      place with the evidence (not superseded — this is a same-day factual correction
+      to an implementation detail before any chart depended on it, not a reconsidered
+      tradeoff; same discipline as the P2.3 Numeric/Integer fix).
+      **Full live verification against the real cluster, not just the scratch chart:**
+      deleted the P3.1–P3.3 plain-manifest resources, `helm install`'d the chart fresh
+      — migration hook ran correctly against the newly-created Secret, api/web/postgres
+      all reached `Ready`; `helm upgrade --set seed.enabled=true` seeded the catalog
+      (`bedoux-migrate-1` correctly replaced by `bedoux-migrate-2` via
+      `hook-delete-policy: before-hook-creation`); full golden path re-verified through
+      Ingress (catalog, a real `POST /api/orders` cross-checked in Postgres, and the
+      same real Chrome browser via Playwright MCP). **Deliberate failure drill**: upgraded
+      with a nonexistent `api.image.tag` — the `pre-upgrade` migration hook correctly
+      failed (`ErrImagePull` → `DeadlineExceeded`), Helm refused the release
+      (`UPGRADE FAILED`), and the running app was **never touched** — `api`/`web`/
+      `postgres` stayed on the old working revision throughout, confirmed via `curl`
+      returning 200 the whole time. `helm history` showed the failed revision recorded
+      as `failed` without disturbing the `deployed` one. Recovered with a corrected
+      upgrade, then ran a real `helm rollback` (revision 4 → 2) against the live
+      app: confirmed via a job-list diff that **no hook fired during rollback**, and
+      that all 6 products and the 1 real order survived untouched.
+      **Secondary finding recorded, not just noted:** a *failed* hook Job is not
+      auto-cleaned by `hook-delete-policy: before-hook-creation` — that policy only
+      triggers relative to a successful prior hook of the same name pattern, so a
+      failed migration Job (e.g. `bedoux-migrate-3` here) persists until the next
+      successful hook of that type runs, or until manually deleted. Worth remembering
+      for P8's troubleshooting runbooks.
 - [ ] P3.5 NOT STARTED — drills (scale, delete, break, rollback).
 
 ### P4 — AWS account readiness
@@ -332,6 +373,51 @@ API base image, no upstream fix available — see "Known open issues" above.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-19 — P3.4 Helm chart — Claude Code (operator: Tsogo)
+
+- **Phase/task:** P3.4 complete (see phase-checklist entry above for full evidence).
+- **Changed:** `charts/bedoux/` (new): `Chart.yaml`, `values.yaml`,
+  `templates/_helpers.tpl`, `templates/postgres.yaml`, `templates/api.yaml`,
+  `templates/web.yaml`, `templates/ingress.yaml`, `templates/migration-job.yaml`,
+  `templates/seed-job.yaml`. `docs/decisions/0005-helm-migration-hook-job.md` corrected
+  in place (hook trigger `pre-install`→`post-install`, with the live evidence for the
+  fix) — not superseded, since this is a same-day factual correction caught before any
+  chart depended on the wrong version, not a reconsidered tradeoff.
+- **AWS:** none. Estimated session cost: USD 0.
+- **Bug caught before it ever ran live:** ADR 0005 as originally written specified a
+  `pre-install,pre-upgrade` hook. Building the actual migration Job against it and
+  testing with a second scratch chart proved `pre-install` hooks fire **before** any of
+  the chart's own non-hook resources exist — a Job referencing this chart's
+  `postgres-credentials` Secret would fail every fresh install. Fixed to
+  `post-install,pre-upgrade`, re-verified with the same scratch-chart method (fires
+  after install-time resources exist, still fires before an existing release upgrades,
+  still never fires on rollback).
+- **Verification, against the real cluster, not just scratch charts:** deleted the
+  P3.1–P3.3 plain-manifest resources; fresh `helm install` succeeded (migration hook
+  correctly saw its Secret dependency); `helm upgrade --set seed.enabled=true` seeded
+  the catalog; full golden path re-verified through Ingress including a real
+  `POST /api/orders` cross-checked in Postgres and a pass in the same real Chrome
+  browser via Playwright MCP. **Deliberate failure drill:** upgraded with a nonexistent
+  `api.image.tag` — the `pre-upgrade` migration hook (which also uses that same image)
+  failed with `ErrImagePull`/`DeadlineExceeded`, Helm refused the release
+  (`UPGRADE FAILED`), and the running app was never touched — confirmed via `curl`
+  returning 200 throughout and `helm history` showing the failed revision recorded
+  without disturbing the deployed one. Recovered with a corrected upgrade, then ran a
+  real `helm rollback` (revision 4 → 2): a job-list diff confirmed **zero hooks fired**
+  during rollback, and all 6 products plus the 1 real order survived untouched.
+- **Secondary finding, recorded:** a *failed* hook Job is not auto-cleaned by
+  `hook-delete-policy: before-hook-creation` — that policy only triggers relative to a
+  successful prior hook of the same name pattern. `bedoux-migrate-3` (the failed one)
+  persisted until manually deleted. Worth remembering for P8's troubleshooting
+  runbooks.
+- **Note:** `k8s/*.yaml` (P3.1–P3.3's plain manifests) are left in place as the
+  historical record of that stage — `charts/bedoux/` is the live deployment artifact
+  from here forward; P3.5 and beyond use Helm, not `kubectl apply -f k8s/`.
+- **Next action:** P3.5 — drills (scale, pod deletion, broken config, rollback). Much
+  of the rollback drill's core mechanics were already exercised here as part of
+  building the chart; P3.5 should formalize and extend rather than repeat from zero.
+- **Blockers:** none.
 
 ### 2026-07-19 — ADR 0005: Helm migration hook Job — Claude Code (operator: Tsogo)
 
