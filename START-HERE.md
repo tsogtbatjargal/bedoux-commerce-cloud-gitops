@@ -16,13 +16,16 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
 
 ## Current checkpoint
 
-- Project state: **Phase 0 complete (gate approved 2026-07-18). Phase 1 (local toolchain)
-  complete — `make tools-check` is green from a plain host shell. P1 gate pending owner
-  approval.**
-- Active phase: **P1 — Local tooling (gate pending).**
-- Next action: **owner approves the P1 gate; then P2.1 — FastAPI skeleton + health
-  endpoint + tests. Separately: P3.1 must start by fixing the known rootless-Podman
-  `Delegate=yes` gap (see `docs/local-tooling.md`) before `kind create cluster` works.**
+- Project state: **Phase 0 complete (gate approved 2026-07-18). Phase 1 complete (gate
+  approved 2026-07-18). Phase 2 (local app slice on Compose: FastAPI + Postgres + React,
+  full image scans) complete — P2 gate approved 2026-07-19.** The rootless-Podman/kind
+  cgroup gap is fixed and verified (real cluster create/delete), and the full golden
+  path was driven in a real Chrome browser via Playwright MCP with the resulting order
+  confirmed in Postgres — see `docs/local-tooling.md` and `docs/PROGRESS.md`'s
+  2026-07-19 session log entries.
+- Active phase: **P3 — Local Kubernetes (kind).**
+- Next action: **P3.1 — kind cluster + namespace + plain manifests.** No known blocker
+  remains for this.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

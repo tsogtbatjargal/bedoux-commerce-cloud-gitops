@@ -9,12 +9,12 @@ checked here and its evidence is recorded in the session log.
 | Field | Value |
 |---|---|
 | State | IN PROGRESS |
-| Active phase | P2 — Local application slice on Compose |
-| Active task | P2 gate — awaiting owner approval to activate P3 |
+| Active phase | P3 — Local Kubernetes (kind) |
+| Active task | P3.1 — kind cluster + plain manifests |
 | Last verified | 2026-07-19 — full golden path (catalog → detail → cart → checkout → confirmation) driven in a real Chrome browser via Playwright MCP over CDP; order confirmed present in Postgres |
 | AWS resources currently live | **NONE** (no AWS account activity yet; no AWS account contacted) |
 | Month-to-date estimated AWS spend | USD 0 |
-| Next operator action | none — agent continuing P2 |
+| Next operator action | none — agent continuing P3 |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -26,6 +26,16 @@ Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
   (ADR 0004); `tsogtbatjargal` pushes over SSH from the workstation; the `bedoux-tech` gh
   auth lives on bedoux-vm (openclaw user).
 - Standard tags for every AWS resource: `project=bedoux-commerce-cloud`, `environment=learning`.
+
+## Known open issues (not blockers, revisit when fixable)
+
+- **22 unfixed OS-level CVEs on the API image's `python:3.12-slim` (Debian 13) base**,
+  found during the P2.5 trivy scan (2026-07-18). No upstream fix exists yet — this is
+  not something the app can fix on its own. Re-scan with
+  `trivy image --severity HIGH,CRITICAL --input /tmp/image.tar` (recipe in
+  `docs/local-tooling.md`) periodically and whenever the base image tag is bumped;
+  fix opportunistically the moment a patched Debian package lands upstream, otherwise
+  revisit at the latest before P9 (interview package) so the final state is current.
 
 ## Phase checklist
 
@@ -167,11 +177,10 @@ above; gate commit in git log).
       All containers, the temporary network, image tags, and scan tarballs removed
       after verification — confirmed clean.
 
-**P2 gate — all of P2.1–P2.5 complete with evidence above. Ready for owner approval to
-activate P3.** Known carry-forward items (not blockers, tracked for their owning phase):
-kind + rootless Podman `Delegate=yes` fix (P3.1); no real-browser visual check yet, only
-DOM tests + curl (flagged, recommend a manual click-through); 22 unfixed OS-level CVEs on
-the API base image (re-scan later).
+**P2 gate approved by owner 2026-07-19** (owner said "approve the gate"; evidence: P2.1–P2.5
+above, plus the 2026-07-19 kind/rootless-Podman fix and real-browser verification entries
+in the session log). Remaining known issue, not a blocker: 22 unfixed OS-level CVEs on the
+API base image, no upstream fix available — see "Known open issues" above.
 
 ### P3 — Local Kubernetes
 
