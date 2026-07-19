@@ -69,18 +69,54 @@ shell via the `make` wrapper above):
 make tools-check
 ```
 
-## Known gap for P3 (local Kubernetes)
+## Rootless kind + cgroup delegation (fixed 2026-07-19)
 
-`kind create cluster` against the host's **rootless** Podman fails today:
+`kind create cluster` against the host's **rootless** Podman originally failed:
 
 ```text
 ERROR: failed to create cluster: running kind with rootless provider requires setting
 systemd property "Delegate=yes", see https://kind.sigs.k8s.io/docs/user/rootless/
 ```
 
-This needs a `systemd --user` cgroup delegation drop-in before P3 can create a real cluster.
-Not fixed during P1 — toolchain presence is P1's scope; a working cluster is P3's. Address it
-at the start of P3.1 and record the fix + evidence there.
+**Fix (host-level, requires root, done once):**
+
+```bash
+sudo mkdir -p /etc/systemd/system/user@.service.d
+printf '[Service]\nDelegate=yes\n' | sudo tee /etc/systemd/system/user@.service.d/delegate.conf
+sudo systemctl daemon-reload
+```
+
+Then log out/in or reboot so the new `user@<uid>.service` picks up the drop-in. Verify with
+the **system** manager (not `--user`, which queries the wrong bus):
+
+```bash
+systemctl show user@$(id -u).service | grep -i delegate
+# Delegate=yes
+# DelegateControllers=cpu cpuset io memory pids
+```
+
+**Second gotcha found during verification:** the delegation is real, but any given shell's
+*own* cgroup only inherits the delegated controllers if it lives under `app.slice` (or another
+slice systemd fully delegates). A shell nested under `session.slice/org.gnome.Shell@wayland.service`
+(as this agent's shell was) only gets `memory pids` auto-enabled there, not `cpu`/`cpuset`/`io`
+— so `kind create cluster` still failed with the same error even after the drop-in was applied
+correctly. Confirm the failing shell's own path:
+
+```bash
+cat /proc/self/cgroup
+cat /sys/fs/cgroup/<that path>/cgroup.controllers   # must include cpuset cpu io memory pids
+```
+
+If it's short on controllers, run kind (or any rootless-Podman workload) inside an explicit
+delegated scope under `app.slice` instead of relying on the ambient shell:
+
+```bash
+systemd-run --user --scope --slice=app.slice -p Delegate=yes kind create cluster --name <name>
+```
+
+Verified end-to-end 2026-07-19: cluster created, `kubectl get nodes` showed a real node,
+`kind delete cluster` removed it cleanly, `kind get clusters` confirmed none left. P3.1 can
+create its real cluster directly; no gap remains.
 
 ## Scanning container images (added P2.5)
 
