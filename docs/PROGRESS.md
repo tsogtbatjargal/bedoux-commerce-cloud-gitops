@@ -26,6 +26,27 @@ Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
   (ADR 0004); `tsogtbatjargal` pushes over SSH from the workstation; the `bedoux-tech` gh
   auth lives on bedoux-vm (openclaw user).
 - Standard tags for every AWS resource: `project=bedoux-commerce-cloud`, `environment=learning`.
+- **Project optimization target, owner-confirmed 2026-07-19: this is an
+  EKS/platform-engineering portfolio.** The commerce app is already credible enough as a
+  vehicle — operational evidence (drills, rollback, IAM, failure handling) outranks
+  additional product features whenever the two compete for time.
+
+## Pending owner-approved decisions — do not miss these in their phase
+
+Full detail in `docs/IMPLEMENTATION-PLAN.md`'s "Pending owner-approved decisions"
+section (also flagged inline at each phase there). One-line index so a phase-start
+check can't miss them:
+
+- **P3.4**: migrations via a Helm `pre-install,pre-upgrade` hook Job; seed is a separate
+  opt-in Job; write an ADR first (includes the confirmed fact that `helm rollback`
+  never re-fires `pre-upgrade` hooks, so no downgrade-suppression logic is needed).
+- **P6/P7 boundary**: S3 image adapter — API returns `image_url`, presigned URL via IRSA
+  in S3 mode, frontend storage-agnostic.
+- **P5**: accept Spot-node interruption risk (document, don't engineer around it);
+  still provision a real gp3 PVC via the EBS CSI add-on for the IAM/storage practice.
+- **P5**: order-write kill switch (`BEDOUX_ORDERS_ENABLED=false` by default in AWS) +
+  request bounds (max line count, per-line quantity cap, body-size limit, optional ALB
+  inbound CIDR) before anything is reachable via the public ALB DNS name.
 
 ## Known open issues (not blockers, revisit when fixable)
 

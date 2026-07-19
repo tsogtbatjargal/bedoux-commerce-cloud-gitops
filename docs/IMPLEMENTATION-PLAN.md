@@ -86,6 +86,52 @@ Per [ADR 0002](decisions/0002-mvp-aws-service-deferrals.md):
 | Secrets Manager | Kubernetes Secrets | P7 |
 | NAT Gateway | not used | never in the learning profile |
 
+## Pending owner-approved decisions (not yet implemented — do not miss these)
+
+Decided in conversation on 2026-07-19, deliberately **held until their owning phase**
+starts rather than implemented early. Whichever agent/session opens that phase must
+implement these, not rediscover or re-litigate them. Each is flagged again inline at its
+phase below.
+
+1. **P3.4 (Helm chart) — migrations via a Helm hook Job, seed as a separate opt-in Job.**
+   Use a `pre-install,pre-upgrade` hook Job running `alembic upgrade head`; fail the
+   release on migration failure; set `backoffLimit` and `activeDeadlineSeconds`; keep
+   the completed Job around until the next release (don't use a `hook-succeeded` delete
+   policy) for inspection. Do **not** add any `alembic downgrade` step for rollback —
+   confirmed `helm rollback` only fires `pre-rollback`/`post-rollback` hooks, never
+   `pre-upgrade`, so a migration hook simply doesn't run on rollback; this is already
+   the desired behavior, not something to suppress. Once schemas evolve, require
+   backward-compatible / expand-contract migrations (a migration must work with both
+   the old and new app version mid-rollout). Seeding must be a separate, explicitly
+   enabled learning-profile Job — never part of every upgrade. **Write an ADR for this
+   before starting P3.4**, including the rollback-hook fact above as a stated finding,
+   not an assumption.
+
+2. **P6/P7 boundary — S3 image adapter shape.** Record near the end of P6 or when P7
+   opens, before implementing: the API decides `image_url` based on mode — local mode
+   returns `/static/products/...`; S3 mode generates a **presigned S3 URL using the API
+   pod's AWS identity** (this is IRSA — IAM Roles for Service Accounts — name it
+   explicitly when this is written up, since it's the actual platform-engineering skill
+   being demonstrated). The frontend always consumes `image_url` and never knows which
+   backend produced it — no image bytes proxy through FastAPI.
+
+3. **P5 — accept Spot-node interruption risk; still provision a real gp3 PVC via the
+   EBS CSI add-on.** Document explicitly rather than silently accepting: the PVC
+   protects against pod replacement only; one Spot node has no availability guarantee;
+   a node interruption may end the demo session; RDS durability/HA is intentionally
+   deferred to P7. Do not engineer multi-node DB failover in P5 — the point of
+   provisioning real EBS-backed storage here is the EKS storage/IAM setup itself (the
+   EBS CSI driver also needs its own IRSA role — same identity pattern as the S3
+   adapter above), not database resilience.
+
+4. **P5 — order-write kill switch + request bounds before any public ALB demo.**
+   `BEDOUX_ORDERS_ENABLED=false` by default in AWS, enabled only during the actual
+   golden-path demonstration window. Also add: a max order line count, the existing
+   per-line quantity limit, a request body-size limit, and an optional configurable ALB
+   inbound CIDR restriction for owner-only sessions. When the switch is off, the
+   frontend must show a deliberate "ordering disabled" state — not a raw 403/500 — so
+   the demo reads as intentionally locked down, not broken.
+
 ## Phases
 
 Task IDs are `P<phase>.<n>`; gate evidence uses `T-NNN` ids from `docs/TEST-PLAN.md`.
@@ -124,8 +170,9 @@ Task IDs are `P<phase>.<n>`; gate evidence uses `T-NNN` ids from `docs/TEST-PLAN
 - **Goal:** the same app on kind: plain manifests first, then a Helm chart; in-cluster
   PostgreSQL; probes, resource limits, ConfigMaps/Secrets, Ingress.
 - **Steps:** P3.1 kind cluster + namespace + plain manifests; P3.2 probes, limits, config;
-  P3.3 Ingress with `/` and `/api` routing; P3.4 convert to Helm chart (`helm lint` clean);
-  P3.5 drills — scale, pod deletion, broken config, rollback.
+  P3.3 Ingress with `/` and `/api` routing; P3.4 convert to Helm chart (`helm lint` clean —
+  **see "Pending owner-approved decisions" #1 above before starting: migration hook Job
+  design + required ADR**); P3.5 drills — scale, pod deletion, broken config, rollback.
 - **Gate:** T-201 app reachable through kind Ingress; T-202 `helm upgrade` rollout +
   `helm rollback` drill evidence; T-203 broken-deployment diagnosis notes.
 - **Rollback:** `kind delete cluster`.
@@ -149,7 +196,10 @@ Task IDs are `P<phase>.<n>`; gate evidence uses `T-NNN` ids from `docs/TEST-PLAN
   ALB→pod; one deliberate breakage diagnosed; **same-day teardown**.
 - **Steps:** P5.1 session start per runbook + eksctl cluster; P5.2 ECR repos + image push;
   P5.3 ALB controller + Ingress + reachability; P5.4 trace + break/fix drill; P5.5 teardown
-  + clean sweep.
+  + clean sweep. **See "Pending owner-approved decisions" #3 and #4 above before P5.1: gp3
+  PVC via EBS CSI (Spot risk accepted, documented, not engineered around) and the
+  order-write kill switch + request bounds — the kill switch must be off by default
+  before anything is reachable via the public ALB DNS name.**
 - **Gate:** T-401 public catalog page via ALB DNS; T-402 trace notes; T-403 break/fix notes;
   T-404 teardown sweep clean (via `/aws-teardown-verify`).
 - **Rollback:** `eksctl delete cluster` + teardown sweep — at any point in the session.
@@ -172,8 +222,10 @@ Task IDs are `P<phase>.<n>`; gate evidence uses `T-NNN` ids from `docs/TEST-PLAN
 - **Goal:** the deferred services return: short-lived Single-AZ RDS (with a migration job),
   S3 product images through the ADR 0001 adapter, Secrets Manager for the DB credential.
 - **Steps:** P7.1 RDS module + connectivity + migration job; P7.2 S3 bucket + adapter flip +
-  workload identity; P7.3 Secrets Manager integration; P7.4 same-day teardown incl. snapshot
-  policy check.
+  workload identity (**see "Pending owner-approved decisions" #2 above before P7.2: the
+  API-side presigned-URL adapter shape via IRSA, and that the frontend must stay
+  storage-agnostic behind a single `image_url` field**); P7.3 Secrets Manager
+  integration; P7.4 same-day teardown incl. snapshot policy check.
 - **Gate:** T-701 order flow against RDS; T-702 images served from S3 via scoped identity;
   T-703 teardown sweep clean including RDS snapshots/subnet groups.
 - **Rollback:** destroy + flip adapter back to in-cluster/static mode (config only).
