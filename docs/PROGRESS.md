@@ -9,12 +9,12 @@ checked here and its evidence is recorded in the session log.
 | Field | Value |
 |---|---|
 | State | IN PROGRESS |
-| Active phase | P3 — Local Kubernetes (kind) |
-| Active task | P3 gate — awaiting owner approval to activate P4 |
+| Active phase | P4 — AWS account readiness |
+| Active task | P4.1 — root MFA + credential review (owner console checklist) |
 | Last verified | 2026-07-19 — P3.5 drills: zero-downtime pod deletion (20/20 requests succeeded), a broken-config incident diagnosed purely from `kubectl` output, and a clean `helm rollback` — all against the live cluster |
 | AWS resources currently live | **NONE** (no AWS account activity yet; no AWS account contacted) |
 | Month-to-date estimated AWS spend | USD 0 |
-| Next operator action | none — agent continuing P3 |
+| Next operator action | **owner**: work the P4.1 root MFA + credential review checklist in the AWS console and report back — this cannot be done by the agent (no AWS credentials configured on this workstation, and console-only steps are owner-executed by design, see AGENTS.md) |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -366,8 +366,8 @@ API base image, no upstream fix available — see "Known open issues" above.
       All four drills run against the real cluster with real `curl`/`kubectl`/`psql`
       evidence above, not simulated or assumed.
 
-**P3 gate — all of P3.1–P3.5 complete with evidence above. Ready for owner approval to
-activate P4.** No unresolved gaps; the only carry-forward is the project-wide
+**P3 gate approved by owner 2026-07-19** (owner said "approve the gate"; evidence:
+P3.1–P3.5 above). No unresolved gaps; the only carry-forward is the project-wide
 "Known open issues" list (OS-level CVEs, no fix available) which is unrelated to P3.
 
 ### P4 — AWS account readiness

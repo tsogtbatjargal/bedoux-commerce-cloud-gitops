@@ -44,10 +44,11 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   cluster, plus two real operational findings (ConfigMap fixes need a manual rollout
   restart; plain `helm upgrade` silently reuses previous values unless
   `--reset-values` is passed). Cluster is left running.
-- Active phase: **P3 — Local Kubernetes (kind) — gate pending owner approval.**
-- Next action: **owner approves the P3 gate; then P4 — AWS account readiness**
-  (root MFA, budget + alerts, region pin, session-runbook dry run — all
-  owner-executed console checklists, no AWS resources created).
+- Active phase: **P4 — AWS account readiness (P3 gate approved 2026-07-19).**
+- Next action: **P4.1 — root MFA + credential review.** This is an **owner-executed
+  console checklist** — the agent has no AWS credentials configured on this
+  workstation and console-only steps are owner-executed by design (`AGENTS.md`).
+  Waiting on the owner to work the checklist in the AWS console and report back.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 
