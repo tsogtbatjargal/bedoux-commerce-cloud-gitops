@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Bedoux Commerce Cloud — products and orders API"
 requires-python = ">=3.12"
 dependencies = [
-  "fastapi>=0.118,<0.119",
+  "fastapi>=0.139,<0.140",
   "uvicorn[standard]>=0.38,<0.39",
   "sqlalchemy>=2.0,<2.1",
   "psycopg[binary]>=3.2,<3.3",

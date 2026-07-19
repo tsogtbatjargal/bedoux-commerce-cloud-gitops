@@ -14,6 +14,8 @@ RUN groupadd --gid 10001 bedoux && \
 
 COPY --from=builder /install /usr/local
 COPY app /app/app
+COPY migrations /app/migrations
+COPY alembic.ini /app/alembic.ini
 
 WORKDIR /app
 USER bedoux

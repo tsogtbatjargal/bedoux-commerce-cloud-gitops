@@ -10,8 +10,8 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P2 — Local application slice on Compose |
-| Active task | P2.5 — Compose file + image scan + size record (NOT STARTED) |
-| Last verified | 2026-07-18 — frontend `npm test` 9/9 + real curl walkthrough via the live dev proxy; no real-browser check yet (see P2.4 evidence) |
+| Active task | P2 gate — awaiting owner approval to activate P3 |
+| Last verified | 2026-07-18 — full three-container stack (postgres+api+web) verified on an isolated podman network; both images scanned 0 HIGH/CRITICAL app-level vulns |
 | AWS resources currently live | **NONE** (no AWS account activity yet; no AWS account contacted) |
 | Month-to-date estimated AWS spend | USD 0 |
 | Next operator action | none — agent continuing P2 |
@@ -136,7 +136,42 @@ above; gate commit in git log).
       All test containers, dev/API server processes, and podman volumes torn down
       after verification — confirmed no leftover state (`podman ps -a`, `podman volume
       ls`, `pgrep` all clean).
-- [ ] P2.5 NOT STARTED — Compose file + image scan + size record.
+- [x] P2.5 COMPLETE — `web` service added to `docker-compose.yml` (nginx-unprivileged
+      reverse-proxying `/api` to the `api` service by Compose DNS name, mirroring the
+      future Kubernetes Ingress); `apps/web/Dockerfile` (node:24-alpine build → nginx
+      runtime, non-root uid 101); `apps/api/Dockerfile` fixed to also copy
+      `migrations/`+`alembic.ini` (previously missing — a deployed API container
+      couldn't have run its own migrations); trivy 0.72.0 installed and both images
+      scanned.
+      **Findings, fixed for real, not just noted:** API image had 3 HIGH Python-level
+      CVEs (`starlette` 0.48.0, pulled in by the narrow `fastapi<0.119` pin from P2.1) →
+      bumped to `fastapi>=0.139,<0.140`, eager-upgraded to `starlette` 1.3.1, re-ran the
+      full 9-test suite (still 9/9) and rescanned — 0 Python vulns. Web image had 35
+      HIGH/CRITICAL CVEs (base `nginx-unprivileged:1.27-alpine` tag had drifted from
+      current Alpine patches) → added `apk upgrade` in the runtime stage (temporarily
+      `USER root`, then back to the image's non-root `nginx` user) and rescanned —
+      0 vulns. 22 OS-level findings remain on the API image's `python:3.12-slim` (debian
+      13) base with **no fix available upstream yet** — tracked, not actionable today;
+      re-scan in a later phase.
+      Sizes after fixes: API 206MB, web 62.4MB.
+      Full-stack verification: built both images fresh, ran postgres+api+web as three
+      real containers on an isolated podman network (mirroring Compose), ran
+      `alembic upgrade head` and the seed script **inside the actual deployed
+      container** (not the host venv), confirmed both containers non-root
+      (`podman exec ... id`), then drove the published port with `curl` exactly as a
+      browser would: catalog (6 products), category filter, and a real order
+      round-trip through the nginx `/api` proxy. Caught and fixed two real bugs along
+      the way: a registry-path error (`nginxinc/nginx-unprivileged` is not under
+      `library/`) and an `npm ci` lockfile-drift failure from crossing glibc→musl
+      (fixed by using `npm install` in the Dockerfile, documented inline).
+      All containers, the temporary network, image tags, and scan tarballs removed
+      after verification — confirmed clean.
+
+**P2 gate — all of P2.1–P2.5 complete with evidence above. Ready for owner approval to
+activate P3.** Known carry-forward items (not blockers, tracked for their owning phase):
+kind + rootless Podman `Delegate=yes` fix (P3.1); no real-browser visual check yet, only
+DOM tests + curl (flagged, recommend a manual click-through); 22 unfixed OS-level CVEs on
+the API base image (re-scan later).
 
 ### P3 — Local Kubernetes
 
@@ -196,6 +231,49 @@ above; gate commit in git log).
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-18 — P2.5 Compose web service, image scan, P2 closed — Claude Code (operator: Tsogo)
+
+- **Phase/task:** P2.5 complete; P2 gate ready for owner approval.
+- **Changed:** `apps/web/Dockerfile` (multi-stage, node:24-alpine build → nginx-unprivileged
+  runtime, non-root, `apk upgrade` for current patches), `apps/web/nginx.conf.template` +
+  `.dockerignore` (proxies `/api/` to `${API_UPSTREAM}` via explicit-variable `envsubst`,
+  deliberately outside the base image's auto-templated `/etc/nginx/templates/` to avoid its
+  unscoped envsubst mangling nginx's own `$host`/`$uri`), `docker-compose.yml` (`web`
+  service + api healthcheck), `apps/api/Dockerfile` (now also copies `migrations/` +
+  `alembic.ini` — was missing, so a deployed API container couldn't run its own migrations),
+  `apps/api/pyproject.toml` (`fastapi>=0.118,<0.119` → `>=0.139,<0.140`, fixing 3 HIGH CVEs
+  in the transitively-pinned `starlette`), `docs/local-tooling.md` (trivy entry + scan
+  recipe).
+- **AWS:** none. Estimated session cost: USD 0.
+- **Commands/tests:** installed trivy 0.72.0 (static binary, host `~/.local/bin`); scanned
+  both images via `podman save` + `trivy image --input` (no podman socket active, so the
+  direct `trivy image <name>` path doesn't work here — documented). API: 3 HIGH Python
+  vulns (starlette) → fixed → 0. Web: 35 HIGH/CRITICAL OS vulns (stale Alpine base) → `apk
+  upgrade` in the runtime stage → 0. 22 OS-level findings remain on the API's debian-based
+  slim image with no fix available upstream — tracked, not fixed today. Re-ran the full
+  9-test API suite after the fastapi bump — still 9/9. Built both final images, ran
+  postgres+api+web as three real containers on an isolated podman network, ran
+  `alembic upgrade head` and `python -m app.seed` **inside the deployed API container**,
+  confirmed both app containers non-root via `podman exec ... id`, then drove the
+  published port 8080 with `curl`: catalog (6 products), category filter (2 apparel),
+  and a real `POST /api/orders` round-trip through the nginx proxy. Final sizes: API
+  206MB, web 62.4MB.
+- **Bugs found and fixed during this task:** (1) wrong registry path for the nginx base
+  image — `nginxinc/` is a separate namespace, not under `docker.io/library/`; (2)
+  `npm ci` failed on lockfile drift crossing glibc (host) → musl (Alpine container) for
+  optional native binary packages — switched to `npm install` in the Dockerfile with an
+  inline comment explaining why; (3) the API Dockerfile omission described above.
+- **Decisions:** none new (fixes above are bug fixes, not architecture changes).
+- **Cleanup:** all test containers, the temporary podman network, superseded image tags,
+  and scan tarballs removed; confirmed via `podman ps -a` / `network ls` / `images` /
+  `volume ls` that only the two pre-existing toolboxes remain.
+- **Next action:** owner approves the P2 gate; then P3.1 — kind cluster + plain manifests
+  (must start by fixing the rootless-Podman `Delegate=yes` gap noted in
+  `docs/local-tooling.md`).
+- **Blockers:** none. Carry-forward items for later phases: no real-browser visual check
+  yet (P2.4 gap, flagged to owner); 22 unfixed OS-level CVEs on the API base image
+  (re-scan later); kind/rootless-Podman fix (P3.1).
 
 ### 2026-07-18 — P2.4 React frontend — Claude Code (operator: Tsogo)
 

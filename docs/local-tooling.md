@@ -55,6 +55,7 @@ only a presence check.
 | kind | v0.32.0 | `~/.local/bin/kind` | official static binary |
 | helm | v3.21.3 | `~/.local/bin/helm` | official `get-helm-3` install script |
 | terraform | v1.15.8 | `~/.local/bin/terraform` | official HashiCorp release zip |
+| trivy | 0.72.0 | `~/.local/bin/trivy` | official GitHub release tarball (added P2.5, for image scanning) |
 
 `node`/`npm` currently resolve to a Zed-editor-bundled install
 (`~/.local/share/zed/node/...`), which is outside this project's control. If that ever
@@ -80,6 +81,17 @@ systemd property "Delegate=yes", see https://kind.sigs.k8s.io/docs/user/rootless
 This needs a `systemd --user` cgroup delegation drop-in before P3 can create a real cluster.
 Not fixed during P1 — toolchain presence is P1's scope; a working cluster is P3's. Address it
 at the start of P3.1 and record the fix + evidence there.
+
+## Scanning container images (added P2.5)
+
+No podman socket is active by default on this host, so `trivy image <name>` (which looks for
+a running daemon) fails. Export the image and scan the tarball instead:
+
+```bash
+podman save -o /tmp/image.tar <image>:<tag>
+trivy image --severity HIGH,CRITICAL --input /tmp/image.tar
+rm /tmp/image.tar   # don't leave scan tarballs lying around
+```
 
 ## Installation approach (completed in P1.1)
 
