@@ -9,12 +9,12 @@ checked here and its evidence is recorded in the session log.
 | Field | Value |
 |---|---|
 | State | IN PROGRESS |
-| Active phase | P1 — Local tooling |
-| Active task | P1 gate — awaiting owner approval to activate P2 |
+| Active phase | P2 — Local application slice on Compose |
+| Active task | P2.1 — FastAPI skeleton + health endpoint + tests |
 | Last verified | 2026-07-18 — T-011 `make tools-check` all-green from a plain host shell |
 | AWS resources currently live | **NONE** (no AWS account activity yet; no AWS account contacted) |
 | Month-to-date estimated AWS spend | USD 0 |
-| Next operator action | approve the P1 gate, or review the P3 rootless-Podman gap noted below |
+| Next operator action | none — agent working P2.1 |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -62,9 +62,12 @@ Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
       `docs/local-tooling.md`, including the make-wrapper recursion pitfall and a known
       P3 gap (kind + rootless Podman needs cgroup `Delegate=yes`, not yet fixed).
 
+**P1 gate approved by owner 2026-07-18** (owner said "keep going on P2"; evidence: T-011
+above; gate commit in git log).
+
 ### P2 — Local application slice
 
-- [ ] P2.1 NOT STARTED — API skeleton + health endpoint + tests.
+- [ ] P2.1 IN PROGRESS — API skeleton + health endpoint + tests.
 - [ ] P2.2 NOT STARTED — schema, migrations, seed data.
 - [ ] P2.3 NOT STARTED — catalog + order endpoints + integration tests.
 - [ ] P2.4 NOT STARTED — React catalog/detail/cart/confirmation pages.
