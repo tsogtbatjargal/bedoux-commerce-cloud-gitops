@@ -10,8 +10,8 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P2 — Local application slice on Compose |
-| Active task | P2.4 — React catalog/detail/cart/confirmation pages (NOT STARTED) |
-| Last verified | 2026-07-18 — `pytest` 9/9 passed against a real Postgres; live curl walkthrough matched |
+| Active task | P2.5 — Compose file + image scan + size record (NOT STARTED) |
+| Last verified | 2026-07-18 — frontend `npm test` 9/9 + real curl walkthrough via the live dev proxy; no real-browser check yet (see P2.4 evidence) |
 | AWS resources currently live | **NONE** (no AWS account activity yet; no AWS account contacted) |
 | Month-to-date estimated AWS spend | USD 0 |
 | Next operator action | none — agent continuing P2 |
@@ -108,7 +108,34 @@ above; gate commit in git log).
       outside this session's throwaway test containers) initial migration file, and
       re-verified against a fresh Postgres instance. No amend of the already-pushed
       P2.2 commit — the fix landed as new work in this task instead.
-- [ ] P2.4 NOT STARTED — React catalog/detail/cart/confirmation pages.
+- [x] P2.4 COMPLETE — `apps/web` (Vite + React 19 + TypeScript, per ADR 0001):
+      CatalogPage (list, category filter, search), ProductDetailPage (add to cart),
+      CartPage (quantity edit, remove, submit), OrderConfirmationPage; `localStorage`-
+      backed client-side cart (`CartContext`); API client with a `/api` base path
+      matching the future Kubernetes Ingress routing; Vite dev-server proxy so local
+      dev, Compose, and the deployed MVP all address the API the same way; 6 seeded
+      product images as placeholder SVGs at `public/static/products/` matching
+      `app/seed.py`'s `image_path` values exactly.
+      Evidence: `npm run build` (tsc + vite) clean; `npm test` (vitest) 9/9 passed —
+      7 cart-logic unit tests + 2 full rendered-DOM flow tests (catalog → product
+      detail → add to cart → cart → submit order → confirmation, and a catalog-load
+      failure state), driven with `@testing-library/react` + `user-event` (real
+      simulated clicks/navigation, not shallow rendering), with `fetch` mocked only at
+      the network boundary. **Also verified against real running servers**: booted the
+      actual API (with real Postgres + seed data) and the actual Vite dev server
+      together, then drove the dev-server's `/api` proxy with `curl` end-to-end —
+      `GET /api/products` (6 items), category filter (2 apparel items), a real
+      `POST /api/orders` (2× mug → `total_cents: 2800`), and `GET /api/orders/{id}`
+      confirmation — an identical network path to what a browser would use.
+      **Known verification gap, stated plainly**: no browser-automation tool (e.g.
+      Playwright/screenshot) is available in this environment, so the app was never
+      *visually* rendered or clicked in an actual browser — `curl`/DOM-test coverage
+      is real but is not a substitute for eyes-on browser confirmation. Flagged to the
+      owner; a manual click-through in a real browser is recommended before treating
+      the golden path as fully proven.
+      All test containers, dev/API server processes, and podman volumes torn down
+      after verification — confirmed no leftover state (`podman ps -a`, `podman volume
+      ls`, `pgrep` all clean).
 - [ ] P2.5 NOT STARTED — Compose file + image scan + size record.
 
 ### P3 — Local Kubernetes
@@ -169,6 +196,43 @@ above; gate commit in git log).
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-18 — P2.4 React frontend — Claude Code (operator: Tsogo)
+
+- **Phase/task:** P2.4 complete.
+- **Changed:** scaffolded `apps/web` with `npm create vite@latest -- --template
+  react-ts`; added `react-router-dom`, `vitest`, `@testing-library/react`,
+  `@testing-library/jest-dom`, `@testing-library/user-event`, `jsdom`. Removed Vite
+  template boilerplate (logos, counter demo, template CSS). Built: `src/api/client.ts`
+  + `types.ts` (fetch wrapper, `/api` base path), `src/cart/CartContext.tsx`
+  (`localStorage`-backed cart with add/remove/setQuantity/clear + derived totals),
+  `src/pages/{Catalog,ProductDetail,Cart,OrderConfirmation}Page.tsx`,
+  `src/components/Layout.tsx`, wired in `App.tsx`/`main.tsx`. `vite.config.ts` dev
+  proxy (`/api` → `VITE_PROXY_TARGET`, default `localhost:8000`) so local dev mirrors
+  the Kubernetes Ingress path routing. 6 placeholder product SVGs at
+  `public/static/products/` matching `app/seed.py` filenames exactly.
+- **AWS:** none. Estimated session cost: USD 0.
+- **Commands/tests:** `npm run build` (`tsc -b && vite build`) — caught and fixed a
+  real TS6 `erasableSyntaxOnly` rejection of a constructor parameter property in
+  `ApiError`, then built clean (240KB bundle, gzip 77KB); `npm test` (vitest) → 9/9
+  passed (7 cart unit tests incl. persistence-across-remount; 2 full rendered-DOM
+  flow tests via `@testing-library/react` + real `user-event` clicks, `fetch` mocked
+  only at the network boundary). Separately booted the **real** API (real Postgres +
+  seed data) and the **real** Vite dev server together and drove the dev proxy with
+  `curl`: `GET /api/products` (6), category filter (2 apparel), `POST /api/orders`
+  (2× mug → `total_cents: 2800`), `GET /api/orders/{id}` confirmation — same network
+  path a browser would take. All processes/containers/volumes torn down and
+  confirmed clean afterward.
+- **Decisions:** none new.
+- **Gap noted (flagged to owner, not silently passed over):** no browser-automation
+  tool is available here, so nothing was visually confirmed in an actual browser —
+  DOM-test + curl coverage is real but not a substitute for eyes-on confirmation.
+  Recommend a manual click-through before treating T-101 (browser happy path) as
+  fully closed.
+- **Next action:** P2.5 — Compose file (add the `web` service to the existing
+  `postgres`+`api` `docker-compose.yml`) + image scan + size record.
+- **Blockers:** none for P2.4 itself; the browser-verification gap above is worth the
+  owner's attention before P2's overall gate.
 
 ### 2026-07-18 — P2.3 catalog + order endpoints — Claude Code (operator: Tsogo)
 
