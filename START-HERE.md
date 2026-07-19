@@ -22,10 +22,14 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   cgroup gap is fixed and verified (real cluster create/delete), and the full golden
   path was driven in a real Chrome browser via Playwright MCP with the resulting order
   confirmed in Postgres — see `docs/local-tooling.md` and `docs/PROGRESS.md`'s
-  2026-07-19 session log entries.
+  2026-07-19 session log entries. **P3.1 complete**: kind cluster `bedoux` is up with
+  plain manifests (`k8s/`) for postgres/api/web, verified via `curl` and a real browser
+  through the NodePort — cluster is left running for the rest of P3.
 - Active phase: **P3 — Local Kubernetes (kind).**
-- Next action: **P3.1 — kind cluster + namespace + plain manifests.** No known blocker
-  remains for this.
+- Next action: **P3.2 — readiness/liveness probes, resource requests/limits, move the
+  DB URL into a ConfigMap.** (A real gap surfaced in P3.1 that P3.2 exists to close: no
+  readiness probe yet means `kubectl` reports a pod `Ready` before Postgres has actually
+  finished its first-run init cycle.)
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

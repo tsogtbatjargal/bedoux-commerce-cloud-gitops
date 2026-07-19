@@ -10,8 +10,8 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P3 — Local Kubernetes (kind) |
-| Active task | P3.1 — kind cluster + plain manifests |
-| Last verified | 2026-07-19 — full golden path (catalog → detail → cart → checkout → confirmation) driven in a real Chrome browser via Playwright MCP over CDP; order confirmed present in Postgres |
+| Active task | P3.2 — probes, limits, config |
+| Last verified | 2026-07-19 — kind cluster `bedoux` up with all 3 workloads Running; catalog + order round-trip verified via `curl` and a real Chrome browser, order confirmed present in the in-cluster Postgres |
 | AWS resources currently live | **NONE** (no AWS account activity yet; no AWS account contacted) |
 | Month-to-date estimated AWS spend | USD 0 |
 | Next operator action | none — agent continuing P3 |
@@ -184,7 +184,33 @@ API base image, no upstream fix available — see "Known open issues" above.
 
 ### P3 — Local Kubernetes
 
-- [ ] P3.1 NOT STARTED — kind cluster + plain manifests.
+- [x] P3.1 COMPLETE — kind cluster `bedoux` (1 control-plane node, `extraPortMappings`
+      `hostPort 8080` → `containerPort 30080`, config at `k8s/kind-config.yaml`), plain
+      manifests in `k8s/` (namespace, postgres Deployment+Service+PVC+Secret, api
+      Deployment+Service, web Deployment+Service as NodePort 30080 — a stopgap until
+      Ingress in P3.3). No probes/limits tuning yet (that's P3.2's scope).
+      Evidence: `kind create cluster` (run inside a `systemd-run --user --scope
+      --slice=app.slice -p Delegate=yes` wrapper per the fix below) produced a real
+      `Ready` node; built `bedoux-api:p3`/`bedoux-web:p3`, loaded via `kind load
+      image-archive` (confirmed present with `crictl images` on the node — `kind load
+      docker-image` failed with "not present locally" against the podman provider even
+      with the correct `localhost/...` tag, so this project uses `podman save` +
+      `image-archive` instead, documented in `docs/local-tooling.md`); applied all
+      manifests, all 3 pods `Running`; ran `alembic upgrade head` + `python -m app.seed`
+      **inside the real deployed API pod** via `kubectl exec` — succeeded on retry after
+      first attempt hit `connection refused` (postgres's first-run initdb restart cycle
+      wasn't finished yet; there's no readiness probe until P3.2, so `1/1 Ready` only
+      reflects the container process starting, not the app being ready — a real gap
+      P3.2 exists to close). Verified the golden path against the cluster exactly as
+      P2.5 did against Compose: `curl` through the kind hostPort → NodePort → web → api
+      chain (catalog, `POST /orders` → `total_cents: 4400` for 2× tote, cross-checked
+      directly via `kubectl exec deploy/postgres -- psql` — same order id, same total in
+      the real DB); then drove the **same real Chrome browser** (Playwright MCP, from
+      the 2026-07-19 browser-verification session) against `http://127.0.0.1:8080/` and
+      confirmed the catalog rendered correctly, served entirely from the cluster.
+      Cluster, pods, and data are left running (not torn down) — this is the ongoing
+      local dev cluster for P3.2–P3.5, unlike the throwaway Compose verification
+      containers in earlier phases.
 - [ ] P3.2 NOT STARTED — probes, limits, config.
 - [ ] P3.3 NOT STARTED — Ingress routing.
 - [ ] P3.4 NOT STARTED — Helm chart.
@@ -240,6 +266,27 @@ API base image, no upstream fix available — see "Known open issues" above.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-19 — P3.1 kind cluster + plain manifests — Claude Code (operator: Tsogo)
+
+- **Phase/task:** P3.1 complete (see phase-checklist entry above for full evidence).
+- **Changed:** `k8s/kind-config.yaml` (cluster config + hostPort mapping),
+  `k8s/00-namespace.yaml`, `k8s/10-postgres.yaml` (Secret + PVC + Deployment + Service,
+  `PGDATA` pinned to a subdirectory of the mount to avoid non-empty-directory initdb
+  failures), `k8s/20-api.yaml`, `k8s/30-web.yaml` (Deployment + Service per component;
+  web is NodePort 30080 as a stopgap until P3.3's Ingress).
+- **AWS:** none. Estimated session cost: USD 0.
+- **Bug/gotcha found and worked around:** `kind load docker-image` failed with
+  `"not present locally"` against this host's rootless-podman kind provider, even with
+  the exact `localhost/<repo>:<tag>` reference `podman images` reports. Worked around
+  with `podman save` → `kind load image-archive`, confirmed landed via
+  `podman exec bedoux-control-plane crictl images`. Documented in `docs/local-tooling.md`.
+- **Decisions:** none new — plain manifests only, no Helm yet (P3.4).
+- **Next action:** P3.2 — readiness/liveness probes (the postgres init-race hit during
+  this task is exactly what a readiness probe on `api`/`web`, and startup ordering via
+  probes rather than `depends_on`, is meant to prevent in Kubernetes), resource
+  requests/limits, move DB URL into a ConfigMap.
+- **Blockers:** none.
 
 ### 2026-07-18 — P2.5 Compose web service, image scan, P2 closed — Claude Code (operator: Tsogo)
 

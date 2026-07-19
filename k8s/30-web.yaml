@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: bedoux
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: web
+          image: localhost/bedoux-web:p3
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: API_UPSTREAM
+              value: api:8000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  namespace: bedoux
+spec:
+  selector:
+    app: web
+  ports:
+    - port: 8080
+      targetPort: 8080
+      nodePort: 30080
+  type: NodePort
+  # NodePort is a P3.1-only stopgap for manual verification. Real routing (/ and /api
+  # both through one entrypoint) arrives as Ingress in P3.3.

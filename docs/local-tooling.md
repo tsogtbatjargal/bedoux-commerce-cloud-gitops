@@ -118,6 +118,27 @@ Verified end-to-end 2026-07-19: cluster created, `kubectl get nodes` showed a re
 `kind delete cluster` removed it cleanly, `kind get clusters` confirmed none left. P3.1 can
 create its real cluster directly; no gap remains.
 
+## Loading locally-built images into kind (added P3.1)
+
+`kind load docker-image <image>` fails on this host's rootless-Podman provider:
+
+```text
+ERROR: image: "localhost/bedoux-api:p3" not present locally
+```
+
+— even when the tag matches `podman images` exactly. Use `podman save` + the
+`image-archive` subcommand instead:
+
+```bash
+podman save -o /tmp/<name>.tar localhost/<image>:<tag>
+kind load image-archive /tmp/<name>.tar --name <cluster>
+rm /tmp/<name>.tar
+```
+
+Confirm it landed with `podman exec <cluster>-control-plane crictl images | grep <name>`
+(faster than waiting for a pod to fail scheduling). Remember `kind load` also needs the
+`app.slice` delegated-scope wrapper from the section above, same as `kind create cluster`.
+
 ## Real-browser verification via Playwright MCP (added 2026-07-19)
 
 This host has no other browser-automation tool, and the owner requires that any
