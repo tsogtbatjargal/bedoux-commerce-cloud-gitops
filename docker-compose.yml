@@ -1,0 +1,30 @@
+services:
+  postgres:
+    image: docker.io/library/postgres:16-alpine
+    environment:
+      POSTGRES_USER: bedoux
+      POSTGRES_PASSWORD: bedoux
+      POSTGRES_DB: bedoux
+    ports:
+      - "5432:5432"
+    volumes:
+      - bedoux-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bedoux"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: ./apps/api
+    environment:
+      BEDOUX_DATABASE_URL: postgresql+psycopg://bedoux:bedoux@postgres:5432/bedoux
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  bedoux-postgres-data:
