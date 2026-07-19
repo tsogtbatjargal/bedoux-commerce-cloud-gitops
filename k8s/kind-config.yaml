@@ -3,7 +3,18 @@ apiVersion: kind.x-k8s.io/v1alpha4
 name: bedoux
 nodes:
   - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    # Matches the official kind ingress-nginx guide: the controller pod binds these
+    # ports on the node's host network directly (no NodePort/LoadBalancer needed).
     extraPortMappings:
-      - containerPort: 30080
+      - containerPort: 80
         hostPort: 8080
+        protocol: TCP
+      - containerPort: 443
+        hostPort: 8443
         protocol: TCP

@@ -10,8 +10,8 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P3 — Local Kubernetes (kind) |
-| Active task | P3.3 — Ingress routing |
-| Last verified | 2026-07-19 — postgres-outage drill: scaled postgres to 0, restarted api, new pod correctly blocked at `Init:0/1` for the whole outage instead of racing; recovered cleanly the instant postgres came back, full catalog verified afterward |
+| Active task | P3.4 — convert to Helm chart |
+| Last verified | 2026-07-19 — ingress-nginx routing verified: catalog, nested product lookup, and a real order round-trip all through the Ingress port, cross-checked in Postgres, and re-driven in a real Chrome browser |
 | AWS resources currently live | **NONE** (no AWS account activity yet; no AWS account contacted) |
 | Month-to-date estimated AWS spend | USD 0 |
 | Next operator action | none — agent continuing P3 |
@@ -252,7 +252,31 @@ API base image, no upstream fix available — see "Known open issues" above.
       the main container started and became `1/1 Ready` — `kubectl wait
       --for=condition=ready` confirmed both transitions. Full stack re-verified healthy
       afterward (catalog `curl` 200, product count still 6).
-- [ ] P3.3 NOT STARTED — Ingress routing.
+- [x] P3.3 COMPLETE — ingress-nginx controller (pinned `controller-v1.15.1`, kind-specific
+      manifest) + two `Ingress` objects: `bedoux-api` (`/api(/|$)(.*)` prefix-stripped via
+      `rewrite-target: /$2`, straight to the `api` Service) and `bedoux-web` (`/` prefix
+      to `web`). Split into two `Ingress` objects, not one, because
+      `nginx.ingress.kubernetes.io/rewrite-target` applies Ingress-wide, not per-path.
+      This also matches the real production shape, not just a kind workaround:
+      `docs/architecture.md` already documents the ALB sending traffic straight to pod
+      IPs per target group — i.e. path-based routing directly to each Service — so this
+      is what P5's ALB Ingress will mirror. `web`'s Service changed from the P3.1
+      NodePort stopgap back to ClusterIP; `k8s/kind-config.yaml` gained the
+      `ingress-ready=true` node label and port 80/443 `extraPortMappings` the official
+      kind ingress guide requires (kept the same host port 8080 → now maps to
+      containerPort 80 instead of the old NodePort 30080).
+      Evidence: cluster recreated with the new config (normal/expected for kind, not a
+      failure — data was re-seeded); ingress-nginx controller pod reached `Ready`;
+      `kubectl describe ingress bedoux-api` showed the resolved backend
+      `api:8000 (podIP:8000)`; full golden path re-verified through the **Ingress port**
+      (same hostPort 8080, now serving via the controller, not the old NodePort):
+      `curl` catalog list, single-product lookup (`/api/products/{id}`, confirming the
+      rewrite handles nested paths correctly, not just the bare prefix), and a real
+      `POST /api/orders` (3× tote → `total_cents: 6600`) cross-checked directly in
+      Postgres — same id, same total. Then re-drove the same real Chrome browser
+      (Playwright MCP) against the Ingress URL and confirmed the catalog rendered
+      correctly (leftover `Cart (2)` badge was expected `localStorage` persistence from
+      the browser's throwaway profile, not a bug).
 - [ ] P3.4 NOT STARTED — Helm chart.
 - [ ] P3.5 NOT STARTED — drills (scale, delete, break, rollback).
 
@@ -306,6 +330,33 @@ API base image, no upstream fix available — see "Known open issues" above.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-19 — P3.3 Ingress routing — Claude Code (operator: Tsogo)
+
+- **Phase/task:** P3.3 complete (see phase-checklist entry above for full evidence).
+- **Changed:** `k8s/kind-config.yaml` (ingress-ready node label, port 80/443
+  `extraPortMappings`), `k8s/30-web.yaml` (Service NodePort → ClusterIP),
+  `k8s/40-ingress.yaml` (new — two `Ingress` objects: `/api` prefix-stripped straight to
+  `api`, `/` to `web`).
+- **AWS:** none. Estimated session cost: USD 0.
+- **Decision:** two separate `Ingress` objects instead of one, since
+  `rewrite-target` is an Ingress-wide annotation, not per-path — and the split
+  intentionally mirrors production (per `docs/architecture.md`, the ALB already routes
+  straight to pod IPs per target group), so this isn't a kind-only workaround; P5's ALB
+  Ingress should look the same shape.
+- **Verification:** recreated the kind cluster with the new config (kind clusters are
+  expected to be recreated for structural changes; data was re-seeded, not an
+  accident), installed ingress-nginx pinned to `controller-v1.15.1`, confirmed the
+  controller `Ready` and the Ingress resolved to the correct backend via `kubectl
+  describe ingress`. Re-ran the full golden path through the Ingress port: catalog,
+  `/api/products/{id}` (proves the rewrite handles nested paths, not just the bare
+  prefix), and a real `POST /api/orders` (3× tote → `total_cents: 6600`) cross-checked
+  directly in Postgres. Re-drove the same real Chrome browser (Playwright MCP) against
+  the Ingress URL — catalog rendered correctly.
+- **Next action:** P3.4 — convert to a Helm chart (`helm lint` clean). **Before
+  starting: read "Pending owner-approved decisions" #1 in `docs/IMPLEMENTATION-PLAN.md`
+  and write the required ADR for the migration-hook-Job design first.**
+- **Blockers:** none.
 
 ### 2026-07-19 — P3.2 probes, limits, config — Claude Code (operator: Tsogo)
 

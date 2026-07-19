@@ -66,7 +66,5 @@ spec:
   ports:
     - port: 8080
       targetPort: 8080
-      nodePort: 30080
-  type: NodePort
-  # NodePort is a P3.1-only stopgap for manual verification. Real routing (/ and /api
-  # both through one entrypoint) arrives as Ingress in P3.3.
+  # ClusterIP as of P3.3 — the P3.1 NodePort stopgap is replaced by Ingress, which is
+  # the real entrypoint now (see k8s/40-ingress.yaml).

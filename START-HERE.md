@@ -29,10 +29,13 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   credential; the exact race hit in P3.1 is now architecturally prevented by an
   init container on the api Deployment, proven with a real drill (scaled postgres to 0,
   restarted api, watched it correctly block instead of racing, then recover cleanly).
-  Cluster is left running for the rest of P3.
+  **P3.3 complete**: ingress-nginx (`controller-v1.15.1`) routes `/` to web and `/api`
+  (prefix-stripped) directly to api — the same shape P5's ALB Ingress will use, not a
+  kind-only workaround. Cluster is left running for the rest of P3.
 - Active phase: **P3 — Local Kubernetes (kind).**
-- Next action: **P3.3 — Ingress routing** (`/` and `/api` through one entrypoint,
-  replacing the P3.1 NodePort stopgap).
+- Next action: **P3.4 — convert to a Helm chart.** Read
+  `docs/IMPLEMENTATION-PLAN.md`'s "Pending owner-approved decisions" #1 and write the
+  required ADR for the migration-hook-Job design **before** starting the chart itself.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

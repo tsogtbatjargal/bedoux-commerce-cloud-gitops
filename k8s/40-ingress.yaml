@@ -1,0 +1,45 @@
+# Two Ingress objects, not one, because nginx.ingress.kubernetes.io/rewrite-target
+# applies to the whole Ingress resource, not per-path — and only the /api route needs
+# its prefix stripped before reaching the api Service (mirrors what nginx.conf.template
+# does for Compose: `proxy_pass http://api:8000/;` on `location /api/`). This is also
+# the real production shape: docs/architecture.md notes the ALB sends traffic straight
+# to pod IPs per target group, i.e. path-based routing directly to each Service, not
+# through a single reverse-proxy container — so this Ingress split is what P5's ALB
+# Ingress will mirror, not a kind-only workaround.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bedoux-api
+  namespace: bedoux
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /api(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: api
+                port:
+                  number: 8000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bedoux-web
+  namespace: bedoux
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web
+                port:
+                  number: 8080
