@@ -38,12 +38,16 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   a deliberately broken upgrade that failed safely without touching the running app,
   and a real `helm rollback` with all data intact. `charts/bedoux/` is now the live
   deployment artifact; `k8s/*.yaml` stays only as the P3.1–P3.3 historical record.
-  Cluster is left running for the rest of P3.
-- Active phase: **P3 — Local Kubernetes (kind).**
-- Next action: **P3.5 — drills** (scale, pod deletion, broken config, rollback).
-  Much of the rollback drill's core mechanics were already exercised while building
-  the chart (P3.4's session log has the detail) — P3.5 should formalize and extend
-  that, not repeat it from zero.
+  **P3.5 complete**: scale (verified real load-balancing across new pods), zero-downtime
+  pod deletion (20/20 requests succeeded mid-deletion), a broken-config incident
+  diagnosed purely from `kubectl` output, and a clean rollback — all against the live
+  cluster, plus two real operational findings (ConfigMap fixes need a manual rollout
+  restart; plain `helm upgrade` silently reuses previous values unless
+  `--reset-values` is passed). Cluster is left running.
+- Active phase: **P3 — Local Kubernetes (kind) — gate pending owner approval.**
+- Next action: **owner approves the P3 gate; then P4 — AWS account readiness**
+  (root MFA, budget + alerts, region pin, session-runbook dry run — all
+  owner-executed console checklists, no AWS resources created).
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

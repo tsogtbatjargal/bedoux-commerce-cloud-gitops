@@ -10,8 +10,8 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P3 — Local Kubernetes (kind) |
-| Active task | P3.5 — drills (scale, pod deletion, broken config, rollback) |
-| Last verified | 2026-07-19 — real Helm install/upgrade/failed-upgrade/rollback cycle against the live cluster: a deliberately broken upgrade failed safely without touching the running app, and `helm rollback` left all data intact |
+| Active task | P3 gate — awaiting owner approval to activate P4 |
+| Last verified | 2026-07-19 — P3.5 drills: zero-downtime pod deletion (20/20 requests succeeded), a broken-config incident diagnosed purely from `kubectl` output, and a clean `helm rollback` — all against the live cluster |
 | AWS resources currently live | **NONE** (no AWS account activity yet; no AWS account contacted) |
 | Month-to-date estimated AWS spend | USD 0 |
 | Next operator action | none — agent continuing P3 |
@@ -321,7 +321,54 @@ API base image, no upstream fix available — see "Known open issues" above.
       failed migration Job (e.g. `bedoux-migrate-3` here) persists until the next
       successful hook of that type runs, or until manually deleted. Worth remembering
       for P8's troubleshooting runbooks.
-- [ ] P3.5 NOT STARTED — drills (scale, delete, break, rollback).
+- [x] P3.5 COMPLETE — four drills against the live Helm-managed cluster, T-201/T-202/
+      T-203 evidence below.
+      **Scale**: `helm upgrade --set api.replicas=3 --set web.replicas=2` — all 5 pods
+      reached `Ready`; `kubectl get endpoints` showed all 3 api pod IPs registered;
+      6/6 requests through the Ingress succeeded, confirming the Service actually
+      load-balanced across the new pods, not just the original one.
+      **Pod deletion**: with `api` at 3 replicas, deleted one pod while firing 20
+      requests through the Ingress in parallel — **all 20 returned 200** (zero
+      downtime; Kubernetes never removed the deleted pod's traffic share until its
+      replacement was scheduled and the other 2 replicas kept serving throughout).
+      Separately deleted the single-replica `postgres` pod — confirmed via `psql`
+      that all 6 products and the 1 order survived untouched (the PVC, not the pod,
+      is what held the data).
+      **Broken config, diagnosed from `kubectl` output alone (T-203)**: directly
+      `kubectl patch`'d the live `web-config` ConfigMap with a wrong `API_UPSTREAM`
+      value (simulating an out-of-band operator mistake, not a chart bug) and
+      restarted `web`. Kubernetes' rolling-update safety meant the **old healthy pod
+      kept serving traffic** while the new pod entered `CrashLoopBackOff` — the app
+      never went down. Diagnosis chain: `kubectl get pods` → `CrashLoopBackOff`;
+      `kubectl describe pod` → generic `BackOff` events, not the root cause;
+      `kubectl logs` → immediate root cause,
+      `nginx: [emerg] host not found in upstream "api-wrong-name"`. Traced that
+      hostname back to the ConfigMap, confirmed the drift against the chart's tracked
+      value, and fixed it the correct way — `helm upgrade` (not another manual patch)
+      to reassert the chart's source of truth. **Real finding**: the ConfigMap value
+      alone reverted correctly, but the already-running pods don't restart just
+      because a ConfigMap they reference changed — a `kubectl rollout restart` was
+      still needed (this chart has no config-checksum-in-pod-annotation trick to
+      auto-roll on ConfigMap drift; worth adding if this were a production chart).
+      **Rollback**: `helm rollback bedoux 2` — job-list diff confirmed zero hooks
+      fired, app stayed reachable, data intact; rolled forward again to the chart's
+      current values.yaml state to close out the drill.
+      **Second real finding, independent of the drill above**: plain `helm upgrade`
+      with **no** `-f`/`--set` flags at all still silently reused the *previous*
+      release's user-supplied values (`seed.enabled: true` persisted from an earlier
+      `--set` and fired another seed Job) — verified precisely with `helm get
+      values`, then confirmed `--reset-values` is what's actually required to return
+      to `values.yaml`'s real defaults. This contradicts a naive reading of `helm
+      upgrade --help` (which frames reuse as the *opt-in* `--reuse-values`
+      behavior) — worth remembering for any future upgrade in this project, and
+      worth a callout in P8's troubleshooting runbooks alongside the failed-hook-Job
+      cleanup finding from P3.4.
+      All four drills run against the real cluster with real `curl`/`kubectl`/`psql`
+      evidence above, not simulated or assumed.
+
+**P3 gate — all of P3.1–P3.5 complete with evidence above. Ready for owner approval to
+activate P4.** No unresolved gaps; the only carry-forward is the project-wide
+"Known open issues" list (OS-level CVEs, no fix available) which is unrelated to P3.
 
 ### P4 — AWS account readiness
 
@@ -373,6 +420,27 @@ API base image, no upstream fix available — see "Known open issues" above.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-19 — P3.5 drills — Claude Code (operator: Tsogo)
+
+- **Phase/task:** P3.5 complete, **closes out the entire P3 phase** (see phase-checklist
+  entry above for full per-drill evidence: scale, pod deletion, broken config diagnosed
+  from `kubectl` output alone, rollback).
+- **Changed:** no chart/manifest changes — this was pure operational verification
+  against `charts/bedoux/` as built in P3.4.
+- **AWS:** none. Estimated session cost: USD 0.
+- **Two real findings recorded, not just the planned drill outcomes:**
+  1. Fixing a drifted ConfigMap via `helm upgrade` doesn't restart pods already
+     running against the old value — needs an explicit `kubectl rollout restart`
+     (or a checksum-annotation pattern this chart doesn't have yet).
+  2. Plain `helm upgrade` with no flags silently reuses the *previous* release's
+     user-supplied values rather than falling back to `values.yaml` defaults —
+     `--reset-values` is what's actually required. Verified precisely with `helm get
+     values` before/after.
+- **Next action:** P3 gate is ready for owner approval. Once approved, P4 — AWS account
+  readiness (root MFA, budget/alerts, region pin, session-runbook dry run) — all
+  console-checklist items for the owner, no AWS resources created yet.
+- **Blockers:** none.
 
 ### 2026-07-19 — P3.4 Helm chart — Claude Code (operator: Tsogo)
 
