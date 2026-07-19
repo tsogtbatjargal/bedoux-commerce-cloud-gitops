@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 
+from app.routers import orders, products
+
 app = FastAPI(
     title="Bedoux Commerce Cloud API",
     description=(
@@ -8,6 +10,9 @@ app = FastAPI(
     ),
     version="0.1.0",
 )
+
+app.include_router(products.router)
+app.include_router(orders.router)
 
 
 @app.get("/health")

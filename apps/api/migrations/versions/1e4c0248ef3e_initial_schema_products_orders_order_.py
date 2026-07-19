@@ -21,7 +21,7 @@ def upgrade() -> None:
     op.create_table('orders',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('status', sa.String(length=32), nullable=False),
-    sa.Column('total_cents', sa.Numeric(precision=10, scale=0), nullable=False),
+    sa.Column('total_cents', sa.Integer(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
@@ -31,7 +31,7 @@ def upgrade() -> None:
     sa.Column('name', sa.String(length=200), nullable=False),
     sa.Column('description', sa.Text(), nullable=False),
     sa.Column('category', sa.String(length=100), nullable=False),
-    sa.Column('price_cents', sa.Numeric(precision=10, scale=0), nullable=False),
+    sa.Column('price_cents', sa.Integer(), nullable=False),
     sa.Column('image_path', sa.String(length=300), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
     sa.PrimaryKeyConstraint('id'),
@@ -43,7 +43,7 @@ def upgrade() -> None:
     sa.Column('order_id', sa.Uuid(), nullable=False),
     sa.Column('product_id', sa.Uuid(), nullable=False),
     sa.Column('quantity', sa.Integer(), nullable=False),
-    sa.Column('unit_price_cents', sa.Numeric(precision=10, scale=0), nullable=False),
+    sa.Column('unit_price_cents', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['order_id'], ['orders.id'], ),
     sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
     sa.PrimaryKeyConstraint('id')

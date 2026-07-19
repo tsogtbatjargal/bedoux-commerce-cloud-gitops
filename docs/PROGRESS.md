@@ -10,8 +10,8 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P2 — Local application slice on Compose |
-| Active task | P2.3 — catalog + order endpoints + integration tests (NOT STARTED) |
-| Last verified | 2026-07-18 — `pytest` 4/4 passed against a real Postgres; seed idempotency proven |
+| Active task | P2.4 — React catalog/detail/cart/confirmation pages (NOT STARTED) |
+| Last verified | 2026-07-18 — `pytest` 9/9 passed against a real Postgres; live curl walkthrough matched |
 | AWS resources currently live | **NONE** (no AWS account activity yet; no AWS account contacted) |
 | Month-to-date estimated AWS spend | USD 0 |
 | Next operator action | none — agent continuing P2 |
@@ -89,7 +89,25 @@ above; gate commit in git log).
       plugin isn't installed on this host (`python3 -m pip` has no `pip` module either) —
       full `docker compose up` end-to-end is deferred to P2.5, which owns the Compose
       file anyway.
-- [ ] P2.3 NOT STARTED — catalog + order endpoints + integration tests.
+- [x] P2.3 COMPLETE — `GET /products` (category/search/pagination filters),
+      `GET /products/{id}`, `POST /orders` (server computes prices from the DB — client
+      cannot submit or tamper with a price), `GET /orders/{id}` confirmation lookup.
+      Evidence: 5 new integration tests against a real Postgres — happy path
+      (browse → filter → search → detail → order 2 products → confirmation lookup
+      returns identical data), unknown-product rejection (400), price-tampering
+      resistance (client-sent `unit_price_cents` silently ignored, DB price used),
+      404s for missing product/order — `pytest` 9/9 passed total. Also drove the live
+      `uvicorn` server with real `curl`: filtered `/products?category=apparel`, ordered
+      3 mugs via `POST /orders` → `total_cents: 4200` (1400×3, correct), re-fetched via
+      `GET /orders/{id}` and got byte-identical JSON back.
+      **Bug caught and fixed during this task:** `price_cents`/`total_cents`/
+      `unit_price_cents` were declared `Mapped[int]` but backed by `Numeric(10,0)`,
+      which psycopg returns as `Decimal`, not `int` — a real type mismatch that would
+      have surfaced as Pydantic coercion oddities later. Changed the columns to
+      `Integer` in both `app/models.py` and the (still-unreleased, never applied
+      outside this session's throwaway test containers) initial migration file, and
+      re-verified against a fresh Postgres instance. No amend of the already-pushed
+      P2.2 commit — the fix landed as new work in this task instead.
 - [ ] P2.4 NOT STARTED — React catalog/detail/cart/confirmation pages.
 - [ ] P2.5 NOT STARTED — Compose file + image scan + size record.
 
@@ -151,6 +169,34 @@ above; gate commit in git log).
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-18 — P2.3 catalog + order endpoints — Claude Code (operator: Tsogo)
+
+- **Phase/task:** P2.3 complete.
+- **Changed:** `apps/api/app/schemas.py` (Pydantic request/response models —
+  `OrderItemIn` deliberately has no price field), `apps/api/app/routers/products.py`
+  (`GET /products` with category/search/pagination, `GET /products/{id}`),
+  `apps/api/app/routers/orders.py` (`POST /orders` — prices always read from the DB,
+  never the client; `GET /orders/{id}`), wired into `app/main.py`;
+  `apps/api/tests/conftest.py` (real-DB `client` fixture that truncates tables between
+  tests) and `apps/api/tests/test_catalog_and_orders.py` (5 integration tests).
+  **Fixed a real bug found during this task:** `price_cents`/`total_cents`/
+  `unit_price_cents` changed from `Numeric(10,0)` to `Integer` in `app/models.py` and
+  in the still-unapplied-anywhere-but-my-test-containers initial migration file
+  (edited in place, not amended as a new migration, since P2.2's migration had never
+  touched a shared or persistent database).
+- **AWS:** none. Estimated session cost: USD 0.
+- **Commands/tests:** fresh `postgres:16-alpine` via `podman run`; `alembic upgrade
+  head` then confirmed via `psql \d products` that `price_cents` is genuinely
+  `integer`; `pytest -v` → 9/9 passed (5 new + the 4 from P2.2); separately booted the
+  real `uvicorn` server and drove it with `curl` end-to-end — filtered
+  `/products?category=apparel`, placed a real order for 3 mugs
+  (`POST /orders` → `total_cents: 4200`, matching 1400×3), and re-fetched the same
+  order via `GET /orders/{id}` — byte-identical JSON. Test container, its volume, and
+  local `__pycache__` all removed afterward.
+- **Decisions:** none new.
+- **Next action:** P2.4 — React catalog/detail/cart/confirmation pages.
+- **Blockers:** none.
 
 ### 2026-07-18 — P2.2 schema, migrations, seed — Claude Code (operator: Tsogo)
 
