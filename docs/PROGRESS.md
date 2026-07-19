@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P2 — Local application slice on Compose |
-| Active task | P2.1 — FastAPI skeleton + health endpoint + tests |
-| Last verified | 2026-07-18 — T-011 `make tools-check` all-green from a plain host shell |
+| Active task | P2.2 — schema, migrations, seed data (NOT STARTED) |
+| Last verified | 2026-07-18 — `pytest` 2/2 passed; container non-root smoke test passed |
 | AWS resources currently live | **NONE** (no AWS account activity yet; no AWS account contacted) |
 | Month-to-date estimated AWS spend | USD 0 |
-| Next operator action | none — agent working P2.1 |
+| Next operator action | none — agent continuing P2 |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -67,7 +67,14 @@ above; gate commit in git log).
 
 ### P2 — Local application slice
 
-- [ ] P2.1 IN PROGRESS — API skeleton + health endpoint + tests.
+- [x] P2.1 COMPLETE — `apps/api` FastAPI skeleton: `/health` endpoint, OpenAPI docs,
+      pytest suite, multi-stage non-root Dockerfile (runs as uid 10001 `bedoux`).
+      Evidence: T-102 `pytest` 2/2 passed; T-101-partial — `uvicorn` booted on
+      127.0.0.1:8123, real `curl /health` → `{"status":"ok"}` (200), real `curl /docs` →
+      200; T-103 `/openapi.json` title matches; T-104 `podman build` clean, container run
+      verified non-root (`id` → uid=10001(bedoux)), real HTTP round-trip through the
+      container's published port, image size 163MB, container removed after test — no
+      leftover state.
 - [ ] P2.2 NOT STARTED — schema, migrations, seed data.
 - [ ] P2.3 NOT STARTED — catalog + order endpoints + integration tests.
 - [ ] P2.4 NOT STARTED — React catalog/detail/cart/confirmation pages.
@@ -131,6 +138,25 @@ above; gate commit in git log).
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-18 — P2.1 FastAPI skeleton — Claude Code (operator: Tsogo)
+
+- **Phase/task:** P1 gate approved (owner: "keep going on P2"); P2.1 complete.
+- **Changed:** added `apps/api/` — `pyproject.toml` (fastapi, uvicorn; dev extras
+  pytest+httpx), `app/main.py` (`/health` endpoint + OpenAPI metadata),
+  `tests/test_health.py` (2 tests), multi-stage `Dockerfile` (python:3.12-slim builder +
+  runtime, non-root uid 10001 `bedoux`, `HEALTHCHECK`), `.dockerignore`.
+- **AWS:** none. Estimated session cost: USD 0.
+- **Commands/tests:** local venv `pytest -v` → 2 passed; `uvicorn` run on
+  `127.0.0.1:8123`, real `curl /health` → `{"status":"ok"}` 200, real `curl /docs` → 200;
+  `podman build -t bedoux-api:dev .` clean; `podman run` + `podman exec ... id` →
+  `uid=10001(bedoux)`; real HTTP round-trip through the container's published port
+  confirmed `/health` again; image 163MB; container and image removed after the test
+  (no leftover local state).
+- **Decisions:** none new.
+- **Next action:** P2.2 — PostgreSQL schema, migrations, seed data (still local,
+  no AWS).
+- **Blockers:** none.
 
 ### 2026-07-18 — P1 local toolchain — Claude Code (operator: Tsogo)
 
