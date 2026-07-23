@@ -183,3 +183,32 @@ Tool versions above were pinned by checking current official releases at install
 (2026-07-18). No AWS credentials were created and no AWS account was contacted — `aws`,
 `kubectl`, and `eksctl` were installed and version-checked only; `eksctl create cluster` was
 not run.
+
+## AWS CLI identity: always `--profile bedoux-admin` (added P4.1)
+
+The AWS account's `root` user was used only once, briefly, to bootstrap (via `aws login`
+browser SSO — a temporary session, never long-lived root access keys) — enough to enable
+root MFA and create a non-root IAM user. All routine work uses a **named profile**, never
+the default/root session:
+
+```bash
+aws configure --profile bedoux-admin   # one-time, enters an access key ID/secret locally
+aws sts get-caller-identity --profile bedoux-admin   # must show user/bedoux-admin, never :root
+```
+
+`bedoux-admin` is an IAM user (not IAM Identity Center — simpler for a solo learning
+account) in the `bedoux-admins` group, which has two policies attached:
+
+- **`PowerUserAccess`** (AWS managed) — covers every service this project touches
+  (EC2/VPC, EKS, ECR, ELB, CloudFormation, S3, CloudWatch, Budgets) but **excludes
+  IAM/Organizations management**, so this identity cannot grant itself more power.
+- **A small custom policy** (`bedoux-iam-scoped`) granting IAM role/policy/OIDC-provider
+  actions **only on resources named `bedoux-*`** — the minimum needed for `eksctl` and
+  IRSA (EKS pods assuming IAM roles) to create the roles they need, without general IAM
+  management. Every IAM role/policy this project creates must keep the `bedoux-` prefix
+  for this scoping to keep working.
+
+Every AWS command in this project — CLI, `eksctl`, Terraform, the `/aws-*` slash
+commands — should run with `--profile bedoux-admin` (or `AWS_PROFILE=bedoux-admin`
+exported for the session) unless a step explicitly says otherwise. Root is reserved for
+account-level console actions only (MFA, billing), never CLI work.

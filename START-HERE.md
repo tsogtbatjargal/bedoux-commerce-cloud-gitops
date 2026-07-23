@@ -45,10 +45,16 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   restart; plain `helm upgrade` silently reuses previous values unless
   `--reset-values` is passed). Cluster is left running.
 - Active phase: **P4 — AWS account readiness (P3 gate approved 2026-07-19).**
-- Next action: **P4.1 — root MFA + credential review.** This is an **owner-executed
-  console checklist** — the agent has no AWS credentials configured on this
-  workstation and console-only steps are owner-executed by design (`AGENTS.md`).
-  Waiting on the owner to work the checklist in the AWS console and report back.
+  **P4.1 + P4.3 complete**: root MFA enabled, root has zero access keys; working
+  identity is non-root IAM user `bedoux-admin` (`PowerUserAccess` + a small IAM policy
+  scoped to `bedoux-*`-named resources, not `AdministratorAccess`), used via
+  `--profile bedoux-admin` on every AWS command from here on
+  (`docs/local-tooling.md`'s "AWS CLI identity" section). Region pinned:
+  **`ca-central-1`**.
+- Next action: **P4.2 — budget + alerts + Cost Anomaly Detection.** This is an
+  **owner-executed console checklist** (USD 20 budget, 5/10/16/20 alerts) — the agent
+  has no billing-console access; console-only steps are owner-executed by design
+  (`AGENTS.md`). Waiting on the owner to work the checklist and report back.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

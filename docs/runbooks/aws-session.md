@@ -8,8 +8,12 @@ environment. Slash commands: `/aws-session-start` walks "Before the session",
 
 ## Before the session
 
-- [ ] Confirm the intended AWS account and temporary identity.
-- [ ] Confirm the selected region; do not infer it from a console URL.
+- [ ] Confirm the intended AWS account and identity: **`aws sts get-caller-identity
+      --profile bedoux-admin`** must show the `bedoux-admin` IAM user, never `root`
+      (see `docs/local-tooling.md`'s AWS CLI section). Root is only for account-level
+      actions (MFA, billing) done manually by the owner in the console.
+- [ ] Confirm the selected region; do not infer it from a console URL — pinned to
+      `ca-central-1` (`docs/PROGRESS.md` Known facts).
 - [ ] Review month-to-date cost, credit balance, and budget status.
 - [ ] Confirm no unexpected resources already exist.
 - [ ] Review the current Terraform plan and regional cost estimate.

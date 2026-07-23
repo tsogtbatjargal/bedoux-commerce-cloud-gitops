@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P4 — AWS account readiness |
-| Active task | P4.1 — root MFA + credential review (owner console checklist) |
-| Last verified | 2026-07-19 — P3.5 drills: zero-downtime pod deletion (20/20 requests succeeded), a broken-config incident diagnosed purely from `kubectl` output, and a clean `helm rollback` — all against the live cluster |
-| AWS resources currently live | **NONE** (no AWS account activity yet; no AWS account contacted) |
+| Active task | P4.2 — budget + alerts + anomaly detection (owner console checklist) |
+| Last verified | 2026-07-23 — `aws sts get-caller-identity --profile bedoux-admin` confirmed the non-root `bedoux-admin` IAM user; root MFA enabled, no root access keys |
+| AWS resources currently live | **NONE** (account exists, IAM identity configured; no billable resources created yet) |
 | Month-to-date estimated AWS spend | USD 0 |
-| Next operator action | **owner**: work the P4.1 root MFA + credential review checklist in the AWS console and report back — this cannot be done by the agent (no AWS credentials configured on this workstation, and console-only steps are owner-executed by design, see AGENTS.md) |
+| Next operator action | **owner**: work the P4.2 budget + alerts + Cost Anomaly Detection checklist in the AWS console (USD 20 budget, 5/10/16/20 alerts) and report back |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -23,16 +23,21 @@ Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 - AWS region: **`ca-central-1`** (pinned 2026-07-19, owner choice — closer to
   America/Edmonton than the more commonly-tutorialed `us-east-1`; P4.3).
 - AWS account: **new paid-plan account created by owner 2026-07-19** (Proton Mail
-  signup). `aws login` (browser SSO, temporary session — not long-lived access keys)
-  succeeded using the already-pinned AWS CLI 2.36.2 from P1.1, not a fresh install.
-  **`aws sts get-caller-identity` confirmed the session authenticates as `root`**
-  (account ID intentionally not recorded here — never put AWS account IDs in this
-  repo). Root is fine for the temporary-session bootstrap step but is **not** the
-  identity P4.1 wants for routine work. `/aws-*` commands must still refuse until a
-  **non-root** identity (IAM Identity Center permission set, or a fallback IAM user)
-  exists with root MFA enabled and root itself is only used for account-level actions.
-  P4.1 evidence (T-301) will be that non-root identity's `sts get-caller-identity`
-  output, not this root session.
+  signup). Root used only once, briefly, to enable root MFA and bootstrap a non-root
+  identity — never used for routine work (account ID intentionally never recorded
+  here). **Working identity is IAM user `bedoux-admin`**, in group `bedoux-admins`
+  with `PowerUserAccess` (AWS managed; excludes IAM/Organizations) plus a small custom
+  policy `bedoux-iam-scoped` granting IAM role/policy/OIDC-provider actions only on
+  `bedoux-*`-named resources (the minimum `eksctl`/IRSA need). MFA (passkey) enabled on
+  `bedoux-admin`. CLI access via a named profile, **`--profile bedoux-admin`** —
+  `aws sts get-caller-identity --profile bedoux-admin` confirmed
+  `arn:aws:iam::<redacted>:user/bedoux-admin`, not root. Every future AWS command in
+  this project (CLI, `eksctl`, Terraform, `/aws-*` slash commands) uses this profile;
+  root stays reserved for account-level console actions only. Full detail in
+  `docs/local-tooling.md`'s "AWS CLI identity" section.
+- **Every IAM role/policy this project creates from here on must be named `bedoux-*`**
+  — the scoped IAM policy above only grants role/policy management on that naming
+  pattern.
 - **Declined AWS's "Agent Toolkit for AWS" auto-setup script** (offered during account
   signup) — it would have reinstalled the AWS CLI over our pinned version, auto-edited
   `CLAUDE.md`/`AGENTS.md`, and added an AWS MCP server + skills with unreviewed scope.
@@ -389,9 +394,22 @@ P3.1–P3.5 above). No unresolved gaps; the only carry-forward is the project-wi
 
 ### P4 — AWS account readiness
 
-- [ ] P4.1 NOT STARTED — root MFA + credential review (owner console checklist).
+- [x] P4.1 COMPLETE — root MFA + credential review (owner console checklist).
+      Evidence (T-301): root MFA enabled; root has no access keys (bootstrap used
+      `aws login` browser SSO, a temporary session, never long-lived root keys); new
+      IAM user `bedoux-admin` created (group `bedoux-admins`, `PowerUserAccess` +
+      scoped custom IAM policy restricted to `bedoux-*`-named resources, not
+      `AdministratorAccess`), MFA (passkey) enabled on it;
+      `aws sts get-caller-identity --profile bedoux-admin` confirmed
+      `arn:aws:iam::<redacted>:user/bedoux-admin` — non-root, as required. Declined
+      AWS's bundled "Agent Toolkit for AWS" auto-setup script (would have reinstalled
+      the pinned AWS CLI, auto-edited `AGENTS.md`/`CLAUDE.md`, added an unreviewed MCP
+      server) and took only the useful `aws login` SSO pattern manually. Full detail:
+      `docs/local-tooling.md`'s "AWS CLI identity" section, `docs/PROGRESS.md` Known
+      facts above.
+- [x] P4.3 COMPLETE — region pinned: **`ca-central-1`** (owner choice, 2026-07-19).
+      Recorded under Known facts above.
 - [ ] P4.2 NOT STARTED — budget + alerts + anomaly detection (owner console checklist).
-- [ ] P4.3 NOT STARTED — pin region; record above under Known facts.
 - [ ] P4.4 NOT STARTED — paper rehearsal of the session runbook.
 
 ### P5 — Manual EKS session
@@ -437,6 +455,52 @@ P3.1–P3.5 above). No unresolved gaps; the only carry-forward is the project-wi
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-23 — P4.1 + P4.3 root MFA, non-root identity, region pin — Claude Code (operator: Tsogo)
+
+- **Phase/task:** P4.1 and P4.3 complete (see phase-checklist entries above for full
+  evidence).
+- **Changed:** `docs/local-tooling.md` (new "AWS CLI identity" section — the
+  `bedoux-admin` profile convention, why `PowerUserAccess` + a scoped custom IAM policy
+  instead of `AdministratorAccess`, the `bedoux-*` naming requirement),
+  `docs/runbooks/aws-session.md` (Before-the-session checklist now checks for the
+  `bedoux-admin` identity specifically, not just "an" identity).
+- **AWS:** account created (Proton Mail signup, paid plan chosen over the 6-month free
+  plan — reasoning: this project's own budget/session guardrails are stronger than
+  AWS's auto-close safety net, and a mid-project forced account closure would be
+  actively disruptive). Root MFA enabled; root has zero access keys. IAM user
+  `bedoux-admin` created with MFA (passkey). No billable resources created — estimated
+  session cost USD 0.
+- **Decisions:**
+  - Region **`ca-central-1`** (owner choice — closer to America/Edmonton than the
+    more commonly-tutorialed `us-east-1`).
+  - Declined AWS's bundled "Agent Toolkit for AWS" auto-setup script (offered during
+    account signup). It would have reinstalled the AWS CLI over the P1.1-pinned
+    version, auto-edited `AGENTS.md`/`CLAUDE.md` with its own rules, and added an AWS
+    MCP server + skills of unreviewed scope. Read the actual setup script via WebFetch
+    before deciding — it does real system changes (`curl | bash`, config file edits)
+    that shouldn't be run unread. Took only the useful part (the `aws login`
+    browser-SSO auth pattern, which produces temporary sessions, not long-lived
+    access keys) and ran it manually instead.
+  - IAM design: `bedoux-admin` gets `PowerUserAccess` (AWS managed — covers every
+    service this project touches, excludes IAM/Organizations) plus a small custom
+    policy scoped to IAM role/policy/OIDC-provider actions on `bedoux-*`-named
+    resources only — the minimum `eksctl`/IRSA need to create their own roles, without
+    general IAM management. Chosen over blanket `AdministratorAccess` specifically to
+    avoid a privilege-escalation-capable identity, and framed as a deliberate
+    portfolio decision given this project's EKS/platform-engineering priority. Every
+    IAM role/policy this project creates from here on must be named `bedoux-*` for
+    this to keep working.
+- **Verification:** root session first (`aws login` as root, confirmed via
+  `sts get-caller-identity` showing `:root` — correctly flagged as *not* the intended
+  working identity, not accepted as gate evidence); then `bedoux-admin` created and
+  verified via `aws sts get-caller-identity --profile bedoux-admin` showing
+  `arn:aws:iam::<redacted>:user/bedoux-admin`. Account ID never recorded in this repo
+  at any point (owner flagged twice for pasting it unredacted in chat; not committed
+  anywhere).
+- **Next action:** P4.2 — budget + alerts + Cost Anomaly Detection (owner console
+  checklist: USD 20 budget with 5/10/16/20 alerts).
+- **Blockers:** none.
 
 ### 2026-07-19 — P3.5 drills — Claude Code (operator: Tsogo)
 
