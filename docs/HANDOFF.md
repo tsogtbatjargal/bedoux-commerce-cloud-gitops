@@ -9,26 +9,45 @@ session closeout (`/closeout`).
 ```text
 You are continuing work on bedoux-commerce-cloud at
 /var/home/tsogtb/git-projects/bedoux/bedoux-commerce-cloud — a long-running, agent-agnostic
-AWS EKS commerce learning project with a hard USD 20/month budget.
+AWS EKS commerce learning project with a hard USD 20/month budget. Owner-confirmed
+optimization target: this is an EKS/platform-engineering portfolio (operational evidence —
+drills, rollback, IAM — outranks commerce-app features whenever the two compete for time).
 
 ## First actions
 1. Read START-HERE.md, then AGENTS.md, then docs/PROGRESS.md (the only authoritative state).
 2. Verify the last checkpoint before changing anything.
+3. Check docs/IMPLEMENTATION-PLAN.md's "Pending owner-approved decisions" section —
+   several design decisions for later phases (P5/P6/P7) are already made and recorded but
+   deliberately not yet implemented; do not miss or re-litigate them when those phases open.
 
-## Current state (as of 2026-07-18)
-- Phase 0 (bootstrap) complete and gate approved: doc spine, git repo, ADRs 0001-0004,
-  .claude config, slash commands, diagrams + SVG exports; all T-001..T-006 evidence in
-  docs/PROGRESS.md. main is pushed to the PRIVATE repo bedoux-tech/bedoux-commerce-cloud
-  (local pushes as collaborator tsogtbatjargal over SSH).
-- Phase 1 (local toolchain) complete: aws/kubectl/eksctl/kind/helm/terraform installed as
-  static binaries at host ~/.local/bin; make lives in the bedoux-aws toolbox with a
-  ~/.local/bin/make wrapper (must call /usr/bin/make by absolute path inside the toolbox
-  — a bare `make` recurses, see docs/local-tooling.md). `make tools-check` and
-  `make docs-check` both pass from a plain host shell. P1 gate pending owner approval.
-- No AWS account activity yet; aws CLI installed but never configured/contacted.
-  /aws-* commands must still refuse until credentials exist.
-- Known gap for P3: `kind create cluster` against rootless Podman needs a systemd
-  cgroup `Delegate=yes` drop-in — not yet fixed, must be step one of P3.1.
+## Current state (as of 2026-07-23)
+- Phases 0-3 complete, gates approved. Local app (FastAPI + Postgres + React) proven on
+  Compose (P2), then on kind with plain manifests (P3.1), probes/limits/Secret-vs-ConfigMap
+  split (P3.2), ingress-nginx routing (P3.3), a Helm chart at charts/bedoux/ (P3.4, per
+  ADR 0005), and four real drills — scale, pod deletion, a broken-config incident diagnosed
+  from kubectl output alone, and rollback (P3.5). The kind cluster `bedoux` is left running.
+  charts/bedoux/ is the live deployment artifact; k8s/*.yaml is P3.1-P3.3's historical
+  record only.
+- Real-browser verification is wired up: Playwright MCP attached via --cdp-endpoint to an
+  actual Google Chrome (Flatpak, throwaway profile at /tmp/chrome-mcp-profile), not a
+  bundled Chromium. That Chrome instance must be relaunched after any session/host restart:
+  `flatpak run com.google.Chrome --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-mcp-profile`
+  (see docs/local-tooling.md).
+- Rootless-Podman + kind cgroup delegation is fixed and documented; kind commands still need
+  wrapping in `systemd-run --user --scope --slice=app.slice -p Delegate=yes` if run from a
+  shell that isn't already under app.slice (docs/local-tooling.md explains why and how to
+  check).
+- Phase 4 (AWS account readiness) in progress: P4.1-P4.3 complete — root MFA enabled, root
+  has zero access keys, working identity is non-root IAM user `bedoux-admin`
+  (PowerUserAccess + a custom policy scoped to IAM actions on bedoux-*-named resources
+  only, not AdministratorAccess), region pinned to ca-central-1. USD 20 monthly budget
+  (80%/100% alerts) + Cost Anomaly Detection live (P4.2). Every AWS command in this project
+  uses `--profile bedoux-admin`, never root or default. Account ID is never written to this
+  repo or its history.
+- P4.4 (paper rehearsal of the session runbook) is in progress or just completed — check
+  docs/PROGRESS.md's latest session log entry for the exact state and any findings from
+  that rehearsal (e.g. Cost Explorer needs ~24h to ingest data on a brand-new account).
+- No billable AWS resources exist yet anywhere. First real cluster creation is P5.
 
 ## Locked decisions (do not revisit without a new ADR in docs/decisions/)
 - ADR 0001: small stack — React/Vite/TS, FastAPI, PostgreSQL, image-storage adapter boundary.
@@ -37,10 +56,22 @@ AWS EKS commerce learning project with a hard USD 20/month budget.
 - ADR 0004 (supersedes 0003): private repo at bedoux-tech, flip public before P9 after a
   full-history secrets sweep; direct-to-main until P6; commit convention
   `<TaskID> complete: ...` and gate commits.
+- ADR 0005: DB migrations run as a Helm post-install,pre-upgrade hook Job (corrected
+  same-day from an initial pre-install design that would have failed every fresh install —
+  see the ADR's correction note); no auto-downgrade on rollback; seed is a separate opt-in
+  Job, never on by default.
+- Four more decisions made but deliberately not yet implemented — see
+  docs/IMPLEMENTATION-PLAN.md's "Pending owner-approved decisions": Helm migration hook
+  design is done (ADR 0005), but the S3 adapter boundary (P6/P7), Spot-node risk acceptance
+  + gp3 PVC via EBS CSI (P5), and an order-write kill switch + request bounds (P5) are all
+  recorded but not built yet.
 
 ## What I want next
 Continue the single task marked IN PROGRESS in docs/PROGRESS.md. Work one item at a time,
 record evidence before checking anything off, and never create AWS resources outside a
-session opened via docs/runbooks/aws-session.md. If asked to approve the P1 gate, make that
-its own commit ("Phase 1 gate approved by owner; activate Phase 2") before starting P2 work.
+session opened via docs/runbooks/aws-session.md (`/aws-session-start`). If asked to approve
+a phase gate, make that its own commit ("Phase N gate approved by owner; activate Phase
+N+1") before starting the next phase's work. Before P5 specifically: re-read the four
+pending decisions above, since P5 is where two of them (Spot/PVC, kill switch) must
+actually be implemented, not just remembered.
 ```

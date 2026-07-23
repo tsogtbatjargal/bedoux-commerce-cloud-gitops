@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P4 — AWS account readiness |
-| Active task | P4.4 — paper rehearsal of the session runbook |
-| Last verified | 2026-07-23 — USD 20 monthly cost budget (80%/100% alerts) and Cost Anomaly Detection confirmed live in the AWS console |
-| AWS resources currently live | **NONE** (account exists, IAM identity + budget/anomaly monitoring configured; no billable resources created yet) |
+| Active task | P4 gate — awaiting owner approval to activate P5 |
+| Last verified | 2026-07-23 — full read-only sweep (EKS/ALB/RDS/NAT/EIP/EBS/CloudFormation/tags) against the real account came back completely empty, confirming both `/aws-session-start` and `/aws-teardown-verify` work for real |
+| AWS resources currently live | **NONE** (account exists, IAM identity + budget/anomaly monitoring configured; confirmed empty via live sweep, not assumed) |
 | Month-to-date estimated AWS spend | USD 0 |
-| Next operator action | none — agent continuing P4.4 (a paper/dry-run exercise, no AWS console needed) |
+| Next operator action | **owner**: approve the P4 gate to activate P5 (first real EKS session — will create billable resources, same-day teardown) |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -420,7 +420,33 @@ P3.1–P3.5 above). No unresolved gaps; the only carry-forward is the project-wi
       independent tripwire (catches unexpected spend *shape*, not just a fixed
       threshold). If earlier warning turns out to matter in practice, add USD 5/10
       threshold notifications to the same budget later — no need to recreate it.
-- [ ] P4.4 NOT STARTED — paper rehearsal of the session runbook.
+- [x] P4.4 COMPLETE — dry-run of `docs/runbooks/aws-session.md` end-to-end, no AWS
+      resources created. Ran every read-only command from both `/aws-session-start`
+      and `/aws-teardown-verify` for real against the actual (empty) account with
+      `--profile bedoux-admin` / `ca-central-1`: identity confirmed non-root; budget
+      confirmed live (`aws budgets describe-budgets` → USD 20 monthly cost budget);
+      full leftover-resource sweep (EKS, ALBs, RDS, NAT gateways, EIPs, unattached EBS
+      volumes, CloudFormation stacks, running EC2 instances, project-tagged resources)
+      — **all empty**, confirming the account genuinely has nothing running and that
+      every sweep command is syntactically correct against a real account, not just
+      theoretical. Also independently cross-confirmed P4.2's Cost Anomaly Detection via
+      CLI (`aws ce get-anomaly-monitors` showed `bedoux-cost-monitor` alongside AWS's
+      default monitor).
+      **Two real findings from the rehearsal, both fixed:**
+      1. `aws ce get-cost-and-usage` returned `DataUnavailableException` — Cost
+         Explorer needs ~24h to ingest data on a brand-new account. Not a runbook bug;
+         added a caveat to `docs/runbooks/aws-session.md` so this doesn't look like a
+         failure next time. The budget check (which doesn't depend on Cost Explorer)
+         still worked immediately and is the more reliable pre-session check anyway.
+      2. **`docs/HANDOFF.md` had not been regenerated since 2026-07-18** — every
+         session across P2, P3, and P4.1-4.3 skipped that closeout step. Regenerated
+         it now with accurate current state (through P4.4) and a reminder to check
+         `docs/IMPLEMENTATION-PLAN.md`'s pending-decisions section, so a cold-start
+         agent session reading `HANDOFF.md` doesn't pick up stale P0/P1-era context.
+      `make docs-check` still passes (standing gate).
+
+**P4 gate — all of P4.1–P4.4 complete with evidence above. Ready for owner approval to
+activate P5.** No unresolved gaps.
 
 ### P5 — Manual EKS session
 
@@ -465,6 +491,35 @@ P3.1–P3.5 above). No unresolved gaps; the only carry-forward is the project-wi
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-23 — P4.4 session runbook rehearsal, P4 closed — Claude Code (operator: Tsogo)
+
+- **Phase/task:** P4.4 complete, **closes out the entire P4 phase** (see phase-checklist
+  entry above for full evidence).
+- **Changed:** `docs/runbooks/aws-session.md` (added a Cost Explorer data-availability
+  caveat), `docs/HANDOFF.md` (fully regenerated — see finding below).
+- **AWS:** zero resources created. Ran every read-only command from
+  `/aws-session-start` and `/aws-teardown-verify` for real against the actual account
+  (`--profile bedoux-admin`, `ca-central-1`) — full leftover-resource sweep came back
+  completely empty, and the identity/budget checks both confirmed correctly. Estimated
+  session cost: USD 0.
+- **Two real findings, both fixed, not just noted:**
+  1. Cost Explorer (`aws ce get-cost-and-usage`) isn't ready for ~24h on a brand-new
+     account — added a caveat to the runbook so this doesn't read as a failure next
+     time; the Budgets check is unaffected and is the more reliable pre-session
+     signal anyway.
+  2. `docs/HANDOFF.md` hadn't been regenerated since 2026-07-18 — every session since
+     (P2, P3, P4.1–4.3) skipped that closeout step. This means a cold-start agent
+     session that trusted `HANDOFF.md` over `docs/PROGRESS.md` would have picked up
+     badly stale context. Regenerated it now with accurate state through P4.4 and an
+     explicit pointer to the pending-decisions section so this doesn't repeat.
+- **Decisions:** none new.
+- **Next action:** owner approves the P4 gate; then **P5 — Manual EKS session**, the
+  first phase that creates real billable AWS resources (~$2–4, same-day teardown).
+  Before P5.1: re-read `docs/IMPLEMENTATION-PLAN.md`'s pending-decisions #3 and #4
+  (Spot-node risk + gp3 PVC via EBS CSI; order-write kill switch + request bounds) —
+  both must actually be implemented in P5, not just remembered.
+- **Blockers:** none.
 
 ### 2026-07-23 — P4.2 budget + Cost Anomaly Detection — Claude Code (operator: Tsogo)
 

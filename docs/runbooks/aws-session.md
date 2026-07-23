@@ -14,7 +14,11 @@ environment. Slash commands: `/aws-session-start` walks "Before the session",
       actions (MFA, billing) done manually by the owner in the console.
 - [ ] Confirm the selected region; do not infer it from a console URL — pinned to
       `ca-central-1` (`docs/PROGRESS.md` Known facts).
-- [ ] Review month-to-date cost, credit balance, and budget status.
+- [ ] Review month-to-date cost, credit balance, and budget status. `aws budgets
+      describe-budgets` is reliable immediately; `aws ce get-cost-and-usage`
+      (Cost Explorer) can return `DataUnavailableException` for roughly the first 24h
+      on a brand-new account while it ingests its first billing data — not a runbook
+      failure, just don't rely on it being populated during that early window.
 - [ ] Confirm no unexpected resources already exist.
 - [ ] Review the current Terraform plan and regional cost estimate.
 - [ ] Set the session end time and teardown reminder.

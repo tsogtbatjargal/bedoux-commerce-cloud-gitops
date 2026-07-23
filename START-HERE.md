@@ -44,17 +44,24 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   cluster, plus two real operational findings (ConfigMap fixes need a manual rollout
   restart; plain `helm upgrade` silently reuses previous values unless
   `--reset-values` is passed). Cluster is left running.
-- Active phase: **P4 — AWS account readiness (P3 gate approved 2026-07-19).**
   **P4.1 + P4.3 complete**: root MFA enabled, root has zero access keys; working
   identity is non-root IAM user `bedoux-admin` (`PowerUserAccess` + a small IAM policy
   scoped to `bedoux-*`-named resources, not `AdministratorAccess`), used via
   `--profile bedoux-admin` on every AWS command from here on
   (`docs/local-tooling.md`'s "AWS CLI identity" section). Region pinned:
   **`ca-central-1`**. **P4.2 complete**: USD 20 monthly cost budget (80%/100% alerts)
-  + Cost Anomaly Detection both live in the console.
-- Next action: **P4.4 — paper rehearsal of the session runbook.** A dry-run of
-  `docs/runbooks/aws-session.md` end-to-end without creating any AWS resources — the
-  agent can do this one without owner console access.
+  + Cost Anomaly Detection both live in the console. **P4.4 complete**: full
+  `/aws-session-start` + `/aws-teardown-verify` sweep run for real against the account
+  — completely empty, confirming both slash commands actually work. Found and fixed
+  two real gaps: a Cost Explorer data-availability caveat added to the runbook, and
+  `docs/HANDOFF.md` (which had gone stale since 2026-07-18) fully regenerated.
+- Active phase: **P4 — AWS account readiness — gate pending owner approval.**
+- Next action: **owner approves the P4 gate; then P5 — Manual EKS session** — the
+  first phase that creates real billable AWS resources (eksctl cluster, ECR, ALB
+  controller; ~$2–4, same-day teardown). Before P5.1: re-read
+  `docs/IMPLEMENTATION-PLAN.md`'s pending-decisions #3 and #4 (Spot-node risk + gp3
+  PVC via EBS CSI; order-write kill switch + request bounds) — both must actually be
+  implemented in P5, not just remembered.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 
