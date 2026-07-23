@@ -20,8 +20,25 @@ Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
 ## Known facts
 
-- AWS region: **not pinned yet** (pinned in P4.3; recorded here when chosen).
-- AWS account: none configured on this workstation yet; `/aws-*` commands must refuse.
+- AWS region: **`ca-central-1`** (pinned 2026-07-19, owner choice — closer to
+  America/Edmonton than the more commonly-tutorialed `us-east-1`; P4.3).
+- AWS account: **new paid-plan account created by owner 2026-07-19** (Proton Mail
+  signup). `aws login` (browser SSO, temporary session — not long-lived access keys)
+  succeeded using the already-pinned AWS CLI 2.36.2 from P1.1, not a fresh install.
+  **`aws sts get-caller-identity` confirmed the session authenticates as `root`**
+  (account ID intentionally not recorded here — never put AWS account IDs in this
+  repo). Root is fine for the temporary-session bootstrap step but is **not** the
+  identity P4.1 wants for routine work. `/aws-*` commands must still refuse until a
+  **non-root** identity (IAM Identity Center permission set, or a fallback IAM user)
+  exists with root MFA enabled and root itself is only used for account-level actions.
+  P4.1 evidence (T-301) will be that non-root identity's `sts get-caller-identity`
+  output, not this root session.
+- **Declined AWS's "Agent Toolkit for AWS" auto-setup script** (offered during account
+  signup) — it would have reinstalled the AWS CLI over our pinned version, auto-edited
+  `CLAUDE.md`/`AGENTS.md`, and added an AWS MCP server + skills with unreviewed scope.
+  Took only the useful part (the `aws login` SSO auth pattern) and ran it manually
+  instead. If revisited later, review the MCP server's exact tool/permission list
+  before adding it.
 - GitHub: `bedoux-tech/bedoux-commerce-cloud`, **private** until a pre-P9 history sweep
   (ADR 0004); `tsogtbatjargal` pushes over SSH from the workstation; the `bedoux-tech` gh
   auth lives on bedoux-vm (openclaw user).
