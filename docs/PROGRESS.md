@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P4 — AWS account readiness |
-| Active task | P4.2 — budget + alerts + anomaly detection (owner console checklist) |
-| Last verified | 2026-07-23 — `aws sts get-caller-identity --profile bedoux-admin` confirmed the non-root `bedoux-admin` IAM user; root MFA enabled, no root access keys |
-| AWS resources currently live | **NONE** (account exists, IAM identity configured; no billable resources created yet) |
+| Active task | P4.4 — paper rehearsal of the session runbook |
+| Last verified | 2026-07-23 — USD 20 monthly cost budget (80%/100% alerts) and Cost Anomaly Detection confirmed live in the AWS console |
+| AWS resources currently live | **NONE** (account exists, IAM identity + budget/anomaly monitoring configured; no billable resources created yet) |
 | Month-to-date estimated AWS spend | USD 0 |
-| Next operator action | **owner**: work the P4.2 budget + alerts + Cost Anomaly Detection checklist in the AWS console (USD 20 budget, 5/10/16/20 alerts) and report back |
+| Next operator action | none — agent continuing P4.4 (a paper/dry-run exercise, no AWS console needed) |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -409,7 +409,17 @@ P3.1–P3.5 above). No unresolved gaps; the only carry-forward is the project-wi
       facts above.
 - [x] P4.3 COMPLETE — region pinned: **`ca-central-1`** (owner choice, 2026-07-19).
       Recorded under Known facts above.
-- [ ] P4.2 NOT STARTED — budget + alerts + anomaly detection (owner console checklist).
+- [x] P4.2 COMPLETE — budget + alerts + anomaly detection (owner console checklist).
+      Evidence: AWS Budgets' standard **"Monthly cost budget" template** created at
+      **USD 20**, with its default two thresholds — **80% (USD 16) and 100% (USD 20)**
+      of budgeted spend — rather than the four-threshold 5/10/16/20 plan originally
+      sketched in `docs/IMPLEMENTATION-PLAN.md`. Accepted as sufficient: 80%/100% still
+      covers the same two highest-value tripwires (USD 16 and 20), sessions are
+      short/same-day-teardown by design so early 25%/50% warnings matter less here than
+      in a long-running account, and **Cost Anomaly Detection** was added as a second,
+      independent tripwire (catches unexpected spend *shape*, not just a fixed
+      threshold). If earlier warning turns out to matter in practice, add USD 5/10
+      threshold notifications to the same budget later — no need to recreate it.
 - [ ] P4.4 NOT STARTED — paper rehearsal of the session runbook.
 
 ### P5 — Manual EKS session
@@ -455,6 +465,22 @@ P3.1–P3.5 above). No unresolved gaps; the only carry-forward is the project-wi
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-23 — P4.2 budget + Cost Anomaly Detection — Claude Code (operator: Tsogo)
+
+- **Phase/task:** P4.2 complete (see phase-checklist entry above for full evidence).
+- **Changed:** no repo files — this was an owner-executed AWS console task.
+- **AWS:** USD 20 monthly cost budget created (AWS Budgets' standard template, 80%/100%
+  alert thresholds); Cost Anomaly Detection monitor + alert subscription added. No
+  billable resources created — estimated session cost USD 0.
+- **Decision:** accepted the AWS default template's two thresholds (80%/100% = USD
+  16/20) instead of the four-threshold 5/10/16/20 plan originally sketched in
+  `docs/IMPLEMENTATION-PLAN.md`. Reasoning recorded in the phase-checklist entry above
+  — the two highest-value tripwires are still covered, sessions are short/same-day
+  teardown by design, and Cost Anomaly Detection is a second independent safety net.
+- **Next action:** P4.4 — paper rehearsal of the session runbook (dry-run
+  `docs/runbooks/aws-session.md` end-to-end without creating any AWS resources).
+- **Blockers:** none.
 
 ### 2026-07-23 — P4.1 + P4.3 root MFA, non-root identity, region pin — Claude Code (operator: Tsogo)
 

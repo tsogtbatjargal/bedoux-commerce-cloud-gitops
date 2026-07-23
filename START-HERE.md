@@ -50,11 +50,11 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   scoped to `bedoux-*`-named resources, not `AdministratorAccess`), used via
   `--profile bedoux-admin` on every AWS command from here on
   (`docs/local-tooling.md`'s "AWS CLI identity" section). Region pinned:
-  **`ca-central-1`**.
-- Next action: **P4.2 — budget + alerts + Cost Anomaly Detection.** This is an
-  **owner-executed console checklist** (USD 20 budget, 5/10/16/20 alerts) — the agent
-  has no billing-console access; console-only steps are owner-executed by design
-  (`AGENTS.md`). Waiting on the owner to work the checklist and report back.
+  **`ca-central-1`**. **P4.2 complete**: USD 20 monthly cost budget (80%/100% alerts)
+  + Cost Anomaly Detection both live in the console.
+- Next action: **P4.4 — paper rehearsal of the session runbook.** A dry-run of
+  `docs/runbooks/aws-session.md` end-to-end without creating any AWS resources — the
+  agent can do this one without owner console access.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 
