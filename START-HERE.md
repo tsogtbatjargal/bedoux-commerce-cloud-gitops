@@ -55,13 +55,12 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   — completely empty, confirming both slash commands actually work. Found and fixed
   two real gaps: a Cost Explorer data-availability caveat added to the runbook, and
   `docs/HANDOFF.md` (which had gone stale since 2026-07-18) fully regenerated.
-- Active phase: **P4 — AWS account readiness — gate pending owner approval.**
-- Next action: **owner approves the P4 gate; then P5 — Manual EKS session** — the
-  first phase that creates real billable AWS resources (eksctl cluster, ECR, ALB
-  controller; ~$2–4, same-day teardown). Before P5.1: re-read
-  `docs/IMPLEMENTATION-PLAN.md`'s pending-decisions #3 and #4 (Spot-node risk + gp3
-  PVC via EBS CSI; order-write kill switch + request bounds) — both must actually be
-  implemented in P5, not just remembered.
+- Active phase: **P5 — Manual EKS session — gate approved 2026-07-23, P5 activated.**
+- Next action: **P5.1 — session start per `docs/runbooks/aws-session.md` +
+  `eksctl create cluster`.** Before creating billable resources: implement (not just
+  remember) pending decisions #3 and #4 from `docs/IMPLEMENTATION-PLAN.md`
+  (Spot-node risk + gp3 PVC via EBS CSI; order-write kill switch + request bounds —
+  kill switch off by default before anything is reachable via the public ALB DNS name).
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 
