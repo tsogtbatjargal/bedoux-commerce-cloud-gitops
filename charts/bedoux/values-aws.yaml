@@ -1,0 +1,20 @@
+# AWS session-profile overrides — used as a second -f on top of values.yaml
+# (`helm upgrade --install bedoux charts/bedoux -f charts/bedoux/values.yaml \
+#   -f charts/bedoux/values-aws.yaml --set api.image.repository=... \
+#   --set api.image.tag=... --set web.image.repository=... --set web.image.tag=...`
+# — image repo/tag come from P5.2's ECR push, not hardcoded here).
+#
+# Per ADR 0006: real gp3 storage via the EBS CSI driver (requires the add-on +
+# its IRSA role already installed on the cluster — see P5.1).
+storageClass:
+  create: true
+
+postgres:
+  storageClassName: gp3
+
+# Per docs/IMPLEMENTATION-PLAN.md's pending decision #4: kill switch off by
+# default on AWS. Flip on only for the actual golden-path demo window with
+# `--set api.ordersEnabled=true` for that session, then back off before
+# teardown or between demos.
+api:
+  ordersEnabled: false

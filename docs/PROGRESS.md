@@ -65,11 +65,21 @@ check can't miss them:
   install/upgrade/failure/rollback evidence in this file's P3.4 entry below.
 - **P6/P7 boundary**: S3 image adapter — API returns `image_url`, presigned URL via IRSA
   in S3 mode, frontend storage-agnostic.
-- **P5**: accept Spot-node interruption risk (document, don't engineer around it);
-  still provision a real gp3 PVC via the EBS CSI add-on for the IAM/storage practice.
-- **P5**: order-write kill switch (`BEDOUX_ORDERS_ENABLED=false` by default in AWS) +
-  request bounds (max line count, per-line quantity cap, body-size limit, optional ALB
-  inbound CIDR) before anything is reachable via the public ALB DNS name.
+- ~~**P5 — Spot/gp3**~~ — **DONE 2026-07-23.** [ADR 0006](decisions/0006-spot-node-gp3-pvc.md):
+  Spot risk documented explicitly (no multi-node failover engineered); chart-side
+  support for a real `gp3` StorageClass (`ebs.csi.aws.com`) landed in
+  `charts/bedoux/templates/storageclass.yaml` + `values-aws.yaml`
+  (`storageClass.create: true`, `postgres.storageClassName: gp3`). Full evidence in
+  this file's P5-pre-work entry below; live proof against a real EBS CSI add-on is
+  P5.1's job once the cluster exists.
+- ~~**P5 — kill switch**~~ — **DONE 2026-07-23.** `BEDOUX_ORDERS_ENABLED` (off by
+  default in `values-aws.yaml`, on by default everywhere else), 20-line order cap,
+  the existing 100-qty-per-line cap, a 64KB request-body-size middleware, and a
+  frontend "ordering disabled" state — all live-verified against the kind cluster
+  (503 not a crash, `/health` reflects state, real browser shows the disabled banner
+  and re-enables cleanly). ALB inbound CIDR restriction is deferred to P5.3 (needs a
+  real ALB to attach a security group to). Full evidence in this file's P5-pre-work
+  entry below.
 
 ## Known open issues (not blockers, revisit when fixable)
 
@@ -449,6 +459,9 @@ P3.1–P3.5 above). No unresolved gaps; the only carry-forward is the project-wi
 
 ### P5 — Manual EKS session
 
+- [x] **P5 pre-work COMPLETE 2026-07-23** — both pending decisions implemented
+  before any billable resource: ADR 0006 (Spot risk + gp3 StorageClass) and the
+  order-write kill switch + request bounds. See session log entry below.
 - [ ] P5.1 NOT STARTED — session start + eksctl cluster.
 - [ ] P5.2 NOT STARTED — ECR repos + image push.
 - [ ] P5.3 NOT STARTED — ALB controller + Ingress + reachability.
@@ -490,6 +503,65 @@ P3.1–P3.5 above). No unresolved gaps; the only carry-forward is the project-wi
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-23 — P5 pre-work: gp3/Spot decision + order kill switch, live-verified — Claude Code (operator: Tsogo)
+
+- **Phase/task:** Implemented both pending decisions required before P5.1's eksctl
+  cluster (`docs/IMPLEMENTATION-PLAN.md` pending-decisions #3 and #4).
+- **Changed:**
+  - `docs/decisions/0006-spot-node-gp3-pvc.md` (new ADR) + `docs/decisions/README.md`
+    index.
+  - `charts/bedoux/templates/storageclass.yaml` (new, gated `storageClass.create`),
+    `charts/bedoux/templates/postgres.yaml` (PVC `storageClassName` now
+    conditional), `charts/bedoux/values.yaml` (`postgres.storageClassName: ""`,
+    `storageClass.create: false`, `api.ordersEnabled: true` defaults),
+    `charts/bedoux/values-aws.yaml` (new overlay: `storageClass.create: true`,
+    `postgres.storageClassName: gp3`, `api.ordersEnabled: false`).
+  - `apps/api/app/config.py` (`orders_enabled`, `max_request_body_bytes` settings),
+    `apps/api/app/schemas.py` (`OrderCreate.items` max_length=20),
+    `apps/api/app/routers/orders.py` (503 when disabled, checked before any DB
+    query), `apps/api/app/main.py` (body-size-limit middleware, `/health` now
+    reports `orders_enabled`), `charts/bedoux/templates/api.yaml`
+    (`BEDOUX_ORDERS_ENABLED` env from `api.ordersEnabled`).
+  - `apps/web/src/api/types.ts` (`HealthStatus`), `apps/web/src/api/client.ts`
+    (`getHealth`), `apps/web/src/pages/CartPage.tsx` (fetches health on mount,
+    shows a deliberate "Ordering is temporarily disabled" banner and disables the
+    submit button — never a raw 403/500).
+  - `apps/api/tests/test_health.py` (updated for the new health shape),
+    `apps/api/tests/test_order_kill_switch_and_bounds.py` (new: 4 unit tests, no DB
+    needed since the kill-switch check runs before any query).
+- **Verified, not assumed:**
+  - `helm lint charts/bedoux` clean; `helm template ... -f values-aws.yaml` confirmed
+    the `gp3` StorageClass renders, the PVC gets `storageClassName: gp3`, and
+    `BEDOUX_ORDERS_ENABLED=false` lands in the api Deployment — while the plain
+    `values.yaml` path (kind) renders zero StorageClass resources and
+    `ORDERS_ENABLED=true`.
+  - `pytest -v` (apps/api, local venv): 6/6 non-DB tests pass, including the 4 new
+    ones (503 on disabled, `/health` reflects state, 21-line order rejected 422,
+    oversized body rejected 413).
+  - `npm test` + `npm run build` (apps/web): 9/9 tests pass, clean `tsc -b` + `vite
+    build`.
+  - **Live against the real kind cluster** (rebuilt `bedoux-api:p5` /
+    `bedoux-web:p5` images, `podman save` + `kind load image-archive`, `helm
+    upgrade --reuse-values`): with `api.ordersEnabled=false`, `curl
+    /api/orders` returned `503 {"detail":"ordering is currently disabled"}` (not a
+    crash) and `/api/health` correctly reported `orders_enabled: false`; a **real
+    Chrome browser via Playwright MCP** showed the cart page's disabled banner and
+    a disabled "Submit order" button. Flipped back to `ordersEnabled=true`: banner
+    disappeared, button re-enabled, and a full golden-path order (add mug to cart →
+    submit → confirmation page) completed successfully — confirming the kill
+    switch doesn't break the normal path. Postgres's existing PVC
+    (`storageClassName: standard`, kind's default) and its data survived the whole
+    upgrade cycle untouched, confirming the chart change is backward-compatible.
+  - `make docs-check` passes.
+- **AWS:** none. Estimated session cost: USD 0. (Real EBS CSI/gp3 proof against a
+  live add-on happens in P5.1, since no EKS cluster exists yet — kind has no
+  `ebs.csi.aws.com` provisioner to test against.)
+- **Decisions:** ADR 0006 accepted. ALB inbound CIDR restriction (the remaining
+  piece of pending-decision #4) is deferred to P5.3, since it needs a real ALB
+  security group to attach to — noted here so it isn't forgotten.
+- **Next action:** P5.1 — run `/aws-session-start`, then `eksctl create cluster`
+  (with the EBS CSI add-on + its IRSA role) for real.
 
 ### 2026-07-23 — P4 gate approved, P5 activated — Claude Code (operator: Tsogo)
 

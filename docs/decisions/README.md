@@ -13,6 +13,7 @@ and flip the old one's status to `Superseded by NNNN`.
 | [0003](0003-repo-hosting-and-branch-discipline.md) | Public bedoux-tech repo; direct-to-main until CI/CD | Superseded by 0004 | 2026-07-17 |
 | [0004](0004-start-private-flip-public-later.md) | Host at bedoux-tech, start private, flip public before P9 | Accepted | 2026-07-18 |
 | [0005](0005-helm-migration-hook-job.md) | Database migrations run as a Helm post-install/pre-upgrade hook Job | Accepted | 2026-07-19 |
+| [0006](0006-spot-node-gp3-pvc.md) | Accept Spot-node interruption risk in P5; provision a real gp3 PVC via EBS CSI | Accepted | 2026-07-23 |
 
 ## Template
 

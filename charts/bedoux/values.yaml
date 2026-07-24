@@ -8,6 +8,10 @@ api:
     tag: p3
     pullPolicy: IfNotPresent
   replicas: 1
+  # On everywhere by default (kind/local demos need working checkout); the AWS
+  # session profile overrides this to "false" via values-aws.yaml — see
+  # docs/IMPLEMENTATION-PLAN.md's pending decision #4.
+  ordersEnabled: true
   resources:
     requests:
       cpu: 50m
@@ -42,6 +46,9 @@ postgres:
   password: bedoux
   database: bedoux
   storage: 1Gi
+  # Empty = cluster default StorageClass (kind's local-path). The AWS session
+  # profile overrides this to "gp3" via values-aws.yaml — see ADR 0006.
+  storageClassName: ""
   resources:
     requests:
       cpu: 100m
@@ -65,3 +72,8 @@ seed:
 
 ingress:
   className: nginx
+
+# Per ADR 0006: only the AWS session profile creates this (values-aws.yaml).
+# kind has no ebs.csi.aws.com provisioner to satisfy it.
+storageClass:
+  create: false

@@ -36,6 +36,10 @@ spec:
                 secretKeyRef:
                   name: postgres-credentials
                   key: DATABASE_URL
+            # Kill switch (ADR-pending decision #4, docs/IMPLEMENTATION-PLAN.md):
+            # off by default in the AWS session values overlay.
+            - name: BEDOUX_ORDERS_ENABLED
+              value: {{ .Values.api.ordersEnabled | quote }}
           resources:
             {{- toYaml .Values.api.resources | nindent 12 }}
           # /health deliberately never touches the database (see apps/api/app/main.py)

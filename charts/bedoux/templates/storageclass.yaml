@@ -1,0 +1,16 @@
+{{- if .Values.storageClass.create }}
+# Per ADR 0006: real EBS-backed storage for the AWS session profile, created
+# only when explicitly enabled (values-aws.yaml). Requires the EBS CSI driver
+# EKS add-on (with its own IRSA role) to already be installed on the cluster —
+# see P5.1's eksctl cluster config.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gp3
+  labels:
+    {{- include "bedoux.labels" . | nindent 4 }}
+provisioner: ebs.csi.aws.com
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  type: gp3
+{{- end }}

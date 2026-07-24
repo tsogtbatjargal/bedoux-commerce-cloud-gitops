@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { createOrder } from "../api/client";
+import { createOrder, getHealth } from "../api/client";
 import { useCart } from "../cart/CartContext";
 import { formatCents } from "../format";
 
@@ -9,6 +9,15 @@ export function CartPage() {
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Defaults to enabled so local/kind (where /health always reports true)
+  // never shows a false "disabled" flash while the request is in flight.
+  const [ordersEnabled, setOrdersEnabled] = useState(true);
+
+  useEffect(() => {
+    getHealth()
+      .then((health) => setOrdersEnabled(health.orders_enabled))
+      .catch(() => setOrdersEnabled(true));
+  }, []);
 
   if (lines.length === 0) {
     return (
@@ -60,8 +69,11 @@ export function CartPage() {
         ))}
       </ul>
       <p>Total: {formatCents(totalCents)}</p>
+      {!ordersEnabled && (
+        <p role="status">Ordering is temporarily disabled. Please check back soon.</p>
+      )}
       {error && <p role="alert">{error}</p>}
-      <button type="button" onClick={submitOrder} disabled={submitting}>
+      <button type="button" onClick={submitOrder} disabled={submitting || !ordersEnabled}>
         {submitting ? "Submitting…" : "Submit order"}
       </button>
     </section>

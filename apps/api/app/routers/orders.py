@@ -3,6 +3,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.db import get_db
 from app.models import Order, OrderItem, Product
 from app.schemas import OrderCreate, OrderItemOut, OrderOut
@@ -31,6 +32,14 @@ def _to_order_out(order: Order, products_by_id: dict[uuid.UUID, Product]) -> Ord
 
 @router.post("", response_model=OrderOut, status_code=201)
 def create_order(payload: OrderCreate, db: Session = Depends(get_db)) -> OrderOut:
+    # Kill switch (pending decision #4, docs/IMPLEMENTATION-PLAN.md): off by
+    # default in the AWS session profile so the public ALB demo can't be used to
+    # write real-looking orders outside the actual demonstration window. A clear
+    # 503 here — not a raw crash — is what lets the frontend show a deliberate
+    # "ordering disabled" state instead of looking broken.
+    if not settings.orders_enabled:
+        raise HTTPException(status_code=503, detail="ordering is currently disabled")
+
     product_ids = {item.product_id for item in payload.items}
     products = db.query(Product).filter(Product.id.in_(product_ids)).all()
     products_by_id = {p.id: p for p in products}

@@ -22,7 +22,10 @@ class OrderItemIn(BaseModel):
 
 
 class OrderCreate(BaseModel):
-    items: list[OrderItemIn] = Field(min_length=1)
+    # max_length caps order line count — a bound alongside the per-line quantity
+    # cap above, both defensive limits for a publicly-reachable demo endpoint
+    # (pending decision #4, docs/IMPLEMENTATION-PLAN.md).
+    items: list[OrderItemIn] = Field(min_length=1, max_length=20)
 
 
 class OrderItemOut(BaseModel):

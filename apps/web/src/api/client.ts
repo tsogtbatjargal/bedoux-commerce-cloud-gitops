@@ -1,4 +1,4 @@
-import type { Order, OrderItemIn, Product } from "./types";
+import type { HealthStatus, Order, OrderItemIn, Product } from "./types";
 
 // Same-origin "/api" in the MVP deployment (Kubernetes Ingress routes /api to
 // the API Service — see docs/architecture.md). Overridable for local dev
@@ -53,6 +53,10 @@ export function createOrder(items: OrderItemIn[]): Promise<Order> {
 
 export function getOrder(id: string): Promise<Order> {
   return request<Order>(`/orders/${id}`);
+}
+
+export function getHealth(): Promise<HealthStatus> {
+  return request<HealthStatus>("/health");
 }
 
 export { ApiError };

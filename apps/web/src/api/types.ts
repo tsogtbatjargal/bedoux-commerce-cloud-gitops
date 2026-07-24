@@ -28,3 +28,8 @@ export interface OrderItemIn {
   product_id: string;
   quantity: number;
 }
+
+export interface HealthStatus {
+  status: string;
+  orders_enabled: boolean;
+}
