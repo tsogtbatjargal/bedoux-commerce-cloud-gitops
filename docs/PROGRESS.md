@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P5 — Manual EKS session |
 | Active task | P5.1 — session start per runbook + eksctl cluster |
-| Last verified | 2026-07-23 — P4 gate approved by owner; P5 activated |
-| AWS resources currently live | **NONE** (account exists, IAM identity + budget/anomaly monitoring configured; confirmed empty via live sweep, not assumed) |
+| Last verified | 2026-07-27 — `/aws-session-start` checklist run for real (identity, region, budget, Cost Explorer, full leftover sweep) — all clear, session opened |
+| AWS resources currently live | **NONE yet** — session open, `eksctl create cluster` about to run |
 | Month-to-date estimated AWS spend | USD 0 |
-| Next operator action | **agent**: run `/aws-session-start` checklist, then begin P5.1 (eksctl cluster) |
+| Next operator action | **agent**: run `eksctl create cluster` for real (P5.1) |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -503,6 +503,33 @@ P3.1–P3.5 above). No unresolved gaps; the only carry-forward is the project-wi
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-27 — P5.1 session opened — Claude Code (operator: Tsogo)
+
+- **Phase/task:** P5.1 session start, `/aws-session-start` checklist run for real
+  (not paper-rehearsed, unlike P4.4).
+- **Checklist evidence:**
+  - `aws sts get-caller-identity --profile bedoux-admin` → confirmed `bedoux-admin`
+    IAM user, not root.
+  - Region confirmed pinned `ca-central-1` (Known facts above), not inferred.
+  - `aws budgets describe-budgets` → USD 20 budget, USD 0 actual spend.
+  - `aws ce get-cost-and-usage` (current month) → USD 0, `Estimated: true`. Cost
+    Explorer is now populated (the ~24h ingestion window from P4.4 has long since
+    passed) — first time this command has returned real data in this project.
+  - Full leftover sweep, all read-only, all empty: `aws eks list-clusters`,
+    `aws elbv2 describe-load-balancers`, `aws rds describe-db-instances`,
+    `aws ec2 describe-nat-gateways` (state available/pending),
+    `aws ec2 describe-addresses`, `aws ec2 describe-volumes` (status available),
+    `aws cloudformation list-stacks` (CREATE_COMPLETE/UPDATE_COMPLETE),
+    `aws resourcegroupstaggingapi get-resources` (project=bedoux-commerce-cloud
+    tag). No unexplained resources; no stop condition triggered.
+- **Session goal:** P5.1 — `eksctl create cluster` (+ EBS CSI add-on/IRSA per
+  ADR 0006), continuing through P5.2–P5.5 same-day. Planned end: same day,
+  teardown via P5.5 once the trace/break-fix drill (P5.4) is done.
+- **AWS:** none created yet by this entry — cluster creation follows immediately.
+  Estimated session cost: USD 2–4 (full P5 session, per
+  `docs/IMPLEMENTATION-PLAN.md`'s phase table).
+- **Next action:** run `eksctl create cluster` for real, record evidence.
 
 ### 2026-07-23 — P5 pre-work: gp3/Spot decision + order kill switch, live-verified — Claude Code (operator: Tsogo)
 
