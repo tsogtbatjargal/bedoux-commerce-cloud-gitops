@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P5 — Manual EKS session |
-| Active task | P5.2 — ECR repos + image push |
-| Last verified | 2026-07-28 — P5.1 complete: real EKS cluster + node group + OIDC + EBS CSI driver, gp3 dynamic provisioning proven end-to-end with a real volume |
-| AWS resources currently live | EKS cluster `bedoux` (1 Spot `t3.medium` node), OIDC provider, EBS CSI driver add-on, IAM roles `bedoux-eks-cluster-role`/`bedoux-eks-nodegroup-role`/`bedoux-ebs-csi-role` — all tagged `project=bedoux-commerce-cloud`/`environment=learning` |
-| Month-to-date estimated AWS spend | Well under USD 1 so far this session (control plane + 1 Spot t3.medium node, ~1hr elapsed) |
-| Next operator action | **agent**: P5.2 — create ECR repos, push api/web images |
+| Active task | P5.3 — ALB controller + Ingress + reachability |
+| Last verified | 2026-07-28 — P5.2 complete: ECR repos `bedoux-api`/`bedoux-web` created, `p5` images pushed and confirmed present |
+| AWS resources currently live | EKS cluster `bedoux` (1 Spot `t3.medium` node), OIDC provider, EBS CSI driver add-on, IAM roles `bedoux-eks-cluster-role`/`bedoux-eks-nodegroup-role`/`bedoux-ebs-csi-role`, ECR repos `bedoux-api`/`bedoux-web` (image `p5` in each) — all tagged `project=bedoux-commerce-cloud`/`environment=learning` |
+| Month-to-date estimated AWS spend | Well under USD 1 so far this session |
+| Next operator action | **agent**: P5.3 — install AWS Load Balancer Controller via Helm, deploy `charts/bedoux -f values-aws.yaml` with the real ECR images, verify reachability via ALB DNS |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -470,7 +470,8 @@ P3.1–P3.5 above). No unresolved gaps; the only carry-forward is the project-wi
   nodegroup + OIDC + EBS CSI driver, gp3 dynamic provisioning proven with a real
   volume. Two real IAM findings surfaced and fixed (ADR 0007). See session log
   entries below.
-- [ ] P5.2 NOT STARTED — ECR repos + image push.
+- [x] **P5.2 COMPLETE 2026-07-28** — ECR repos created, images pushed and
+  confirmed present. See session log entry below.
 - [ ] P5.3 NOT STARTED — ALB controller + Ingress + reachability.
 - [ ] P5.4 NOT STARTED — trace + break/fix drill.
 - [ ] P5.5 NOT STARTED — teardown + clean sweep.
@@ -510,6 +511,35 @@ P3.1–P3.5 above). No unresolved gaps; the only carry-forward is the project-wi
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-28 — P5.2 complete: ECR repos + real image push — Claude Code (operator: Tsogo)
+
+- **Phase/task:** P5.2, continuing the same session.
+- **ECR repos created**: `bedoux-api`, `bedoux-web` (`ca-central-1`,
+  `scanOnPush=true`, `project=bedoux-commerce-cloud`/`environment=learning`
+  tags).
+- **Images pushed**: `podman login` via `aws ecr get-login-password`, tagged
+  the same `p5` images used in P5's live kind verification
+  (`localhost/bedoux-api:p5`, `localhost/bedoux-web:p5` — built during the
+  kill-switch drill, no rebuild needed) to the ECR registry, pushed both.
+  `aws ecr describe-images` confirms both present (`bedoux-api` 72MB,
+  `bedoux-web` 27MB, tag `p5`, `imageStatus: ACTIVE`).
+- **Scan-on-push status**: not yet populated by `aws ecr describe-images`
+  after ~1 minute of polling (`imageScanStatus` field absent) — not treated as
+  a blocker; local Trivy scan evidence from P2.5 already covers these image
+  contents, and ECR's own scan can complete asynchronously later without
+  gating P5.3.
+- **AWS:** ECR repos + 2 images added to the live-resources list above. No
+  additional ongoing cost (ECR storage for two small images is negligible
+  against the USD 16 stop threshold).
+- **Decisions:** none new.
+- **Next action:** P5.3 — install the AWS Load Balancer Controller via Helm
+  (needs its own IRSA role, `bedoux-*`-named, same pattern as the EBS CSI
+  role), then `helm upgrade --install bedoux charts/bedoux -f
+  charts/bedoux/values.yaml -f charts/bedoux/values-aws.yaml --set
+  api.image.repository=<ecr>/bedoux-api --set api.image.tag=p5 --set
+  web.image.repository=<ecr>/bedoux-web --set web.image.tag=p5`, verify
+  reachability via the ALB's DNS name.
 
 ### 2026-07-28 — P5.1 complete: node group, OIDC, EBS CSI driver, gp3 proven live — Claude Code (operator: Tsogo)
 
