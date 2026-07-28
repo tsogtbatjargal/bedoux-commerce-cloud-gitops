@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P5 — Manual EKS session |
-| Active task | P5.1 — session start per runbook + eksctl cluster |
-| Last verified | 2026-07-27 — `/aws-session-start` checklist run for real (identity, region, budget, Cost Explorer, full leftover sweep) — all clear, session opened |
-| AWS resources currently live | **NONE yet** — session open, `eksctl create cluster` about to run |
-| Month-to-date estimated AWS spend | USD 0 |
-| Next operator action | **agent**: run `eksctl create cluster` for real (P5.1) |
+| Active task | P5.2 — ECR repos + image push |
+| Last verified | 2026-07-28 — P5.1 complete: real EKS cluster + node group + OIDC + EBS CSI driver, gp3 dynamic provisioning proven end-to-end with a real volume |
+| AWS resources currently live | EKS cluster `bedoux` (1 Spot `t3.medium` node), OIDC provider, EBS CSI driver add-on, IAM roles `bedoux-eks-cluster-role`/`bedoux-eks-nodegroup-role`/`bedoux-ebs-csi-role` — all tagged `project=bedoux-commerce-cloud`/`environment=learning` |
+| Month-to-date estimated AWS spend | Well under USD 1 so far this session (control plane + 1 Spot t3.medium node, ~1hr elapsed) |
+| Next operator action | **agent**: P5.2 — create ECR repos, push api/web images |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -27,8 +27,12 @@ Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
   identity — never used for routine work (account ID intentionally never recorded
   here). **Working identity is IAM user `bedoux-admin`**, in group `bedoux-admins`
   with `PowerUserAccess` (AWS managed; excludes IAM/Organizations) plus a small custom
-  policy `bedoux-iam-scoped` granting IAM role/policy/OIDC-provider actions only on
-  `bedoux-*`-named resources (the minimum `eksctl`/IRSA need). MFA (passkey) enabled on
+  policy `bedoux-iam-scoped` (**v3** as of 2026-07-28, see ADR 0007) granting IAM
+  role/policy/OIDC-provider actions only on `bedoux-*`-named resources (the minimum
+  `eksctl`/IRSA need), **plus an explicit `Deny` on `bedoux-admin` ever modifying
+  `bedoux-iam-scoped` itself** (closes a self-escalation path found and fixed during
+  P5.1 — full detail in `docs/decisions/0007-bedoux-iam-scoped-self-escalation-fix.md`).
+  MFA (passkey) enabled on
   `bedoux-admin`. CLI access via a named profile, **`--profile bedoux-admin`** —
   `aws sts get-caller-identity --profile bedoux-admin` confirmed
   `arn:aws:iam::<redacted>:user/bedoux-admin`, not root. Every future AWS command in
@@ -462,7 +466,10 @@ P3.1–P3.5 above). No unresolved gaps; the only carry-forward is the project-wi
 - [x] **P5 pre-work COMPLETE 2026-07-23** — both pending decisions implemented
   before any billable resource: ADR 0006 (Spot risk + gp3 StorageClass) and the
   order-write kill switch + request bounds. See session log entry below.
-- [ ] P5.1 NOT STARTED — session start + eksctl cluster.
+- [x] **P5.1 COMPLETE 2026-07-28** — session opened, real `eksctl create cluster` +
+  nodegroup + OIDC + EBS CSI driver, gp3 dynamic provisioning proven with a real
+  volume. Two real IAM findings surfaced and fixed (ADR 0007). See session log
+  entries below.
 - [ ] P5.2 NOT STARTED — ECR repos + image push.
 - [ ] P5.3 NOT STARTED — ALB controller + Ingress + reachability.
 - [ ] P5.4 NOT STARTED — trace + break/fix drill.
@@ -503,6 +510,51 @@ P3.1–P3.5 above). No unresolved gaps; the only carry-forward is the project-wi
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-28 — P5.1 complete: node group, OIDC, EBS CSI driver, gp3 proven live — Claude Code (operator: Tsogo)
+
+- **Phase/task:** P5.1, continuing after ADR 0007's IAM fix (previous entry).
+- **`eksctl create nodegroup` retried and succeeded**: `bedoux-ng-spot` (1
+  Spot `t3.medium`, `AmazonLinux2023`) came up, `kubectl get nodes` showed it
+  `Ready`.
+- **OIDC provider association** (`eksctl utils associate-iam-oidc-provider
+  --approve`) failed once more on `iam:TagOpenIDConnectProvider` (modern
+  `CreateOpenIDConnectProvider` tags inline in one call — `bedoux-iam-scoped`
+  v2 only had `Get`/`Create`, not `Tag`). Confirmed the failed call created no
+  orphaned provider (`aws iam get-open-id-connect-provider` → `NoSuchEntity`).
+  Owner applied a third console edit (`bedoux-iam-scoped` v3): added
+  `iam:TagOpenIDConnectProvider` and `iam:DeleteOpenIDConnectProvider` (the
+  latter pre-emptively, for P5.5's teardown) to the existing OIDC-provider
+  resource scope — no new escalation surface, same pattern as ADR 0007.
+  Retried, succeeded.
+- **EBS CSI driver IRSA + add-on**: created `bedoux-ebs-csi-role` (federated
+  trust to the cluster's OIDC provider, `sub:
+  system:serviceaccount:kube-system:ebs-csi-controller-sa`,
+  `AmazonEBSCSIDriverPolicy` attached), then `aws eks create-addon
+  --addon-name aws-ebs-csi-driver --service-account-role-arn
+  <bedoux-ebs-csi-role>` → `ACTIVE`; `ebs-csi-controller`/`ebs-csi-node` pods
+  `Running` in `kube-system`.
+- **ADR 0006 live-verified, not just chart-rendered**: applied a scratch
+  `StorageClass gp3` (`ebs.csi.aws.com`) + PVC + pod (kept separate from the
+  real `charts/bedoux` chart, since P5.2/P5.3 haven't pushed real ECR images
+  yet). PVC went `Bound`, pod went `Running`, wrote a file to the mounted
+  volume and read it back. Cross-confirmed with `aws ec2 describe-volumes`
+  (filtered by `kubernetes.io/created-for/pvc/name`): a real 1Gi `gp3` volume,
+  `in-use`. Deleted the scratch StorageClass/PVC/pod afterward — confirmed
+  `kubectl get pv` empty and the EBS volume gone (CSI driver's own
+  delete-on-reclaim, not manual EC2 cleanup).
+- **AWS resources now live**: EKS cluster `bedoux` (control plane + 1 Spot
+  `t3.medium` node), OIDC provider, EBS CSI driver add-on, IAM roles
+  `bedoux-eks-cluster-role`/`bedoux-eks-nodegroup-role`/`bedoux-ebs-csi-role`
+  — all tagged `project=bedoux-commerce-cloud`/`environment=learning`.
+  Estimated cost so far: well under USD 1 (~1hr elapsed: control plane
+  ~USD 0.10/hr + 1 Spot t3.medium, no ALB/RDS/NAT yet).
+- **Decisions:** none new beyond ADR 0007's v3 amendment (already covered by
+  that ADR's scope — a follow-up narrow grant, not a new design decision).
+- **Next action:** P5.2 — create ECR repos, push real `bedoux-api`/`bedoux-web`
+  images, then P5.3 deploys `charts/bedoux` with `-f values-aws.yaml` for real
+  (this is when the chart's own `gp3` StorageClass template — not the scratch
+  one used here — gets its live proof against the real app).
 
 ### 2026-07-28 — P5.1 real EKS creation: cluster up, nodegroup blocked then fixed via ADR 0007 — Claude Code (operator: Tsogo)
 
