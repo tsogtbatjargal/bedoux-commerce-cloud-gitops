@@ -504,6 +504,58 @@ P3.1–P3.5 above). No unresolved gaps; the only carry-forward is the project-wi
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
 
+### 2026-07-28 — P5.1 real EKS creation: cluster up, nodegroup blocked then fixed via ADR 0007 — Claude Code (operator: Tsogo)
+
+- **Phase/task:** P5.1, continuing the session opened 2026-07-27.
+- **IAM roles created** (both `bedoux-*`-named, per `bedoux-iam-scoped`'s scoping):
+  `bedoux-eks-cluster-role` (trust `eks.amazonaws.com`, `AmazonEKSClusterPolicy`),
+  `bedoux-eks-nodegroup-role` (trust `ec2.amazonaws.com`,
+  `AmazonEKSWorkerNodePolicy` + `AmazonEKS_CNI_Policy` +
+  `AmazonEC2ContainerRegistryReadOnly`). Verified live before use: a probe role
+  named `eksctl-*` was correctly denied by the scoped policy, a `bedoux-*`-named
+  probe role succeeded and was cleaned up — confirming the naming boundary works
+  as documented before spending real cluster-creation time on it.
+- **Cluster config:** `k8s/eksctl-cluster.yaml` (new, committed) — uses
+  `${AWS_ACCOUNT_ID}` envsubst placeholder, never a literal account ID (resolved
+  into a `/tmp` scratch file at apply time, never written to the repo). One
+  managed Spot node group (`t3.medium`, desired/min/max 1), `withOIDC` left off
+  the initial create deliberately so an OIDC permission problem wouldn't roll
+  back the whole cluster — associated separately, see below.
+- **`eksctl create cluster` — control plane succeeded**, node group failed:
+  CloudFormation reported `AccessDenied` on `iam:GetRole` for the account-wide
+  service-linked role `AWSServiceRoleForAmazonEKSNodegroup` (EKS's
+  `CreateNodegroup` always checks this, using the caller's own IAM
+  permissions). Created the SLR directly (`iam:CreateServiceLinkedRole`
+  succeeded — not resource-scoped the same way), retried — same denial, proving
+  the *check* itself (not just creation) needed `iam:GetRole` on that exact
+  resource, which `bedoux-iam-scoped` v1 didn't grant.
+- **Second, more serious finding surfaced while diagnosing:** `bedoux-iam-scoped`
+  v1 granted `iam:*Policy*` on `arn:aws:iam::*:policy/bedoux-*`, and the policy
+  itself is `bedoux-*`-named — so `bedoux-admin` had `iam:CreatePolicyVersion` +
+  `iam:SetDefaultPolicyVersion` on its own constraining policy. Confirmed by
+  reading the live policy document, not assumed. This is a real
+  privilege-escalation path to full account admin, contradicting P4.1's
+  documented design intent.
+- **Fix — ADR 0007:** owner applied a policy edit via console (root/admin
+  identity, deliberately not via `bedoux-admin`'s own API access) adding (a) an
+  explicit `Deny` on `CreatePolicyVersion`/`SetDefaultPolicyVersion`/
+  `DeletePolicy`/`DeletePolicyVersion` scoped to `bedoux-iam-scoped`'s own ARN,
+  and (b) a narrow `Allow` for `iam:GetRole` on exactly the EKS-nodegroup SLR
+  ARN. Both verified live as `bedoux-admin`, not assumed: a test
+  `create-policy-version` with a wide-open `{"Action":"*","Resource":"*"}`
+  document against `bedoux-iam-scoped` returned `AccessDenied ... explicit
+  deny`; `aws iam get-role` on the SLR then succeeded where it had previously
+  failed. Full detail: `docs/decisions/0007-bedoux-iam-scoped-self-escalation-fix.md`.
+- **AWS:** EKS cluster `bedoux` control plane live in `ca-central-1`
+  (`project=bedoux-commerce-cloud`, `environment=learning` tags); managed
+  node group not yet created (retrying next). Estimated cost so far this
+  session: well under USD 1 (control plane ~USD 0.10/hr, no node group running
+  yet).
+- **Decisions:** ADR 0007 accepted.
+- **Next action:** retry `eksctl create nodegroup`, then continue P5.1 (verify
+  `kubectl get nodes`), then associate the OIDC provider and proceed to the
+  EBS CSI add-on (ADR 0006) before P5.2.
+
 ### 2026-07-27 — P5.1 session opened — Claude Code (operator: Tsogo)
 
 - **Phase/task:** P5.1 session start, `/aws-session-start` checklist run for real

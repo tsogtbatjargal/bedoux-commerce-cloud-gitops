@@ -1,0 +1,40 @@
+# eksctl ClusterConfig for the P5 manual EKS session.
+#
+# IAM roles are pre-created and referenced by ARN (not auto-created by eksctl)
+# because the bedoux-admin identity's scoped IAM policy only allows role/policy
+# actions on bedoux-*-named resources — eksctl's default auto-generated role
+# names (eksctl-<cluster>-cluster-ServiceRole-...) don't match that pattern.
+# Confirmed empirically 2026-07-27 (see docs/PROGRESS.md's P5.1 entry).
+#
+# withOIDC is deliberately left off here and associated as a separate step
+# after cluster creation (`eksctl utils associate-iam-oidc-provider`) so a
+# permission problem there doesn't roll back the whole cluster create.
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: bedoux
+  region: ca-central-1
+  tags:
+    project: bedoux-commerce-cloud
+    environment: learning
+
+iam:
+  # Substituted at apply time from `aws sts get-caller-identity` — never a
+  # literal account ID in this file (AGENTS.md: no account IDs in source
+  # control). See docs/runbooks/aws-session.md for the exact command.
+  serviceRoleARN: arn:aws:iam::${AWS_ACCOUNT_ID}:role/bedoux-eks-cluster-role
+
+managedNodeGroups:
+  - name: bedoux-ng-spot
+    instanceTypes: ["t3.medium"]
+    spot: true
+    desiredCapacity: 1
+    minSize: 1
+    maxSize: 1
+    volumeSize: 20
+    iam:
+      instanceRoleARN: arn:aws:iam::${AWS_ACCOUNT_ID}:role/bedoux-eks-nodegroup-role
+    tags:
+      project: bedoux-commerce-cloud
+      environment: learning
