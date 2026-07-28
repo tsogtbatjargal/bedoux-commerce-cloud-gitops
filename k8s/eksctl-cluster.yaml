@@ -19,6 +19,16 @@ metadata:
     project: bedoux-commerce-cloud
     environment: learning
 
+# AGENTS.md / docs/cost-guardrails.md: no NAT Gateway in the learning profile.
+# eksctl's default VPC template creates one silently otherwise — confirmed the
+# hard way in the first P5 session (found during teardown verification, cost
+# was trivial but it violated this rule undetected for the whole session; see
+# docs/PROGRESS.md's P5.5 entry). Managed node groups default to public
+# subnets (privateNetworking: false), so nodes don't need NAT for egress.
+vpc:
+  nat:
+    gateway: Disable
+
 iam:
   # Substituted at apply time from `aws sts get-caller-identity` — never a
   # literal account ID in this file (AGENTS.md: no account IDs in source

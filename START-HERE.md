@@ -67,12 +67,32 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   `bedoux-admin`'s scoped IAM policy (`bedoux-iam-scoped` — it could rewrite its
   own constraining policy) plus the narrow IAM grants `eksctl`/IRSA actually
   needed; policy is now at v3, all fixes console-applied by the owner and
-  verified live.
-- Active phase: **P5 — Manual EKS session, in progress.**
-- Next action: **P5.2 — create ECR repos, push real `bedoux-api`/`bedoux-web`
-  images**, then P5.3 deploys `charts/bedoux -f values-aws.yaml` for real. AWS
-  resources are currently live (see `docs/PROGRESS.md`'s Overall status table) —
-  same-day teardown via P5.5 is still the plan.
+  verified live. **P5.2 complete**: ECR repos `bedoux-api`/`bedoux-web` created,
+  `p5` images pushed and confirmed present. **P5.3 complete**: AWS Load Balancer
+  Controller live via its own IRSA role; found ALB has no path-rewrite
+  annotation (fixed via **ADR 0008** — the AWS profile routes everything
+  through `web`, whose own nginx already proxies `/api` internally); real app
+  deployed with real ECR images, reachable via the ALB DNS name, golden-path
+  order confirmed in Postgres. **P5.4 complete**: request traced ALB→web→api
+  with a correlated marker in both pods' logs; a deliberate `web` scale-to-0
+  breakage was diagnosed purely from `kubectl`/AWS CLI output (empty
+  Endpoints, draining ALB target) and fixed, full recovery confirmed.
+  **P5.5 complete**: full teardown in the correct order (app → ALB controller
+  → cluster), `/aws-teardown-verify` sweep clean. One real finding: the
+  session had an **undisclosed NAT Gateway** the whole time —
+  `k8s/eksctl-cluster.yaml` never set `vpc.nat.gateway: Disable`, so eksctl's
+  default silently violated the project's explicit no-NAT rule (cost was
+  trivial, ~USD 0.07, but the rule was broken undetected until teardown
+  caught it via the tagging-API sweep). Fixed for future sessions. ECR repos
+  and the session's IAM roles/policies were kept (not deleted), per
+  `docs/cost-guardrails.md`'s persistent-resource allowlist. **P5 phase
+  fully complete — gate pending owner approval.**
+- Active phase: **P5 — Manual EKS session — gate pending owner approval.**
+- Next action: **owner approves the P5 gate; then P6 — Terraform, then
+  CI/CD** — Terraform recreates everything P5 built as code (including the
+  NAT-Gateway-disabled config from the start this time), then GitHub Actions
+  with OIDC. No AWS resources are currently live (see `docs/PROGRESS.md`'s
+  Overall status table — confirmed empty, not assumed).
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

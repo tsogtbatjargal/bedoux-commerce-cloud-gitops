@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P5 — Manual EKS session |
-| Active task | P5.5 — teardown + clean sweep |
-| Last verified | 2026-07-28 — P5.4 complete: request trace ALB→web→api proven with a correlated marker; deliberate web-scale-to-0 breakage diagnosed purely from `kubectl`/AWS CLI output and fixed, full recovery confirmed |
-| AWS resources currently live | EKS cluster `bedoux` (1 Spot `t3.medium` node), OIDC provider, EBS CSI driver add-on, ALB Load Balancer Controller (+ its own IRSA role), 1 real ALB (`k8s-bedoux-...`), IAM roles `bedoux-eks-cluster-role`/`bedoux-eks-nodegroup-role`/`bedoux-ebs-csi-role`/`bedoux-alb-controller-role`, IAM policy `bedoux-alb-controller-policy`, ECR repos `bedoux-api`/`bedoux-web`, full app deployed in `bedoux` namespace (api/web/postgres, `gp3` PVC bound) — all tagged `project=bedoux-commerce-cloud`/`environment=learning` |
-| Month-to-date estimated AWS spend | Well under USD 2 so far this session (control plane + 1 Spot node + 1 ALB, ~2.5hr elapsed) |
-| Next operator action | **agent**: P5.5 — full teardown (`helm uninstall`, `eksctl delete cluster`, delete the IAM roles/policies created this session), `/aws-teardown-verify` clean sweep |
+| Active task | P5 gate — awaiting owner approval to activate P6 |
+| Last verified | 2026-07-28 — P5.5 complete: full teardown, `/aws-teardown-verify` sweep clean, one real finding (undisclosed NAT Gateway) caught and fixed |
+| AWS resources currently live | **NONE billable** — EKS cluster/node group/ALB/OIDC provider/VPC all deleted and confirmed gone. Persisted per `docs/cost-guardrails.md`'s allowlist (no hourly charge): ECR repos `bedoux-api`/`bedoux-web`, IAM roles `bedoux-eks-cluster-role`/`bedoux-eks-nodegroup-role`/`bedoux-ebs-csi-role`/`bedoux-alb-controller-role`, IAM policy `bedoux-alb-controller-policy` |
+| Month-to-date estimated AWS spend | Well under USD 2 for the full P5 session (control plane + 1 Spot node + 1 ALB + the undisclosed NAT Gateway, ~2.5hr total). Billing data lags real-time usage (documented caveat) — `aws budgets describe-budgets` still showed USD 0 immediately after teardown |
+| Next operator action | **owner**: approve the P5 gate to activate P6 (Terraform + CI/CD) |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -479,7 +479,12 @@ P3.1–P3.5 above). No unresolved gaps; the only carry-forward is the project-wi
 - [x] **P5.4 COMPLETE 2026-07-28** — request trace proven with a correlated
   marker, deliberate breakage diagnosed and fixed, full recovery confirmed.
   See session log entry below.
-- [ ] P5.5 NOT STARTED — teardown + clean sweep.
+- [x] **P5.5 COMPLETE 2026-07-28** — full teardown, `/aws-teardown-verify`
+  sweep clean, one real finding fixed (undisclosed NAT Gateway). See session
+  log entry below.
+
+**P5 gate — all of P5.1–P5.5 complete with evidence above. Ready for owner
+approval to activate P6.**
 
 ### P6 — Terraform, then CI/CD
 
@@ -516,6 +521,88 @@ P3.1–P3.5 above). No unresolved gaps; the only carry-forward is the project-wi
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-28 — P5.5 complete: full teardown, one real finding fixed — Claude Code (operator: Tsogo)
+
+- **Phase/task:** P5.5, closing out the entire P5 phase.
+- **Teardown order** (deliberately sequenced so the ALB controller could
+  clean up its own AWS resources before the cluster disappeared):
+  1. `helm uninstall bedoux -n bedoux` — deleting the Ingress triggered the
+     controller to deregister targets, delete the ALB, delete the target
+     group, and delete its managed security group. Confirmed via the
+     controller's own logs (`deleting loadBalancer` → `deleted loadBalancer`)
+     and cross-checked with `aws elbv2 describe-load-balancers` (empty) and
+     `aws ec2 describe-security-groups` (`InvalidGroup.NotFound`) — a real
+     `DependencyViolation` retry (ENI detachment lag) resolved on its own
+     within about a minute, a known AWS timing gotcha, not a bug.
+  2. `helm uninstall aws-load-balancer-controller -n kube-system`,
+     `kubectl delete namespace bedoux` — confirmed the `postgres-data` PVC's
+     backing `gp3` EBS volume was released automatically (`aws ec2
+     describe-volumes` on the PVC tag returned empty), same reclaim-on-delete
+     behavior proven in P5.1's scratch test, now proven against the real
+     app's volume too.
+  3. `eksctl delete cluster --wait` — **failed once** with `Cannot delete
+     because cluster bedoux currently has an update in progress` (CFN
+     `DELETE_FAILED` on the `ControlPlane` resource). Diagnosed: `aws eks
+     describe-cluster` showed `ACTIVE` with no pending updates — a transient
+     race with in-flight managed-addon deletion, not a real block. Retried
+     `eksctl delete cluster --wait` once more; succeeded cleanly ("all
+     cluster resources were deleted").
+- **Full `/aws-teardown-verify` sweep, all read-only**: `aws eks
+  list-clusters` (empty), ALB/target-group check (empty), `aws rds
+  describe-db-instances` (empty), NAT gateways in available/pending state
+  (empty), EIPs (empty), unattached EBS volumes (empty), CloudFormation
+  stacks in CREATE_COMPLETE/UPDATE_COMPLETE/DELETE_FAILED (empty), VPCs
+  tagged `project=bedoux-commerce-cloud` (empty).
+- **Real finding — undisclosed NAT Gateway, now fixed**: the
+  `resourcegroupstaggingapi get-resources` sweep (by design, a broader net
+  than the individual describe-* calls) initially returned 4 entries: an EC2
+  instance, an EBS volume, an ENI, and **a NAT Gateway** — none of which the
+  individual sweeps above had caught, because that API's tag index lags
+  real deletions. Investigated each directly rather than assuming staleness
+  (per `AGENTS.md`: "any resource that cannot be explained → refuse and
+  record it as a blocker"): the instance was `terminated`, the volume and
+  ENI were `NotFound`, and the NAT Gateway's own record showed
+  `State: "deleted"` — all four genuinely gone, confirming the tagging API
+  was just slow to reflect it, not a real leftover.
+  **But the NAT Gateway's existence itself was real** — `CreateTime` matched
+  cluster-creation time almost exactly. `k8s/eksctl-cluster.yaml` never set
+  `vpc.nat.gateway: Disable`, so `eksctl`'s default VPC template silently
+  provisioned one for the entire session — a direct, undetected violation of
+  `AGENTS.md`/`docs/cost-guardrails.md`'s explicit "No NAT Gateway in the
+  learning profile" rule. Cost impact was trivial (~USD 0.07 for the
+  session), but the rule was broken without anyone noticing until this
+  teardown sweep caught it. Fixed for future sessions: added `vpc: {nat:
+  {gateway: Disable}}` to `k8s/eksctl-cluster.yaml`, validated with `eksctl
+  create cluster --dry-run` (confirms the field is accepted, without
+  creating anything). Managed node groups default to public subnets
+  (`privateNetworking: false`), so nodes don't need NAT for egress — no
+  functional tradeoff.
+- **Persisted per `docs/cost-guardrails.md`'s allowlist** (no hourly
+  charge, deliberately kept rather than deleted): ECR repos `bedoux-api`/
+  `bedoux-web`, IAM roles `bedoux-eks-cluster-role`/
+  `bedoux-eks-nodegroup-role`/`bedoux-ebs-csi-role`/
+  `bedoux-alb-controller-role`, IAM policy `bedoux-alb-controller-policy`,
+  `bedoux-iam-scoped` (permanently, per ADR 0007). This corrects the P5.1
+  session-log entry's "delete the IAM roles" note from earlier in the
+  session — the allowlist explicitly permits keeping them, and doing so
+  avoids redoing the ADR 0007/0008-adjacent role setup next P5-family
+  session.
+- **AWS:** full P5 session total — EKS control plane + 1 Spot `t3.medium`
+  node + 1 ALB + 1 NAT Gateway (~2.5hr, the NAT Gateway being the
+  undisclosed finding above), all now destroyed. Estimated total session
+  cost: well under USD 2, well under the USD 16 stop threshold.
+  `aws budgets describe-budgets` still showed USD 0 immediately after
+  teardown — expected, billing data lags real-time usage (the same caveat
+  documented during P4.4).
+- **Decisions:** none new (the NAT Gateway fix is a config correction, not a
+  new architecture decision — it enforces an already-existing rule).
+- **This closes out the entire P5 phase.** All of P5.1–P5.5 complete with
+  evidence above.
+- **Next action:** owner approves the P5 gate; then **P6 — Terraform, then
+  CI/CD** — Terraform recreates everything P5 built as code (this time
+  including `vpc.nat.gateway: Disable`'s Terraform equivalent from the
+  start), then GitHub Actions with OIDC.
 
 ### 2026-07-28 — P5.4 complete: request trace + break/fix drill against the real ALB — Claude Code (operator: Tsogo)
 
