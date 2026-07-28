@@ -72,6 +72,13 @@ seed:
 
 ingress:
   className: nginx
+  # "nginx" (kind) emits the two-Ingress nginx.ingress.kubernetes.io/rewrite-target
+  # pattern. "alb" (AWS session profile, values-aws.yaml) emits a single ALB
+  # Ingress routing "/" to web only — ALB has no path-rewrite annotation, so
+  # /api prefix-stripping happens via the web container's own nginx reverse
+  # proxy (apps/web/nginx.conf.template's dormant-in-kind /api/ location block)
+  # instead. See ADR 0008.
+  controller: nginx
 
 # Per ADR 0006: only the AWS session profile creates this (values-aws.yaml).
 # kind has no ebs.csi.aws.com provisioner to satisfy it.

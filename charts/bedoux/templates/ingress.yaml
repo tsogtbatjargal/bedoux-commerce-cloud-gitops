@@ -1,7 +1,35 @@
+{{- if eq .Values.ingress.controller "alb" }}
+# Single ALB Ingress — ALB has no path-rewrite annotation equivalent to nginx's
+# rewrite-target, so /api can't be prefix-stripped at the Ingress layer here.
+# Everything routes to web; the web container's own nginx reverse proxy
+# (apps/web/nginx.conf.template) forwards /api/ to the api Service internally,
+# stripping the prefix — logic that already existed for Compose and sat
+# dormant in the kind/nginx-Ingress profile. See ADR 0008.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bedoux
+  labels:
+    {{- include "bedoux.labels" . | nindent 4 }}
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/group.name: bedoux
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web
+                port:
+                  number: 8080
+{{- else }}
 # Two Ingress objects, not one — nginx.ingress.kubernetes.io/rewrite-target applies to
 # the whole Ingress resource, not per-path, and only /api needs its prefix stripped.
-# Mirrors the real production shape (docs/architecture.md: the ALB routes straight to
-# pod IPs per target group), not a kind-only workaround.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -41,3 +69,4 @@ spec:
                 name: web
                 port:
                   number: 8080
+{{- end }}

@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P5 — Manual EKS session |
-| Active task | P5.3 — ALB controller + Ingress + reachability |
-| Last verified | 2026-07-28 — P5.2 complete: ECR repos `bedoux-api`/`bedoux-web` created, `p5` images pushed and confirmed present |
-| AWS resources currently live | EKS cluster `bedoux` (1 Spot `t3.medium` node), OIDC provider, EBS CSI driver add-on, IAM roles `bedoux-eks-cluster-role`/`bedoux-eks-nodegroup-role`/`bedoux-ebs-csi-role`, ECR repos `bedoux-api`/`bedoux-web` (image `p5` in each) — all tagged `project=bedoux-commerce-cloud`/`environment=learning` |
-| Month-to-date estimated AWS spend | Well under USD 1 so far this session |
-| Next operator action | **agent**: P5.3 — install AWS Load Balancer Controller via Helm, deploy `charts/bedoux -f values-aws.yaml` with the real ECR images, verify reachability via ALB DNS |
+| Active task | P5.4 — trace + break/fix drill |
+| Last verified | 2026-07-28 — P5.3 complete: real ALB serving the app end-to-end, golden-path order confirmed in Postgres over the public DNS name |
+| AWS resources currently live | EKS cluster `bedoux` (1 Spot `t3.medium` node), OIDC provider, EBS CSI driver add-on, ALB Load Balancer Controller (+ its own IRSA role), 1 real ALB (`k8s-bedoux-...`), IAM roles `bedoux-eks-cluster-role`/`bedoux-eks-nodegroup-role`/`bedoux-ebs-csi-role`/`bedoux-alb-controller-role`, IAM policy `bedoux-alb-controller-policy`, ECR repos `bedoux-api`/`bedoux-web`, full app deployed in `bedoux` namespace (api/web/postgres, `gp3` PVC bound) — all tagged `project=bedoux-commerce-cloud`/`environment=learning` |
+| Month-to-date estimated AWS spend | Well under USD 2 so far this session (control plane + 1 Spot node + 1 ALB, ~2hr elapsed) |
+| Next operator action | **agent**: P5.4 — trace a request ALB→pod, one deliberate breakage diagnosed and fixed |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -472,7 +472,10 @@ P3.1–P3.5 above). No unresolved gaps; the only carry-forward is the project-wi
   entries below.
 - [x] **P5.2 COMPLETE 2026-07-28** — ECR repos created, images pushed and
   confirmed present. See session log entry below.
-- [ ] P5.3 NOT STARTED — ALB controller + Ingress + reachability.
+- [x] **P5.3 COMPLETE 2026-07-28** — ALB controller live via IRSA, real app
+  deployed with real ECR images, reachable via ALB DNS name, golden-path order
+  confirmed in Postgres. ADR 0008 (ALB request-path correction) written along
+  the way. See session log entry below.
 - [ ] P5.4 NOT STARTED — trace + break/fix drill.
 - [ ] P5.5 NOT STARTED — teardown + clean sweep.
 
@@ -511,6 +514,70 @@ P3.1–P3.5 above). No unresolved gaps; the only carry-forward is the project-wi
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-28 — P5.3 complete: real ALB, golden-path order proven over public DNS — Claude Code (operator: Tsogo)
+
+- **Phase/task:** P5.3, continuing the same session.
+- **ALB Load Balancer Controller installed via Helm** (`eks/aws-load-balancer-controller`
+  chart, `kube-system`), backed by its own IRSA role
+  `bedoux-alb-controller-role` (federated trust to the cluster's OIDC provider,
+  `sub: system:serviceaccount:kube-system:aws-load-balancer-controller`) and a
+  new customer-managed policy `bedoux-alb-controller-policy` (the standard
+  upstream `iam_policy.json` from the `aws-load-balancer-controller` project,
+  downloaded and applied as-is). Both controller pods came up `Running`
+  on the first attempt — the IRSA chain worked correctly first try, unlike
+  the EBS CSI role which needed the ADR 0007 fixes first (those fixes cover
+  the account-wide OIDC/nodegroup gaps, so this role only needed its own
+  narrow policy).
+- **Real finding — ADR 0008**: the chart's existing `Ingress` template assumed
+  the same `nginx.ingress.kubernetes.io/rewrite-target` shape would work for
+  ALB. It doesn't — ALB has no path-rewrite annotation. Fixed by branching
+  `charts/bedoux/templates/ingress.yaml` on a new `ingress.controller` value:
+  the AWS profile now emits a single ALB `Ingress` routing everything to
+  `web`, and `/api` prefix-stripping happens via the `web` container's own
+  nginx reverse proxy (`apps/web/nginx.conf.template` — logic that already
+  existed for Compose, P2.4, and had simply never been exercised in a
+  Kubernetes deployment before this). `docs/architecture.md`'s request path
+  corrected to match. Full detail:
+  `docs/decisions/0008-alb-no-rewrite-web-proxies-api.md`.
+  `helm lint` clean; `helm template` confirmed both profiles render the
+  correct shape (kind: 2 nginx Ingresses; AWS: 1 ALB Ingress).
+- **Deployed for real**: `helm upgrade --install bedoux charts/bedoux -f
+  values.yaml -f values-aws.yaml --set api.image.repository=<ecr>/bedoux-api
+  --set api.image.tag=p5 --set web.image.repository=<ecr>/bedoux-web --set
+  web.image.tag=p5` in the `bedoux` namespace. All pods `Running`/`Completed`
+  on the first attempt (api, web, postgres, migration Job); `postgres-data`
+  PVC bound against the chart's own `gp3` StorageClass (not the P5.1 scratch
+  test — this is the real app's volume).
+- **Reachability proven, not assumed**: ALB DNS name
+  (`k8s-bedoux-*.ca-central-1.elb.amazonaws.com`) went from `provisioning` to
+  serving `HTTP 200` within a few minutes (`aws elbv2 describe-load-balancers`
+  + polling `curl`, via a Monitor loop). `/api/health` returned
+  `{"status":"ok","orders_enabled":false}` — kill switch correctly off by
+  default on the real public endpoint, exactly as ADR-pending-decision #4
+  requires before anything is reachable via the ALB DNS name.
+- **Golden path proven end-to-end over the real ALB**: seeded once
+  (`--set seed.enabled=true`, then back to `false`), a **real Chrome browser
+  via Playwright MCP** loaded the live catalog page at the ALB DNS name and
+  showed all 6 seeded products (T-401 evidence). Browser click automation hit
+  transient timeouts on this run (environmental — the same UI flow was
+  already proven working live via Playwright during the P5 pre-work kill-switch
+  drill), so the order step was verified via a direct `curl -X POST
+  /api/orders` instead: `201`, order confirmed by `id` in the real Postgres
+  pod via `kubectl exec ... psql` (`status: submitted`, correct
+  `total_cents`). Kill switch flipped back to `false` afterward and confirmed
+  via `/api/health` + a `kubectl rollout status` wait — the safe default is
+  restored.
+- **AWS resources now live**: adds the ALB Load Balancer Controller + its
+  IRSA role/policy, 1 real ALB, and the full app (api/web/postgres
+  Deployments + Services, migration/seed Jobs, `gp3` PVC) to P5.1/P5.2's
+  running total. Estimated cost so far: well under USD 2 (~2hr elapsed:
+  control plane + 1 Spot t3.medium + 1 ALB, well under the USD 16 stop
+  threshold).
+- **Decisions:** ADR 0008 accepted.
+- **Next action:** P5.4 — trace a request ALB→pod (CloudWatch/`kubectl logs`
+  or similar), then one deliberate breakage diagnosed and fixed, per
+  `docs/IMPLEMENTATION-PLAN.md`'s P5 gate (T-402/T-403).
 
 ### 2026-07-28 — P5.2 complete: ECR repos + real image push — Claude Code (operator: Tsogo)
 

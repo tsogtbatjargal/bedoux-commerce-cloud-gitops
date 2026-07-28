@@ -18,3 +18,10 @@ postgres:
 # teardown or between demos.
 api:
   ordersEnabled: false
+
+# Per ADR 0008: ALB has no path-rewrite annotation, so P5.3 routes everything
+# through a single ALB Ingress to web and lets the web container's own nginx
+# reverse proxy handle /api prefix-stripping internally.
+ingress:
+  className: alb
+  controller: alb

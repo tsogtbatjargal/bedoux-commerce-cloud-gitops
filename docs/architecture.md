@@ -22,8 +22,14 @@ several services per [ADR 0002](decisions/0002-mvp-aws-service-deferrals.md):
 2. An internet-facing Application Load Balancer terminates TLS using ACM.
 3. The AWS Load Balancer Controller reconciles the Kubernetes Ingress and AWS
    target groups.
-4. `/` routes to the frontend Service and `/api` routes to the API Service.
-5. ALB `ip` target mode sends traffic directly to pod IP addresses.
+4. The ALB Ingress has a single rule: `/` routes to the frontend Service. ALB
+   `ip` target mode sends traffic directly to frontend pod IP addresses.
+5. The frontend pod's own nginx reverse-proxies `/api/*` requests to the API
+   Service internally, over the cluster network, stripping the prefix — ALB
+   has no path-rewrite annotation, so this happens one hop further in than a
+   direct ALB target-group rule would (see
+   [ADR 0008](decisions/0008-alb-no-rewrite-web-proxies-api.md)). The API is
+   never directly reachable from the public ALB DNS name.
 6. The API reads product and order data from PostgreSQL.
 7. The API accesses product images in S3 through a narrowly scoped workload
    identity.
