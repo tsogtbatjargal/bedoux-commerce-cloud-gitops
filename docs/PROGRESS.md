@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P5 — Manual EKS session |
-| Active task | P5.4 — trace + break/fix drill |
-| Last verified | 2026-07-28 — P5.3 complete: real ALB serving the app end-to-end, golden-path order confirmed in Postgres over the public DNS name |
+| Active task | P5.5 — teardown + clean sweep |
+| Last verified | 2026-07-28 — P5.4 complete: request trace ALB→web→api proven with a correlated marker; deliberate web-scale-to-0 breakage diagnosed purely from `kubectl`/AWS CLI output and fixed, full recovery confirmed |
 | AWS resources currently live | EKS cluster `bedoux` (1 Spot `t3.medium` node), OIDC provider, EBS CSI driver add-on, ALB Load Balancer Controller (+ its own IRSA role), 1 real ALB (`k8s-bedoux-...`), IAM roles `bedoux-eks-cluster-role`/`bedoux-eks-nodegroup-role`/`bedoux-ebs-csi-role`/`bedoux-alb-controller-role`, IAM policy `bedoux-alb-controller-policy`, ECR repos `bedoux-api`/`bedoux-web`, full app deployed in `bedoux` namespace (api/web/postgres, `gp3` PVC bound) — all tagged `project=bedoux-commerce-cloud`/`environment=learning` |
-| Month-to-date estimated AWS spend | Well under USD 2 so far this session (control plane + 1 Spot node + 1 ALB, ~2hr elapsed) |
-| Next operator action | **agent**: P5.4 — trace a request ALB→pod, one deliberate breakage diagnosed and fixed |
+| Month-to-date estimated AWS spend | Well under USD 2 so far this session (control plane + 1 Spot node + 1 ALB, ~2.5hr elapsed) |
+| Next operator action | **agent**: P5.5 — full teardown (`helm uninstall`, `eksctl delete cluster`, delete the IAM roles/policies created this session), `/aws-teardown-verify` clean sweep |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -476,7 +476,9 @@ P3.1–P3.5 above). No unresolved gaps; the only carry-forward is the project-wi
   deployed with real ECR images, reachable via ALB DNS name, golden-path order
   confirmed in Postgres. ADR 0008 (ALB request-path correction) written along
   the way. See session log entry below.
-- [ ] P5.4 NOT STARTED — trace + break/fix drill.
+- [x] **P5.4 COMPLETE 2026-07-28** — request trace proven with a correlated
+  marker, deliberate breakage diagnosed and fixed, full recovery confirmed.
+  See session log entry below.
 - [ ] P5.5 NOT STARTED — teardown + clean sweep.
 
 ### P6 — Terraform, then CI/CD
@@ -514,6 +516,45 @@ P3.1–P3.5 above). No unresolved gaps; the only carry-forward is the project-wi
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-28 — P5.4 complete: request trace + break/fix drill against the real ALB — Claude Code (operator: Tsogo)
+
+- **Phase/task:** P5.4, continuing the same session.
+- **Trace (T-402)**: cross-referenced the ALB target group's registered
+  target IP (`aws elbv2 describe-target-health`) against the `web` pod's
+  actual IP (`kubectl get pods -o wide`) — exact match, confirming ALB `ip`
+  target mode really does address the pod directly (no kube-proxy hop).
+  Then sent a request with a unique marker
+  (`GET /api/health?trace=trace-<timestamp>`) and found the same marker in
+  both `kubectl logs deploy/web` (arriving from the ALB) and
+  `kubectl logs deploy/api` (arriving from the web pod's IP, `/api` prefix
+  already stripped) — a real, correlated two-hop trace proving ADR 0008's
+  request path (ALB → web → api) end-to-end, not just asserted.
+- **Break/fix drill (T-403)**: `kubectl scale deployment/web -n bedoux
+  --replicas=0`. Within one poll interval: ALB target state → `draining`,
+  `curl` → `503`. **Diagnosed purely from `kubectl`/AWS CLI output**, same
+  discipline as P3.5's kind drill: `kubectl get deployment web` showed
+  `0/0`, `kubectl get endpoints web` showed `<none>`,
+  `aws elbv2 describe-target-health` showed
+  `Target.DeregistrationInProgress` — root cause (zero replicas → empty
+  Endpoints → ALB has nothing to route to) was unambiguous from the output
+  alone. **Fix**: `kubectl scale deployment/web --replicas=1`,
+  `kubectl rollout status` confirmed the rollout, then polled target health
+  + `curl` until both recovered (`healthy` / `200`) — full recovery
+  confirmed, not assumed.
+- **AWS:** no new resources; same live set as P5.3. Estimated cost so far:
+  well under USD 2 (~2.5hr elapsed).
+- **Decisions:** none new.
+- **Next action:** P5.5 — full teardown: `helm uninstall bedoux -n bedoux`,
+  `eksctl delete cluster --name bedoux --region ca-central-1` (removes the
+  node group, VPC, and the ALB via the controller's finalizer — verify the
+  ALB is actually gone, not just the Ingress object), delete the
+  session-created IAM resources (`bedoux-eks-cluster-role`,
+  `bedoux-eks-nodegroup-role`, `bedoux-ebs-csi-role`,
+  `bedoux-alb-controller-role`, `bedoux-alb-controller-policy` — `NOT`
+  `bedoux-iam-scoped`, which stays permanently per ADR 0007), then
+  `/aws-teardown-verify`'s full read-only sweep to confirm the account is
+  back to empty.
 
 ### 2026-07-28 — P5.3 complete: real ALB, golden-path order proven over public DNS — Claude Code (operator: Tsogo)
 
