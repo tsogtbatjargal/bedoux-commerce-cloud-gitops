@@ -87,12 +87,11 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   and the session's IAM roles/policies were kept (not deleted), per
   `docs/cost-guardrails.md`'s persistent-resource allowlist. **P5 phase
   fully complete — gate pending owner approval.**
-- Active phase: **P5 — Manual EKS session — gate pending owner approval.**
-- Next action: **owner approves the P5 gate; then P6 — Terraform, then
-  CI/CD** — Terraform recreates everything P5 built as code (including the
-  NAT-Gateway-disabled config from the start this time), then GitHub Actions
-  with OIDC. No AWS resources are currently live (see `docs/PROGRESS.md`'s
-  Overall status table — confirmed empty, not assumed).
+- Active phase: **P6 — Terraform, then CI/CD; P6.1 is in progress.**
+- Next action: **P6.1** — Terraform recreates everything P5 built as code
+  (including the NAT-Gateway-disabled VPC design from the start this time), then
+  GitHub Actions with OIDC. No billable AWS resources are currently live (see
+  `docs/PROGRESS.md`'s Overall status table — confirmed empty, not assumed).
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

@@ -9,12 +9,12 @@ checked here and its evidence is recorded in the session log.
 | Field | Value |
 |---|---|
 | State | IN PROGRESS |
-| Active phase | P5 — Manual EKS session |
-| Active task | P5 gate — awaiting owner approval to activate P6 |
-| Last verified | 2026-07-28 — P5.5 complete: full teardown, `/aws-teardown-verify` sweep clean, one real finding (undisclosed NAT Gateway) caught and fixed |
+| Active phase | P6 — Terraform, then CI/CD |
+| Active task | P6.1 — Terraform modules + reviewed plan |
+| Last verified | 2026-07-29 — owner approved the P5 gate; P6 activated with P6.1 as the only in-progress item |
 | AWS resources currently live | **NONE billable** — EKS cluster/node group/ALB/OIDC provider/VPC all deleted and confirmed gone. Persisted per `docs/cost-guardrails.md`'s allowlist (no hourly charge): ECR repos `bedoux-api`/`bedoux-web`, IAM roles `bedoux-eks-cluster-role`/`bedoux-eks-nodegroup-role`/`bedoux-ebs-csi-role`/`bedoux-alb-controller-role`, IAM policy `bedoux-alb-controller-policy` |
 | Month-to-date estimated AWS spend | Well under USD 2 for the full P5 session (control plane + 1 Spot node + 1 ALB + the undisclosed NAT Gateway, ~2.5hr total). Billing data lags real-time usage (documented caveat) — `aws budgets describe-budgets` still showed USD 0 immediately after teardown |
-| Next operator action | **owner**: approve the P5 gate to activate P6 (Terraform + CI/CD) |
+| Next operator action | **P6.1**: build Terraform modules and produce a reviewed plan; NAT Gateway disabled from the initial VPC design |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -483,12 +483,12 @@ P3.1–P3.5 above). No unresolved gaps; the only carry-forward is the project-wi
   sweep clean, one real finding fixed (undisclosed NAT Gateway). See session
   log entry below.
 
-**P5 gate — all of P5.1–P5.5 complete with evidence above. Ready for owner
-approval to activate P6.**
+**P5 gate — APPROVED by owner 2026-07-29; P6 activated.** All of P5.1–P5.5
+complete with evidence above. The dedicated gate commit records the approval.
 
 ### P6 — Terraform, then CI/CD
 
-- [ ] P6.1 NOT STARTED — Terraform modules + reviewed plan.
+- [ ] P6.1 IN PROGRESS — Terraform modules + reviewed plan.
 - [ ] P6.2 NOT STARTED — apply/verify/destroy cycle.
 - [ ] P6.3 NOT STARTED — OIDC role + PR pipeline.
 - [ ] P6.4 NOT STARTED — deploy pipeline against session cluster.
@@ -521,6 +521,45 @@ approval to activate P6.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-29 — P5 gate checkpoint verification — Codex
+
+- **Phase/task:** P5 gate remains active and awaits explicit owner approval; P6 was not
+  activated and no later-phase work started.
+- **Changed:** no implementation or architecture files. This entry records the required
+  checkpoint verification only.
+- **Verification:** `git status --short` was clean and `git log --oneline -5` confirmed
+  `1e9529e` (`P5.5 complete: full teardown, ...`) remains the latest task checkpoint.
+  Read-only AWS checks, using `--profile bedoux-admin` in pinned region `ca-central-1`,
+  confirmed no EKS clusters, ALBs, target groups, RDS instances, available/pending NAT
+  gateways, associated EIPs, unattached EBS volumes, tagged project VPCs, or relevant
+  CloudFormation stacks. The broad project-tag sweep returned only the allowlisted ECR
+  repositories `bedoux-api` and `bedoux-web`. The USD 20 budget is live with current
+  actual spend USD 0.35. `git diff --check` passed. The direct commands underlying
+  `make docs-check` passed (`docs-check OK`); the host wrapper could not launch its
+  toolbox because Podman cannot set the required sticky bit on `/run/user/1000/libpod`
+  in this read-only environment.
+- **AWS:** none created or destroyed this session. Estimated session cost: USD 0.
+- **Decisions:** none. The P6/P7 S3 image-adapter boundary remains the only open
+  owner-approved decision; ADR 0006 and the P5 kill switch/request bounds remain done.
+- **Next action:** owner approves the P5 gate in a separate gate commit; then activate
+  P6 and begin only P6.1 (Terraform modules + reviewed plan), with NAT disabled from the
+  start in the Terraform VPC design.
+- **Blocker:** owner approval of the P5 gate; no technical blocker found.
+
+### 2026-07-29 — P5 gate approved; P6 activated — Codex (owner: Tsogo)
+
+- **Phase/task:** Owner explicitly approved the P5 gate and activated P6. P6.1 is now
+  the only in-progress checklist item; no P6 implementation has started in this entry.
+- **Changed:** overall checkpoint state and phase checklist updated in this file;
+  `START-HERE.md` refreshed to point at P6.1.
+- **AWS:** none. No resources created or modified. Estimated session cost: USD 0.
+- **Decisions:** none new. The P6/P7 S3 image-adapter boundary remains open and must
+  be recorded before its implementation phase; the Terraform VPC must disable NAT from
+  the start, carrying forward P5.5's finding.
+- **Next action:** P6.1 — create Terraform modules and produce a reviewed cold plan;
+  do not apply AWS changes until the plan is reviewed and a separate AWS session is
+  opened using the manual `docs/runbooks/aws-session.md` checklist.
 
 ### 2026-07-28 — P5.5 complete: full teardown, one real finding fixed — Claude Code (operator: Tsogo)
 
