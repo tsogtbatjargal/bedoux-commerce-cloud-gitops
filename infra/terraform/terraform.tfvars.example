@@ -1,0 +1,15 @@
+aws_region              = "ca-central-1"
+aws_profile             = "bedoux-admin"
+cluster_name            = "bedoux"
+kubernetes_version      = "1.33"
+availability_zones      = ["ca-central-1a", "ca-central-1b"]
+public_subnet_cidrs     = ["10.42.0.0/20", "10.42.16.0/20"]
+node_instance_types     = ["t3.medium"]
+node_capacity_type      = "SPOT"
+node_desired_size       = 1
+node_min_size           = 1
+node_max_size           = 1
+node_disk_size_gib      = 20
+# Set to an exact version returned by `aws eks describe-addon-versions` before P6.2 apply.
+# ebs_csi_addon_version = "<compatible-version>"
+

@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P6 — Terraform, then CI/CD |
-| Active task | P6.1 — Terraform modules + reviewed plan |
-| Last verified | 2026-07-29 — owner approved the P5 gate; P6 activated with P6.1 as the only in-progress item |
+| Active task | P6.2 — apply/verify/destroy cycle |
+| Last verified | 2026-07-29 — P6.1 Terraform modules validated and cold plan reviewed; no AWS resources created |
 | AWS resources currently live | **NONE billable** — EKS cluster/node group/ALB/OIDC provider/VPC all deleted and confirmed gone. Persisted per `docs/cost-guardrails.md`'s allowlist (no hourly charge): ECR repos `bedoux-api`/`bedoux-web`, IAM roles `bedoux-eks-cluster-role`/`bedoux-eks-nodegroup-role`/`bedoux-ebs-csi-role`/`bedoux-alb-controller-role`, IAM policy `bedoux-alb-controller-policy` |
 | Month-to-date estimated AWS spend | Well under USD 2 for the full P5 session (control plane + 1 Spot node + 1 ALB + the undisclosed NAT Gateway, ~2.5hr total). Billing data lags real-time usage (documented caveat) — `aws budgets describe-budgets` still showed USD 0 immediately after teardown |
-| Next operator action | **P6.1**: build Terraform modules and produce a reviewed plan; NAT Gateway disabled from the initial VPC design |
+| Next operator action | **P6.2**: open the manual AWS session, import persistent P5 resources, then apply/verify/destroy |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -488,7 +488,10 @@ complete with evidence above. The dedicated gate commit records the approval.
 
 ### P6 — Terraform, then CI/CD
 
-- [ ] P6.1 IN PROGRESS — Terraform modules + reviewed plan.
+- [x] P6.1 COMPLETE — Terraform modules + reviewed no-apply plan. Evidence: session log
+      2026-07-29; `terraform fmt -check -recursive`, `terraform validate`, and
+      `terraform plan -refresh=false` passed; plan was 26 to add, 0 to change, 0 to
+      destroy, with no NAT Gateway/EIP/NAT route resources in source or plan.
 - [ ] P6.2 NOT STARTED — apply/verify/destroy cycle.
 - [ ] P6.3 NOT STARTED — OIDC role + PR pipeline.
 - [ ] P6.4 NOT STARTED — deploy pipeline against session cluster.
@@ -560,6 +563,31 @@ Append newest entries immediately below this heading. Never include secrets or A
 - **Next action:** P6.1 — create Terraform modules and produce a reviewed cold plan;
   do not apply AWS changes until the plan is reviewed and a separate AWS session is
   opened using the manual `docs/runbooks/aws-session.md` checklist.
+
+### 2026-07-29 — P6.1 complete: Terraform modules and cold plan — Codex
+
+- **Phase/task:** P6.1 complete. Terraform now represents the P5 learning profile:
+  public-only VPC, no NAT, EKS control plane, one Spot `t3.medium` managed node,
+  ECR repositories with lifecycle policies, cluster/node IAM roles, EKS OIDC,
+  EBS CSI IRSA/add-on, and ALB Controller IRSA permissions.
+- **Changed:** added `infra/terraform/` with pinned Terraform/provider versions,
+  root configuration, and modules for VPC, cluster IAM, EKS, workload IAM, EKS
+  add-ons, and ECR; added `.gitignore` rules for local Terraform cache/state/plan
+  artifacts; refreshed `START-HERE.md` and this progress state.
+- **Verified:** `terraform init -backend=false -input=false` succeeded with AWS
+  provider `5.100.0` and TLS provider `4.1.0`; `terraform fmt -check -recursive`
+  passed; `terraform validate` passed; a no-refresh plan saved outside the repo
+  completed with **26 to add, 0 to change, 0 to destroy**. Focused plan/source
+  inspection found no `aws_nat_gateway`, NAT EIP, or NAT route resources. The plan
+  was local and no-apply.
+- **AWS:** none created, modified, or destroyed. Estimated session cost: USD 0.
+- **Decisions:** no architecture decision changed. The EBS CSI add-on version is
+  an explicit P6.2 input because AWS compatibility is version-specific; P6.2 must
+  select and record an exact compatible version before apply. Persistent P5 ECR
+  repositories and IAM roles must be imported before apply rather than duplicated.
+- **Next action:** P6.2 — manually walk `docs/runbooks/aws-session.md` before any
+  apply, import the persistent resources, then run the apply/verify/destroy cycle
+  and the full teardown sweep.
 
 ### 2026-07-28 — P5.5 complete: full teardown, one real finding fixed — Claude Code (operator: Tsogo)
 
