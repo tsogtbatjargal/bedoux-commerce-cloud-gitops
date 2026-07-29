@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P6 — Terraform, then CI/CD |
-| Active task | P6.2 — apply/verify/destroy cycle |
-| Last verified | 2026-07-29 — P6.1 Terraform modules validated and cold plan reviewed; no AWS resources created |
-| AWS resources currently live | **NONE billable** — EKS cluster/node group/ALB/OIDC provider/VPC all deleted and confirmed gone. Persisted per `docs/cost-guardrails.md`'s allowlist (no hourly charge): ECR repos `bedoux-api`/`bedoux-web`, IAM roles `bedoux-eks-cluster-role`/`bedoux-eks-nodegroup-role`/`bedoux-ebs-csi-role`/`bedoux-alb-controller-role`, IAM policy `bedoux-alb-controller-policy` |
-| Month-to-date estimated AWS spend | Well under USD 2 for the full P5 session (control plane + 1 Spot node + 1 ALB + the undisclosed NAT Gateway, ~2.5hr total). Billing data lags real-time usage (documented caveat) — `aws budgets describe-budgets` still showed USD 0 immediately after teardown |
-| Next operator action | **P6.2**: open the manual AWS session, import persistent P5 resources, then apply/verify/destroy |
+| Active task | P6.3 — OIDC role + PR pipeline |
+| Last verified | 2026-07-29T19:37:42Z — P6.2 Terraform apply/verify/destroy cycle completed; full teardown sweep clean. |
+| AWS resources currently live | **No temporary/billable environment resources.** Persisted per `docs/cost-guardrails.md`'s allowlist (no hourly charge): tagged Terraform state S3 bucket, ECR repos `bedoux-api`/`bedoux-web`, IAM roles `bedoux-eks-cluster-role`/`bedoux-eks-nodegroup-role`/`bedoux-ebs-csi-role`/`bedoux-alb-controller-role`, IAM policy `bedoux-alb-controller-policy`. |
+| Month-to-date estimated AWS spend | Budget reports USD 0.35 actual against the USD 20 cap (queried 2026-07-29; billing data lags). P6.2's roughly 30-minute EKS + one Spot-node session is estimated below USD 0.10. |
+| Next operator action | **P6.3**: implement the GitHub OIDC role and PR pipeline locally; no AWS session is required. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -492,7 +492,9 @@ complete with evidence above. The dedicated gate commit records the approval.
       2026-07-29; `terraform fmt -check -recursive`, `terraform validate`, and
       `terraform plan -refresh=false` passed; plan was 26 to add, 0 to change, 0 to
       destroy, with no NAT Gateway/EIP/NAT route resources in source or plan.
-- [ ] P6.2 NOT STARTED — apply/verify/destroy cycle.
+- [x] P6.2 COMPLETE — Terraform apply/verify/destroy cycle. Evidence: session log
+      2026-07-29T19:37:42Z; live EKS/node/EBS CSI verification, converged plan, and clean
+      teardown sweep (T-501).
 - [ ] P6.3 NOT STARTED — OIDC role + PR pipeline.
 - [ ] P6.4 NOT STARTED — deploy pipeline against session cluster.
 - [ ] P6.5 NOT STARTED — CI rollback drill.
@@ -524,6 +526,72 @@ complete with evidence above. The dedicated gate commit records the approval.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-29T19:37:42Z — P6.2 complete: Terraform apply/verify/destroy and clean sweep — Codex
+
+- **Phase/task:** P6.2 complete; T-501 met. The manual runbook preflight confirmed the
+  non-root `bedoux-admin` identity, pinned `ca-central-1` region, USD 20 budget, and an
+  explainable pre-existing inventory. Budget actual was USD 0.35 at the final check.
+- **Changed:** added remote-state bootstrap, state-safe persistent-resource
+  import/detach helper, EKS-compatible EBS CSI version, exact existing ALB-controller
+  policy, and static VPC subnet map (fixes the import graph). The live cycle found the
+  EKS creator had no access entry, so the EKS module now creates an explicit access entry
+  for the dynamically derived current caller and associates the AWS cluster-admin access
+  policy. This is the least-privilege, reproducible replacement for an implicit creator
+  mapping; no account identifier is committed.
+- **Verified:** initial reviewed plan was **19 add, 7 change, 0 destroy**, with no NAT,
+  NAT route, or EIP. After the access correction, `terraform validate`, `terraform fmt
+  -check -recursive`, and a converged `terraform plan` all passed. Live verification:
+  EKS 1.33, one Spot `t3.medium` node Ready, and EBS CSI add-on `ACTIVE` at
+  `v1.63.0-eksbuild.1`; both EBS CSI controller pods were Running. Kubernetes access was
+  denied before the explicit entry and succeeded after it, providing a real IAM/bootstrap
+  finding and fix.
+- **Teardown:** persistent ECR/IAM resources were detached from session state before the
+  reviewed destroy plan. Terraform terminal streaming interrupted twice while AWS
+  continued asynchronous node-group deletion, leaving stale S3 state locks; each lock was
+  cleared only after confirming no Terraform process remained. The final AWS inventory
+  confirmed no EKS cluster, tagged VPC/IGW, ALB, target group, NAT Gateway, unattached
+  EIP, RDS instance/snapshot/subnet group, unattached EBS volume, EBS snapshot, or active
+  Bedoux CloudFormation stack. Historical `eksctl` stacks are `DELETE_COMPLETE`.
+- **Persistent allowlist:** exactly the two immutable ECR repositories, the tagged state
+  bucket, four named IAM roles, and ALB-controller policy remain. The tag-based inventory
+  returned only two ECR mappings and one S3 mapping. Root session state is intentionally
+  empty after teardown; any future AWS apply must first run
+  `scripts/terraform-persistent-state.sh import --execute`.
+- **AWS:** temporary VPC/EKS/node/add-on/OIDC/access resources created and destroyed in
+  the same session. Estimated P6.2 cost: below USD 0.10; billing telemetry is lagged.
+- **Next action:** P6.3 — GitHub OIDC role + PR pipeline (local/GitHub work only; do not
+  open an AWS session unless a later step actually requires AWS mutation).
+
+### 2026-07-29 — P6.2 partial apply paused for credential renewal — Codex
+
+- **Phase/task:** P6.2 remains **IN PROGRESS**. The manual `aws-session.md` preflight
+  completed with the non-root `bedoux-admin` identity, the pinned `ca-central-1` region,
+  budget below the USD 20 guardrail, no unexpected pre-existing regional resources, and a
+  reviewed Terraform plan. Persistent P5 ECR/IAM resources were imported into remote
+  Terraform state; a versioned, encrypted, public-blocked S3 state bucket was created as
+  an approved persistent exception.
+- **Changed:** added the remote-state bootstrap and state-safe persistent-resource
+  import/detach helper; corrected the VPC route-association graph; pinned the
+  EKS-compatible EBS CSI add-on release; and vendored the existing ALB controller policy
+  exactly so Terraform updates its tags rather than replacing it. `terraform fmt -check
+  -recursive` and `terraform validate` passed. The reviewed apply plan was **19 to add,
+  7 to change, 0 to destroy**, with no NAT Gateway, NAT route, or EIP resource.
+- **AWS:** the first apply terminal stream ended early and left a stale state lock. After
+  confirming no Terraform process remained, the specific stale lock was released and a
+  fresh plan was reviewed (**9 to add, 2 to change, 0 to destroy**). The resumed apply
+  failed before EKS creation because the second public subnet CIDR conflicted with a
+  subnet already in the new VPC. The remote state currently tracks the VPC, Internet
+  Gateway, public route table, one public subnet, required ECR lifecycle/tag updates,
+  and IAM policy attachments; the second subnet may exist outside state and must be
+  inventoried. No EKS cluster/node group, ALB, NAT Gateway, or Elastic IP was created.
+- **Stop condition:** immediately after the failure, `aws ec2 describe-subnets` returned
+  an expired-session error. No further AWS calls or mutations were attempted. This is a
+  pause for credential renewal, not permission to continue without the runbook.
+- **Next action:** renew authentication, manually repeat the runbook's **Before the
+  session** checklist, inspect the VPC's subnets, import any untracked subnet if present,
+  then produce a fresh plan. Complete verification and the teardown sweep in the same
+  renewed session before marking P6.2 complete.
 
 ### 2026-07-29 — P5 gate checkpoint verification — Codex
 
@@ -572,8 +640,7 @@ Append newest entries immediately below this heading. Never include secrets or A
   EBS CSI IRSA/add-on, and ALB Controller IRSA permissions.
 - **Changed:** added `infra/terraform/` with pinned Terraform/provider versions,
   root configuration, and modules for VPC, cluster IAM, EKS, workload IAM, EKS
-  add-ons, and ECR; added `.gitignore` rules for local Terraform cache/state/plan
-  artifacts; refreshed `START-HERE.md` and this progress state.
+  add-ons, and ECR; refreshed `START-HERE.md` and this progress state.
 - **Verified:** `terraform init -backend=false -input=false` succeeded with AWS
   provider `5.100.0` and TLS provider `4.1.0`; `terraform fmt -check -recursive`
   passed; `terraform validate` passed; a no-refresh plan saved outside the repo

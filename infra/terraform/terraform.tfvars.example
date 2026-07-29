@@ -10,6 +10,4 @@ node_desired_size       = 1
 node_min_size           = 1
 node_max_size           = 1
 node_disk_size_gib      = 20
-# Set to an exact version returned by `aws eks describe-addon-versions` before P6.2 apply.
-# ebs_csi_addon_version = "<compatible-version>"
-
+ebs_csi_addon_version = "v1.63.0-eksbuild.1"

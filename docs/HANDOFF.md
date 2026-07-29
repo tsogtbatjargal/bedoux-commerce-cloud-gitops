@@ -20,16 +20,25 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
    one item remains open (the P6/P7 S3 adapter boundary); the two P5-scoped decisions are
    done (ADR 0006, and the kill switch/request bounds).
 
-## Current state (as of 2026-07-28)
+## Current state (as of 2026-07-29)
 - Phases 0-4 complete, gates approved. Local app (FastAPI + Postgres + React) proven on
   Compose (P2), then on kind with a Helm chart (P3, ADR 0005), with real drills throughout.
   AWS account readiness done in P4: non-root IAM identity `bedoux-admin`, region
   `ca-central-1` pinned, USD 20 budget + Cost Anomaly Detection live.
-- **Phase 5 (Manual EKS session) is fully complete, gate pending owner approval.** This was
+- **Phase 5 (Manual EKS session) is fully complete and its gate is owner-approved.** This was
   the first phase to create real billable AWS resources, and it did: a full eksctl EKS
   cluster, node group, ALB, and app deployment were created, exercised, and torn down
   same-day. No AWS resources are currently live — confirmed via a full
-  `/aws-teardown-verify` sweep, not assumed.
+  teardown sweep, not assumed.
+- **Phase 6 is active; P6.1 and P6.2 are complete.** Terraform now recreates the P5
+  learning profile with a public-only VPC (no NAT), EKS 1.33, one Spot `t3.medium` node,
+  ECR lifecycle policy, IRSA/OIDC, EBS CSI, and controller permissions. P6.2 proved a
+  real Terraform apply/verify/destroy cycle: cluster access initially failed because the
+  creator had no EKS access entry, then passed after Terraform created an explicit,
+  dynamically derived creator access entry and cluster-admin association. The node was
+  Ready, EBS CSI was ACTIVE, and the full teardown sweep was clean. No temporary AWS
+  resources remain; only the state bucket, two ECR repos, and four IAM roles plus policy
+  are persistent allowlisted resources.
 - Three real findings surfaced and were fixed during P5, each documented with its own ADR
   or PROGRESS entry:
   1. **ADR 0007** — `bedoux-admin`'s scoped IAM policy (`bedoux-iam-scoped`) had a genuine
@@ -84,12 +93,11 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   `image_url`, presigned URL via IRSA in S3 mode, frontend storage-agnostic).
 
 ## What I want next
-Continue the single task marked IN PROGRESS in docs/PROGRESS.md. Work one item at a time,
-record evidence before checking anything off, and never create AWS resources outside a
-session opened via docs/runbooks/aws-session.md (`/aws-session-start`). If asked to approve
+Continue the single task marked IN PROGRESS in docs/PROGRESS.md: **P6.3 — OIDC role + PR
+pipeline**. Work one item at a time and record evidence before checking anything off.
+There is no `/aws-session-start` for Codex: before touching AWS, manually walk the "Before
+the session" checklist in `docs/runbooks/aws-session.md`, and run its teardown sweep before
+ending any AWS session. Never create AWS resources outside that process. If asked to approve
 a phase gate, make that its own commit ("Phase N gate approved by owner; activate Phase
-N+1") before starting the next phase's work. P5's gate is pending owner approval right now;
-once approved, P6 (Terraform, then CI/CD) recreates everything P5 built as code — make sure
-the Terraform VPC module disables the NAT Gateway from the start, learning from P5.5's
-finding rather than repeating it.
+N+1") before starting the next phase's work. The Terraform VPC must keep NAT disabled.
 ```

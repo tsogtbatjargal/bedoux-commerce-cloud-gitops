@@ -102,9 +102,7 @@ variable "node_disk_size_gib" {
 }
 
 variable "ebs_csi_addon_version" {
-  description = "Optional exact EBS CSI add-on version compatible with kubernetes_version; select before P6.2 apply."
+  description = "Exact EBS CSI add-on version compatible with kubernetes_version."
   type        = string
-  default     = null
-  nullable    = true
+  default     = "v1.63.0-eksbuild.1"
 }
-

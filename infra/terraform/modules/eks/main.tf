@@ -16,6 +16,24 @@ resource "aws_eks_cluster" "this" {
   tags = var.tags
 }
 
+data "aws_caller_identity" "current" {}
+
+resource "aws_eks_access_entry" "cluster_creator" {
+  cluster_name  = aws_eks_cluster.this.name
+  principal_arn = data.aws_caller_identity.current.arn
+  type          = "STANDARD"
+}
+
+resource "aws_eks_access_policy_association" "cluster_creator_admin" {
+  cluster_name  = aws_eks_cluster.this.name
+  principal_arn = aws_eks_access_entry.cluster_creator.principal_arn
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+
+  access_scope {
+    type = "cluster"
+  }
+}
+
 resource "aws_eks_node_group" "this" {
   cluster_name    = aws_eks_cluster.this.name
   node_group_name = "${var.cluster_name}-ng-spot"
@@ -41,4 +59,3 @@ resource "aws_eks_node_group" "this" {
 
   depends_on = [aws_eks_cluster.this]
 }
-

@@ -1,3 +1,11 @@
+locals {
+  public_subnets = {
+    for index, availability_zone in var.availability_zones : availability_zone => {
+      cidr = var.public_subnet_cidrs[index]
+    }
+  }
+}
+
 resource "aws_vpc" "this" {
   cidr_block           = var.cidr
   enable_dns_hostnames = true
@@ -17,11 +25,7 @@ resource "aws_internet_gateway" "this" {
 }
 
 resource "aws_subnet" "public" {
-  for_each = {
-    for index, availability_zone in var.availability_zones : availability_zone => {
-      cidr = var.public_subnet_cidrs[index]
-    }
-  }
+  for_each = local.public_subnets
 
   vpc_id                  = aws_vpc.this.id
   availability_zone       = each.key
@@ -49,9 +53,8 @@ resource "aws_route_table" "public" {
 }
 
 resource "aws_route_table_association" "public" {
-  for_each = aws_subnet.public
+  for_each = local.public_subnets
 
-  subnet_id      = each.value.id
+  subnet_id      = aws_subnet.public[each.key].id
   route_table_id = aws_route_table.public.id
 }
-
