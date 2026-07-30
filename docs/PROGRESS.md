@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P6 — Terraform, then CI/CD |
 | Active task | P6.3 — OIDC role + PR pipeline |
-| Last verified | 2026-07-30T13:54:52-06:00 — P6.3 code remains locally validated; publishing is paused because the local GitHub CLI token is invalid. |
+| Last verified | 2026-07-30T14:21:29-06:00 — P6.3 PR #1 found and locally fixed a web lockfile drift; rerun pending. |
 | AWS resources currently live | **No temporary/billable environment resources.** Persisted per `docs/cost-guardrails.md`'s allowlist (no hourly charge): tagged Terraform state S3 bucket, ECR repos `bedoux-api`/`bedoux-web`, IAM roles `bedoux-eks-cluster-role`/`bedoux-eks-nodegroup-role`/`bedoux-ebs-csi-role`/`bedoux-alb-controller-role`, IAM policy `bedoux-alb-controller-policy`. |
 | Month-to-date estimated AWS spend | Budget reports USD 0.35 actual against the USD 20 cap (queried 2026-07-29; billing data lags). P6.2's roughly 30-minute EKS + one Spot-node session is estimated below USD 0.10. |
-| Next operator action | **P6.3**: owner repairs the local GitHub CLI login, then publish the reviewed PR-validation workflow, capture a green pull-request run, and apply `docs/runbooks/github-branch-protection.md`. No AWS session is required. |
+| Next operator action | **P6.3**: push the reviewed web lockfile repair to PR #1, capture a green pull-request run, then have the owner apply `docs/runbooks/github-branch-protection.md`. No AWS session is required. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -521,13 +521,28 @@ complete with evidence above. The dedicated gate commit records the approval.
 
 ## Blockers
 
-- **P6.3 publishing:** `gh auth status` on 2026-07-30 reports the active collaborator
-  account's token is invalid. Re-authenticate before creating the draft PR; SSH push access
-  alone is not evidence that PR creation will work.
+- **P6.3 CI rerun pending:** PR #1's first run exposed a stale web lockfile; the focused
+  repair has passed the exact local clean-install path and awaits push/re-run.
 
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-30T14:21:29-06:00 — P6.3 PR #1 lockfile repair — Codex
+
+- **Phase/task:** P6.3 remains **IN PROGRESS**. Draft PR #1's first `PR validation` run
+  proved the workflow runs: Terraform/Helm passed; the web job failed before linting because
+  `npm ci` found two optional `@emnapi` packages absent from `apps/web/package-lock.json`.
+- **Changed:** regenerated only `apps/web/package-lock.json`; it now records the missing
+  optional packages required by the existing dependency graph. No application dependency or
+  source version changed.
+- **Verified:** the exact CI clean-install command, `npm ci`, passed locally; `npm run lint`
+  passed with the existing Fast Refresh warning, `npm test` passed **9**, and `npm run build`
+  passed. `npm install` reported two high-severity audit findings; no automated audit upgrade
+  was applied because that would be unrelated dependency churn outside this focused CI repair.
+- **AWS:** none created, changed, or deleted. Estimated session cost: USD 0.
+- **Next action:** commit/push the lockfile repair to PR #1 and capture the rerun result. Then
+  complete the owner branch-protection checklist before marking P6.3 complete.
 
 ### 2026-07-30T13:54:52-06:00 — P6.3 publishing preflight blocked — Codex
 
