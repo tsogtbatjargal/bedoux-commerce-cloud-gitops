@@ -24,11 +24,11 @@ variable "cluster_name" {
 variable "kubernetes_version" {
   description = "Pinned EKS Kubernetes minor version."
   type        = string
-  default     = "1.33"
+  default     = "1.34"
 
   validation {
     condition     = can(regex("^1\\.[0-9]{2}$", var.kubernetes_version))
-    error_message = "kubernetes_version must be a Kubernetes minor version such as 1.33."
+    error_message = "kubernetes_version must be a Kubernetes minor version such as 1.34."
   }
 }
 

@@ -31,7 +31,7 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   same-day. No AWS resources are currently live — confirmed via a full
   teardown sweep, not assumed.
 - **Phase 6 is active; P6.1 and P6.2 are complete.** Terraform now recreates the P5
-  learning profile with a public-only VPC (no NAT), EKS 1.33, one Spot `t3.medium` node,
+  learning profile with a public-only VPC (no NAT), EKS 1.34, one Spot `t3.medium` node,
   ECR lifecycle policy, IRSA/OIDC, EBS CSI, and controller permissions. P6.2 proved a
   real Terraform apply/verify/destroy cycle: cluster access initially failed because the
   creator had no EKS access entry, then passed after Terraform created an explicit,

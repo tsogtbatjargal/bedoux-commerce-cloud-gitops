@@ -21,7 +21,7 @@ separate persistent state bucket before migrating this root state to S3.
 - `bootstrap/` owns the persistent, versioned, encrypted Terraform state bucket.
   It is intentionally never part of the session-environment destroy.
 - EBS CSI is pinned to `v1.63.0-eksbuild.1`, verified compatible and default for
-  EKS `1.33` in `ca-central-1` on 2026-07-29.
+  EKS `1.34` in `ca-central-1` on 2026-07-30.
 
 ## P6.1 validation
 

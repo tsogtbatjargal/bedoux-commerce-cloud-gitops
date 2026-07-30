@@ -86,7 +86,7 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   caught it via the tagging-API sweep). Fixed for future sessions. ECR repos
   and the session's IAM roles/policies were kept (not deleted), per
   `docs/cost-guardrails.md`'s persistent-resource allowlist. **P5 phase
-  fully complete — gate pending owner approval.**
+  fully complete — gate approved 2026-07-29; P6 active.**
 - Active phase: **P6 — Terraform, then CI/CD; P6.1 and P6.2 are complete.**
 - Next action: **P6.3** — GitHub OIDC role + PR pipeline. P6.2 recreated the EKS
   learning environment as Terraform, verified Kubernetes access plus the EBS CSI add-on,

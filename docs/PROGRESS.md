@@ -11,7 +11,7 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P6 — Terraform, then CI/CD |
 | Active task | P6.3 — OIDC role + PR pipeline |
-| Last verified | 2026-07-29T19:37:42Z — P6.2 Terraform apply/verify/destroy cycle completed; full teardown sweep clean. |
+| Last verified | 2026-07-30T19:24:40Z — EKS version pin updated to 1.34 and Terraform validated; P6.2 teardown remains clean. |
 | AWS resources currently live | **No temporary/billable environment resources.** Persisted per `docs/cost-guardrails.md`'s allowlist (no hourly charge): tagged Terraform state S3 bucket, ECR repos `bedoux-api`/`bedoux-web`, IAM roles `bedoux-eks-cluster-role`/`bedoux-eks-nodegroup-role`/`bedoux-ebs-csi-role`/`bedoux-alb-controller-role`, IAM policy `bedoux-alb-controller-policy`. |
 | Month-to-date estimated AWS spend | Budget reports USD 0.35 actual against the USD 20 cap (queried 2026-07-29; billing data lags). P6.2's roughly 30-minute EKS + one Spot-node session is estimated below USD 0.10. |
 | Next operator action | **P6.3**: implement the GitHub OIDC role and PR pipeline locally; no AWS session is required. |
@@ -495,7 +495,7 @@ complete with evidence above. The dedicated gate commit records the approval.
 - [x] P6.2 COMPLETE — Terraform apply/verify/destroy cycle. Evidence: session log
       2026-07-29T19:37:42Z; live EKS/node/EBS CSI verification, converged plan, and clean
       teardown sweep (T-501).
-- [ ] P6.3 NOT STARTED — OIDC role + PR pipeline.
+- [ ] P6.3 IN PROGRESS — OIDC role + PR pipeline (begun with the EKS support-version correction).
 - [ ] P6.4 NOT STARTED — deploy pipeline against session cluster.
 - [ ] P6.5 NOT STARTED — CI rollback drill.
 
@@ -526,6 +526,19 @@ complete with evidence above. The dedicated gate commit records the approval.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-30T19:24:40Z — P6.3 EKS support-version correction — Codex
+
+- **Phase/task:** P6.3 remains **IN PROGRESS**. AWS Health reported that EKS 1.33 entered
+  extended support after the short-lived P6.2 cluster had already been destroyed; a
+  read-only EKS inventory confirmed no live cluster.
+- **Changed:** pinned `kubernetes_version` to `1.34` in the Terraform default and example,
+  and refreshed current-state documentation. The EBS CSI pin remains
+  `v1.63.0-eksbuild.1`: a read-only EKS compatibility query confirmed it is the default
+  compatible release for EKS 1.34 in `ca-central-1`.
+- **Verified:** `terraform fmt -check -recursive` and `terraform validate` passed. No AWS
+  resource was created, changed, or deleted; estimated session cost: USD 0.
+- **Next action:** continue P6.3's GitHub OIDC role and PR pipeline implementation.
 
 ### 2026-07-29T19:37:42Z — P6.2 complete: Terraform apply/verify/destroy and clean sweep — Codex
 
