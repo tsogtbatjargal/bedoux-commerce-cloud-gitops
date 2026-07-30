@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P6 — Terraform, then CI/CD |
 | Active task | P6.3 — OIDC role + PR pipeline |
-| Last verified | 2026-07-30T14:27:54-06:00 — PR #1 `PR validation` is green: all four required checks passed. |
+| Last verified | 2026-07-30T15:13:39-06:00 — PR #1 is green, but repository branch protection is unavailable on the current private-repository plan. |
 | AWS resources currently live | **No temporary/billable environment resources.** Persisted per `docs/cost-guardrails.md`'s allowlist (no hourly charge): tagged Terraform state S3 bucket, ECR repos `bedoux-api`/`bedoux-web`, IAM roles `bedoux-eks-cluster-role`/`bedoux-eks-nodegroup-role`/`bedoux-ebs-csi-role`/`bedoux-alb-controller-role`, IAM policy `bedoux-alb-controller-policy`. |
 | Month-to-date estimated AWS spend | Budget reports USD 0.35 actual against the USD 20 cap (queried 2026-07-29; billing data lags). P6.2's roughly 30-minute EKS + one Spot-node session is estimated below USD 0.10. |
-| Next operator action | **P6.3**: owner completes `docs/runbooks/github-branch-protection.md` and reports the enabled settings; then record that evidence and complete P6.3. No AWS session is required. |
+| Next operator action | **P6.3**: owner chooses how to meet the branch-protection requirement (eligible GitHub plan, public visibility after a history review, or an explicitly approved alternative control). No AWS session is required. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -521,13 +521,31 @@ complete with evidence above. The dedicated gate commit records the approval.
 
 ## Blockers
 
-- **P6.3 owner action:** PR #1's required validation checks are green. Branch protection is a
-  repository-owner setting; wait for owner confirmation after
-  `docs/runbooks/github-branch-protection.md` is applied.
+- **P6.3 branch protection:** the repository is private, and GitHub's rulesets endpoint returns
+  a plan-gated `403`; classic protection for `main` returns `404`. The green PR check cannot yet
+  be enforced. Owner must choose an eligible plan, public visibility after a history review, or
+  an explicitly approved alternative control before P6.3 can complete.
 
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-30T15:13:39-06:00 — P6.3 branch-protection verification blocked — Codex
+
+- **Phase/task:** P6.3 remains **IN PROGRESS**. Draft PR #1's current head is green, but its
+  required check cannot be enforced yet.
+- **Verified:** read-only GitHub API inspection returned `403` from the repository rulesets
+  endpoint, explicitly stating that rulesets need an eligible plan or a public repository.
+  The classic `main` branch-protection endpoint returned `404`, so no classic protection rule is
+  active either.
+- **Blocker/decision required:** choose one: (1) use a GitHub plan that supports protection for
+  this private repository; (2) make the repository public only after the planned history review,
+  which requires an explicit ADR because ADR 0004 currently keeps it private until pre-P9; or
+  (3) approve and document a compensating local control, such as a reviewed pre-push guardrail,
+  acknowledging it is not server-enforced branch protection.
+- **AWS:** none created, changed, or deleted. Estimated session cost: USD 0.
+- **Next action:** owner selects the control, then its real configuration/evidence is recorded
+  before P6.3 is checked complete.
 
 ### 2026-07-30T14:27:54-06:00 — P6.3 PR pipeline green — Codex
 
