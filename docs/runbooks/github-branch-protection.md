@@ -1,17 +1,48 @@
-# GitHub branch-protection checklist
+# GitHub branch-protection / local-guardrail runbook
 
-Complete this once the `PR validation` workflow has run successfully at least once. It is an
-owner-operated GitHub setting: do not assume a collaborator or an agent can change it.
+## Current private-repository constraint
 
-1. In the repository, open **Settings → Branches** and add a protection rule for `main`.
-2. Require a pull request before merging. Do not require an approving review for this solo
-   learning repository, because that would prevent the owner from merging their own work.
-3. Require these status checks to pass and require branches to be up to date:
-   `API tests`, `Web lint, test, and build`, `Terraform and Helm validation`, and
-   `Container build and scan`.
-4. Require conversation resolution before merging; block force pushes and branch deletion.
-5. Apply the rule to administrators too, then report the enabled settings and the successful
-   workflow run URL or run number. Record that evidence in `docs/PROGRESS.md`.
+P6.3's GitHub Actions workflow is green, but GitHub reports that rulesets cannot be enforced
+for this private repository without an eligible organization plan. The classic `main` branch
+protection endpoint is also unavailable. Per ADR 0010, use the local pre-push guardrail below
+as a compensating control until server-side protection becomes available.
 
-Do not add AWS repository secrets. The P6.4 deployment workflow will use GitHub OIDC and an
-AWS role instead of static credentials.
+This is intentionally **not** described as branch protection: it only protects a clone where
+the hook is installed. A different clone, the GitHub web UI, or a user who removes the hook can
+bypass it. The PR workflow remains the actual automated validation evidence.
+
+## Install and verify the local guardrail
+
+1. From the repository root, preview the target with:
+
+   ```text
+   scripts/install-git-guardrails.sh --dry-run
+   ```
+
+2. Install it only after reviewing that target:
+
+   ```text
+   scripts/install-git-guardrails.sh --install
+   ```
+
+   The installer refuses to overwrite an existing `pre-push` hook. Stop and review any existing
+   hook rather than replacing it.
+
+3. Verify the installed hook blocks a simulated direct `main` update:
+
+   ```text
+   printf 'refs/heads/main %040d refs/heads/main %040d\n' 1 0 | \
+     "$(git rev-parse --git-path hooks/pre-push)" origin origin
+   ```
+
+   It must exit non-zero and say it is refusing a direct push of `main`.
+
+4. Push feature branches normally and use PR #1's required workflow checks as the review gate.
+   Do not add AWS repository secrets; P6.4 uses GitHub OIDC, not static credentials.
+
+## Future server-side rule
+
+After the P9 history review and a move to a GitHub plan/visibility that supports enforcement,
+replace this compensating control with a server-side `main` rule: pull requests, the four
+`PR validation` checks, up-to-date branches, conversation resolution, no force pushes or
+deletion, and administrators included. Record the live API/console evidence then.

@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P6 — Terraform, then CI/CD |
-| Active task | P6.3 — OIDC role + PR pipeline |
-| Last verified | 2026-07-30T15:13:39-06:00 — PR #1 is green, but repository branch protection is unavailable on the current private-repository plan. |
+| Active task | P6.4 — deploy pipeline against a session cluster (**NOT STARTED**) |
+| Last verified | 2026-07-30T15:50:00-06:00 — P6.3 complete: green PR pipeline plus tested local direct-`main` push guardrail. |
 | AWS resources currently live | **No temporary/billable environment resources.** Persisted per `docs/cost-guardrails.md`'s allowlist (no hourly charge): tagged Terraform state S3 bucket, ECR repos `bedoux-api`/`bedoux-web`, IAM roles `bedoux-eks-cluster-role`/`bedoux-eks-nodegroup-role`/`bedoux-ebs-csi-role`/`bedoux-alb-controller-role`, IAM policy `bedoux-alb-controller-policy`. |
 | Month-to-date estimated AWS spend | Budget reports USD 0.35 actual against the USD 20 cap (queried 2026-07-29; billing data lags). P6.2's roughly 30-minute EKS + one Spot-node session is estimated below USD 0.10. |
-| Next operator action | **P6.3**: owner chooses how to meet the branch-protection requirement (eligible GitHub plan, public visibility after a history review, or an explicitly approved alternative control). No AWS session is required. |
+| Next operator action | **P6.4**: before any AWS mutation, manually complete `docs/runbooks/aws-session.md`'s **Before the session** checklist, review the Terraform plan/cost, and set a same-day teardown time. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -495,7 +495,9 @@ complete with evidence above. The dedicated gate commit records the approval.
 - [x] P6.2 COMPLETE — Terraform apply/verify/destroy cycle. Evidence: session log
       2026-07-29T19:37:42Z; live EKS/node/EBS CSI verification, converged plan, and clean
       teardown sweep (T-501).
-- [ ] P6.3 IN PROGRESS — OIDC role + PR pipeline (begun with the EKS support-version correction).
+- [x] P6.3 COMPLETE — GitHub OIDC role declaration + green PR validation pipeline. Evidence:
+      PR #1, GitHub Actions run `30579166329` (all four checks pass); ADR 0009; ADR 0010;
+      installed local pre-push guardrail blocks direct `main` pushes in this active clone.
 - [ ] P6.4 NOT STARTED — deploy pipeline against session cluster.
 - [ ] P6.5 NOT STARTED — CI rollback drill.
 
@@ -521,14 +523,29 @@ complete with evidence above. The dedicated gate commit records the approval.
 
 ## Blockers
 
-- **P6.3 branch protection:** the repository is private, and GitHub's rulesets endpoint returns
-  a plan-gated `403`; classic protection for `main` returns `404`. The green PR check cannot yet
-  be enforced. Owner must choose an eligible plan, public visibility after a history review, or
-  an explicitly approved alternative control before P6.3 can complete.
+- None. GitHub server-side branch protection remains unavailable while the repository is private
+  on its current plan; ADR 0010 documents the accepted local compensating control and its limits.
 
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-30T15:50:00-06:00 — P6.3 complete: local guardrail accepted and verified — Codex
+
+- **Phase/task:** P6.3 complete. After GitHub confirmed that its private-repository plan cannot
+  enforce rulesets, the owner directed work to continue with the documented compensating control.
+- **Changed:** added ADR 0010, a transparent branch-protection/guardrail runbook, and the
+  versioned `scripts/git-hooks/pre-push` plus safe installer. The hook rejects a direct local
+  `main` push; it does not claim to protect other clones or GitHub's UI.
+- **Verified:** script syntax check passed; installer dry-run showed the expected hook target;
+  installer completed without overwriting a prior hook. A simulated `main` update exited 1 with
+  the refusal message; a simulated feature-branch update exited 0. PR #1's current head passed
+  all four `PR validation` jobs. The GitHub ruleset API still returns the expected plan-gated
+  response, and classic `main` protection remains absent — exactly the documented limitation.
+- **AWS:** none created, changed, or deleted. Estimated session cost: USD 0.
+- **Next action:** P6.4 is **NOT STARTED**. Do not create AWS resources until a new session
+  manually completes every **Before the session** step in `docs/runbooks/aws-session.md` and a
+  reviewed plan/cost/teardown window is recorded.
 
 ### 2026-07-30T15:13:39-06:00 — P6.3 branch-protection verification blocked — Codex
 

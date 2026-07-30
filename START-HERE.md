@@ -87,12 +87,15 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   and the session's IAM roles/policies were kept (not deleted), per
   `docs/cost-guardrails.md`'s persistent-resource allowlist. **P5 phase
   fully complete — gate approved 2026-07-29; P6 active.**
-- Active phase: **P6 — Terraform, then CI/CD; P6.1 and P6.2 are complete.**
-- Next action: **P6.3** — GitHub OIDC role + PR pipeline. P6.2 recreated the EKS
-  learning environment as Terraform, verified Kubernetes access plus the EBS CSI add-on,
-  then destroyed it in the same session. The Terraform VPC has NAT disabled from the
-  start. No billable AWS resources are currently live (see `docs/PROGRESS.md`'s Overall
-  status table — confirmed by the full teardown sweep, not assumed).
+- Active phase: **P6 — Terraform, then CI/CD; P6.1–P6.3 are complete.** P6.3 declared the
+  GitHub OIDC deployment role, established green PR validation (API/PostgreSQL, web,
+  Terraform/Helm, and image scan), and installed a tested local direct-`main` push guardrail.
+  GitHub's current private-repository plan cannot enforce server-side rulesets; ADR 0010 records
+  that transparent compensating control and its limits.
+- Next action: **P6.4** — deploy pipeline against a session EKS cluster. Before any AWS mutation,
+  manually complete `docs/runbooks/aws-session.md`'s **Before the session** checklist, review
+  the Terraform plan/cost, set a same-day teardown time, and use the `bedoux-admin` profile. No
+  billable AWS resources are currently live (confirmed by the P6.2 teardown sweep, not assumed).
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

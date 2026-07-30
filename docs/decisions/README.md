@@ -17,6 +17,7 @@ and flip the old one's status to `Superseded by NNNN`.
 | [0007](0007-bedoux-iam-scoped-self-escalation-fix.md) | Close a self-escalation hole in bedoux-iam-scoped; add the EKS nodegroup SLR check | Accepted | 2026-07-28 |
 | [0008](0008-alb-no-rewrite-web-proxies-api.md) | ALB Ingress can't rewrite paths — web's own nginx proxies /api internally | Accepted | 2026-07-28 |
 | [0009](0009-github-actions-oidc-least-privilege.md) | GitHub Actions uses a branch-bound OIDC role with namespace-scoped deployment access | Accepted | 2026-07-30 |
+| [0010](0010-local-git-guardrail-for-private-repo.md) | Use a local pre-push guardrail while private-repository branch protection is unavailable | Accepted | 2026-07-30 |
 
 ## Template
 
