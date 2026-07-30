@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P6 — Terraform, then CI/CD |
 | Active task | P6.3 — OIDC role + PR pipeline |
-| Last verified | 2026-07-30T14:21:29-06:00 — P6.3 PR #1 found and locally fixed a web lockfile drift; rerun pending. |
+| Last verified | 2026-07-30T14:27:54-06:00 — PR #1 `PR validation` is green: all four required checks passed. |
 | AWS resources currently live | **No temporary/billable environment resources.** Persisted per `docs/cost-guardrails.md`'s allowlist (no hourly charge): tagged Terraform state S3 bucket, ECR repos `bedoux-api`/`bedoux-web`, IAM roles `bedoux-eks-cluster-role`/`bedoux-eks-nodegroup-role`/`bedoux-ebs-csi-role`/`bedoux-alb-controller-role`, IAM policy `bedoux-alb-controller-policy`. |
 | Month-to-date estimated AWS spend | Budget reports USD 0.35 actual against the USD 20 cap (queried 2026-07-29; billing data lags). P6.2's roughly 30-minute EKS + one Spot-node session is estimated below USD 0.10. |
-| Next operator action | **P6.3**: push the reviewed web lockfile repair to PR #1, capture a green pull-request run, then have the owner apply `docs/runbooks/github-branch-protection.md`. No AWS session is required. |
+| Next operator action | **P6.3**: owner completes `docs/runbooks/github-branch-protection.md` and reports the enabled settings; then record that evidence and complete P6.3. No AWS session is required. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -521,12 +521,27 @@ complete with evidence above. The dedicated gate commit records the approval.
 
 ## Blockers
 
-- **P6.3 CI rerun pending:** PR #1's first run exposed a stale web lockfile; the focused
-  repair has passed the exact local clean-install path and awaits push/re-run.
+- **P6.3 owner action:** PR #1's required validation checks are green. Branch protection is a
+  repository-owner setting; wait for owner confirmation after
+  `docs/runbooks/github-branch-protection.md` is applied.
 
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-30T14:27:54-06:00 — P6.3 PR pipeline green — Codex
+
+- **Phase/task:** P6.3 remains **IN PROGRESS** only for the owner-operated branch-protection
+  step. Draft PR #1 contains the P6.1/P6.2 checkpoints and P6.3 implementation.
+- **Verified:** GitHub Actions run `30579166329` passed all four `PR validation` checks:
+  `API tests` (**13 passed**), `Web lint, test, and build`, `Terraform and Helm validation`,
+  and `Container build and scan`. The first run correctly exposed stale npm lockfile metadata;
+  the focused lockfile repair in commit `dfb6c22` produced this green rerun.
+- **AWS:** none created, changed, or deleted. Estimated session cost: USD 0.
+- **Next action:** owner completes the exact settings in
+  `docs/runbooks/github-branch-protection.md` (required checks, up-to-date branch, conversation
+  resolution, force-push/deletion protection, administrators included) and reports confirmation.
+  Then record the owner evidence, mark P6.3 complete, and proceed only to P6.4.
 
 ### 2026-07-30T14:21:29-06:00 — P6.3 PR #1 lockfile repair — Codex
 
