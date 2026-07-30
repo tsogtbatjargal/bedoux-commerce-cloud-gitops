@@ -15,6 +15,24 @@ variable "aws_profile" {
   default     = "bedoux-admin"
 }
 
+variable "skip_aws_credentials_validation" {
+  description = "Only for offline Terraform validation; never use for an AWS plan or apply."
+  type        = bool
+  default     = false
+}
+
+variable "github_repository" {
+  description = "GitHub owner/repository allowed to obtain the deployment role."
+  type        = string
+  default     = "bedoux-tech/bedoux-commerce-cloud"
+}
+
+variable "github_deploy_branch" {
+  description = "The protected branch allowed to obtain the deployment role."
+  type        = string
+  default     = "main"
+}
+
 variable "cluster_name" {
   description = "EKS cluster name."
   type        = string

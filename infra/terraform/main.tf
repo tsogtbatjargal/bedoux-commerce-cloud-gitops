@@ -19,18 +19,19 @@ module "iam_cluster" {
 module "eks" {
   source = "./modules/eks"
 
-  cluster_name       = var.cluster_name
-  kubernetes_version = var.kubernetes_version
-  subnet_ids         = module.vpc.public_subnet_ids
-  cluster_role_arn   = module.iam_cluster.cluster_role_arn
-  node_role_arn      = module.iam_cluster.node_role_arn
-  instance_types     = var.node_instance_types
-  capacity_type      = var.node_capacity_type
-  desired_size       = var.node_desired_size
-  min_size           = var.node_min_size
-  max_size           = var.node_max_size
-  disk_size_gib      = var.node_disk_size_gib
-  tags               = local.tags
+  cluster_name            = var.cluster_name
+  kubernetes_version      = var.kubernetes_version
+  subnet_ids              = module.vpc.public_subnet_ids
+  cluster_role_arn        = module.iam_cluster.cluster_role_arn
+  node_role_arn           = module.iam_cluster.node_role_arn
+  github_actions_role_arn = module.github_actions_oidc.role_arn
+  instance_types          = var.node_instance_types
+  capacity_type           = var.node_capacity_type
+  desired_size            = var.node_desired_size
+  min_size                = var.node_min_size
+  max_size                = var.node_max_size
+  disk_size_gib           = var.node_disk_size_gib
+  tags                    = local.tags
 }
 
 module "workload_iam" {
@@ -57,10 +58,20 @@ module "ecr" {
   tags             = local.tags
 }
 
+module "github_actions_oidc" {
+  source = "./modules/github-actions-oidc"
+
+  aws_region          = var.aws_region
+  cluster_name        = var.cluster_name
+  ecr_repository_arns = module.ecr.repository_arns
+  github_repository   = var.github_repository
+  github_branch       = var.github_deploy_branch
+  tags                = local.tags
+}
+
 check "no_nat_gateway" {
   assert {
     condition     = length(module.vpc.nat_gateway_ids) == 0
     error_message = "The learning VPC must not contain a NAT Gateway."
   }
 }
-

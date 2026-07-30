@@ -57,6 +57,10 @@ persistent_addresses=(
   'module.iam_cluster.aws_iam_role_policy_attachment.node_cni'
   'module.iam_cluster.aws_iam_role_policy_attachment.node_ecr'
   'module.iam_cluster.aws_iam_role_policy_attachment.node_worker'
+  'module.github_actions_oidc.aws_iam_openid_connect_provider.this'
+  'module.github_actions_oidc.aws_iam_policy.deployment'
+  'module.github_actions_oidc.aws_iam_role.this'
+  'module.github_actions_oidc.aws_iam_role_policy_attachment.deployment'
   'module.workload_iam.aws_iam_policy.alb_controller'
   'module.workload_iam.aws_iam_role.alb_controller'
   'module.workload_iam.aws_iam_role.ebs_csi'
@@ -89,6 +93,9 @@ run terraform -chdir="$terraform_dir" import 'module.ecr.aws_ecr_repository.this
 run terraform -chdir="$terraform_dir" import 'module.ecr.aws_ecr_repository.this["bedoux-web"]' bedoux-web
 run terraform -chdir="$terraform_dir" import 'module.iam_cluster.aws_iam_role.cluster' bedoux-eks-cluster-role
 run terraform -chdir="$terraform_dir" import 'module.iam_cluster.aws_iam_role.node' bedoux-eks-nodegroup-role
+run terraform -chdir="$terraform_dir" import 'module.github_actions_oidc.aws_iam_openid_connect_provider.this' "arn:aws:iam::$task_account_id:oidc-provider/token.actions.githubusercontent.com"
+run terraform -chdir="$terraform_dir" import 'module.github_actions_oidc.aws_iam_role.this' bedoux-github-actions-role
+run terraform -chdir="$terraform_dir" import 'module.github_actions_oidc.aws_iam_policy.deployment' "arn:aws:iam::$task_account_id:policy/bedoux-github-actions-policy"
 run terraform -chdir="$terraform_dir" import 'module.workload_iam.aws_iam_role.ebs_csi' bedoux-ebs-csi-role
 run terraform -chdir="$terraform_dir" import 'module.workload_iam.aws_iam_role.alb_controller' bedoux-alb-controller-role
 run terraform -chdir="$terraform_dir" import 'module.workload_iam.aws_iam_policy.alb_controller' "arn:aws:iam::$task_account_id:policy/bedoux-alb-controller-policy"

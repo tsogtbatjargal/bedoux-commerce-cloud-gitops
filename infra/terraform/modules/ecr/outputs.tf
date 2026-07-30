@@ -4,3 +4,6 @@ output "repository_urls" {
   }
 }
 
+output "repository_arns" {
+  value = [for repository in aws_ecr_repository.this : repository.arn]
+}

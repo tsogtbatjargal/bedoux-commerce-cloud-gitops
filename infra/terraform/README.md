@@ -12,12 +12,19 @@ separate persistent state bucket before migrating this root state to S3.
 - EKS, its managed Spot node group, ECR repositories, cluster/node IAM roles,
   the EKS OIDC provider, the EBS CSI IRSA role/add-on, and the ALB Controller
   IRSA role/policy are represented as code.
+- The P6.3 GitHub Actions OIDC provider and `bedoux-github-actions-role` are
+  represented as code but first created only in P6.4's live AWS session. Its
+  trust is restricted to this repository's protected `main` branch; its AWS
+  permissions are limited to pushing the two ECR repositories and describing
+  the learning EKS cluster. EKS grants it edit access only in the `bedoux`
+  namespace.
 - `bedoux-iam-scoped` and the EKS node-group service-linked role are account
   foundations from P4/P5 and are deliberately not managed here.
 - P6.2 must import the persistent P5 ECR repositories and IAM roles before an
   apply, rather than attempting to create duplicate names. Before `destroy`, run
   `scripts/terraform-persistent-state.sh detach --execute` so Terraform removes
-  only session resources while those allowlisted resources remain.
+  only session resources while those allowlisted resources remain. After P6.4,
+  that allowlist also includes the GitHub OIDC provider and deployment role/policy.
 - `bootstrap/` owns the persistent, versioned, encrypted Terraform state bucket.
   It is intentionally never part of the session-environment destroy.
 - EBS CSI is pinned to `v1.63.0-eksbuild.1`, verified compatible and default for
@@ -33,6 +40,10 @@ terraform fmt -check -recursive
 terraform validate
 terraform plan -refresh=false -out=p6.1.tfplan
 ```
+
+For credential-free local or GitHub Actions validation only, use
+`terraform validate -var=skip_aws_credentials_validation=true`. Never pass that
+override to a plan or apply against AWS.
 
 The plan is a review artifact only. Do not run `terraform apply` until P6.2
 opens an AWS session and the plan has been reviewed against the manual checklist

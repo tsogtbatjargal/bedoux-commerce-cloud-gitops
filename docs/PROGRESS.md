@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P6 — Terraform, then CI/CD |
 | Active task | P6.3 — OIDC role + PR pipeline |
-| Last verified | 2026-07-30T19:24:40Z — EKS version pin updated to 1.34 and Terraform validated; P6.2 teardown remains clean. |
+| Last verified | 2026-07-30T13:54:52-06:00 — P6.3 code remains locally validated; publishing is paused because the local GitHub CLI token is invalid. |
 | AWS resources currently live | **No temporary/billable environment resources.** Persisted per `docs/cost-guardrails.md`'s allowlist (no hourly charge): tagged Terraform state S3 bucket, ECR repos `bedoux-api`/`bedoux-web`, IAM roles `bedoux-eks-cluster-role`/`bedoux-eks-nodegroup-role`/`bedoux-ebs-csi-role`/`bedoux-alb-controller-role`, IAM policy `bedoux-alb-controller-policy`. |
 | Month-to-date estimated AWS spend | Budget reports USD 0.35 actual against the USD 20 cap (queried 2026-07-29; billing data lags). P6.2's roughly 30-minute EKS + one Spot-node session is estimated below USD 0.10. |
-| Next operator action | **P6.3**: implement the GitHub OIDC role and PR pipeline locally; no AWS session is required. |
+| Next operator action | **P6.3**: owner repairs the local GitHub CLI login, then publish the reviewed PR-validation workflow, capture a green pull-request run, and apply `docs/runbooks/github-branch-protection.md`. No AWS session is required. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -521,11 +521,55 @@ complete with evidence above. The dedicated gate commit records the approval.
 
 ## Blockers
 
-- None.
+- **P6.3 publishing:** `gh auth status` on 2026-07-30 reports the active collaborator
+  account's token is invalid. Re-authenticate before creating the draft PR; SSH push access
+  alone is not evidence that PR creation will work.
 
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-30T13:54:52-06:00 — P6.3 publishing preflight blocked — Codex
+
+- **Phase/task:** P6.3 remains **IN PROGRESS**. No branch, commit, push, pull request, or AWS
+  operation was performed in this attempt.
+- **Verified:** the working tree contains only the reviewed P6.3 Terraform, workflow, ADR,
+  runbook, and progress files; `git diff --check` passes. `gh --version` is available, but
+  `gh auth status` reports the active collaborator account's token is invalid.
+- **Blocker:** owner must run `gh auth login -h github.com`, select the collaborator account
+  with access to this repository, and complete the browser/device authorization. Then rerun
+  `gh auth status` successfully before the draft-PR publish flow resumes.
+- **AWS:** none created, changed, or deleted. Estimated session cost: USD 0.
+- **Next action:** after valid GitHub CLI authentication is confirmed, create the scoped
+  `agent/` branch, commit the already reviewed P6.3 work, push it, and open a draft PR for the
+  first `PR validation` run.
+
+### 2026-07-30T13:49:55-06:00 — P6.3 OIDC role + PR pipeline implementation — Codex
+
+- **Phase/task:** P6.3 remains **IN PROGRESS** pending its first real pull-request run and
+  owner-applied branch protection. No AWS session was opened.
+- **Changed:** added Terraform for the GitHub Actions OIDC provider, the
+  `bedoux-github-actions-role`, and its narrowly scoped policy: main branch of this repository
+  only; ECR upload only to the two Bedoux repositories; EKS cluster description only; EKS edit
+  access only in namespace `bedoux`. The provider/role/policy are declared but will first be
+  created only in P6.4's runbook-governed session, then retained by the persistent-state helper.
+  Added a pull-request-only workflow that runs API tests against a PostgreSQL service, web lint/
+  test/build, offline Terraform validation, Helm lint/render for both profiles, and immutable
+  candidate image build plus fixable HIGH/CRITICAL Trivy scans. It has `contents: read` only and
+  cannot mint an AWS OIDC token. ADR 0009 records the trust and namespace boundary; the new
+  branch-protection runbook gives the owner the exact post-green checks to enable.
+- **Verified:** credential-free `terraform validate -var=skip_aws_credentials_validation=true`
+  and `terraform fmt -check -recursive` passed; `helm lint` passed and both default/AWS Helm
+  profiles rendered; API `pytest -q` passed **6**, skipped **7** DB tests without a local DB;
+  web `npm run lint` passed with one pre-existing Fast Refresh warning, `npm test` passed **9**,
+  and `npm run build` passed. Workflow YAML parses and `git diff --check` passed. `make
+  docs-check` remains blocked by the host Podman wrapper (`failed to get the Podman version`),
+  while its direct XML/spine checks passed.
+- **AWS:** none created, changed, or deleted. Estimated session cost: USD 0.
+- **Next action:** review/commit and publish this work, open a pull request to capture the first
+  green `PR validation` run, then have the owner complete
+  `docs/runbooks/github-branch-protection.md`. Do not create the OIDC provider or role until
+  P6.4 opens a manual AWS session.
 
 ### 2026-07-30T19:24:40Z — P6.3 EKS support-version correction — Codex
 

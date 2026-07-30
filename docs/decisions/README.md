@@ -16,6 +16,7 @@ and flip the old one's status to `Superseded by NNNN`.
 | [0006](0006-spot-node-gp3-pvc.md) | Accept Spot-node interruption risk in P5; provision a real gp3 PVC via EBS CSI | Accepted | 2026-07-23 |
 | [0007](0007-bedoux-iam-scoped-self-escalation-fix.md) | Close a self-escalation hole in bedoux-iam-scoped; add the EKS nodegroup SLR check | Accepted | 2026-07-28 |
 | [0008](0008-alb-no-rewrite-web-proxies-api.md) | ALB Ingress can't rewrite paths — web's own nginx proxies /api internally | Accepted | 2026-07-28 |
+| [0009](0009-github-actions-oidc-least-privilege.md) | GitHub Actions uses a branch-bound OIDC role with namespace-scoped deployment access | Accepted | 2026-07-30 |
 
 ## Template
 

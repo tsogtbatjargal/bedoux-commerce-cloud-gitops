@@ -18,6 +18,10 @@ variable "node_role_arn" {
   type = string
 }
 
+variable "github_actions_role_arn" {
+  type = string
+}
+
 variable "instance_types" {
   type = list(string)
 }
@@ -45,4 +49,3 @@ variable "disk_size_gib" {
 variable "tags" {
   type = map(string)
 }
-

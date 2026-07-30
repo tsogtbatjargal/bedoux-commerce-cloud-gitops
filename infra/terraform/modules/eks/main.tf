@@ -34,6 +34,26 @@ resource "aws_eks_access_policy_association" "cluster_creator_admin" {
   }
 }
 
+# CI can deploy only into the application namespace. The namespace itself is an
+# explicit P6.4 session precondition, so the GitHub role does not need cluster-wide
+# administrative access merely to bootstrap it.
+resource "aws_eks_access_entry" "github_actions" {
+  cluster_name  = aws_eks_cluster.this.name
+  principal_arn = var.github_actions_role_arn
+  type          = "STANDARD"
+}
+
+resource "aws_eks_access_policy_association" "github_actions_edit" {
+  cluster_name  = aws_eks_cluster.this.name
+  principal_arn = aws_eks_access_entry.github_actions.principal_arn
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSEditPolicy"
+
+  access_scope {
+    type       = "namespace"
+    namespaces = ["bedoux"]
+  }
+}
+
 resource "aws_eks_node_group" "this" {
   cluster_name    = aws_eks_cluster.this.name
   node_group_name = "${var.cluster_name}-ng-spot"

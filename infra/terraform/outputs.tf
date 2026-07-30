@@ -28,3 +28,7 @@ output "ecr_repository_urls" {
   value       = module.ecr.repository_urls
 }
 
+output "github_actions_role_arn" {
+  description = "GitHub Actions OIDC deployment role ARN; create it only in a P6.4 AWS session."
+  value       = module.github_actions_oidc.role_arn
+}
