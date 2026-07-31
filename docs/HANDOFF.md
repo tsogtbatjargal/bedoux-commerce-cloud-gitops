@@ -20,7 +20,7 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
    one item remains open (the P6/P7 S3 adapter boundary); the two P5-scoped decisions are
    done (ADR 0006, and the kill switch/request bounds).
 
-## Current state (as of 2026-07-30)
+## Current state (as of 2026-07-31)
 - Phases 0-4 complete, gates approved. Local app (FastAPI + Postgres + React) proven on
   Compose (P2), then on kind with a Helm chart (P3, ADR 0005), with real drills throughout.
   AWS account readiness done in P4: non-root IAM identity `bedoux-admin`, region
@@ -45,6 +45,13 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   current private-repository plan cannot enforce a server-side rule; ADR 0010 documents the
   installed, tested local pre-push guardrail that blocks direct `main` pushes in this clone and
   explicitly states its non-server-enforced limitation.
+- **P6.4 is complete.** Main-branch run `30657784919` proved GitHub OIDC, immutable ECR image
+  push, namespace-only Helm deployment, real EBS CSI `gp3` provisioning, migration/seed jobs,
+  and public ALB health/catalog smoke. The same session then tore down the Ingress/ALB, release,
+  controller, cluster, VPC, and add-on; final inventory was clean for all temporary billed
+  resources. During an exceptional Terraform destroy recovery, the EBS CSI role was also deleted
+  through its OIDC-provider dependency. It is no-cost and Terraform will recreate it next
+  session; harden that recovery path before P6.5.
 - Three real findings surfaced and were fixed during P5, each documented with its own ADR
   or PROGRESS entry:
   1. **ADR 0007** — `bedoux-admin`'s scoped IAM policy (`bedoux-iam-scoped`) had a genuine
@@ -103,9 +110,9 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   `image_url`, presigned URL via IRSA in S3 mode, frontend storage-agnostic).
 
 ## What I want next
-Continue the single task marked IN PROGRESS in docs/PROGRESS.md: **P6.4 — deploy pipeline
-against a session cluster**. Work one item at a time and record evidence before checking anything
-off. P6.4 needs AWS resources, so before any mutation manually walk the full **Before the
+Continue the single task marked IN PROGRESS in docs/PROGRESS.md: **P6.5 — CI rollback drill**.
+Work one item at a time and record evidence before checking anything off. Before any mutation,
+first harden P6.4's Terraform teardown-recovery path; then manually walk the full **Before the
 session** checklist in `docs/runbooks/aws-session.md`, review the Terraform plan/cost, set a
 same-day teardown time, and use `bedoux-admin`.
 There is no `/aws-session-start` for Codex: before touching AWS, manually walk the "Before
