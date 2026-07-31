@@ -9,12 +9,12 @@ checked here and its evidence is recorded in the session log.
 | Field | Value |
 |---|---|
 | State | IN PROGRESS |
-| Active phase | P5 — Manual EKS session |
-| Active task | P5 gate — awaiting owner approval to activate P6 |
-| Last verified | 2026-07-28 — P5.5 complete: full teardown, `/aws-teardown-verify` sweep clean, one real finding (undisclosed NAT Gateway) caught and fixed |
-| AWS resources currently live | **NONE billable** — EKS cluster/node group/ALB/OIDC provider/VPC all deleted and confirmed gone. Persisted per `docs/cost-guardrails.md`'s allowlist (no hourly charge): ECR repos `bedoux-api`/`bedoux-web`, IAM roles `bedoux-eks-cluster-role`/`bedoux-eks-nodegroup-role`/`bedoux-ebs-csi-role`/`bedoux-alb-controller-role`, IAM policy `bedoux-alb-controller-policy` |
-| Month-to-date estimated AWS spend | Well under USD 2 for the full P5 session (control plane + 1 Spot node + 1 ALB + the undisclosed NAT Gateway, ~2.5hr total). Billing data lags real-time usage (documented caveat) — `aws budgets describe-budgets` still showed USD 0 immediately after teardown |
-| Next operator action | **owner**: approve the P5 gate to activate P6 (Terraform + CI/CD) |
+| Active phase | P6 — Terraform, then CI/CD |
+| Active task | P6.4 — deploy pipeline against a session cluster (**IN PROGRESS**) |
+| Last verified | 2026-07-31T10:31:00-06:00 — P6.4 local deployment preparation is in PR #1; all four PR validation jobs pass. |
+| AWS resources currently live | **No temporary/billable environment resources.** Persisted per `docs/cost-guardrails.md`'s allowlist (no hourly charge): tagged Terraform state S3 bucket, ECR repos `bedoux-api`/`bedoux-web`, IAM roles `bedoux-eks-cluster-role`/`bedoux-eks-nodegroup-role`/`bedoux-ebs-csi-role`/`bedoux-alb-controller-role`, IAM policy `bedoux-alb-controller-policy`. |
+| Month-to-date estimated AWS spend | Budget reports USD 0.35 actual against the USD 20 cap (queried 2026-07-29; billing data lags). P6.2's roughly 30-minute EKS + one Spot-node session is estimated below USD 0.10. |
+| Next operator action | **P6.4**: owner reviews and merges PR #1 to `main`; then, before any AWS mutation, manually complete `docs/runbooks/aws-session.md`'s **Before the session** checklist, review the Terraform plan/cost, and set a same-day teardown time. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -483,15 +483,22 @@ P3.1–P3.5 above). No unresolved gaps; the only carry-forward is the project-wi
   sweep clean, one real finding fixed (undisclosed NAT Gateway). See session
   log entry below.
 
-**P5 gate — all of P5.1–P5.5 complete with evidence above. Ready for owner
-approval to activate P6.**
+**P5 gate — APPROVED by owner 2026-07-29; P6 activated.** All of P5.1–P5.5
+complete with evidence above. The dedicated gate commit records the approval.
 
 ### P6 — Terraform, then CI/CD
 
-- [ ] P6.1 NOT STARTED — Terraform modules + reviewed plan.
-- [ ] P6.2 NOT STARTED — apply/verify/destroy cycle.
-- [ ] P6.3 NOT STARTED — OIDC role + PR pipeline.
-- [ ] P6.4 NOT STARTED — deploy pipeline against session cluster.
+- [x] P6.1 COMPLETE — Terraform modules + reviewed no-apply plan. Evidence: session log
+      2026-07-29; `terraform fmt -check -recursive`, `terraform validate`, and
+      `terraform plan -refresh=false` passed; plan was 26 to add, 0 to change, 0 to
+      destroy, with no NAT Gateway/EIP/NAT route resources in source or plan.
+- [x] P6.2 COMPLETE — Terraform apply/verify/destroy cycle. Evidence: session log
+      2026-07-29T19:37:42Z; live EKS/node/EBS CSI verification, converged plan, and clean
+      teardown sweep (T-501).
+- [x] P6.3 COMPLETE — GitHub OIDC role declaration + green PR validation pipeline. Evidence:
+      PR #1, GitHub Actions run `30579166329` (all four checks pass); ADR 0009; ADR 0010;
+      installed local pre-push guardrail blocks direct `main` pushes in this active clone.
+- [ ] P6.4 IN PROGRESS — deploy pipeline against session cluster.
 - [ ] P6.5 NOT STARTED — CI rollback drill.
 
 ### P7 — Managed data services
@@ -516,11 +523,294 @@ approval to activate P6.**
 
 ## Blockers
 
-- None.
+- None. GitHub server-side branch protection remains unavailable while the repository is private
+  on its current plan; ADR 0010 documents the accepted local compensating control and its limits.
 
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-31T10:31:00-06:00 — P6.4 local preparation validated in GitHub — Codex
+
+- **Phase/task:** P6.4 remains **IN PROGRESS**. The deployment workflow deliberately remains
+  unavailable to AWS until its branch-bound source is merged to `main` and a manual session is
+  opened.
+- **Verified:** PR #1 GitHub Actions run `30647326143` passed all four `PR validation` jobs:
+  API tests (39s), container build and scan (1m02s), Terraform and Helm validation (20s), and
+  web lint, test, and build (28s).
+- **AWS:** none created, changed, queried, or deleted. Estimated session cost: USD 0.
+- **Next action:** owner reviews and merges PR #1 to `main`. Then open the manual P6.4 session
+  using `aws-session.md`, create the temporary learning environment from the reviewed Terraform
+  plan, and dispatch the main-branch deployment workflow.
+
+### 2026-07-31T10:28:46-06:00 — P6.4 local deployment pipeline prepared — Codex
+
+- **Phase/task:** P6.4 remains **IN PROGRESS**. No AWS session is open and no AWS command has
+  run in this task.
+- **Changed:** added a manually dispatched deployment workflow that gets a GitHub OIDC token only
+  on its selected ref, builds/pushes commit-SHA-tagged API/web images, deploys the AWS Helm
+  profile with `--atomic`, and smoke-tests the public ALB health/catalog routes. Added the P6.4
+  operator runbook for Terraform apply, namespace and ALB-controller bootstrap, repository role
+  variable setup, workflow dispatch, and same-day teardown. Corrected the persistent-state helper
+  so the first P6.4 import skips the deliberately absent GitHub OIDC provider/role/policy; the
+  reviewed apply creates them, while later sessions import them normally.
+- **Verified:** `bash -n scripts/terraform-persistent-state.sh`; helper `import` dry run; workflow
+  YAML/control assertions via PyYAML; `helm lint charts/bedoux`; both default and AWS `helm
+  template` renders; `terraform fmt -check -recursive`; credential-free `terraform validate
+  -var=skip_aws_credentials_validation=true`; direct documentation XML/spine checks; and `git diff
+  --check` all passed. The Terraform schema check was run outside the sandbox because the sandbox
+  cannot launch the already-installed provider binaries; it made no AWS call.
+- **AWS:** none created, changed, queried, or deleted. Estimated session cost: USD 0.
+- **Next action:** owner reviews and merges PR #1 to `main`. Only after the workflow is on `main`
+  may a P6.4 AWS session manually complete every `aws-session.md` preflight item.
+
+### 2026-07-30T15:50:00-06:00 — P6.3 complete: local guardrail accepted and verified — Codex
+
+- **Phase/task:** P6.3 complete. After GitHub confirmed that its private-repository plan cannot
+  enforce rulesets, the owner directed work to continue with the documented compensating control.
+- **Changed:** added ADR 0010, a transparent branch-protection/guardrail runbook, and the
+  versioned `scripts/git-hooks/pre-push` plus safe installer. The hook rejects a direct local
+  `main` push; it does not claim to protect other clones or GitHub's UI.
+- **Verified:** script syntax check passed; installer dry-run showed the expected hook target;
+  installer completed without overwriting a prior hook. A simulated `main` update exited 1 with
+  the refusal message; a simulated feature-branch update exited 0. PR #1's current head passed
+  all four `PR validation` jobs. The GitHub ruleset API still returns the expected plan-gated
+  response, and classic `main` protection remains absent — exactly the documented limitation.
+- **AWS:** none created, changed, or deleted. Estimated session cost: USD 0.
+- **Next action:** P6.4 is **NOT STARTED**. Do not create AWS resources until a new session
+  manually completes every **Before the session** step in `docs/runbooks/aws-session.md` and a
+  reviewed plan/cost/teardown window is recorded.
+
+### 2026-07-30T15:13:39-06:00 — P6.3 branch-protection verification blocked — Codex
+
+- **Phase/task:** P6.3 remains **IN PROGRESS**. Draft PR #1's current head is green, but its
+  required check cannot be enforced yet.
+- **Verified:** read-only GitHub API inspection returned `403` from the repository rulesets
+  endpoint, explicitly stating that rulesets need an eligible plan or a public repository.
+  The classic `main` branch-protection endpoint returned `404`, so no classic protection rule is
+  active either.
+- **Blocker/decision required:** choose one: (1) use a GitHub plan that supports protection for
+  this private repository; (2) make the repository public only after the planned history review,
+  which requires an explicit ADR because ADR 0004 currently keeps it private until pre-P9; or
+  (3) approve and document a compensating local control, such as a reviewed pre-push guardrail,
+  acknowledging it is not server-enforced branch protection.
+- **AWS:** none created, changed, or deleted. Estimated session cost: USD 0.
+- **Next action:** owner selects the control, then its real configuration/evidence is recorded
+  before P6.3 is checked complete.
+
+### 2026-07-30T14:27:54-06:00 — P6.3 PR pipeline green — Codex
+
+- **Phase/task:** P6.3 remains **IN PROGRESS** only for the owner-operated branch-protection
+  step. Draft PR #1 contains the P6.1/P6.2 checkpoints and P6.3 implementation.
+- **Verified:** GitHub Actions run `30579166329` passed all four `PR validation` checks:
+  `API tests` (**13 passed**), `Web lint, test, and build`, `Terraform and Helm validation`,
+  and `Container build and scan`. The first run correctly exposed stale npm lockfile metadata;
+  the focused lockfile repair in commit `dfb6c22` produced this green rerun.
+- **AWS:** none created, changed, or deleted. Estimated session cost: USD 0.
+- **Next action:** owner completes the exact settings in
+  `docs/runbooks/github-branch-protection.md` (required checks, up-to-date branch, conversation
+  resolution, force-push/deletion protection, administrators included) and reports confirmation.
+  Then record the owner evidence, mark P6.3 complete, and proceed only to P6.4.
+
+### 2026-07-30T14:21:29-06:00 — P6.3 PR #1 lockfile repair — Codex
+
+- **Phase/task:** P6.3 remains **IN PROGRESS**. Draft PR #1's first `PR validation` run
+  proved the workflow runs: Terraform/Helm passed; the web job failed before linting because
+  `npm ci` found two optional `@emnapi` packages absent from `apps/web/package-lock.json`.
+- **Changed:** regenerated only `apps/web/package-lock.json`; it now records the missing
+  optional packages required by the existing dependency graph. No application dependency or
+  source version changed.
+- **Verified:** the exact CI clean-install command, `npm ci`, passed locally; `npm run lint`
+  passed with the existing Fast Refresh warning, `npm test` passed **9**, and `npm run build`
+  passed. `npm install` reported two high-severity audit findings; no automated audit upgrade
+  was applied because that would be unrelated dependency churn outside this focused CI repair.
+- **AWS:** none created, changed, or deleted. Estimated session cost: USD 0.
+- **Next action:** commit/push the lockfile repair to PR #1 and capture the rerun result. Then
+  complete the owner branch-protection checklist before marking P6.3 complete.
+
+### 2026-07-30T13:54:52-06:00 — P6.3 publishing preflight blocked — Codex
+
+- **Phase/task:** P6.3 remains **IN PROGRESS**. No branch, commit, push, pull request, or AWS
+  operation was performed in this attempt.
+- **Verified:** the working tree contains only the reviewed P6.3 Terraform, workflow, ADR,
+  runbook, and progress files; `git diff --check` passes. `gh --version` is available, but
+  `gh auth status` reports the active collaborator account's token is invalid.
+- **Blocker:** owner must run `gh auth login -h github.com`, select the collaborator account
+  with access to this repository, and complete the browser/device authorization. Then rerun
+  `gh auth status` successfully before the draft-PR publish flow resumes.
+- **AWS:** none created, changed, or deleted. Estimated session cost: USD 0.
+- **Next action:** after valid GitHub CLI authentication is confirmed, create the scoped
+  `agent/` branch, commit the already reviewed P6.3 work, push it, and open a draft PR for the
+  first `PR validation` run.
+
+### 2026-07-30T13:49:55-06:00 — P6.3 OIDC role + PR pipeline implementation — Codex
+
+- **Phase/task:** P6.3 remains **IN PROGRESS** pending its first real pull-request run and
+  owner-applied branch protection. No AWS session was opened.
+- **Changed:** added Terraform for the GitHub Actions OIDC provider, the
+  `bedoux-github-actions-role`, and its narrowly scoped policy: main branch of this repository
+  only; ECR upload only to the two Bedoux repositories; EKS cluster description only; EKS edit
+  access only in namespace `bedoux`. The provider/role/policy are declared but will first be
+  created only in P6.4's runbook-governed session, then retained by the persistent-state helper.
+  Added a pull-request-only workflow that runs API tests against a PostgreSQL service, web lint/
+  test/build, offline Terraform validation, Helm lint/render for both profiles, and immutable
+  candidate image build plus fixable HIGH/CRITICAL Trivy scans. It has `contents: read` only and
+  cannot mint an AWS OIDC token. ADR 0009 records the trust and namespace boundary; the new
+  branch-protection runbook gives the owner the exact post-green checks to enable.
+- **Verified:** credential-free `terraform validate -var=skip_aws_credentials_validation=true`
+  and `terraform fmt -check -recursive` passed; `helm lint` passed and both default/AWS Helm
+  profiles rendered; API `pytest -q` passed **6**, skipped **7** DB tests without a local DB;
+  web `npm run lint` passed with one pre-existing Fast Refresh warning, `npm test` passed **9**,
+  and `npm run build` passed. Workflow YAML parses and `git diff --check` passed. `make
+  docs-check` remains blocked by the host Podman wrapper (`failed to get the Podman version`),
+  while its direct XML/spine checks passed.
+- **AWS:** none created, changed, or deleted. Estimated session cost: USD 0.
+- **Next action:** review/commit and publish this work, open a pull request to capture the first
+  green `PR validation` run, then have the owner complete
+  `docs/runbooks/github-branch-protection.md`. Do not create the OIDC provider or role until
+  P6.4 opens a manual AWS session.
+
+### 2026-07-30T19:24:40Z — P6.3 EKS support-version correction — Codex
+
+- **Phase/task:** P6.3 remains **IN PROGRESS**. AWS Health reported that EKS 1.33 entered
+  extended support after the short-lived P6.2 cluster had already been destroyed; a
+  read-only EKS inventory confirmed no live cluster.
+- **Changed:** pinned `kubernetes_version` to `1.34` in the Terraform default and example,
+  and refreshed current-state documentation. The EBS CSI pin remains
+  `v1.63.0-eksbuild.1`: a read-only EKS compatibility query confirmed it is the default
+  compatible release for EKS 1.34 in `ca-central-1`.
+- **Verified:** `terraform fmt -check -recursive` and `terraform validate` passed. No AWS
+  resource was created, changed, or deleted; estimated session cost: USD 0.
+- **Next action:** continue P6.3's GitHub OIDC role and PR pipeline implementation.
+
+### 2026-07-29T19:37:42Z — P6.2 complete: Terraform apply/verify/destroy and clean sweep — Codex
+
+- **Phase/task:** P6.2 complete; T-501 met. The manual runbook preflight confirmed the
+  non-root `bedoux-admin` identity, pinned `ca-central-1` region, USD 20 budget, and an
+  explainable pre-existing inventory. Budget actual was USD 0.35 at the final check.
+- **Changed:** added remote-state bootstrap, state-safe persistent-resource
+  import/detach helper, EKS-compatible EBS CSI version, exact existing ALB-controller
+  policy, and static VPC subnet map (fixes the import graph). The live cycle found the
+  EKS creator had no access entry, so the EKS module now creates an explicit access entry
+  for the dynamically derived current caller and associates the AWS cluster-admin access
+  policy. This is the least-privilege, reproducible replacement for an implicit creator
+  mapping; no account identifier is committed.
+- **Verified:** initial reviewed plan was **19 add, 7 change, 0 destroy**, with no NAT,
+  NAT route, or EIP. After the access correction, `terraform validate`, `terraform fmt
+  -check -recursive`, and a converged `terraform plan` all passed. Live verification:
+  EKS 1.33, one Spot `t3.medium` node Ready, and EBS CSI add-on `ACTIVE` at
+  `v1.63.0-eksbuild.1`; both EBS CSI controller pods were Running. Kubernetes access was
+  denied before the explicit entry and succeeded after it, providing a real IAM/bootstrap
+  finding and fix.
+- **Teardown:** persistent ECR/IAM resources were detached from session state before the
+  reviewed destroy plan. Terraform terminal streaming interrupted twice while AWS
+  continued asynchronous node-group deletion, leaving stale S3 state locks; each lock was
+  cleared only after confirming no Terraform process remained. The final AWS inventory
+  confirmed no EKS cluster, tagged VPC/IGW, ALB, target group, NAT Gateway, unattached
+  EIP, RDS instance/snapshot/subnet group, unattached EBS volume, EBS snapshot, or active
+  Bedoux CloudFormation stack. Historical `eksctl` stacks are `DELETE_COMPLETE`.
+- **Persistent allowlist:** exactly the two immutable ECR repositories, the tagged state
+  bucket, four named IAM roles, and ALB-controller policy remain. The tag-based inventory
+  returned only two ECR mappings and one S3 mapping. Root session state is intentionally
+  empty after teardown; any future AWS apply must first run
+  `scripts/terraform-persistent-state.sh import --execute`.
+- **AWS:** temporary VPC/EKS/node/add-on/OIDC/access resources created and destroyed in
+  the same session. Estimated P6.2 cost: below USD 0.10; billing telemetry is lagged.
+- **Next action:** P6.3 — GitHub OIDC role + PR pipeline (local/GitHub work only; do not
+  open an AWS session unless a later step actually requires AWS mutation).
+
+### 2026-07-29 — P6.2 partial apply paused for credential renewal — Codex
+
+- **Phase/task:** P6.2 remains **IN PROGRESS**. The manual `aws-session.md` preflight
+  completed with the non-root `bedoux-admin` identity, the pinned `ca-central-1` region,
+  budget below the USD 20 guardrail, no unexpected pre-existing regional resources, and a
+  reviewed Terraform plan. Persistent P5 ECR/IAM resources were imported into remote
+  Terraform state; a versioned, encrypted, public-blocked S3 state bucket was created as
+  an approved persistent exception.
+- **Changed:** added the remote-state bootstrap and state-safe persistent-resource
+  import/detach helper; corrected the VPC route-association graph; pinned the
+  EKS-compatible EBS CSI add-on release; and vendored the existing ALB controller policy
+  exactly so Terraform updates its tags rather than replacing it. `terraform fmt -check
+  -recursive` and `terraform validate` passed. The reviewed apply plan was **19 to add,
+  7 to change, 0 to destroy**, with no NAT Gateway, NAT route, or EIP resource.
+- **AWS:** the first apply terminal stream ended early and left a stale state lock. After
+  confirming no Terraform process remained, the specific stale lock was released and a
+  fresh plan was reviewed (**9 to add, 2 to change, 0 to destroy**). The resumed apply
+  failed before EKS creation because the second public subnet CIDR conflicted with a
+  subnet already in the new VPC. The remote state currently tracks the VPC, Internet
+  Gateway, public route table, one public subnet, required ECR lifecycle/tag updates,
+  and IAM policy attachments; the second subnet may exist outside state and must be
+  inventoried. No EKS cluster/node group, ALB, NAT Gateway, or Elastic IP was created.
+- **Stop condition:** immediately after the failure, `aws ec2 describe-subnets` returned
+  an expired-session error. No further AWS calls or mutations were attempted. This is a
+  pause for credential renewal, not permission to continue without the runbook.
+- **Next action:** renew authentication, manually repeat the runbook's **Before the
+  session** checklist, inspect the VPC's subnets, import any untracked subnet if present,
+  then produce a fresh plan. Complete verification and the teardown sweep in the same
+  renewed session before marking P6.2 complete.
+
+### 2026-07-29 — P5 gate checkpoint verification — Codex
+
+- **Phase/task:** P5 gate remains active and awaits explicit owner approval; P6 was not
+  activated and no later-phase work started.
+- **Changed:** no implementation or architecture files. This entry records the required
+  checkpoint verification only.
+- **Verification:** `git status --short` was clean and `git log --oneline -5` confirmed
+  `1e9529e` (`P5.5 complete: full teardown, ...`) remains the latest task checkpoint.
+  Read-only AWS checks, using `--profile bedoux-admin` in pinned region `ca-central-1`,
+  confirmed no EKS clusters, ALBs, target groups, RDS instances, available/pending NAT
+  gateways, associated EIPs, unattached EBS volumes, tagged project VPCs, or relevant
+  CloudFormation stacks. The broad project-tag sweep returned only the allowlisted ECR
+  repositories `bedoux-api` and `bedoux-web`. The USD 20 budget is live with current
+  actual spend USD 0.35. `git diff --check` passed. The direct commands underlying
+  `make docs-check` passed (`docs-check OK`); the host wrapper could not launch its
+  toolbox because Podman cannot set the required sticky bit on `/run/user/1000/libpod`
+  in this read-only environment.
+- **AWS:** none created or destroyed this session. Estimated session cost: USD 0.
+- **Decisions:** none. The P6/P7 S3 image-adapter boundary remains the only open
+  owner-approved decision; ADR 0006 and the P5 kill switch/request bounds remain done.
+- **Next action:** owner approves the P5 gate in a separate gate commit; then activate
+  P6 and begin only P6.1 (Terraform modules + reviewed plan), with NAT disabled from the
+  start in the Terraform VPC design.
+- **Blocker:** owner approval of the P5 gate; no technical blocker found.
+
+### 2026-07-29 — P5 gate approved; P6 activated — Codex (owner: Tsogo)
+
+- **Phase/task:** Owner explicitly approved the P5 gate and activated P6. P6.1 is now
+  the only in-progress checklist item; no P6 implementation has started in this entry.
+- **Changed:** overall checkpoint state and phase checklist updated in this file;
+  `START-HERE.md` refreshed to point at P6.1.
+- **AWS:** none. No resources created or modified. Estimated session cost: USD 0.
+- **Decisions:** none new. The P6/P7 S3 image-adapter boundary remains open and must
+  be recorded before its implementation phase; the Terraform VPC must disable NAT from
+  the start, carrying forward P5.5's finding.
+- **Next action:** P6.1 — create Terraform modules and produce a reviewed cold plan;
+  do not apply AWS changes until the plan is reviewed and a separate AWS session is
+  opened using the manual `docs/runbooks/aws-session.md` checklist.
+
+### 2026-07-29 — P6.1 complete: Terraform modules and cold plan — Codex
+
+- **Phase/task:** P6.1 complete. Terraform now represents the P5 learning profile:
+  public-only VPC, no NAT, EKS control plane, one Spot `t3.medium` managed node,
+  ECR repositories with lifecycle policies, cluster/node IAM roles, EKS OIDC,
+  EBS CSI IRSA/add-on, and ALB Controller IRSA permissions.
+- **Changed:** added `infra/terraform/` with pinned Terraform/provider versions,
+  root configuration, and modules for VPC, cluster IAM, EKS, workload IAM, EKS
+  add-ons, and ECR; refreshed `START-HERE.md` and this progress state.
+- **Verified:** `terraform init -backend=false -input=false` succeeded with AWS
+  provider `5.100.0` and TLS provider `4.1.0`; `terraform fmt -check -recursive`
+  passed; `terraform validate` passed; a no-refresh plan saved outside the repo
+  completed with **26 to add, 0 to change, 0 to destroy**. Focused plan/source
+  inspection found no `aws_nat_gateway`, NAT EIP, or NAT route resources. The plan
+  was local and no-apply.
+- **AWS:** none created, modified, or destroyed. Estimated session cost: USD 0.
+- **Decisions:** no architecture decision changed. The EBS CSI add-on version is
+  an explicit P6.2 input because AWS compatibility is version-specific; P6.2 must
+  select and record an exact compatible version before apply. Persistent P5 ECR
+  repositories and IAM roles must be imported before apply rather than duplicated.
+- **Next action:** P6.2 — manually walk `docs/runbooks/aws-session.md` before any
+  apply, import the persistent resources, then run the apply/verify/destroy cycle
+  and the full teardown sweep.
 
 ### 2026-07-28 — P5.5 complete: full teardown, one real finding fixed — Claude Code (operator: Tsogo)
 

@@ -20,16 +20,31 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
    one item remains open (the P6/P7 S3 adapter boundary); the two P5-scoped decisions are
    done (ADR 0006, and the kill switch/request bounds).
 
-## Current state (as of 2026-07-28)
+## Current state (as of 2026-07-30)
 - Phases 0-4 complete, gates approved. Local app (FastAPI + Postgres + React) proven on
   Compose (P2), then on kind with a Helm chart (P3, ADR 0005), with real drills throughout.
   AWS account readiness done in P4: non-root IAM identity `bedoux-admin`, region
   `ca-central-1` pinned, USD 20 budget + Cost Anomaly Detection live.
-- **Phase 5 (Manual EKS session) is fully complete, gate pending owner approval.** This was
+- **Phase 5 (Manual EKS session) is fully complete and its gate is owner-approved.** This was
   the first phase to create real billable AWS resources, and it did: a full eksctl EKS
   cluster, node group, ALB, and app deployment were created, exercised, and torn down
   same-day. No AWS resources are currently live — confirmed via a full
-  `/aws-teardown-verify` sweep, not assumed.
+  teardown sweep, not assumed.
+- **Phase 6 is active; P6.1–P6.3 are complete.** Terraform now recreates the P5
+  learning profile with a public-only VPC (no NAT), EKS 1.34, one Spot `t3.medium` node,
+  ECR lifecycle policy, IRSA/OIDC, EBS CSI, and controller permissions. P6.2 proved a
+  real Terraform apply/verify/destroy cycle: cluster access initially failed because the
+  creator had no EKS access entry, then passed after Terraform created an explicit,
+  dynamically derived creator access entry and cluster-admin association. The node was
+  Ready, EBS CSI was ACTIVE, and the full teardown sweep was clean. No temporary AWS
+  resources remain; only the state bucket, two ECR repos, and four IAM roles plus policy
+  are persistent allowlisted resources.
+- **P6.3:** PR #1 validates API/PostgreSQL, web lint/test/build, Terraform/Helm, and container
+  scanning; all checks are green. Terraform declares a main-branch-bound GitHub OIDC role with
+  ECR/cluster-description permissions and namespace-scoped EKS edit access for P6.4. GitHub's
+  current private-repository plan cannot enforce a server-side rule; ADR 0010 documents the
+  installed, tested local pre-push guardrail that blocks direct `main` pushes in this clone and
+  explicitly states its non-server-enforced limitation.
 - Three real findings surfaced and were fixed during P5, each documented with its own ADR
   or PROGRESS entry:
   1. **ADR 0007** — `bedoux-admin`'s scoped IAM policy (`bedoux-iam-scoped`) had a genuine
@@ -79,17 +94,23 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   future change to `bedoux-iam-scoped` requires the owner via console/root, permanently.
 - ADR 0008: the AWS ALB profile routes everything through `web`; `/api` prefix-stripping
   happens via `web`'s own nginx reverse proxy, not an ALB-level rewrite (ALB has none).
+- ADR 0009: GitHub Actions uses a main-branch-bound OIDC deployment role with least-privilege
+  ECR/EKS permissions and `bedoux`-namespace edit access.
+- ADR 0010: until server-side protection becomes available, block direct local `main` pushes
+  with the documented pre-push guardrail; never claim that it protects other clones or GitHub UI.
 - One decision remains pending, not yet implemented — see docs/IMPLEMENTATION-PLAN.md's
   "Pending owner-approved decisions": the P6/P7 S3 image adapter boundary (API returns
   `image_url`, presigned URL via IRSA in S3 mode, frontend storage-agnostic).
 
 ## What I want next
-Continue the single task marked IN PROGRESS in docs/PROGRESS.md. Work one item at a time,
-record evidence before checking anything off, and never create AWS resources outside a
-session opened via docs/runbooks/aws-session.md (`/aws-session-start`). If asked to approve
+Continue the single task marked IN PROGRESS in docs/PROGRESS.md: **P6.4 — deploy pipeline
+against a session cluster**. Work one item at a time and record evidence before checking anything
+off. P6.4 needs AWS resources, so before any mutation manually walk the full **Before the
+session** checklist in `docs/runbooks/aws-session.md`, review the Terraform plan/cost, set a
+same-day teardown time, and use `bedoux-admin`.
+There is no `/aws-session-start` for Codex: before touching AWS, manually walk the "Before
+the session" checklist in `docs/runbooks/aws-session.md`, and run its teardown sweep before
+ending any AWS session. Never create AWS resources outside that process. If asked to approve
 a phase gate, make that its own commit ("Phase N gate approved by owner; activate Phase
-N+1") before starting the next phase's work. P5's gate is pending owner approval right now;
-once approved, P6 (Terraform, then CI/CD) recreates everything P5 built as code — make sure
-the Terraform VPC module disables the NAT Gateway from the start, learning from P5.5's
-finding rather than repeating it.
+N+1") before starting the next phase's work. The Terraform VPC must keep NAT disabled.
 ```

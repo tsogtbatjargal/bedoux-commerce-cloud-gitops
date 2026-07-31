@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+# Local compensating control for repositories whose GitHub plan cannot enforce
+# branch protection. Git calls this hook with <remote-name> <remote-url>, then
+# supplies one ref update per line on stdin.
+set -euo pipefail
+
+remote_name="${1:-origin}"
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  if [[ "$local_ref" == "refs/heads/main" && "$local_sha" != "0000000000000000000000000000000000000000" ]]; then
+    cat >&2 <<EOF
+bedoux guardrail: refusing direct push of main to ${remote_name}.
+Push a topic branch and merge it through the reviewed pull-request workflow instead.
+This is a local control; see docs/runbooks/github-branch-protection.md.
+EOF
+    exit 1
+  fi
+done

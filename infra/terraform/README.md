@@ -1,0 +1,72 @@
+# Bedoux learning infrastructure
+
+This is the P6 Terraform definition of the P5 learning environment. The root
+configuration starts with a local backend for cold planning; P6.2 bootstraps a
+separate persistent state bucket before migrating this root state to S3.
+
+## Design boundaries
+
+- Region is pinned to `ca-central-1`.
+- The VPC has public subnets only and **no NAT Gateway resources**. The single
+  Spot node uses public IP addressing, matching the verified P5 profile.
+- EKS, its managed Spot node group, ECR repositories, cluster/node IAM roles,
+  the EKS OIDC provider, the EBS CSI IRSA role/add-on, and the ALB Controller
+  IRSA role/policy are represented as code.
+- The P6.3 GitHub Actions OIDC provider and `bedoux-github-actions-role` are
+  represented as code but first created only in P6.4's live AWS session. Its
+  trust is restricted to this repository's protected `main` branch; its AWS
+  permissions are limited to pushing the two ECR repositories and describing
+  the learning EKS cluster. EKS grants it edit access only in the `bedoux`
+  namespace.
+- `bedoux-iam-scoped` and the EKS node-group service-linked role are account
+  foundations from P4/P5 and are deliberately not managed here.
+- P6.2/P6.4 must import the persistent P5 ECR repositories and IAM roles before an
+  apply, rather than attempting to create duplicate names. On P6.4's first session, the
+  helper deliberately skips the not-yet-created GitHub OIDC provider, role, and policy; the
+  reviewed apply creates and tracks them. Later sessions import those identity resources too.
+  Before `destroy`, run
+  `scripts/terraform-persistent-state.sh detach --execute` so Terraform removes
+  only session resources while those allowlisted resources remain. After P6.4,
+  that allowlist also includes the GitHub OIDC provider and deployment role/policy.
+- `bootstrap/` owns the persistent, versioned, encrypted Terraform state bucket.
+  It is intentionally never part of the session-environment destroy.
+- EBS CSI is pinned to `v1.63.0-eksbuild.1`, verified compatible and default for
+  EKS `1.34` in `ca-central-1` on 2026-07-30.
+
+## P6.1 validation
+
+From this directory:
+
+```text
+terraform init
+terraform fmt -check -recursive
+terraform validate
+terraform plan -refresh=false -out=p6.1.tfplan
+```
+
+For credential-free local or GitHub Actions validation only, use
+`terraform validate -var=skip_aws_credentials_validation=true`. Never pass that
+override to a plan or apply against AWS.
+
+The plan is a review artifact only. Do not run `terraform apply` until P6.2
+opens an AWS session and the plan has been reviewed against the manual checklist
+in `docs/runbooks/aws-session.md`.
+
+## P6.2 state migration
+
+After `bootstrap/` has created its bucket, retrieve the bucket name from the
+bootstrap output at runtime and migrate both states with S3-native locking:
+
+```text
+terraform init -migrate-state \
+  -backend-config="bucket=<bootstrap output>" \
+  -backend-config="key=bedoux-commerce-cloud/session.tfstate" \
+  -backend-config="region=ca-central-1" \
+  -backend-config="profile=bedoux-admin" \
+  -backend-config="encrypt=true" \
+  -backend-config="use_lockfile=true"
+```
+
+Use `key=bedoux-commerce-cloud/bootstrap.tfstate` for the bootstrap directory.
+The actual bucket name is intentionally never written into a committed backend
+configuration.
