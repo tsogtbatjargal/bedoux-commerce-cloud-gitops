@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P6 — Terraform, then CI/CD |
 | Active task | P6.4 — deploy pipeline against a session cluster (**IN PROGRESS**) |
-| Last verified | 2026-07-31T10:00:00-06:00 — P6.4 activated; local deployment-pipeline preparation starts before an AWS session. |
+| Last verified | 2026-07-31T10:31:00-06:00 — P6.4 local deployment preparation is in PR #1; all four PR validation jobs pass. |
 | AWS resources currently live | **No temporary/billable environment resources.** Persisted per `docs/cost-guardrails.md`'s allowlist (no hourly charge): tagged Terraform state S3 bucket, ECR repos `bedoux-api`/`bedoux-web`, IAM roles `bedoux-eks-cluster-role`/`bedoux-eks-nodegroup-role`/`bedoux-ebs-csi-role`/`bedoux-alb-controller-role`, IAM policy `bedoux-alb-controller-policy`. |
 | Month-to-date estimated AWS spend | Budget reports USD 0.35 actual against the USD 20 cap (queried 2026-07-29; billing data lags). P6.2's roughly 30-minute EKS + one Spot-node session is estimated below USD 0.10. |
-| Next operator action | **P6.4**: complete and validate the local deployment pipeline; then, before any AWS mutation, manually complete `docs/runbooks/aws-session.md`'s **Before the session** checklist, review the Terraform plan/cost, and set a same-day teardown time. |
+| Next operator action | **P6.4**: owner reviews and merges PR #1 to `main`; then, before any AWS mutation, manually complete `docs/runbooks/aws-session.md`'s **Before the session** checklist, review the Terraform plan/cost, and set a same-day teardown time. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -530,6 +530,19 @@ complete with evidence above. The dedicated gate commit records the approval.
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
 
+### 2026-07-31T10:31:00-06:00 — P6.4 local preparation validated in GitHub — Codex
+
+- **Phase/task:** P6.4 remains **IN PROGRESS**. The deployment workflow deliberately remains
+  unavailable to AWS until its branch-bound source is merged to `main` and a manual session is
+  opened.
+- **Verified:** PR #1 GitHub Actions run `30647326143` passed all four `PR validation` jobs:
+  API tests (39s), container build and scan (1m02s), Terraform and Helm validation (20s), and
+  web lint, test, and build (28s).
+- **AWS:** none created, changed, queried, or deleted. Estimated session cost: USD 0.
+- **Next action:** owner reviews and merges PR #1 to `main`. Then open the manual P6.4 session
+  using `aws-session.md`, create the temporary learning environment from the reviewed Terraform
+  plan, and dispatch the main-branch deployment workflow.
+
 ### 2026-07-31T10:28:46-06:00 — P6.4 local deployment pipeline prepared — Codex
 
 - **Phase/task:** P6.4 remains **IN PROGRESS**. No AWS session is open and no AWS command has
@@ -548,9 +561,8 @@ Append newest entries immediately below this heading. Never include secrets or A
   --check` all passed. The Terraform schema check was run outside the sandbox because the sandbox
   cannot launch the already-installed provider binaries; it made no AWS call.
 - **AWS:** none created, changed, queried, or deleted. Estimated session cost: USD 0.
-- **Next action:** commit and push the focused local preparation to PR #1, obtain a green PR
-  validation run, then have the owner review and merge it to `main`. Only after the workflow is on
-  `main` may a P6.4 AWS session manually complete every `aws-session.md` preflight item.
+- **Next action:** owner reviews and merges PR #1 to `main`. Only after the workflow is on `main`
+  may a P6.4 AWS session manually complete every `aws-session.md` preflight item.
 
 ### 2026-07-30T15:50:00-06:00 — P6.3 complete: local guardrail accepted and verified — Codex
 
