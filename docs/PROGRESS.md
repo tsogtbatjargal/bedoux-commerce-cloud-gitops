@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P6 — Terraform, then CI/CD |
-| Active task | P6.4 — deploy pipeline against a session cluster (**IN PROGRESS**) |
-| Last verified | 2026-07-31T12:58:41-06:00 — OIDC, ECR authentication, and image push succeeded; Helm stopped safely at the intentionally namespace-only CI boundary for the cluster-scoped `gp3` StorageClass. |
-| AWS resources currently live | **Temporary P6.4 session live:** no-NAT VPC, EKS 1.34 control plane, one Spot node, EBS CSI add-on, AWS Load Balancer Controller, and empty `bedoux` namespace. **Persistent no-hourly-cost allowlist:** state bucket, ECR repos, existing IAM roles/policy, plus GitHub OIDC provider and deployment role/policy. The rerun pushed immutable API/web images, but no Helm release, PVC, StorageClass, or ALB exists because Helm stopped before creating them. |
+| Active task | P6.5 — CI rollback drill (**NOT STARTED**; P6.4 complete) |
+| Last verified | 2026-07-31T17:51:14-06:00 — P6.4 deployed and smoke-tested successfully, then the teardown sweep confirmed zero temporary AWS resources. |
+| AWS resources currently live | **None temporary.** The teardown sweep confirmed zero EKS clusters, ALBs/target groups, RDS resources, NAT Gateways, EIPs, unattached EBS volumes/snapshots, project VPCs/instances, and CloudFormation stacks. Persistent: state bucket, two ECR repositories, cluster/node/GitHub deployment roles and policies, ALB-controller role/policy, and GitHub OIDC provider. **Recovery finding:** the EBS CSI role was unintentionally deleted by a targeted teardown recovery and is absent; it has no hourly cost and Terraform will recreate it in the next controlled session. |
 | Month-to-date estimated AWS spend | Budget actual is USD 0.581 against the USD 20 cap (queried 2026-07-31; billing data lags). The P6.4 session's conservative USD 2–4 envelope remains below the USD 16 stop threshold. |
-| Next operator action | **P6.4**: merge the owner-approved StorageClass bootstrap repair; then create `gp3` once as the session operator and rerun the manual deployment with CI still namespace-only. Same-day teardown target remains `2026-07-31T14:00:00-06:00`. |
+| Next operator action | **P6.5**: plan the CI rollback drill. Before any new AWS mutation, open a fresh session and manually complete every **Before the session** item in `docs/runbooks/aws-session.md`; Terraform will recreate the absent EBS CSI role. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -502,7 +502,10 @@ complete with evidence above. The dedicated gate commit records the approval.
 - [x] P6.3 COMPLETE — GitHub OIDC role declaration + green PR validation pipeline. Evidence:
       PR #1, GitHub Actions run `30579166329` (all four checks pass); ADR 0009; ADR 0010;
       installed local pre-push guardrail blocks direct `main` pushes in this active clone.
-- [ ] P6.4 IN PROGRESS — deploy pipeline against session cluster.
+- [x] P6.4 COMPLETE — deployment pipeline against session cluster. Evidence: session log
+      2026-07-31T17:51:14-06:00; GitHub run `30657784919` passed OIDC/ECR/image push,
+      namespace-scoped Helm deploy, and public ALB health/catalog smoke; no-NAT teardown sweep
+      confirmed zero temporary resources.
 - [ ] P6.5 NOT STARTED — CI rollback drill.
 
 ### P7 — Managed data services
@@ -533,6 +536,32 @@ complete with evidence above. The dedicated gate commit records the approval.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-31T17:51:14-06:00 — P6.4 complete: live CI deployment and teardown evidence — Codex
+
+- **Phase/task:** P6.4 is **COMPLETE**. The third main-branch deployment workflow run
+  `30657784919` passed every step: GitHub OIDC credentials, ECR authentication, immutable API/web
+  image push, namespace-scoped EKS access, Helm deploy with migration and optional seed jobs, and
+  public ALB health plus non-empty catalog smoke.
+- **Platform proof:** the session operator rendered and created `gp3` once after EBS CSI became
+  active; CI remained restricted to namespace `bedoux` and explicitly omitted the cluster-scoped
+  StorageClass. PostgreSQL PVC bound through `ebs.csi.aws.com` with
+  `WaitForFirstConsumer`; API, web, and PostgreSQL became Ready; the ALB was created only for the
+  smoke window. Earlier OIDC evidence exposed the organization's custom subject template, and
+  Terraform now accepts the exact repository-and-main-bound subject without widening role scope.
+- **Teardown:** deleted the Ingress and verified its ALB absent, uninstalled the application and
+  controller, removed the namespace, and destroyed the temporary EKS/add-on/access/VPC resources.
+  Final read-only sweep: zero EKS clusters, ALBs, target groups, RDS instances/snapshots/subnet
+  groups, NAT Gateways, EIPs, available EBS volumes/snapshots, project VPCs/instances, and
+  CloudFormation stacks; state bucket and two ECR repositories remain.
+- **Operational finding:** Terraform 1.15 failed to construct a normal destroy graph after the
+  persistent-state detach. A targeted recovery destroy completed but, through a dependency on the
+  EKS OIDC provider, also deleted the EBS CSI role. The role is no-cost and absent rather than
+  orphaned; Terraform will recreate it next session. The session exceeded its intended 14:00
+  teardown target while that recovery ran, so P6.5 must first harden this teardown path before
+  any drill.
+- **Next action:** P6.5 is **NOT STARTED**. Open a fresh, time-bounded session only after a
+  reviewed teardown-recovery fix; do not create AWS resources in the meantime.
 
 ### 2026-07-31T12:58:41-06:00 — P6.4 OIDC repair proved; Helm stopped at cluster-scope boundary — Codex
 
