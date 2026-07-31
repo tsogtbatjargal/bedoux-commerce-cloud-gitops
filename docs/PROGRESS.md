@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P6 — Terraform, then CI/CD |
 | Active task | P6.4 — deploy pipeline against a session cluster (**IN PROGRESS**) |
-| Last verified | 2026-07-31T11:54:59-06:00 — owner approved a diagnostic that will expose only the OIDC issuer, audience, and subject before AWS authentication. |
+| Last verified | 2026-07-31T12:01:14-06:00 — PR #2 is open with all four pull-request validation jobs green; it is ready to merge before the controlled deployment rerun. |
 | AWS resources currently live | **Temporary P6.4 session live:** no-NAT VPC, EKS 1.34 control plane, one Spot node, EBS CSI add-on, AWS Load Balancer Controller, and empty `bedoux` namespace. **Persistent no-hourly-cost allowlist:** state bucket, ECR repos, existing IAM roles/policy, plus GitHub OIDC provider and deployment role/policy. No application release, ALB, or new image was created because CI failed before ECR authentication. |
 | Month-to-date estimated AWS spend | Budget actual is USD 0.581 against the USD 20 cap (queried 2026-07-31; billing data lags). The P6.4 session's conservative USD 2–4 envelope remains below the USD 16 stop threshold. |
-| Next operator action | **P6.4**: publish and merge the approved focused OIDC-claim diagnostic, rerun the manual deployment from `main`, then use the resulting claim evidence to correct only the trust boundary if needed. Same-day teardown target remains `2026-07-31T14:00:00-06:00`. |
+| Next operator action | **P6.4**: owner merges PR #2; then rerun the manual deployment from `main` and use the resulting claim evidence to correct only the trust boundary if needed. Same-day teardown target remains `2026-07-31T14:00:00-06:00`. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -533,6 +533,19 @@ complete with evidence above. The dedicated gate commit records the approval.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-31T12:01:14-06:00 — P6.4 OIDC claim diagnostic published and validated — Codex
+
+- **Phase/task:** P6.4 remains **IN PROGRESS**. The approved diagnostic is PR #2, `Fix P6.4
+  OIDC: add claim diagnostic`; its four pull-request validation jobs are green: API tests,
+  container build and scan, Terraform and Helm validation, and web lint/test/build.
+- **Verified:** local workflow YAML/control assertions, a JWT-payload decoding fixture, direct
+  documentation checks, and `git diff --check` passed before publication. The PR contains the
+  time-bounded session evidence and does not contain a token, role ARN, or account identifier.
+- **Next action:** the owner merges PR #2 to `main`, which is necessary because the AWS trust
+  condition deliberately permits only the main branch. Immediately rerun the manually dispatched
+  workflow and capture its issuer/audience/subject evidence. If main cannot be updated and
+  exercised before `2026-07-31T14:00:00-06:00`, begin teardown instead.
 
 ### 2026-07-31T11:54:59-06:00 — P6.4 non-sensitive OIDC claim diagnostic approved — Codex
 
