@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P6 — Terraform, then CI/CD |
 | Active task | P6.4 — deploy pipeline against a session cluster (**IN PROGRESS**) |
-| Last verified | 2026-07-31T12:22:44-06:00 — main-branch OIDC diagnostic identified an exact custom-subject mismatch; the reviewed Terraform plan changes only that trust condition. |
-| AWS resources currently live | **Temporary P6.4 session live:** no-NAT VPC, EKS 1.34 control plane, one Spot node, EBS CSI add-on, AWS Load Balancer Controller, and empty `bedoux` namespace. **Persistent no-hourly-cost allowlist:** state bucket, ECR repos, existing IAM roles/policy, plus GitHub OIDC provider and deployment role/policy. No application release, ALB, or new image was created because CI failed before ECR authentication. |
+| Last verified | 2026-07-31T12:58:41-06:00 — OIDC, ECR authentication, and image push succeeded; Helm stopped safely at the intentionally namespace-only CI boundary for the cluster-scoped `gp3` StorageClass. |
+| AWS resources currently live | **Temporary P6.4 session live:** no-NAT VPC, EKS 1.34 control plane, one Spot node, EBS CSI add-on, AWS Load Balancer Controller, and empty `bedoux` namespace. **Persistent no-hourly-cost allowlist:** state bucket, ECR repos, existing IAM roles/policy, plus GitHub OIDC provider and deployment role/policy. The rerun pushed immutable API/web images, but no Helm release, PVC, StorageClass, or ALB exists because Helm stopped before creating them. |
 | Month-to-date estimated AWS spend | Budget actual is USD 0.581 against the USD 20 cap (queried 2026-07-31; billing data lags). The P6.4 session's conservative USD 2–4 envelope remains below the USD 16 stop threshold. |
-| Next operator action | **P6.4**: publish and merge the one-condition OIDC trust repair, apply its reviewed Terraform plan, then rerun the manual deployment from `main`. Same-day teardown target remains `2026-07-31T14:00:00-06:00`. |
+| Next operator action | **P6.4**: merge the owner-approved StorageClass bootstrap repair; then create `gp3` once as the session operator and rerun the manual deployment with CI still namespace-only. Same-day teardown target remains `2026-07-31T14:00:00-06:00`. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -533,6 +533,28 @@ complete with evidence above. The dedicated gate commit records the approval.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-31T12:58:41-06:00 — P6.4 OIDC repair proved; Helm stopped at cluster-scope boundary — Codex
+
+- **Phase/task:** P6.4 remains **IN PROGRESS**. Owner merged the focused OIDC trust repair,
+  then Terraform applied its reviewed plan: **0 add, 1 change, 0 destroy**. A read-only IAM check
+  confirmed the live condition matches the merged source.
+- **Deployment evidence:** main workflow run `30657130536` completed GitHub OIDC authentication,
+  ECR authentication, and immutable API/web image build/push. Namespace-scoped EKS access also
+  succeeded. Helm then stopped before creating a release because the chart attempted to read the
+  cluster-scoped `gp3` StorageClass, while the deployment role intentionally has edit access only
+  in namespace `bedoux`. Its atomic install left no Helm release, PVC, StorageClass, or ALB.
+- **Safe repair proposed:** retain the least-privilege CI boundary. As the session operator,
+  bootstrap the chart-rendered `gp3` StorageClass once after the EBS CSI add-on is active; change
+  the CI Helm invocation to set `storageClass.create=false`; add the operator step and rationale
+  to the P6.4 runbook. Do **not** grant cluster-scoped StorageClass access to CI.
+- **Approved repair/validation:** owner approved the focused operator-bootstrap approach. CI now
+  sets `storageClass.create=false`; the runbook renders and creates `gp3` once as the operator.
+  Local workflow assertions, Helm lint, client-side validation of the rendered operator manifest,
+  a CI render proving no StorageClass, documentation checks, and `git diff --check` passed.
+- **Next action:** merge the focused repair, create `gp3` from the documented chart render, then
+  rerun the manually dispatched workflow. If that cannot complete before
+  `2026-07-31T14:00:00-06:00`, start the documented teardown.
 
 ### 2026-07-31T12:22:44-06:00 — P6.4 GitHub OIDC custom-subject mismatch isolated — Codex
 

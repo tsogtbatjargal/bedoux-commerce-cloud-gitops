@@ -104,6 +104,10 @@ jobs:
             --wait --wait-for-jobs --timeout 10m --atomic
             -f charts/bedoux/values.yaml
             -f charts/bedoux/values-aws.yaml
+            # StorageClass is cluster-scoped. The session operator bootstraps
+            # gp3 before dispatch so this namespace-only CI role never needs
+            # cluster-wide Kubernetes permissions.
+            --set storageClass.create=false
             --set-string "api.image.repository=$ECR_REGISTRY/bedoux-api"
             --set-string "api.image.tag=$GITHUB_SHA"
             --set-string "web.image.repository=$ECR_REGISTRY/bedoux-web"

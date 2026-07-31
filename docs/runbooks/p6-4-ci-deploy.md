@@ -18,7 +18,21 @@ and a same-day teardown time is set. It deploys only to the short-lived P6 learn
    kubectl apply -f k8s/00-namespace.yaml
    ```
 
-3. Install the AWS Load Balancer Controller as the operator. This remains an operator step
+3. Bootstrap the AWS-profile `gp3` StorageClass as the operator, before dispatching CI. A
+   StorageClass is cluster-scoped, while the GitHub deployment role intentionally has edit access
+   only in namespace `bedoux`. Render just this chart resource with the same AWS values that CI
+   uses, then apply and verify it. CI explicitly sets `storageClass.create=false`, so it never
+   needs cluster-wide Kubernetes permissions.
+
+   ```text
+   helm template bedoux charts/bedoux \
+     -f charts/bedoux/values.yaml \
+     -f charts/bedoux/values-aws.yaml \
+     --show-only templates/storageclass.yaml | kubectl apply -f -
+   kubectl get storageclass gp3
+   ```
+
+4. Install the AWS Load Balancer Controller as the operator. This remains an operator step
    because the CI role has access only to the `bedoux` namespace. Use the existing Terraform-
    managed IRSA role and do not record its ARN in source control. Pin chart/controller version
    `3.4.3` (selected from the official EKS chart repository on 2026-07-31) and pass the VPC ID
@@ -45,7 +59,7 @@ and a same-day teardown time is set. It deploys only to the short-lived P6 learn
    unset vpc_id
    ```
 
-4. Set the GitHub Actions repository variable from Terraform's runtime output. It is a role ARN,
+5. Set the GitHub Actions repository variable from Terraform's runtime output. It is a role ARN,
    not a secret; never hardcode it or the AWS account number in a workflow or committed document.
 
    ```text
