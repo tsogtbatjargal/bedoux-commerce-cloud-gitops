@@ -21,16 +21,10 @@ variable "skip_aws_credentials_validation" {
   default     = false
 }
 
-variable "github_repository" {
-  description = "GitHub owner/repository allowed to obtain the deployment role."
+variable "github_oidc_subject" {
+  description = "Exact GitHub OIDC subject allowed to obtain the deployment role; this organization uses GitHub's custom numeric-ID subject template and is restricted to main."
   type        = string
-  default     = "bedoux-tech/bedoux-commerce-cloud"
-}
-
-variable "github_deploy_branch" {
-  description = "The protected branch allowed to obtain the deployment role."
-  type        = string
-  default     = "main"
+  default     = "repo:bedoux-tech@290496053/bedoux-commerce-cloud@1304975065:ref:refs/heads/main"
 }
 
 variable "cluster_name" {

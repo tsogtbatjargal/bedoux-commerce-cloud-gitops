@@ -64,8 +64,7 @@ module "github_actions_oidc" {
   aws_region          = var.aws_region
   cluster_name        = var.cluster_name
   ecr_repository_arns = module.ecr.repository_arns
-  github_repository   = var.github_repository
-  github_branch       = var.github_deploy_branch
+  github_oidc_subject = var.github_oidc_subject
   tags                = local.tags
 }
 

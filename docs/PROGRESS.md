@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P6 — Terraform, then CI/CD |
 | Active task | P6.4 — deploy pipeline against a session cluster (**IN PROGRESS**) |
-| Last verified | 2026-07-31T12:01:14-06:00 — PR #2 is open with all four pull-request validation jobs green; it is ready to merge before the controlled deployment rerun. |
+| Last verified | 2026-07-31T12:22:44-06:00 — main-branch OIDC diagnostic identified an exact custom-subject mismatch; the reviewed Terraform plan changes only that trust condition. |
 | AWS resources currently live | **Temporary P6.4 session live:** no-NAT VPC, EKS 1.34 control plane, one Spot node, EBS CSI add-on, AWS Load Balancer Controller, and empty `bedoux` namespace. **Persistent no-hourly-cost allowlist:** state bucket, ECR repos, existing IAM roles/policy, plus GitHub OIDC provider and deployment role/policy. No application release, ALB, or new image was created because CI failed before ECR authentication. |
 | Month-to-date estimated AWS spend | Budget actual is USD 0.581 against the USD 20 cap (queried 2026-07-31; billing data lags). The P6.4 session's conservative USD 2–4 envelope remains below the USD 16 stop threshold. |
-| Next operator action | **P6.4**: owner merges PR #2; then rerun the manual deployment from `main` and use the resulting claim evidence to correct only the trust boundary if needed. Same-day teardown target remains `2026-07-31T14:00:00-06:00`. |
+| Next operator action | **P6.4**: publish and merge the one-condition OIDC trust repair, apply its reviewed Terraform plan, then rerun the manual deployment from `main`. Same-day teardown target remains `2026-07-31T14:00:00-06:00`. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -533,6 +533,25 @@ complete with evidence above. The dedicated gate commit records the approval.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-31T12:22:44-06:00 — P6.4 GitHub OIDC custom-subject mismatch isolated — Codex
+
+- **Phase/task:** P6.4 remains **IN PROGRESS**. After owner merge `84e4a77`, dispatched the
+  manually selected `main` workflow with catalog seeding. Its diagnostic completed and the AWS
+  credential action retried then failed safely. ECR authentication, image builds/pushes, EKS
+  access, Helm deployment, and ALB smoke testing were all skipped; no application release, ALB,
+  or image was created.
+- **Evidence:** workflow run `30654318696` emitted the expected GitHub OIDC issuer and audience,
+  and an exact subject bound to this repository and `refs/heads/main` but formatted through the
+  organization's custom numeric-ID subject template. The live Terraform-managed trust policy
+  instead expected the standard name-based GitHub subject, causing the STS denial.
+- **Repair/plan:** replaced only the Terraform trust-subject input with the exact observed custom
+  subject; issuer, audience, role permissions, EKS namespace access, and all other resources are
+  unchanged. Offline Terraform validation passed. The saved live plan is exactly **0 add, 1
+  change, 0 destroy**: an in-place update of `bedoux-github-actions-role`'s subject condition.
+- **Next action:** validate/publish/merge the focused source repair, apply only the reviewed plan,
+  verify the live condition, then immediately dispatch the main-branch workflow again. Keep the
+  hard teardown deadline `2026-07-31T14:00:00-06:00`; do not extend it for troubleshooting.
 
 ### 2026-07-31T12:01:14-06:00 — P6.4 OIDC claim diagnostic published and validated — Codex
 

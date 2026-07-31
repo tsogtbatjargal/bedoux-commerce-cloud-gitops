@@ -28,7 +28,7 @@ data "aws_iam_policy_document" "assume_role" {
     condition {
       test     = "StringEquals"
       variable = "${local.oidc_issuer_host}:sub"
-      values   = ["repo:${var.github_repository}:ref:refs/heads/${var.github_branch}"]
+      values   = [var.github_oidc_subject]
     }
   }
 }
