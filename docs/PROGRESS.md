@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P6 — Terraform, then CI/CD |
 | Active task | P6.4 — deploy pipeline against a session cluster (**IN PROGRESS**) |
-| Last verified | 2026-07-31T10:31:00-06:00 — P6.4 local deployment preparation is in PR #1; all four PR validation jobs pass. |
-| AWS resources currently live | **No temporary/billable environment resources.** Persisted per `docs/cost-guardrails.md`'s allowlist (no hourly charge): tagged Terraform state S3 bucket, ECR repos `bedoux-api`/`bedoux-web`, IAM roles `bedoux-eks-cluster-role`/`bedoux-eks-nodegroup-role`/`bedoux-ebs-csi-role`/`bedoux-alb-controller-role`, IAM policy `bedoux-alb-controller-policy`. |
-| Month-to-date estimated AWS spend | Budget reports USD 0.35 actual against the USD 20 cap (queried 2026-07-29; billing data lags). P6.2's roughly 30-minute EKS + one Spot-node session is estimated below USD 0.10. |
-| Next operator action | **P6.4**: owner reviews and merges PR #1 to `main`; then, before any AWS mutation, manually complete `docs/runbooks/aws-session.md`'s **Before the session** checklist, review the Terraform plan/cost, and set a same-day teardown time. |
+| Last verified | 2026-07-31T12:01:14-06:00 — PR #2 is open with all four pull-request validation jobs green; it is ready to merge before the controlled deployment rerun. |
+| AWS resources currently live | **Temporary P6.4 session live:** no-NAT VPC, EKS 1.34 control plane, one Spot node, EBS CSI add-on, AWS Load Balancer Controller, and empty `bedoux` namespace. **Persistent no-hourly-cost allowlist:** state bucket, ECR repos, existing IAM roles/policy, plus GitHub OIDC provider and deployment role/policy. No application release, ALB, or new image was created because CI failed before ECR authentication. |
+| Month-to-date estimated AWS spend | Budget actual is USD 0.581 against the USD 20 cap (queried 2026-07-31; billing data lags). The P6.4 session's conservative USD 2–4 envelope remains below the USD 16 stop threshold. |
+| Next operator action | **P6.4**: owner merges PR #2; then rerun the manual deployment from `main` and use the resulting claim evidence to correct only the trust boundary if needed. Same-day teardown target remains `2026-07-31T14:00:00-06:00`. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -94,6 +94,10 @@ check can't miss them:
   `docs/local-tooling.md`) periodically and whenever the base image tag is bumped;
   fix opportunistically the moment a patched Debian package lands upstream, otherwise
   revisit at the latest before P9 (interview package) so the final state is current.
+- **ECR tagged-image lifecycle prefix mismatch (identified 2026-07-31):** the ECR rule matches
+  `sha-` tags, while P6.4's deployment workflow emits bare commit-SHA tags. This is a bounded
+  storage/cost-hygiene gap, not a runtime or security issue; defer the one-line alignment to a
+  focused follow-up after the first controlled P6.4 session rather than delaying its evidence.
 
 ## Phase checklist
 
@@ -529,6 +533,112 @@ complete with evidence above. The dedicated gate commit records the approval.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-31T12:01:14-06:00 — P6.4 OIDC claim diagnostic published and validated — Codex
+
+- **Phase/task:** P6.4 remains **IN PROGRESS**. The approved diagnostic is PR #2, `Fix P6.4
+  OIDC: add claim diagnostic`; its four pull-request validation jobs are green: API tests,
+  container build and scan, Terraform and Helm validation, and web lint/test/build.
+- **Verified:** local workflow YAML/control assertions, a JWT-payload decoding fixture, direct
+  documentation checks, and `git diff --check` passed before publication. The PR contains the
+  time-bounded session evidence and does not contain a token, role ARN, or account identifier.
+- **Next action:** the owner merges PR #2 to `main`, which is necessary because the AWS trust
+  condition deliberately permits only the main branch. Immediately rerun the manually dispatched
+  workflow and capture its issuer/audience/subject evidence. If main cannot be updated and
+  exercised before `2026-07-31T14:00:00-06:00`, begin teardown instead.
+
+### 2026-07-31T11:54:59-06:00 — P6.4 non-sensitive OIDC claim diagnostic approved — Codex
+
+- **Phase/task:** P6.4 remains **IN PROGRESS** and the temporary session environment described
+  above remains live. The owner approved a narrowly scoped workflow diagnostic following the
+  first failed main-branch deployment.
+- **Changed:** before the AWS credentials action, the manually dispatched workflow now requests
+  its GitHub OIDC token and decodes only its issuer (`iss`), audience (`aud`), and subject (`sub`)
+  claims. It does not print the token, request token, role ARN, account identifier, or any AWS
+  credential. The next run will therefore establish whether the GitHub token really matches the
+  Terraform-declared branch-bound AWS trust condition.
+- **Runbook correction:** pinned the AWS Load Balancer Controller chart at `3.4.3` and made its
+  `vpcId` explicit. The first install's metadata VPC discovery timed out in this public-only
+  profile; the corrected Helm revision is healthy with two ready controller pods.
+- **Next action:** validate and publish this focused change, merge it to `main`, and rerun the
+  deployment while the controlled session is still active. If that cannot happen safely before
+  `2026-07-31T14:00:00-06:00`, start the documented teardown immediately.
+
+### 2026-07-31T11:38:57-06:00 — P6.4 OIDC deployment failure diagnosed to trust-token boundary — Codex
+
+- **Phase/task:** P6.4 remains **IN PROGRESS**. Terraform applied the exact no-NAT reviewed plan
+  and then converged with no further changes: EKS 1.34 is active, one Spot node is Ready, EBS CSI
+  is active at `v1.63.0-eksbuild.1`, and four EKS access entries exist. The operator created the
+  required `bedoux` namespace.
+- **Controller finding/fix:** the initial pinned ALB-controller 3.4.3 install failed cleanly
+  because this profile's controller could not discover the VPC through instance metadata. Logs
+  identified the exact VPC-ID discovery timeout; no IAM broadening was attempted. The runbook now
+  derives `vpcId` from Terraform output. Helm release revision 2, with that explicit VPC ID and
+  the existing IRSA role, is deployed with two ready controller pods.
+- **CI result:** repository variable `AWS_DEPLOY_ROLE_ARN` was set from Terraform output and the
+  `main` workflow was dispatched with fresh-catalog seeding enabled. GitHub run `30651679254`
+  failed safely at `Configure short-lived AWS credentials through GitHub OIDC` after retries with
+  `Not authorized to perform sts:AssumeRoleWithWebIdentity`; ECR login, image build/push, Helm
+  release, and ALB smoke test were all skipped. Therefore no application release, public ALB, or
+  new ECR image exists.
+- **Read-only diagnosis:** the live provider has `sts.amazonaws.com` as its client ID; the live
+  role trust requires that audience and the exact `main`-branch subject. They match the intended
+  configuration, but do not explain the STS denial. The next safe diagnostic is a minimal workflow
+  step that requests the GitHub token and prints only its non-secret `iss`, `aud`, and `sub`
+  claims before the authentication action; it requires an owner-approved source change and merge.
+- **AWS:** temporary cluster/controller resources are live for the same-day session; persistent
+  GitHub OIDC identity resources were created as planned. Estimated session spend remains within
+  the USD 2–4 envelope; teardown target is `2026-07-31T14:00:00-06:00`.
+- **Next action:** owner approves the focused diagnostic change promptly, or directs immediate
+  teardown. Do not bypass CI with administrator credentials or broaden the deployment role.
+
+### 2026-07-31T11:02:58-06:00 — P6.4 AWS-session preflight complete — Codex
+
+- **Phase/task:** P6.4 remains **IN PROGRESS**. The manual **Before the session** checklist in
+  `docs/runbooks/aws-session.md` was completed before any AWS mutation. Same-day teardown target:
+  `2026-07-31T14:00:00-06:00`.
+- **Identity/cost:** confirmed non-root `bedoux-admin` identity and pinned `ca-central-1` region.
+  Budget limit is USD 20; actual is USD 0.581 with no forecast returned. Latest observed Linux
+  `t3.medium` Spot price was USD 0.0181/hour. AWS's current standard-support EKS fee is USD
+  0.10/cluster-hour; the ALB also bills by hour plus LCU usage. The three-hour session remains in
+  the documented conservative USD 2–4 envelope and below the USD 16 stop condition.
+- **Inventory:** no EKS clusters, ALBs, target groups, RDS instances, available/pending NAT
+  Gateways, EIPs, unattached EBS volumes, project VPCs, project instances, or CloudFormation
+  stacks. Tagged persistent inventory is exactly the state S3 bucket and two ECR repositories;
+  four allowed IAM roles and the ALB-controller policy exist. The GitHub OIDC provider is absent
+  as expected before P6.4's first apply. Broad IAM listing actions are intentionally denied, so
+  exact known-name reads were used instead; no IAM policy was broadened.
+- **Plan/destruction path:** initialized remote Terraform state, imported the existing persistent
+  resources, and reviewed the saved plan: 27 creates, 7 converging updates, zero NAT Gateway/EIP
+  changes. Creates are the short-lived VPC/EKS/node/add-on/access resources plus the new GitHub
+  OIDC identity; existing ECR repositories are updates, not re-creations. `terraform plan
+  -destroy` is available; after deployment its teardown uses the documented ingress/release
+  removal, persistent-state detach, Terraform destroy, and full runbook inventory sweep.
+- **Operational finding:** an interrupted local Terraform command briefly left a state-lock race.
+  It was diagnosed as this workstation's still-running process. A force-unlock attempt against an
+  already-absent old lock made no change; the active lock was not cleared. The process exited, the
+  persistent imports converged, and the reviewed plan then acquired state normally. No AWS
+  infrastructure was created by this recovery.
+- **AWS:** read-only preflight and Terraform state bookkeeping only; no infrastructure created,
+  changed, or deleted. Estimated session cost so far: USD 0.
+- **Next action:** apply the saved reviewed plan, then verify the EKS cluster, one Spot node, EBS
+  CSI add-on, OIDC role, and namespace bootstrap before dispatching CI.
+
+### 2026-07-31T10:51:28-06:00 — P6.4 published checkpoint verified — Codex (owner merge confirmation)
+
+- **Phase/task:** P6.4 remains **IN PROGRESS**. The owner merged PR #1 as merge commit `e26b900`;
+  local `main` was fetched and confirmed identical to `origin/main` before this session branch
+  was created. This also resolves the discovered publication discrepancy: the owner confirmed the
+  former remote `main` had not contained the local P5-gate/P6 work until this merge.
+- **Verified/owner evidence:** owner independently reviewed the main-branch-bound OIDC trust,
+  least-privilege ECR/EKS role policy, namespace-only EKS access, no-NAT VPC implementation,
+  protected Terraform-state-bucket settings, conditional first-session OIDC import behavior,
+  full-diff secret/account-identifier sweep, and all four green PR checks before merging.
+- **Finding:** recorded the non-blocking ECR lifecycle tag-prefix mismatch above. It is deferred to
+  a focused follow-up so P6.4's first controlled deployment remains the sole active work item.
+- **AWS:** none created, changed, queried, or deleted. Estimated session cost: USD 0.
+- **Next action:** manually execute every **Before the session** preflight item, then present the
+  reviewed Terraform plan and regional cost estimate before applying anything.
 
 ### 2026-07-31T10:31:00-06:00 — P6.4 local preparation validated in GitHub — Codex
 
