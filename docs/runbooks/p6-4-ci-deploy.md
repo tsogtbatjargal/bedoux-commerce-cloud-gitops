@@ -20,22 +20,29 @@ and a same-day teardown time is set. It deploys only to the short-lived P6 learn
 
 3. Install the AWS Load Balancer Controller as the operator. This remains an operator step
    because the CI role has access only to the `bedoux` namespace. Use the existing Terraform-
-   managed IRSA role and do not record its ARN in source control:
+   managed IRSA role and do not record its ARN in source control. Pin chart/controller version
+   `3.4.3` (selected from the official EKS chart repository on 2026-07-31) and pass the VPC ID
+   explicitly: in this public-only learning profile, the controller's instance-metadata VPC
+   discovery timed out during the first P6.4 install.
 
    ```text
    helm repo add eks https://aws.github.io/eks-charts
    helm repo update
    controller_role_arn="$(aws iam get-role --profile bedoux-admin \
      --role-name bedoux-alb-controller-role --query 'Role.Arn' --output text)"
+   vpc_id="$(terraform -chdir=infra/terraform output -raw vpc_id)"
    helm upgrade --install aws-load-balancer-controller eks/aws-load-balancer-controller \
      --namespace kube-system \
+     --version 3.4.3 \
      --set clusterName=bedoux \
      --set region=ca-central-1 \
+     --set vpcId="$vpc_id" \
      --set serviceAccount.create=true \
      --set serviceAccount.name=aws-load-balancer-controller \
      --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="$controller_role_arn"
    kubectl -n kube-system rollout status deployment/aws-load-balancer-controller --timeout=5m
    unset controller_role_arn
+   unset vpc_id
    ```
 
 4. Set the GitHub Actions repository variable from Terraform's runtime output. It is a role ARN,
