@@ -20,8 +20,11 @@ separate persistent state bucket before migrating this root state to S3.
   namespace.
 - `bedoux-iam-scoped` and the EKS node-group service-linked role are account
   foundations from P4/P5 and are deliberately not managed here.
-- P6.2 must import the persistent P5 ECR repositories and IAM roles before an
-  apply, rather than attempting to create duplicate names. Before `destroy`, run
+- P6.2/P6.4 must import the persistent P5 ECR repositories and IAM roles before an
+  apply, rather than attempting to create duplicate names. On P6.4's first session, the
+  helper deliberately skips the not-yet-created GitHub OIDC provider, role, and policy; the
+  reviewed apply creates and tracks them. Later sessions import those identity resources too.
+  Before `destroy`, run
   `scripts/terraform-persistent-state.sh detach --execute` so Terraform removes
   only session resources while those allowlisted resources remain. After P6.4,
   that allowlist also includes the GitHub OIDC provider and deployment role/policy.

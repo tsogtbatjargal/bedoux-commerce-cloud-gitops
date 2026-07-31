@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P6 — Terraform, then CI/CD |
-| Active task | P6.4 — deploy pipeline against a session cluster (**NOT STARTED**) |
-| Last verified | 2026-07-30T15:50:00-06:00 — P6.3 complete: green PR pipeline plus tested local direct-`main` push guardrail. |
+| Active task | P6.4 — deploy pipeline against a session cluster (**IN PROGRESS**) |
+| Last verified | 2026-07-31T10:00:00-06:00 — P6.4 activated; local deployment-pipeline preparation starts before an AWS session. |
 | AWS resources currently live | **No temporary/billable environment resources.** Persisted per `docs/cost-guardrails.md`'s allowlist (no hourly charge): tagged Terraform state S3 bucket, ECR repos `bedoux-api`/`bedoux-web`, IAM roles `bedoux-eks-cluster-role`/`bedoux-eks-nodegroup-role`/`bedoux-ebs-csi-role`/`bedoux-alb-controller-role`, IAM policy `bedoux-alb-controller-policy`. |
 | Month-to-date estimated AWS spend | Budget reports USD 0.35 actual against the USD 20 cap (queried 2026-07-29; billing data lags). P6.2's roughly 30-minute EKS + one Spot-node session is estimated below USD 0.10. |
-| Next operator action | **P6.4**: before any AWS mutation, manually complete `docs/runbooks/aws-session.md`'s **Before the session** checklist, review the Terraform plan/cost, and set a same-day teardown time. |
+| Next operator action | **P6.4**: complete and validate the local deployment pipeline; then, before any AWS mutation, manually complete `docs/runbooks/aws-session.md`'s **Before the session** checklist, review the Terraform plan/cost, and set a same-day teardown time. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -498,7 +498,7 @@ complete with evidence above. The dedicated gate commit records the approval.
 - [x] P6.3 COMPLETE — GitHub OIDC role declaration + green PR validation pipeline. Evidence:
       PR #1, GitHub Actions run `30579166329` (all four checks pass); ADR 0009; ADR 0010;
       installed local pre-push guardrail blocks direct `main` pushes in this active clone.
-- [ ] P6.4 NOT STARTED — deploy pipeline against session cluster.
+- [ ] P6.4 IN PROGRESS — deploy pipeline against session cluster.
 - [ ] P6.5 NOT STARTED — CI rollback drill.
 
 ### P7 — Managed data services
@@ -529,6 +529,28 @@ complete with evidence above. The dedicated gate commit records the approval.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-31T10:28:46-06:00 — P6.4 local deployment pipeline prepared — Codex
+
+- **Phase/task:** P6.4 remains **IN PROGRESS**. No AWS session is open and no AWS command has
+  run in this task.
+- **Changed:** added a manually dispatched deployment workflow that gets a GitHub OIDC token only
+  on its selected ref, builds/pushes commit-SHA-tagged API/web images, deploys the AWS Helm
+  profile with `--atomic`, and smoke-tests the public ALB health/catalog routes. Added the P6.4
+  operator runbook for Terraform apply, namespace and ALB-controller bootstrap, repository role
+  variable setup, workflow dispatch, and same-day teardown. Corrected the persistent-state helper
+  so the first P6.4 import skips the deliberately absent GitHub OIDC provider/role/policy; the
+  reviewed apply creates them, while later sessions import them normally.
+- **Verified:** `bash -n scripts/terraform-persistent-state.sh`; helper `import` dry run; workflow
+  YAML/control assertions via PyYAML; `helm lint charts/bedoux`; both default and AWS `helm
+  template` renders; `terraform fmt -check -recursive`; credential-free `terraform validate
+  -var=skip_aws_credentials_validation=true`; direct documentation XML/spine checks; and `git diff
+  --check` all passed. The Terraform schema check was run outside the sandbox because the sandbox
+  cannot launch the already-installed provider binaries; it made no AWS call.
+- **AWS:** none created, changed, queried, or deleted. Estimated session cost: USD 0.
+- **Next action:** commit and push the focused local preparation to PR #1, obtain a green PR
+  validation run, then have the owner review and merge it to `main`. Only after the workflow is on
+  `main` may a P6.4 AWS session manually complete every `aws-session.md` preflight item.
 
 ### 2026-07-30T15:50:00-06:00 — P6.3 complete: local guardrail accepted and verified — Codex
 

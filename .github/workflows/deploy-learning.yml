@@ -1,0 +1,119 @@
+name: Deploy learning session
+
+on:
+  workflow_dispatch:
+    inputs:
+      seed_catalog:
+        description: Bootstrap the idempotent demo catalog for a fresh session database.
+        required: true
+        default: false
+        type: boolean
+
+# The role trust policy admits only this repository's main branch. Keep this workflow
+# manually dispatched so a live AWS session is an intentional, time-bounded operation.
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: bedoux-learning-session-deploy
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ca-central-1
+  EKS_CLUSTER: bedoux
+  KUBERNETES_NAMESPACE: bedoux
+
+jobs:
+  deploy:
+    name: Build, deploy, and smoke-test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure short-lived AWS credentials through GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Discover and authenticate to the learning ECR registry
+        id: ecr
+        shell: bash
+        run: |
+          set -euo pipefail
+          account_id="$(aws sts get-caller-identity --query Account --output text)"
+          echo "::add-mask::$account_id"
+          registry="$account_id.dkr.ecr.${AWS_REGION}.amazonaws.com"
+          echo "::add-mask::$registry"
+          echo "registry=$registry" >> "$GITHUB_OUTPUT"
+          aws ecr get-login-password --region "$AWS_REGION" | \
+            docker login --username AWS --password-stdin "$registry"
+
+      - name: Build and push immutable application images
+        env:
+          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker build --tag "$ECR_REGISTRY/bedoux-api:${GITHUB_SHA}" apps/api
+          docker build --tag "$ECR_REGISTRY/bedoux-web:${GITHUB_SHA}" apps/web
+          docker push "$ECR_REGISTRY/bedoux-api:${GITHUB_SHA}"
+          docker push "$ECR_REGISTRY/bedoux-web:${GITHUB_SHA}"
+
+      - name: Configure namespace-scoped EKS access
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws eks update-kubeconfig --region "$AWS_REGION" --name "$EKS_CLUSTER" --alias "$EKS_CLUSTER"
+
+      - name: Deploy the Helm release
+        env:
+          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
+          SEED_CATALOG: ${{ inputs.seed_catalog }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          helm_args=(
+            upgrade --install bedoux charts/bedoux
+            --namespace "$KUBERNETES_NAMESPACE"
+            --wait --wait-for-jobs --timeout 10m --atomic
+            -f charts/bedoux/values.yaml
+            -f charts/bedoux/values-aws.yaml
+            --set-string "api.image.repository=$ECR_REGISTRY/bedoux-api"
+            --set-string "api.image.tag=$GITHUB_SHA"
+            --set-string "web.image.repository=$ECR_REGISTRY/bedoux-web"
+            --set-string "web.image.tag=$GITHUB_SHA"
+          )
+          if [[ "$SEED_CATALOG" == "true" ]]; then
+            helm_args+=(--set seed.enabled=true)
+          fi
+          helm "${helm_args[@]}"
+          kubectl -n "$KUBERNETES_NAMESPACE" rollout status deployment/api --timeout=5m
+          kubectl -n "$KUBERNETES_NAMESPACE" rollout status deployment/web --timeout=5m
+
+      - name: Smoke-test the public ALB route
+        shell: bash
+        run: |
+          set -euo pipefail
+          hostname=""
+          for _ in $(seq 1 30); do
+            hostname="$(kubectl -n "$KUBERNETES_NAMESPACE" get ingress bedoux -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')"
+            if [[ -n "$hostname" ]]; then
+              break
+            fi
+            sleep 10
+          done
+          test -n "$hostname"
+          echo "::add-mask::$hostname"
+
+          base_url="http://$hostname"
+          for _ in $(seq 1 24); do
+            if curl --fail --silent --show-error --connect-timeout 10 "$base_url/api/health" > /tmp/bedoux-health.json; then
+              break
+            fi
+            sleep 10
+          done
+          python -c 'import json; response = json.load(open("/tmp/bedoux-health.json")); assert response == {"status": "ok", "orders_enabled": False}, response'
+          curl --fail --silent --show-error --connect-timeout 10 "$base_url/api/products?limit=1" > /tmp/bedoux-products.json
+          python -c 'import json; products = json.load(open("/tmp/bedoux-products.json")); assert len(products) >= 1, products'
