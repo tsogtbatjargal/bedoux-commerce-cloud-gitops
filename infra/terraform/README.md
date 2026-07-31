@@ -14,7 +14,9 @@ separate persistent state bucket before migrating this root state to S3.
   IRSA role/policy are represented as code.
 - The P6.3 GitHub Actions OIDC provider and `bedoux-github-actions-role` are
   represented as code but first created only in P6.4's live AWS session. Its
-  trust is restricted to this repository's protected `main` branch; its AWS
+  trust is restricted to this repository's protected `main` branch through the
+  exact GitHub OIDC subject emitted by this organization's custom numeric-ID
+  subject template; its AWS
   permissions are limited to pushing the two ECR repositories and describing
   the learning EKS cluster. EKS grants it edit access only in the `bedoux`
   namespace.

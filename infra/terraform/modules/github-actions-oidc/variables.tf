@@ -10,11 +10,7 @@ variable "ecr_repository_arns" {
   type = list(string)
 }
 
-variable "github_repository" {
-  type = string
-}
-
-variable "github_branch" {
+variable "github_oidc_subject" {
   type = string
 }
 
