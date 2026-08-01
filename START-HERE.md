@@ -87,8 +87,7 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   and the session's IAM roles/policies were kept (not deleted), per
   `docs/cost-guardrails.md`'s persistent-resource allowlist. **P5 phase
   fully complete — gate approved 2026-07-29; P6 active.**
-- Active phase: **P6 — Terraform, then CI/CD; P6.1–P6.5 are complete and its gate awaits owner
-  approval.** P6.3 declared the
+- **P6 is fully complete — gate approved by owner 2026-08-01; P7 is active.** P6.3 declared the
   GitHub OIDC deployment role, established green PR validation (API/PostgreSQL, web,
   Terraform/Helm, and image scan), and installed a tested local direct-`main` push guardrail.
   GitHub's current private-repository plan cannot enforce server-side rulesets; ADR 0010 records
@@ -100,9 +99,8 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   rollback to the captured pre-drill image, and public health verification (T-602). The corrected
   teardown helper prepared persistent state before its 14-resource temporary-only destroy plan;
   the final sweep was clean. No temporary billed AWS resources are live.
-- Next action: **owner P6 gate approval** — all P6 evidence is recorded. If approved, make the
-  required dedicated commit `Phase 6 gate approved by owner; activate Phase 7`; only then begin
-  P7. Do not open a new AWS session before that activation.
+- Next action: **P7.1 — RDS module + migration job.** Begin locally and do not open an AWS
+  session until its local work is ready for a deliberate, time-bounded verification session.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 
