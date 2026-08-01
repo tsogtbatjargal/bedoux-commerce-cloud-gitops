@@ -60,17 +60,19 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   the release (T-602). The improved teardown helper used an explicit state-only preparation step,
   reviewed a plan with exactly 14 temporary EKS/add-on/VPC deletes and no persistent addresses,
   and the final inventory sweep was clean. No temporary AWS resources are live. **P7.1 (RDS
-  module, connectivity, and migration job) is the only in-progress task**; begin it locally before
-  any new, time-bounded AWS session.
+  module, connectivity, and migration job) is the only in-progress task**; its local proof is now
+  complete, so the next step is a deliberate, time-bounded AWS session after full preflight.
 - **P7.1 implementation is in progress locally (not yet T-701 evidence).** It adds a disabled-by-
   default, private, encrypted Single-AZ RDS module with EKS-security-group-only PostgreSQL
   ingress; an external Helm database mode consumes a pre-created `rds-credentials` Secret and
   omits the in-cluster Postgres workload. API/migration/seed readiness uses SQLAlchemy `SELECT 1`
-  against the same connection URL the app uses. Offline Terraform/Helm/workflow checks pass; the
-  local kind API endpoint is currently unreachable, and a disposable replacement was deleted
-  without creating a namespace or release. Restore/recreate kind and capture a real local
-  external-profile migration/seed/order proof before any P7 AWS session. P7.3 still owns the
-  Secrets Manager replacement for the temporary Kubernetes Secret.
+  against the same connection URL the app uses. Offline Terraform/Helm/workflow checks pass. The
+  stale kind port-forwarder was repaired by recreating the exact project cluster with the
+  documented `Delegate=yes` scope; a disposable external-profile namespace then passed migration,
+  seed, six-product catalog, and persisted-order proof, and was deleted cleanly. Before any P7
+  AWS session, manually complete `aws-session.md`'s preflight, set a same-day deadline, and review
+  the explicit RDS plan. P7.3 still owns the Secrets Manager replacement for the temporary
+  Kubernetes Secret.
 - Three real findings surfaced and were fixed during P5, each documented with its own ADR
   or PROGRESS entry:
   1. **ADR 0007** — `bedoux-admin`'s scoped IAM policy (`bedoux-iam-scoped`) had a genuine
