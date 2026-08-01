@@ -9,12 +9,12 @@ checked here and its evidence is recorded in the session log.
 | Field | Value |
 |---|---|
 | State | IN PROGRESS |
-| Active phase | P6 — Terraform, then CI/CD |
-| Active task | P6.5 — CI rollback drill (**IN PROGRESS**; AWS session closed) |
-| Last verified | 2026-07-31T22:34:55-06:00 — the controlled Helm failure rolled back to a healthy release, but CI evidence compared against the wrong pre-drill image; full teardown sweep clean. |
+| Active phase | P6 — Terraform, then CI/CD (**gate awaiting owner approval**) |
+| Active task | P6 gate — owner approval required before P7 activation |
+| Last verified | 2026-07-31T23:34:32-06:00 — T-602 CI rollback evidence passed; final P6.5 teardown sweep clean. |
 | AWS resources currently live | No temporary AWS resources. Persistent allowlist only: state bucket, two ECR repositories, cluster/node/GitHub deployment roles and policies, ALB-controller role/policy, and GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | Budget actual was USD 0.581 before this session (billing data lags). Session spend remains within the conservative USD 2–4 learning-session envelope and below the USD 16 stop threshold. |
-| Next operator action | **P6.5:** review and merge the local rollback-evidence/teardown-helper repair; then open a fresh time-bounded AWS session for the final T-602 run. |
+| Next operator action | **Owner:** approve the P6 phase gate. Record it in its own commit (`Phase 6 gate approved by owner; activate Phase 7`) before starting any P7 work. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -506,10 +506,14 @@ complete with evidence above. The dedicated gate commit records the approval.
       2026-07-31T17:51:14-06:00; GitHub run `30657784919` passed OIDC/ECR/image push,
       namespace-scoped Helm deploy, and public ALB health/catalog smoke; no-NAT teardown sweep
       confirmed zero temporary resources.
-- [ ] P6.5 IN PROGRESS — CI rollback drill. The controlled Helm failure and atomic rollback were
-      exercised, but T-602 remains unmet because CI compared the restored release to the wrong
-      image. The focused local repair is validated and awaiting review; do not open another AWS
-      session until it is merged.
+- [x] P6.5 COMPLETE — CI rollback drill. Evidence: session log
+      2026-07-31T23:34:32-06:00; GitHub Actions run `30685420148` failed only at its deliberate
+      Helm timeout, then passed the corrected rollback/public-health verification and restored a
+      healthy release. Final no-NAT teardown sweep clean (T-602).
+
+**P6 gate — AWAITING OWNER APPROVAL.** T-501 (P6.2), T-601 (P6.4; re-proven in P6.5), and T-602
+(P6.5) are recorded. Do not start P7 until the owner explicitly approves this gate in a dedicated
+commit: `Phase 6 gate approved by owner; activate Phase 7`.
 
 ### P7 — Managed data services
 
@@ -539,6 +543,38 @@ complete with evidence above. The dedicated gate commit records the approval.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-31T23:34:32-06:00 — P6.5 complete: CI atomic rollback evidence and clean teardown — Codex
+
+- **Phase/task:** P6.5 is **COMPLETE**; T-602 is met. The P6 phase gate is now awaiting explicit
+  owner approval. This session was manually opened from the full `aws-session.md` preflight with
+  a same-day teardown target of `2026-07-31T23:55:00-06:00`; teardown completed before it.
+- **Preflight/plan:** confirmed non-root `bedoux-admin`, pinned `ca-central-1`, USD 0 actual of
+  the USD 20 budget (Cost Explorer remains lag-prone), and an empty temporary inventory. The
+  reviewed Terraform plan had 24 creates, ten expected reconciliation updates, and zero NAT
+  Gateway resources. The EKS 1.34 control plane, one Spot node, and EBS CSI add-on became active;
+  live Kubernetes checks showed the node and all CSI pods Ready, and no NAT Gateway existed.
+- **Green baseline:** GitHub Actions run `30685274638` passed OIDC, immutable-image reuse,
+  namespace-scoped EKS access, Helm deploy, migration/seed, `gp3` PVC binding, and public ALB
+  health/catalog smoke. API, web, and PostgreSQL were all Ready.
+- **T-602 drill:** GitHub Actions run `30685420148` captured the actual pre-drill web image,
+  intentionally made only the web rollout unavailable, and failed the Helm step at its
+  three-minute timeout. Helm `--atomic` recorded failed revision 2 then healthy deployed revision
+  3 (rollback to revision 1). The corrected conditional rollback-verification step passed,
+  proving the restored deployment matched the captured pre-drill image and its public health
+  assertion passed. The workflow's overall failure is therefore expected and is the drill
+  evidence, not a deployment incident.
+- **Teardown proof:** deleted the Ingress and confirmed its ALB absent; uninstalled the release,
+  namespace, and controller. The new helper's `prepare` dry run and state-only `prepare --execute`
+  ran successfully; its reviewed plan contained exactly 14 temporary EKS/add-on/VPC deletes and
+  no persistent addresses. It removed the node group, control plane, VPC, and captured cluster
+  OIDC provider. Final sweep returned zero EKS clusters, project VPCs, ALBs, target groups, NAT
+  Gateways, EIPs, available EBS volumes, snapshots, RDS instances/snapshots/subnet groups, and
+  CloudFormation stacks. Only allowlisted `bedoux-api` and `bedoux-web` ECR repositories remain.
+- **AWS:** temporary no-NAT VPC, EKS 1.34, one Spot node, EBS CSI, controller, application,
+  PVC, and ALB created and destroyed. Estimated session cost remains within the USD 2–4 envelope;
+  billing data lags.
+- **Next action:** owner approves the P6 gate in its own commit, then explicitly activates P7.
 
 ### 2026-07-31T22:40:16-06:00 — P6.5 local rollback-evidence and teardown repair validated — Codex
 
