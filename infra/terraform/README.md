@@ -34,6 +34,14 @@ separate persistent state bucket before migrating this root state to S3.
   It is intentionally never part of the session-environment destroy.
 - EBS CSI is pinned to `v1.63.0-eksbuild.1`, verified compatible and default for
   EKS `1.34` in `ca-central-1` on 2026-07-30.
+- P7.1 adds an **opt-in only** RDS for PostgreSQL 16.14 module. It is disabled
+  by default, creates a short-lived encrypted Single-AZ `db.t4g.micro` instance
+  with fixed 20 GiB gp3 storage, no public address, no backups/final snapshot,
+  and a database security group accepting TCP 5432 only from the EKS cluster
+  security group. The two existing public subnets satisfy the RDS subnet-group
+  requirement; no NAT Gateway is added. A session enables it with
+  `-var=rds_enabled=true` and an out-of-band `TF_VAR_rds_master_password`.
+  See [`docs/runbooks/p7-1-rds-session.md`](../../docs/runbooks/p7-1-rds-session.md).
 
 ## P6.1 validation
 

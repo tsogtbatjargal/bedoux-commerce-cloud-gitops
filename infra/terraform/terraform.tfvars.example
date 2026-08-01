@@ -11,3 +11,12 @@ node_min_size           = 1
 node_max_size           = 1
 node_disk_size_gib      = 20
 ebs_csi_addon_version = "v1.63.0-eksbuild.1"
+
+# P7.1 only: keep this false for P6-only sessions. For an approved, time-bounded
+# RDS exercise set rds_enabled=true and supply TF_VAR_rds_master_password outside
+# this file. Never commit the password or a rendered DATABASE_URL.
+rds_enabled               = false
+rds_database_name         = "bedoux"
+rds_master_username       = "bedoux"
+rds_instance_class        = "db.t4g.micro"
+rds_allocated_storage_gib = 20

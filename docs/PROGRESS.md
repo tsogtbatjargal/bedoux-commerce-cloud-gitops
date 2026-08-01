@@ -11,7 +11,7 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P7 — Managed data services |
 | Active task | P7.1 — RDS module + connectivity + migration job |
-| Last verified | 2026-08-01T11:48:18-06:00 — owner approved the P6 gate; P7 activated with P7.1 as the only in-progress item. |
+| Last verified | 2026-08-01T12:15:10-06:00 — P7.1 offline Terraform/Helm/workflow validation passed; live kind validation is blocked by an unreachable local control-plane endpoint. |
 | AWS resources currently live | No temporary AWS resources. Persistent allowlist only: state bucket, two ECR repositories, cluster/node/GitHub deployment roles and policies, ALB-controller role/policy, and GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | Budget actual was USD 0.581 before this session (billing data lags). Session spend remains within the conservative USD 2–4 learning-session envelope and below the USD 16 stop threshold. |
 | Next operator action | **P7.1:** implement and locally validate the RDS module, application connectivity configuration, and migration-job shape before opening a time-bounded AWS session. |
@@ -542,6 +542,35 @@ in P6.5), and T-602 (P6.5) are recorded. The dedicated gate commit records the a
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-01T12:15:10-06:00 — P7.1 local RDS and migration-job implementation checkpoint — Codex
+
+- **Phase/task:** P7.1 remains **IN PROGRESS**. Added a disabled-by-default Terraform RDS module
+  and an external-database Helm profile; no AWS plan, apply, or session was opened.
+- **Changed:** the RDS module describes an encrypted, private, Single-AZ PostgreSQL 16.14
+  `db.t4g.micro` with fixed 20 GiB gp3 storage, no backup/final snapshot, and TCP 5432 ingress
+  only from the EKS cluster security group. `rds_enabled=false` preserves P6 sessions. The chart
+  now has one `DATABASE_URL` Secret interface: in-cluster Postgres remains the default, while
+  `values-aws-rds.yaml` removes the Postgres workload and consumes a pre-created
+  `rds-credentials` Secret. API, migration, and seed readiness now use the API image's own
+  SQLAlchemy `SELECT 1`, so they test the same URL dialect as the workload rather than trying to
+  pass `postgresql+psycopg://` to `pg_isready`. CI renders the new profile and its manual
+  workflow input refuses RDS mode unless the Secret exists. P7.3 remains the owner of replacing
+  this one-session Kubernetes Secret with Secrets Manager.
+- **Validated:** `terraform fmt -check -recursive`; credential-free `terraform validate`;
+  `helm lint`; default/AWS/RDS Helm render plus YAML parse (external mode omitted the Postgres
+  Deployment and retained API); workflow YAML parse; teardown-script shell syntax; `make
+  docs-check`; and `git diff --check` all passed.
+- **Local live-test status:** the pre-existing `kind-bedoux` control-plane container reports
+  running but its refreshed localhost API endpoint refuses connections. A separate disposable
+  `p7-rds` kind cluster was attempted through the documented `Delegate=yes` rootless-Podman
+  scope; its control plane never became reachable and was deleted. Both attempts failed before a
+  namespace, Secret, database, or Helm release was created. This is a local cluster-runtime
+  blocker, not passing T-701 evidence; no workaround is claimed.
+- **AWS:** none. No AWS resources created, modified, or deleted. Estimated cost: USD 0.
+- **Next action:** review the focused P7.1 implementation, repair/recreate the local kind
+  runtime, then run the external-profile migration/seed/order proof before opening an explicit,
+  time-bounded P7 AWS session.
 
 ### 2026-08-01T11:48:18-06:00 — P6 gate approved; P7 activated — Codex
 

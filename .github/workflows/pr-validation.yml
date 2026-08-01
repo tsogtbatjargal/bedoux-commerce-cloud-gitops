@@ -82,11 +82,12 @@ jobs:
           terraform -chdir=infra/terraform fmt -check -recursive
           terraform -chdir=infra/terraform init -backend=false
           terraform -chdir=infra/terraform validate -var=skip_aws_credentials_validation=true
-      - name: Lint and render both Helm profiles
+      - name: Lint and render all Helm profiles
         run: |
           helm lint charts/bedoux
           helm template bedoux charts/bedoux >/dev/null
           helm template bedoux charts/bedoux -f charts/bedoux/values-aws.yaml >/dev/null
+          helm template bedoux charts/bedoux -f charts/bedoux/values-aws.yaml -f charts/bedoux/values-aws-rds.yaml >/dev/null
 
   container-security:
     name: Container build and scan

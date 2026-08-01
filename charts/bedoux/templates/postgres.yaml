@@ -1,7 +1,8 @@
+{{- if eq .Values.database.mode "in-cluster" }}
 apiVersion: v1
 kind: Secret
 metadata:
-  name: postgres-credentials
+  name: {{ include "bedoux.databaseCredentialsSecretName" . }}
   labels:
     {{- include "bedoux.labels" . | nindent 4 }}
 type: Opaque
@@ -12,7 +13,7 @@ stringData:
   # Consumed by the api Deployment via secretKeyRef — kept here, not a ConfigMap,
   # because it embeds POSTGRES_PASSWORD above (see k8s/10-postgres.yaml's original
   # comment; same reasoning applies in the chart).
-  DATABASE_URL: postgresql+psycopg://{{ .Values.postgres.user }}:{{ .Values.postgres.password }}@postgres:5432/{{ .Values.postgres.database }}
+  {{ include "bedoux.databaseCredentialsSecretKey" . }}: postgresql+psycopg://{{ .Values.postgres.user }}:{{ .Values.postgres.password }}@postgres:5432/{{ .Values.postgres.database }}
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -92,3 +93,6 @@ spec:
   ports:
     - port: 5432
       targetPort: 5432
+{{- else if ne .Values.database.mode "external" }}
+{{- fail "database.mode must be in-cluster or external" }}
+{{- end }}

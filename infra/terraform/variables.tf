@@ -118,3 +118,41 @@ variable "ebs_csi_addon_version" {
   type        = string
   default     = "v1.63.0-eksbuild.1"
 }
+
+variable "rds_enabled" {
+  description = "Create the short-lived P7 Single-AZ RDS instance. Keep false outside a reviewed P7 session."
+  type        = bool
+  default     = false
+}
+
+variable "rds_database_name" {
+  description = "Initial database name for the P7 RDS instance."
+  type        = string
+  default     = "bedoux"
+}
+
+variable "rds_master_username" {
+  description = "RDS master username for the P7 learning session."
+  type        = string
+  default     = "bedoux"
+}
+
+variable "rds_master_password" {
+  description = "Sensitive RDS master password supplied only out of band for an enabled P7 session; P7.3 replaces this bootstrap path with Secrets Manager."
+  type        = string
+  default     = null
+  nullable    = true
+  sensitive   = true
+}
+
+variable "rds_instance_class" {
+  description = "Smallest reviewed RDS instance class for the short-lived P7 learning exercise."
+  type        = string
+  default     = "db.t4g.micro"
+}
+
+variable "rds_allocated_storage_gib" {
+  description = "Fixed gp3 storage allocation for the P7 RDS instance; autoscaling is intentionally omitted."
+  type        = number
+  default     = 20
+}

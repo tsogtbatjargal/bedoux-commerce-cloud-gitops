@@ -57,6 +57,15 @@ postgres:
       cpu: 500m
       memory: 256Mi
 
+# The in-cluster database remains the default for Compose/kind/P6. P7.1 switches
+# this to external and supplies a pre-created Kubernetes Secret containing only
+# DATABASE_URL; P7.3 replaces that bootstrap Secret with Secrets Manager.
+database:
+  mode: in-cluster
+  credentialsSecret:
+    name: postgres-credentials
+    key: DATABASE_URL
+
 # Per ADR 0005: fail-fast migration hook, no automatic downgrade on rollback (helm
 # rollback doesn't re-fire pre-upgrade hooks at all, verified live — nothing to
 # configure for that here).
