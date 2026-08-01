@@ -88,6 +88,16 @@ failed-release and CI rollback drill.
 ## Session teardown
 
 Do not leave the workflow's ALB or cluster running. Delete the `bedoux` Ingress and wait for its
-ALB to disappear, remove the release and namespace, detach persistent Terraform resources, then
-destroy the session infrastructure. Complete every **Teardown** item in
-[`aws-session.md`](aws-session.md) and record the clean inventory in `docs/PROGRESS.md`.
+ALB to disappear, then remove the release, namespace, and controller. Keep persistent state
+attached while planning and applying the temporary-only Terraform destruction:
+
+```text
+scripts/terraform-session-destroy.sh plan
+scripts/terraform-session-destroy.sh apply --execute
+```
+
+The helper deliberately targets EKS, its add-on/access entries, and the VPC only. It deletes the
+cluster OIDC provider explicitly after the cluster is gone, then detaches persistent state. Do
+not target `module.workload_iam`: its cluster OIDC provider is a dependency of persistent IRSA
+roles, and a targeted destroy can otherwise delete those roles. Complete every **Teardown** item
+in [`aws-session.md`](aws-session.md) and record the clean inventory in `docs/PROGRESS.md`.
