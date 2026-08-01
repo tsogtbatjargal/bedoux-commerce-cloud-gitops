@@ -85,6 +85,24 @@ The Helm command uses `--atomic`: an ordinary failed install or upgrade is rolle
 workflow returns failure. This is a safety property, not P6.5 evidence; P6.5 owns the deliberate
 failed-release and CI rollback drill.
 
+## P6.5 CI rollback drill
+
+First dispatch a normal successful run from `main` (with `seed_catalog=true` only when the
+session's PostgreSQL volume is new). Do not run the drill against an absent release.
+
+Then dispatch **Deploy learning session** again from the same `main` commit with
+`rollback_drill=true` and `seed_catalog=false`. The workflow still builds and pushes its immutable
+images, but passes a unique, deliberately unavailable **web** image tag to Helm. The valid API
+image lets the pre-upgrade migration hook finish; the web Deployment then fails to roll out. The
+drill uses a three-minute wait and Helm `--atomic`, which must restore the prior healthy release.
+
+The workflow is expected to finish **failed**. Its conditional evidence step must nevertheless run
+and show the Helm history/status, current workloads, the restored web image matching the commit
+SHA, and a passing public health check. Record the run URL/ID, the failed-revision and deployed
+revision statuses, and that public health remained good in `docs/PROGRESS.md` as T-602 evidence.
+If the normal release is not restored, stop and diagnose; do not retry the drill or continue to
+teardown until the release is healthy.
+
 ## Session teardown
 
 Do not leave the workflow's ALB or cluster running. Delete the `bedoux` Ingress and wait for its

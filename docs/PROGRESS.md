@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P6 — Terraform, then CI/CD |
-| Active task | P6.5 — CI rollback drill (**IN PROGRESS**; local teardown-recovery hardening first) |
-| Last verified | 2026-07-31T18:14:23-06:00 — P6.5 local teardown-recovery repair validated; no AWS session is open and no AWS resource action has occurred. |
+| Active task | P6.5 — CI rollback drill (**IN PROGRESS**; time-bounded session open, no AWS resources created yet) |
+| Last verified | 2026-07-31T18:23:49-06:00 — P6.5 manual session preflight passed; Terraform's reviewed no-NAT plan is ready, but no AWS resource action has occurred. |
 | AWS resources currently live | **None temporary.** The teardown sweep confirmed zero EKS clusters, ALBs/target groups, RDS resources, NAT Gateways, EIPs, unattached EBS volumes/snapshots, project VPCs/instances, and CloudFormation stacks. Persistent: state bucket, two ECR repositories, cluster/node/GitHub deployment roles and policies, ALB-controller role/policy, and GitHub OIDC provider. **Recovery finding:** the EBS CSI role was unintentionally deleted by a targeted teardown recovery and is absent; it has no hourly cost and Terraform will recreate it in the next controlled session. |
 | Month-to-date estimated AWS spend | Budget actual is USD 0.581 against the USD 20 cap (queried 2026-07-31; billing data lags). The P6.4 session's conservative USD 2–4 envelope remains below the USD 16 stop threshold. |
-| Next operator action | **P6.5**: review/publish the local teardown-recovery repair. Only after it is merged may a fresh session manually complete every **Before the session** item in `docs/runbooks/aws-session.md`, recreate the absent EBS CSI role, and perform the CI rollback drill. |
+| Next operator action | **P6.5**: merge the reviewed CI rollback-drill workflow, then apply the reviewed Terraform plan, bootstrap the operator-only cluster resources, run a healthy CI release followed by the controlled failed-release drill, and tear down by `2026-07-31T21:00:00-06:00`. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -536,6 +536,33 @@ complete with evidence above. The dedicated gate commit records the approval.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-31T18:23:49-06:00 — P6.5 rollback-drill session opened; preflight passed — Codex
+
+- **Phase/task:** P6.5 remains **IN PROGRESS**. This session was manually opened by walking every
+  **Before the session** item in `docs/runbooks/aws-session.md`; teardown target is
+  `2026-07-31T21:00:00-06:00`.
+- **Identity/cost/region:** confirmed the non-root `bedoux-admin` IAM user and pinned
+  `ca-central-1` region. Budget actual was USD 0.581 against the USD 20 cap; Cost Explorer still
+  showed delayed near-zero data, so the budget value is the applicable guardrail. The projected
+  USD 2–4 learning-session envelope remains below the USD 16 stop condition.
+- **Inventory:** EKS clusters, ALBs/target groups, RDS, NAT Gateways, EIPs, unattached EBS
+  volumes/snapshots, and CloudFormation stacks were all empty. No unexplained resource exists.
+- **Plan/teardown:** initialized Terraform and imported the persistent ECR/IAM allowlist into
+  Terraform state only (no AWS resource creation). The saved P6.5 plan reports 25 creates and
+  nine reconciliation changes, zero deletes, and zero `aws_nat_gateway` resources; it recreates
+  the absent no-cost EBS CSI role as expected. `terraform-session-destroy.sh --help` succeeded;
+  persistent exceptions remain the state bucket, ECR repositories, and no-hourly-cost IAM/OIDC
+  identities.
+- **Drill preparation:** added a reviewed workflow input that deliberately makes only the web
+  rollout use a unique unavailable image tag after the migration hook succeeds. Its conditional
+  post-failure step captures Helm/workload evidence and asserts the atomic rollback restored the
+  healthy web image and public health endpoint. Local YAML parsing, Helm lint/render,
+  `make docs-check`, and `git diff --check` passed.
+- **AWS:** no resource created, modified, or deleted. Terraform state attachment only.
+- **Next action:** merge the P6.5 workflow/runbook change; then apply this reviewed plan, complete
+  operator-only bootstrap, run a green release and the controlled rollback drill, and complete
+  the full teardown sweep by the stated target.
 
 ### 2026-07-31T18:14:23-06:00 — P6.5 local teardown-recovery repair validated — Codex
 

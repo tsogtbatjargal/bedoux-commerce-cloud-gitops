@@ -8,6 +8,11 @@ on:
         required: true
         default: false
         type: boolean
+      rollback_drill:
+        description: Deliberately fail the web rollout and verify Helm atomic rollback (P6.5 only).
+        required: true
+        default: false
+        type: boolean
 
 # The role trust policy admits only this repository's main branch. Keep this workflow
 # manually dispatched so a live AWS session is an intentional, time-bounded operation.
@@ -95,13 +100,23 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
           SEED_CATALOG: ${{ inputs.seed_catalog }}
+          ROLLBACK_DRILL: ${{ inputs.rollback_drill }}
         shell: bash
         run: |
           set -euo pipefail
+          release_timeout="10m"
+          web_image_tag="$GITHUB_SHA"
+          if [[ "$ROLLBACK_DRILL" == "true" ]]; then
+            # The migration hook still runs with the valid API image. Only the web
+            # Deployment receives this deliberately unavailable tag, exercising a
+            # real rollout failure followed by Helm's --atomic rollback.
+            release_timeout="3m"
+            web_image_tag="rollback-drill-missing-${GITHUB_RUN_ID}"
+          fi
           helm_args=(
             upgrade --install bedoux charts/bedoux
             --namespace "$KUBERNETES_NAMESPACE"
-            --wait --wait-for-jobs --timeout 10m --atomic
+            --wait --wait-for-jobs --timeout "$release_timeout" --atomic
             -f charts/bedoux/values.yaml
             -f charts/bedoux/values-aws.yaml
             # StorageClass is cluster-scoped. The session operator bootstraps
@@ -111,7 +126,7 @@ jobs:
             --set-string "api.image.repository=$ECR_REGISTRY/bedoux-api"
             --set-string "api.image.tag=$GITHUB_SHA"
             --set-string "web.image.repository=$ECR_REGISTRY/bedoux-web"
-            --set-string "web.image.tag=$GITHUB_SHA"
+            --set-string "web.image.tag=$web_image_tag"
           )
           if [[ "$SEED_CATALOG" == "true" ]]; then
             helm_args+=(--set seed.enabled=true)
@@ -119,6 +134,30 @@ jobs:
           helm "${helm_args[@]}"
           kubectl -n "$KUBERNETES_NAMESPACE" rollout status deployment/api --timeout=5m
           kubectl -n "$KUBERNETES_NAMESPACE" rollout status deployment/web --timeout=5m
+
+      - name: Verify atomic rollback after the controlled failure
+        if: ${{ failure() && inputs.rollback_drill }}
+        env:
+          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          helm -n "$KUBERNETES_NAMESPACE" history bedoux
+          helm -n "$KUBERNETES_NAMESPACE" status bedoux
+          kubectl -n "$KUBERNETES_NAMESPACE" get deployments,pods
+
+          expected_web_image="$ECR_REGISTRY/bedoux-web:$GITHUB_SHA"
+          actual_web_image="$(kubectl -n "$KUBERNETES_NAMESPACE" get deployment/web \
+            -o jsonpath='{.spec.template.spec.containers[0].image}')"
+          test "$actual_web_image" = "$expected_web_image"
+
+          hostname="$(kubectl -n "$KUBERNETES_NAMESPACE" get ingress bedoux \
+            -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')"
+          test -n "$hostname"
+          curl --fail --silent --show-error --connect-timeout 10 \
+            "http://$hostname/api/health" > /tmp/bedoux-rollback-health.json
+          python -c 'import json; response = json.load(open("/tmp/bedoux-rollback-health.json")); assert response == {"status": "ok", "orders_enabled": False}, response'
+          printf '%s\n' 'Atomic rollback restored the prior web image and public health endpoint.'
 
       - name: Smoke-test the public ALB route
         shell: bash
