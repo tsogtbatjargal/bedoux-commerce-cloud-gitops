@@ -80,7 +80,19 @@ run() {
 }
 
 if [[ "$action" == "detach" ]]; then
-  run terraform -chdir="$terraform_dir" state rm "${persistent_addresses[@]}"
+  current_state_addresses="$(terraform -chdir="$terraform_dir" state list)"
+  attached_addresses=()
+  for address in "${persistent_addresses[@]}"; do
+    if grep -Fxq -- "$address" <<<"$current_state_addresses"; then
+      attached_addresses+=("$address")
+    else
+      printf 'INFO: persistent address is already detached: %s\n' "$address"
+    fi
+  done
+  if (( ${#attached_addresses[@]} > 0 )); then
+    run terraform -chdir="$terraform_dir" state rm "${attached_addresses[@]}"
+  fi
+  unset current_state_addresses
   exit 0
 fi
 

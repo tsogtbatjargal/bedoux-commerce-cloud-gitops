@@ -4,20 +4,22 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: scripts/terraform-session-destroy.sh <plan|apply> [--execute]
+Usage: scripts/terraform-session-destroy.sh <prepare|plan|apply> [--execute]
 
 Safely destroys only temporary P6 EKS-session infrastructure while preserving
 the persistent ECR and IAM allowlist. Run only inside an active AWS session.
 
-  plan             Reads the live cluster OIDC issuer and writes a saved,
-                   targeted Terraform destroy plan under /tmp.
-  apply --execute  Applies that saved plan, deletes the now-orphaned cluster
-                   OIDC provider by its exact captured ARN, and detaches the
-                   persistent allowlist from Terraform state.
+  prepare          Dry-runs the state-only preparation needed before planning.
+  prepare --execute Captures the live cluster OIDC provider, then detaches the
+                   persistent allowlist and cluster OIDC provider from Terraform
+                   state. It never changes AWS resources.
+  plan             Writes a saved, targeted Terraform destroy plan under /tmp.
+  apply --execute  Applies that saved plan and deletes the now-orphaned cluster
+                   OIDC provider by its exact captured ARN.
 
-The plan intentionally targets only EKS, its add-on/access entries, and the
-VPC. It never targets the workload-IAM module: targeting its OIDC provider can
-pull persistent IRSA roles into a destroy graph.
+Run prepare --execute before plan. Detaching state first keeps Terraform's
+targeted destroy graph limited to EKS, its add-on/access entries, and the VPC;
+otherwise the cluster OIDC dependency can pull persistent IRSA roles into it.
 EOF
 }
 
@@ -34,12 +36,19 @@ fi
 action="$1"
 execute=false
 
-if [[ "$action" != "plan" && "$action" != "apply" ]]; then
+if [[ "$action" != "prepare" && "$action" != "plan" && "$action" != "apply" ]]; then
   usage >&2
   exit 2
 fi
 
-if [[ "$action" == "apply" ]]; then
+if [[ "$action" == "prepare" ]]; then
+  if (( $# == 2 )) && [[ "$2" == "--execute" ]]; then
+    execute=true
+  elif (( $# != 1 )); then
+    usage >&2
+    exit 2
+  fi
+elif [[ "$action" == "apply" ]]; then
   if (( $# != 2 )) || [[ "$2" != "--execute" ]]; then
     usage >&2
     exit 2
@@ -70,14 +79,40 @@ persistent_prefixes=(
   'module.workload_iam.aws_iam_role_policy_attachment.'
 )
 
-if [[ "$action" == "plan" ]]; then
+if [[ "$action" == "prepare" ]]; then
   task_account_id="$(aws sts get-caller-identity --profile bedoux-admin --query Account --output text)"
   cluster_oidc_issuer="$(aws eks describe-cluster --profile bedoux-admin --region ca-central-1 \
     --name bedoux --query 'cluster.identity.oidc.issuer' --output text)"
   test -n "$cluster_oidc_issuer"
   test "$cluster_oidc_issuer" != "None"
-  printf 'arn:aws:iam::%s:oidc-provider/%s\n' "$task_account_id" "${cluster_oidc_issuer#https://}" > "$oidc_file"
+  cluster_oidc_provider_arn="arn:aws:iam::${task_account_id}:oidc-provider/${cluster_oidc_issuer#https://}"
   unset task_account_id cluster_oidc_issuer
+
+  if ! "$execute"; then
+    printf '%s\n' 'DRY RUN: capture the cluster OIDC provider and detach persistent Terraform state.'
+    "$repo_root/scripts/terraform-persistent-state.sh" detach
+    printf 'DRY RUN: terraform -chdir=%q state rm %q\n' \
+      "$terraform_dir" 'module.workload_iam.aws_iam_openid_connect_provider.this'
+    unset cluster_oidc_provider_arn
+    exit 0
+  fi
+
+  printf '%s\n' "$cluster_oidc_provider_arn" > "$oidc_file"
+  unset cluster_oidc_provider_arn
+  "$repo_root/scripts/terraform-persistent-state.sh" detach --execute
+  if terraform -chdir="$terraform_dir" state list | grep -Fxq \
+    'module.workload_iam.aws_iam_openid_connect_provider.this'; then
+    terraform -chdir="$terraform_dir" state rm \
+      module.workload_iam.aws_iam_openid_connect_provider.this
+  else
+    printf '%s\n' 'INFO: cluster OIDC provider is already detached from Terraform state.'
+  fi
+  printf '%s\n' 'Persistent Terraform state detached; ready to create the temporary-only destroy plan.'
+  exit 0
+fi
+
+if [[ "$action" == "plan" ]]; then
+  test -s "$oidc_file"
 
   target_args=()
   for target in "${temporary_targets[@]}"; do
@@ -108,9 +143,5 @@ cluster_oidc_provider_arn="$(<"$oidc_file")"
 aws iam delete-open-id-connect-provider --profile bedoux-admin \
   --open-id-connect-provider-arn "$cluster_oidc_provider_arn"
 unset cluster_oidc_provider_arn
-
-terraform -chdir="$terraform_dir" state rm \
-  module.workload_iam.aws_iam_openid_connect_provider.this
-"$repo_root/scripts/terraform-persistent-state.sh" detach --execute
 
 printf 'Temporary session infrastructure destroyed; persistent allowlist detached.\n'

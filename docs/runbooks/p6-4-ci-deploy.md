@@ -91,12 +91,12 @@ First dispatch a normal successful run from `main` (with `seed_catalog=true` onl
 session's PostgreSQL volume is new). Do not run the drill against an absent release.
 
 Then dispatch **Deploy learning session** again from the same `main` commit with
-`rollback_drill=true` and `seed_catalog=false`. The workflow still builds and pushes its immutable
-images when they are absent; on a repeat dispatch it deliberately reuses the existing immutable
-commit-tagged images. It then passes a unique, deliberately unavailable **web** image tag to Helm.
-The valid API image lets the pre-upgrade migration hook finish; the web Deployment then fails to
-roll out. The drill uses a three-minute wait and Helm `--atomic`, which must restore the prior
-healthy release.
+`rollback_drill=true` and `seed_catalog=false`. The workflow first captures the web Deployment's
+actual pre-drill image. It still builds and pushes its immutable images when absent; on a repeat
+dispatch it deliberately reuses existing commit-tagged images. It then passes a unique,
+deliberately unavailable **web** image tag to Helm. The valid API image lets the pre-upgrade
+migration hook finish; the web Deployment then fails to roll out. The drill uses a three-minute
+wait and Helm `--atomic`, which must restore that captured pre-drill image.
 
 The workflow is expected to finish **failed from its Helm step**. Its conditional evidence step
 must nevertheless run and show the Helm history/status, current workloads, the restored web image
@@ -112,12 +112,16 @@ ALB to disappear, then remove the release, namespace, and controller. Keep persi
 attached while planning and applying the temporary-only Terraform destruction:
 
 ```text
+scripts/terraform-session-destroy.sh prepare
+scripts/terraform-session-destroy.sh prepare --execute
 scripts/terraform-session-destroy.sh plan
 scripts/terraform-session-destroy.sh apply --execute
 ```
 
-The helper deliberately targets EKS, its add-on/access entries, and the VPC only. It deletes the
-cluster OIDC provider explicitly after the cluster is gone, then detaches persistent state. Do
-not target `module.workload_iam`: its cluster OIDC provider is a dependency of persistent IRSA
-roles, and a targeted destroy can otherwise delete those roles. Complete every **Teardown** item
-in [`aws-session.md`](aws-session.md) and record the clean inventory in `docs/PROGRESS.md`.
+The state-only `prepare` dry run must be reviewed before `prepare --execute`; the latter detaches
+the persistent allowlist and cluster OIDC-provider state before the targeted plan is built. The
+helper then targets EKS, its add-on/access entries, and the VPC only, and deletes the captured
+cluster OIDC provider explicitly after the cluster is gone. Do not target
+`module.workload_iam`: its cluster OIDC provider is a dependency of persistent IRSA roles, and a
+targeted destroy can otherwise delete those roles. Complete every **Teardown** item in
+[`aws-session.md`](aws-session.md) and record the clean inventory in `docs/PROGRESS.md`.
