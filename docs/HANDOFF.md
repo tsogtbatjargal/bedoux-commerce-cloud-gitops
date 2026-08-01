@@ -52,14 +52,13 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   resources. During an exceptional Terraform destroy recovery, the EBS CSI role was also deleted
   through its OIDC-provider dependency. It is no-cost and Terraform will recreate it next
   session; harden that recovery path before P6.5.
-- **P6.5 is in progress; its first live session is closed and clean.** A healthy CI baseline was
-  deployed, then controlled run `30682672193` deliberately failed its Helm web rollout. Helm
-  atomically restored a healthy revision, but the post-failure assertion compared the restored
-  web image to the newer workflow commit instead of the image captured before the drill; its
-  public smoke check therefore did not run and T-602 is not yet met. The session teardown sweep
-  found no temporary resources. It also proved `terraform-session-destroy.sh` must detach the
-  allowlisted persistent state before it creates a targeted EKS/VPC destroy plan; its existing
-  plan guard refused to delete persistent roles, and a safe state-only recovery preserved them.
+- **P6.5 is complete; P6 gate awaits owner approval.** After the local repair merged, green run
+  `30685274638` proved the baseline release and public smoke. Controlled run `30685420148`
+  captured the actual pre-drill web image, deliberately failed the Helm web rollout, then passed
+  the conditional rollback verification and public health assertion after Helm atomically restored
+  the release (T-602). The improved teardown helper used an explicit state-only preparation step,
+  reviewed a plan with exactly 14 temporary EKS/add-on/VPC deletes and no persistent addresses,
+  and the final inventory sweep was clean. No temporary AWS resources are live.
 - Three real findings surfaced and were fixed during P5, each documented with its own ADR
   or PROGRESS entry:
   1. **ADR 0007** — `bedoux-admin`'s scoped IAM policy (`bedoux-iam-scoped`) had a genuine
@@ -118,13 +117,12 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   `image_url`, presigned URL via IRSA in S3 mode, frontend storage-agnostic).
 
 ## What I want next
-Continue the single task marked IN PROGRESS in docs/PROGRESS.md: **P6.5 — CI rollback drill**.
-Work one item at a time and record evidence before checking anything off. A focused local repair
-is ready for review: it captures the pre-drill web image for the rollback assertion and makes
-`terraform-session-destroy.sh` require explicit state-only preparation before it plans the
-targeted temporary destroy. Validate/review and merge it before opening another AWS session. Then
-manually walk the full **Before the session** checklist in `docs/runbooks/aws-session.md`, review
-the Terraform plan/cost, set a same-day teardown time, and use `bedoux-admin`.
+All P6 work is complete, but **do not start P7 yet.** The next action is owner approval of the P6
+gate. Once approved, first make the dedicated gate commit exactly
+`Phase 6 gate approved by owner; activate Phase 7`, then set P7 as active in
+`docs/PROGRESS.md`. Before any later AWS mutation, manually walk the full **Before the session**
+checklist in `docs/runbooks/aws-session.md`, review the Terraform plan/cost, set a same-day
+teardown time, and use `bedoux-admin`.
 There is no `/aws-session-start` for Codex: before touching AWS, manually walk the "Before
 the session" checklist in `docs/runbooks/aws-session.md`, and run its teardown sweep before
 ending any AWS session. Never create AWS resources outside that process. If asked to approve
