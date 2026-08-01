@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P6 — Terraform, then CI/CD |
-| Active task | P6.5 — CI rollback drill (**IN PROGRESS**; time-bounded session open, no AWS resources created yet) |
-| Last verified | 2026-07-31T18:59:13-06:00 — P6.5 healthy CI baseline passed; the first controlled run exposed an immutable-image retry bug before Helm, while revision 1 remained healthy. |
-| AWS resources currently live | **Active P6.5 session (tear down by `2026-07-31T21:00:00-06:00`).** Temporary no-NAT VPC/public subnets/IGW, EKS 1.34 control plane, one Spot node, EBS CSI add-on, operator-installed ALB controller, `bedoux` namespace/release/PVC, and one ALB. No RDS, NAT Gateway, or EIP. Persistent: state bucket, two ECR repositories, cluster/node/GitHub deployment roles and policies, ALB-controller role/policy, and GitHub OIDC provider. |
-| Month-to-date estimated AWS spend | Budget actual is USD 0.581 against the USD 20 cap (queried 2026-07-31; billing data lags). The P6.4 session's conservative USD 2–4 envelope remains below the USD 16 stop threshold. |
-| Next operator action | **P6.5**: merge the small immutable-image retry repair, rerun the controlled Helm failure/atomic-rollback drill, then complete the guarded teardown and full inventory sweep by `2026-07-31T21:00:00-06:00`. |
+| Active task | P6.5 — CI rollback drill (**IN PROGRESS**; AWS session closed) |
+| Last verified | 2026-07-31T22:34:55-06:00 — the controlled Helm failure rolled back to a healthy release, but CI evidence compared against the wrong pre-drill image; full teardown sweep clean. |
+| AWS resources currently live | No temporary AWS resources. Persistent allowlist only: state bucket, two ECR repositories, cluster/node/GitHub deployment roles and policies, ALB-controller role/policy, and GitHub OIDC provider. |
+| Month-to-date estimated AWS spend | Budget actual was USD 0.581 before this session (billing data lags). Session spend remains within the conservative USD 2–4 learning-session envelope and below the USD 16 stop threshold. |
+| Next operator action | **P6.5:** review and merge the local rollback-evidence/teardown-helper repair; then open a fresh time-bounded AWS session for the final T-602 run. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -506,7 +506,10 @@ complete with evidence above. The dedicated gate commit records the approval.
       2026-07-31T17:51:14-06:00; GitHub run `30657784919` passed OIDC/ECR/image push,
       namespace-scoped Helm deploy, and public ALB health/catalog smoke; no-NAT teardown sweep
       confirmed zero temporary resources.
-- [ ] P6.5 IN PROGRESS — CI rollback drill; first harden P6.4 teardown recovery locally.
+- [ ] P6.5 IN PROGRESS — CI rollback drill. The controlled Helm failure and atomic rollback were
+      exercised, but T-602 remains unmet because CI compared the restored release to the wrong
+      image. The focused local repair is validated and awaiting review; do not open another AWS
+      session until it is merged.
 
 ### P7 — Managed data services
 
@@ -536,6 +539,61 @@ complete with evidence above. The dedicated gate commit records the approval.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-31T22:40:16-06:00 — P6.5 local rollback-evidence and teardown repair validated — Codex
+
+- **Phase/task:** P6.5 remains **IN PROGRESS**. No AWS session is open; no AWS resource was
+  created, changed, or deleted during this local repair.
+- **Changed:** the deployment workflow now captures the actual web Deployment image before a
+  rollback drill, and its post-failure assertion compares the restored Deployment to that captured
+  value rather than to the workflow commit. This correctly supports a healthy baseline deployed
+  by an earlier commit while retaining the public health assertion.
+- **Teardown hardening:** `terraform-session-destroy.sh` now requires an explicit `prepare`
+  dry-run and `prepare --execute` state-only step before its saved plan. Preparation captures the
+  cluster OIDC provider, detaches the persistent allowlist and cluster OIDC provider from
+  Terraform state, and then permits a target plan limited to temporary EKS/add-on/VPC resources.
+  Its apply removes the captured provider only after the cluster. The persistent-state detach now
+  tolerates already-detached addresses and reads Terraform state once.
+- **Verified:** shell syntax checks; both helper help paths; the no-write detach path against the
+  now-empty session state (all allowlisted addresses reported already detached); workflow YAML
+  parse; `helm lint charts/bedoux`; `make docs-check`; and `git diff --check` all passed.
+- **AWS:** none. Estimated cost: USD 0.
+- **Next action:** publish/review this focused repair. After merge, manually open a fresh,
+  time-bounded AWS session and rerun the controlled drill to capture final T-602 evidence.
+
+### 2026-07-31T22:34:55-06:00 — P6.5 rollback exercised; evidence assertion and teardown helper need repair — Codex
+
+- **Phase/task:** P6.5 remains **IN PROGRESS**; T-602 is **not** checked off. The session's
+  stated 21:00 MDT teardown target was exceeded while the workflow was in its bounded Helm
+  timeout, so no further drill retries were attempted and teardown took priority.
+- **Controlled drill:** after PR #8 merged, GitHub Actions run `30682672193` reused immutable
+  images, obtained main-bound OIDC credentials, and reached the intended Helm upgrade. The
+  deliberately unavailable web image made revision 2 fail on its three-minute timeout; Helm
+  `--atomic` then restored a healthy deployed revision 3 (rollback to revision 1). The workflow
+  evidence step recorded that history, deployed status, and all API/web/PostgreSQL workloads
+  Ready, then failed before its public smoke check.
+- **Why this is not T-602 evidence:** the evidence step asserted that the restored web image
+  matched the current workflow commit. The healthy baseline was from an earlier commit, so
+  atomic rollback correctly restored that earlier image instead. The next workflow repair must
+  capture the pre-drill web image before Helm and compare the restored deployment to that value;
+  it must retain the public health assertion.
+- **Teardown finding and recovery:** `terraform-session-destroy.sh plan` correctly refused its
+  first saved plan because Terraform's dependency graph included persistent workload-IAM roles.
+  To preserve those resources, the allowlisted IAM/ECR state and cluster OIDC-provider state were
+  detached first (state-only), then a newly reviewed plan contained 14 temporary EKS/add-on/VPC
+  resources only. That plan applied, and the exact captured cluster OIDC provider was deleted
+  after the cluster. The helper needs this safe ordering built in before another session.
+- **Teardown evidence:** deleted the Ingress and confirmed its ALB absent; uninstalled the
+  release, namespace, and controller; then removed the node group, EKS control plane, add-on,
+  VPC, and cluster OIDC provider. Final read-only sweep returned zero project VPCs, ALBs, target
+  groups, NAT Gateways, EIPs, available EBS volumes, snapshots, RDS instances/snapshots/subnet
+  groups, and CloudFormation stacks. Only allowlisted `bedoux-api` and `bedoux-web` ECR
+  repositories remain.
+- **AWS:** temporary no-NAT VPC, EKS 1.34, one Spot node, EBS CSI, controller, application,
+  PVC, and ALB created and destroyed in this session. Estimated cost remains within the planned
+  USD 2–4 envelope; billing data lags.
+- **Next action:** repair the pre-drill-image evidence assertion and teardown-helper ordering
+  locally, validate/review them, then open a fresh time-bounded session for the final T-602 run.
 
 ### 2026-07-31T18:59:13-06:00 — P6.5 healthy CI baseline; drill precondition bug found — Codex
 

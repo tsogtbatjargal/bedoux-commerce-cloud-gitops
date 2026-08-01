@@ -108,6 +108,18 @@ jobs:
           set -euo pipefail
           aws eks update-kubeconfig --region "$AWS_REGION" --name "$EKS_CLUSTER" --alias "$EKS_CLUSTER"
 
+      - name: Capture the pre-drill web image
+        id: pre_drill_release
+        if: ${{ inputs.rollback_drill }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          previous_web_image="$(kubectl -n "$KUBERNETES_NAMESPACE" get deployment/web \
+            -o jsonpath='{.spec.template.spec.containers[0].image}')"
+          test -n "$previous_web_image"
+          echo "::add-mask::$previous_web_image"
+          echo "web_image=$previous_web_image" >> "$GITHUB_OUTPUT"
+
       - name: Deploy the Helm release
         id: helm_deploy
         env:
@@ -151,7 +163,7 @@ jobs:
       - name: Verify atomic rollback after the controlled failure
         if: ${{ failure() && inputs.rollback_drill && steps.helm_deploy.outcome == 'failure' }}
         env:
-          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
+          EXPECTED_WEB_IMAGE: ${{ steps.pre_drill_release.outputs.web_image }}
         shell: bash
         run: |
           set -euo pipefail
@@ -159,10 +171,10 @@ jobs:
           helm -n "$KUBERNETES_NAMESPACE" status bedoux
           kubectl -n "$KUBERNETES_NAMESPACE" get deployments,pods
 
-          expected_web_image="$ECR_REGISTRY/bedoux-web:$GITHUB_SHA"
           actual_web_image="$(kubectl -n "$KUBERNETES_NAMESPACE" get deployment/web \
             -o jsonpath='{.spec.template.spec.containers[0].image}')"
-          test "$actual_web_image" = "$expected_web_image"
+          test -n "$EXPECTED_WEB_IMAGE"
+          test "$actual_web_image" = "$EXPECTED_WEB_IMAGE"
 
           hostname="$(kubectl -n "$KUBERNETES_NAMESPACE" get ingress bedoux \
             -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')"

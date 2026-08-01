@@ -94,15 +94,16 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   that transparent compensating control and its limits.
 - **P6.4 complete 2026-07-31:** main-branch CI obtained the narrowly scoped GitHub OIDC role,
   pushed immutable ECR images, deployed the AWS Helm profile with namespace-only access, and
-  passed a public ALB health/catalog smoke. The session was then torn down; the final sweep found
-  no temporary billed resources. A teardown-recovery finding (EBS CSI role deleted during a
-  targeted Terraform recovery) is recorded in `docs/PROGRESS.md` and must be hardened before
-  another AWS session.
-- Next action: **P6.5** — plan the CI rollback drill and first repair the teardown recovery path.
-  Before any AWS mutation, manually complete `docs/runbooks/aws-session.md`'s **Before the
-  session** checklist, review the Terraform plan/cost, set a same-day teardown time, and use the
-  `bedoux-admin` profile. No billable AWS resources are currently live (confirmed by the P6.4
-  teardown sweep, not assumed).
+  passed a public ALB health/catalog smoke. **P6.5 remains in progress:** a real controlled Helm
+  failure rolled back atomically to a healthy release, but its CI evidence asserted the wrong
+  pre-drill image and therefore did not meet T-602. The same session's full teardown sweep was
+  clean, but it exposed that the guarded helper must detach persistent state before planning its
+  targeted destroy. No temporary billed AWS resources are live.
+- Next action: **P6.5 repair review** — the focused workflow and teardown-helper repair is
+  locally validated and awaiting review/merge. Only after it merges may a fresh time-bounded AWS
+  session be opened for the final T-602 run. Before any future AWS mutation, manually complete
+  `docs/runbooks/aws-session.md`'s **Before the session** checklist, review the Terraform
+  plan/cost, set a same-day teardown time, and use the `bedoux-admin` profile.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 
