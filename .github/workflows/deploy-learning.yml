@@ -13,6 +13,11 @@ on:
         required: true
         default: false
         type: boolean
+      use_rds:
+        description: Deploy against the P7 RDS credential Secret already bootstrapped in the namespace.
+        required: true
+        default: false
+        type: boolean
 
 # The role trust policy admits only this repository's main branch. Keep this workflow
 # manually dispatched so a live AWS session is an intentional, time-bounded operation.
@@ -126,6 +131,7 @@ jobs:
           ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
           SEED_CATALOG: ${{ inputs.seed_catalog }}
           ROLLBACK_DRILL: ${{ inputs.rollback_drill }}
+          USE_RDS: ${{ inputs.use_rds }}
         shell: bash
         run: |
           set -euo pipefail
@@ -153,6 +159,10 @@ jobs:
             --set-string "web.image.repository=$ECR_REGISTRY/bedoux-web"
             --set-string "web.image.tag=$web_image_tag"
           )
+          if [[ "$USE_RDS" == "true" ]]; then
+            kubectl -n "$KUBERNETES_NAMESPACE" get secret rds-credentials >/dev/null
+            helm_args+=(-f charts/bedoux/values-aws-rds.yaml)
+          fi
           if [[ "$SEED_CATALOG" == "true" ]]; then
             helm_args+=(--set seed.enabled=true)
           fi

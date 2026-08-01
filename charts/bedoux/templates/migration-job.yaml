@@ -7,7 +7,7 @@
 # post-install (not pre-install), pre-upgrade: a pre-install hook runs BEFORE any of
 # the chart's own non-hook resources exist — verified live, this chart's first attempt
 # used pre-install,pre-upgrade and failed on a genuinely fresh install because the
-# postgres-credentials Secret this Job depends on didn't exist yet. post-install fires
+# database credentials Secret this Job depends on didn't exist yet. post-install fires
 # after install-time resources are created (this Job's own wait-for-postgres init
 # container still handles postgres not being Ready yet, same pattern as api's).
 # pre-upgrade still fires before an existing release's resources are upgraded, which is
@@ -39,11 +39,28 @@ spec:
       restartPolicy: Never
       initContainers:
         - name: wait-for-postgres
-          image: "{{ .Values.postgres.image.repository }}:{{ .Values.postgres.image.tag }}"
+          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
           command:
-            - sh
+            - python
             - -c
-            - until pg_isready -h postgres -p 5432 -U {{ .Values.postgres.user }}; do sleep 1; done
+            - |
+              import os
+              import time
+              from sqlalchemy import create_engine, text
+              engine = create_engine(os.environ["BEDOUX_DATABASE_URL"], pool_pre_ping=True)
+              while True:
+                  try:
+                      with engine.connect() as connection:
+                          connection.execute(text("SELECT 1"))
+                      break
+                  except Exception:
+                      time.sleep(1)
+          env:
+            - name: BEDOUX_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "bedoux.databaseCredentialsSecretName" . }}
+                  key: {{ include "bedoux.databaseCredentialsSecretKey" . }}
       containers:
         - name: migrate
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
@@ -53,5 +70,5 @@ spec:
             - name: BEDOUX_DATABASE_URL
               valueFrom:
                 secretKeyRef:
-                  name: postgres-credentials
-                  key: DATABASE_URL
+                  name: {{ include "bedoux.databaseCredentialsSecretName" . }}
+                  key: {{ include "bedoux.databaseCredentialsSecretKey" . }}

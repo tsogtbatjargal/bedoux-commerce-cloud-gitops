@@ -34,6 +34,26 @@ module "eks" {
   tags                    = local.tags
 }
 
+# Disabled by default so P6-only learning sessions continue to create exactly
+# the previously reviewed EKS profile. P7.1 enables this explicitly for a
+# bounded RDS exercise with TF_VAR_rds_master_password supplied out of band.
+module "rds" {
+  count  = var.rds_enabled ? 1 : 0
+  source = "./modules/rds"
+
+  name                          = var.cluster_name
+  vpc_id                        = module.vpc.vpc_id
+  subnet_ids                    = module.vpc.public_subnet_ids
+  availability_zone             = var.availability_zones[0]
+  eks_cluster_security_group_id = module.eks.cluster_security_group_id
+  database_name                 = var.rds_database_name
+  master_username               = var.rds_master_username
+  master_password               = var.rds_master_password
+  instance_class                = var.rds_instance_class
+  allocated_storage_gib         = var.rds_allocated_storage_gib
+  tags                          = local.tags
+}
+
 module "workload_iam" {
   source = "./modules/iam-workload"
 
@@ -72,5 +92,12 @@ check "no_nat_gateway" {
   assert {
     condition     = length(module.vpc.nat_gateway_ids) == 0
     error_message = "The learning VPC must not contain a NAT Gateway."
+  }
+}
+
+check "rds_password_when_enabled" {
+  assert {
+    condition     = !var.rds_enabled || (var.rds_master_password != null && length(var.rds_master_password) >= 8)
+    error_message = "Set a non-committed rds_master_password of at least eight characters when rds_enabled is true."
   }
 }

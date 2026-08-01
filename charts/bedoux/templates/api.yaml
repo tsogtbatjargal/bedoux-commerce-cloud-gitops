@@ -14,16 +14,32 @@ spec:
       labels:
         app: api
     spec:
-      # Fixes the exact race hit in P3.1: without this, the api container starts
-      # immediately regardless of whether postgres has finished its first-run initdb
-      # restart cycle.
+      # Blocks startup until either the in-cluster database or P7 external RDS
+      # accepts the single credential URL consumed by the API.
       initContainers:
         - name: wait-for-postgres
-          image: "{{ .Values.postgres.image.repository }}:{{ .Values.postgres.image.tag }}"
+          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
           command:
-            - sh
+            - python
             - -c
-            - until pg_isready -h postgres -p 5432 -U {{ .Values.postgres.user }}; do sleep 1; done
+            - |
+              import os
+              import time
+              from sqlalchemy import create_engine, text
+              engine = create_engine(os.environ["BEDOUX_DATABASE_URL"], pool_pre_ping=True)
+              while True:
+                  try:
+                      with engine.connect() as connection:
+                          connection.execute(text("SELECT 1"))
+                      break
+                  except Exception:
+                      time.sleep(1)
+          env:
+            - name: BEDOUX_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "bedoux.databaseCredentialsSecretName" . }}
+                  key: {{ include "bedoux.databaseCredentialsSecretKey" . }}
       containers:
         - name: api
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
@@ -34,8 +50,8 @@ spec:
             - name: BEDOUX_DATABASE_URL
               valueFrom:
                 secretKeyRef:
-                  name: postgres-credentials
-                  key: DATABASE_URL
+                  name: {{ include "bedoux.databaseCredentialsSecretName" . }}
+                  key: {{ include "bedoux.databaseCredentialsSecretKey" . }}
             # Kill switch (ADR-pending decision #4, docs/IMPLEMENTATION-PLAN.md):
             # off by default in the AWS session values overlay.
             - name: BEDOUX_ORDERS_ENABLED

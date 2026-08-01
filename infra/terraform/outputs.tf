@@ -32,3 +32,13 @@ output "github_actions_role_arn" {
   description = "GitHub Actions OIDC deployment role ARN; create it only in a P6.4 AWS session."
   value       = module.github_actions_oidc.role_arn
 }
+
+output "rds_address" {
+  description = "Private RDS hostname for a P7 session; null while rds_enabled is false."
+  value       = try(module.rds[0].address, null)
+}
+
+output "rds_port" {
+  description = "RDS PostgreSQL port for a P7 session; null while rds_enabled is false."
+  value       = try(module.rds[0].port, null)
+}

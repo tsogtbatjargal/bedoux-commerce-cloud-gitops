@@ -6,7 +6,7 @@ usage() {
   cat <<'EOF'
 Usage: scripts/terraform-session-destroy.sh <prepare|plan|apply> [--execute]
 
-Safely destroys only temporary P6 EKS-session infrastructure while preserving
+Safely destroys only temporary EKS-session infrastructure while preserving
 the persistent ECR and IAM allowlist. Run only inside an active AWS session.
 
   prepare          Dry-runs the state-only preparation needed before planning.
@@ -67,6 +67,7 @@ oidc_file="${TMPDIR:-/tmp}/bedoux-session-destroy-oidc-provider-arn"
 temporary_targets=(
   module.addons
   module.eks
+  module.rds
   module.vpc
 )
 
