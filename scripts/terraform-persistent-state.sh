@@ -129,6 +129,28 @@ else
   printf '%s\n' 'INFO: GitHub Actions deployment policy is absent; P6.4 Terraform apply will create it.'
 fi
 
-run terraform -chdir="$terraform_dir" import 'module.workload_iam.aws_iam_role.ebs_csi' bedoux-ebs-csi-role
-run terraform -chdir="$terraform_dir" import 'module.workload_iam.aws_iam_role.alb_controller' bedoux-alb-controller-role
-run terraform -chdir="$terraform_dir" import 'module.workload_iam.aws_iam_policy.alb_controller' "arn:aws:iam::$task_account_id:policy/bedoux-alb-controller-policy"
+conditional_import_role() {
+  local address="$1"
+  local role_name="$2"
+
+  if ! "$execute"; then
+    printf 'DRY RUN: conditionally import role %s only when it already exists.\n' "$role_name"
+  elif aws iam get-role --role-name "$role_name" --profile bedoux-admin >/dev/null 2>&1; then
+    run terraform -chdir="$terraform_dir" import "$address" "$role_name"
+  else
+    printf 'INFO: role %s is absent; Terraform apply will create it.\n' "$role_name"
+  fi
+}
+
+conditional_import_role 'module.workload_iam.aws_iam_role.ebs_csi' bedoux-ebs-csi-role
+conditional_import_role 'module.workload_iam.aws_iam_role.alb_controller' bedoux-alb-controller-role
+
+if ! "$execute"; then
+  printf '%s\n' 'DRY RUN: conditionally import the ALB controller policy only when it already exists.'
+elif aws iam get-policy \
+  --policy-arn "arn:aws:iam::$task_account_id:policy/bedoux-alb-controller-policy" \
+  --profile bedoux-admin >/dev/null 2>&1; then
+  run terraform -chdir="$terraform_dir" import 'module.workload_iam.aws_iam_policy.alb_controller' "arn:aws:iam::$task_account_id:policy/bedoux-alb-controller-policy"
+else
+  printf '%s\n' 'INFO: ALB controller policy is absent; Terraform apply will create it.'
+fi

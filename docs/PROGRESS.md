@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P6 — Terraform, then CI/CD |
-| Active task | P6.5 — CI rollback drill (**NOT STARTED**; P6.4 complete) |
-| Last verified | 2026-07-31T17:51:14-06:00 — P6.4 deployed and smoke-tested successfully, then the teardown sweep confirmed zero temporary AWS resources. |
+| Active task | P6.5 — CI rollback drill (**IN PROGRESS**; local teardown-recovery hardening first) |
+| Last verified | 2026-07-31T18:14:23-06:00 — P6.5 local teardown-recovery repair validated; no AWS session is open and no AWS resource action has occurred. |
 | AWS resources currently live | **None temporary.** The teardown sweep confirmed zero EKS clusters, ALBs/target groups, RDS resources, NAT Gateways, EIPs, unattached EBS volumes/snapshots, project VPCs/instances, and CloudFormation stacks. Persistent: state bucket, two ECR repositories, cluster/node/GitHub deployment roles and policies, ALB-controller role/policy, and GitHub OIDC provider. **Recovery finding:** the EBS CSI role was unintentionally deleted by a targeted teardown recovery and is absent; it has no hourly cost and Terraform will recreate it in the next controlled session. |
 | Month-to-date estimated AWS spend | Budget actual is USD 0.581 against the USD 20 cap (queried 2026-07-31; billing data lags). The P6.4 session's conservative USD 2–4 envelope remains below the USD 16 stop threshold. |
-| Next operator action | **P6.5**: plan the CI rollback drill. Before any new AWS mutation, open a fresh session and manually complete every **Before the session** item in `docs/runbooks/aws-session.md`; Terraform will recreate the absent EBS CSI role. |
+| Next operator action | **P6.5**: review/publish the local teardown-recovery repair. Only after it is merged may a fresh session manually complete every **Before the session** item in `docs/runbooks/aws-session.md`, recreate the absent EBS CSI role, and perform the CI rollback drill. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -506,7 +506,7 @@ complete with evidence above. The dedicated gate commit records the approval.
       2026-07-31T17:51:14-06:00; GitHub run `30657784919` passed OIDC/ECR/image push,
       namespace-scoped Helm deploy, and public ALB health/catalog smoke; no-NAT teardown sweep
       confirmed zero temporary resources.
-- [ ] P6.5 NOT STARTED — CI rollback drill.
+- [ ] P6.5 IN PROGRESS — CI rollback drill; first harden P6.4 teardown recovery locally.
 
 ### P7 — Managed data services
 
@@ -536,6 +536,36 @@ complete with evidence above. The dedicated gate commit records the approval.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-31T18:14:23-06:00 — P6.5 local teardown-recovery repair validated — Codex
+
+- **Phase/task:** P6.5 remains **IN PROGRESS**. No AWS session is open; no AWS command or
+  resource action occurred in this task.
+- **Changed:** added `scripts/terraform-session-destroy.sh`. Its no-write `plan` path captures
+  the cluster OIDC provider, creates a saved destruction plan limited to EKS/add-on/access and
+  VPC targets, and refuses any plan containing a persistent ECR/IAM address. Its explicit apply
+  deletes that cluster OIDC provider only after the cluster is gone, then detaches persistent
+  state. The P6.4 runbook uses this helper. The existing persistent-state importer now conditionally
+  imports the EBS CSI role, ALB controller role, and ALB policy, so a missing no-cost identity is
+  recreated by Terraform instead of making the next session's import fail.
+- **Verified:** `bash -n` for both scripts; each `--help`; persistent importer no-write output;
+  static assertions for the workload-IAM exclusion and persistent-address plan refusal;
+  `git diff --check`; and direct documentation checks all passed.
+- **Next action:** publish and review this local repair. A new AWS session must not begin until
+  the repair is merged and its plan path is reviewed.
+
+### 2026-07-31T18:11:25-06:00 — P6.5 started: teardown-recovery hardening first — Codex
+
+- **Phase/task:** P6.5 is **IN PROGRESS**. No AWS session is open and no AWS command has run in
+  this task. The P6.4 final inventory remains the authoritative last AWS evidence.
+- **Scope:** first make `terraform-persistent-state.sh` conditional for every allowlisted identity
+  that can be absent, and add a local, testable teardown plan that cannot select a persistent IAM
+  role through a targeted dependency. This directly addresses P6.4's prolonged teardown and the
+  deleted EBS CSI role before any rollback drill can create temporary resources.
+- **Workspace note:** found an unrelated one-line local edit in
+  `docs/IMPLEMENTATION-PLAN.md`; it is preserved and out of scope.
+- **Next action:** inspect the helper's full import/detach behavior and Terraform dependency
+  graph, then implement the smallest local-only repair with dry-run tests.
 
 ### 2026-07-31T17:51:14-06:00 — P6.4 complete: live CI deployment and teardown evidence — Codex
 
