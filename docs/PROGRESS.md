@@ -9,12 +9,12 @@ checked here and its evidence is recorded in the session log.
 | Field | Value |
 |---|---|
 | State | IN PROGRESS |
-| Active phase | P6 — Terraform, then CI/CD (**gate awaiting owner approval**) |
-| Active task | P6 gate — owner approval required before P7 activation |
-| Last verified | 2026-07-31T23:34:32-06:00 — T-602 CI rollback evidence passed; final P6.5 teardown sweep clean. |
+| Active phase | P7 — Managed data services |
+| Active task | P7.1 — RDS module + connectivity + migration job |
+| Last verified | 2026-08-01T11:48:18-06:00 — owner approved the P6 gate; P7 activated with P7.1 as the only in-progress item. |
 | AWS resources currently live | No temporary AWS resources. Persistent allowlist only: state bucket, two ECR repositories, cluster/node/GitHub deployment roles and policies, ALB-controller role/policy, and GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | Budget actual was USD 0.581 before this session (billing data lags). Session spend remains within the conservative USD 2–4 learning-session envelope and below the USD 16 stop threshold. |
-| Next operator action | **Owner:** approve the P6 phase gate. Record it in its own commit (`Phase 6 gate approved by owner; activate Phase 7`) before starting any P7 work. |
+| Next operator action | **P7.1:** implement and locally validate the RDS module, application connectivity configuration, and migration-job shape before opening a time-bounded AWS session. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -511,13 +511,12 @@ complete with evidence above. The dedicated gate commit records the approval.
       Helm timeout, then passed the corrected rollback/public-health verification and restored a
       healthy release. Final no-NAT teardown sweep clean (T-602).
 
-**P6 gate — AWAITING OWNER APPROVAL.** T-501 (P6.2), T-601 (P6.4; re-proven in P6.5), and T-602
-(P6.5) are recorded. Do not start P7 until the owner explicitly approves this gate in a dedicated
-commit: `Phase 6 gate approved by owner; activate Phase 7`.
+**P6 gate — APPROVED by owner 2026-08-01; P7 activated.** T-501 (P6.2), T-601 (P6.4; re-proven
+in P6.5), and T-602 (P6.5) are recorded. The dedicated gate commit records the approval.
 
 ### P7 — Managed data services
 
-- [ ] P7.1 NOT STARTED — RDS + migration job.
+- [ ] P7.1 IN PROGRESS — RDS + migration job.
 - [ ] P7.2 NOT STARTED — S3 images via adapter + workload identity.
 - [ ] P7.3 NOT STARTED — Secrets Manager integration.
 - [ ] P7.4 NOT STARTED — teardown incl. snapshot policy check.
@@ -543,6 +542,20 @@ commit: `Phase 6 gate approved by owner; activate Phase 7`.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-01T11:48:18-06:00 — P6 gate approved; P7 activated — Codex
+
+- **Phase/task:** owner explicitly approved the P6 gate. P6 is complete; P7 is active and P7.1
+  (RDS module, connectivity, and migration-job work) is the only in-progress task.
+- **Evidence:** T-501, T-601, and T-602 were already recorded in the completed P6.2, P6.4, and
+  P6.5 entries. PR #10 merged the final P6.5 rollback and teardown evidence before this approval.
+- **Verification:** local `main` was fast-forwarded to merged PR #10 before this gate change; its
+  authoritative progress checkpoint records no temporary AWS resources following the clean P6.5
+  teardown sweep.
+- **AWS:** none. No AWS session opened and no resources created, modified, or deleted. Estimated
+  cost: USD 0.
+- **Next action:** begin P7.1 locally. Do not start P7.2 until the pending S3 adapter boundary is
+  recorded and implemented as specified in `docs/IMPLEMENTATION-PLAN.md`.
 
 ### 2026-07-31T23:34:32-06:00 — P6.5 complete: CI atomic rollback evidence and clean teardown — Codex
 

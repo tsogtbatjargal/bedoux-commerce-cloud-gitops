@@ -20,7 +20,7 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
    one item remains open (the P6/P7 S3 adapter boundary); the two P5-scoped decisions are
    done (ADR 0006, and the kill switch/request bounds).
 
-## Current state (as of 2026-07-31)
+## Current state (as of 2026-08-01)
 - Phases 0-4 complete, gates approved. Local app (FastAPI + Postgres + React) proven on
   Compose (P2), then on kind with a Helm chart (P3, ADR 0005), with real drills throughout.
   AWS account readiness done in P4: non-root IAM identity `bedoux-admin`, region
@@ -52,13 +52,16 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   resources. During an exceptional Terraform destroy recovery, the EBS CSI role was also deleted
   through its OIDC-provider dependency. It is no-cost and Terraform will recreate it next
   session; harden that recovery path before P6.5.
-- **P6.5 is complete; P6 gate awaits owner approval.** After the local repair merged, green run
+- **P6 is fully complete; its gate was approved by the owner on 2026-08-01, and P7 is active.**
+  After the local repair merged, green run
   `30685274638` proved the baseline release and public smoke. Controlled run `30685420148`
   captured the actual pre-drill web image, deliberately failed the Helm web rollout, then passed
   the conditional rollback verification and public health assertion after Helm atomically restored
   the release (T-602). The improved teardown helper used an explicit state-only preparation step,
   reviewed a plan with exactly 14 temporary EKS/add-on/VPC deletes and no persistent addresses,
-  and the final inventory sweep was clean. No temporary AWS resources are live.
+  and the final inventory sweep was clean. No temporary AWS resources are live. **P7.1 (RDS
+  module, connectivity, and migration job) is the only in-progress task**; begin it locally before
+  any new, time-bounded AWS session.
 - Three real findings surfaced and were fixed during P5, each documented with its own ADR
   or PROGRESS entry:
   1. **ADR 0007** — `bedoux-admin`'s scoped IAM policy (`bedoux-iam-scoped`) had a genuine
