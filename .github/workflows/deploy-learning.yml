@@ -85,10 +85,22 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          docker build --tag "$ECR_REGISTRY/bedoux-api:${GITHUB_SHA}" apps/api
-          docker build --tag "$ECR_REGISTRY/bedoux-web:${GITHUB_SHA}" apps/web
-          docker push "$ECR_REGISTRY/bedoux-api:${GITHUB_SHA}"
-          docker push "$ECR_REGISTRY/bedoux-web:${GITHUB_SHA}"
+          build_and_push_if_missing() {
+            local component="$1"
+            local image="$ECR_REGISTRY/bedoux-$component:${GITHUB_SHA}"
+
+            if aws ecr describe-images --repository-name "bedoux-$component" \
+              --image-ids "imageTag=$GITHUB_SHA" >/dev/null 2>&1; then
+              printf 'Reusing immutable image %s for this commit.\n' "$component"
+              return
+            fi
+
+            docker build --tag "$image" "apps/$component"
+            docker push "$image"
+          }
+
+          build_and_push_if_missing api
+          build_and_push_if_missing web
 
       - name: Configure namespace-scoped EKS access
         shell: bash
@@ -97,6 +109,7 @@ jobs:
           aws eks update-kubeconfig --region "$AWS_REGION" --name "$EKS_CLUSTER" --alias "$EKS_CLUSTER"
 
       - name: Deploy the Helm release
+        id: helm_deploy
         env:
           ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
           SEED_CATALOG: ${{ inputs.seed_catalog }}
@@ -136,7 +149,7 @@ jobs:
           kubectl -n "$KUBERNETES_NAMESPACE" rollout status deployment/web --timeout=5m
 
       - name: Verify atomic rollback after the controlled failure
-        if: ${{ failure() && inputs.rollback_drill }}
+        if: ${{ failure() && inputs.rollback_drill && steps.helm_deploy.outcome == 'failure' }}
         env:
           ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
         shell: bash

@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P6 — Terraform, then CI/CD |
 | Active task | P6.5 — CI rollback drill (**IN PROGRESS**; time-bounded session open, no AWS resources created yet) |
-| Last verified | 2026-07-31T18:23:49-06:00 — P6.5 manual session preflight passed; Terraform's reviewed no-NAT plan is ready, but no AWS resource action has occurred. |
-| AWS resources currently live | **None temporary.** The teardown sweep confirmed zero EKS clusters, ALBs/target groups, RDS resources, NAT Gateways, EIPs, unattached EBS volumes/snapshots, project VPCs/instances, and CloudFormation stacks. Persistent: state bucket, two ECR repositories, cluster/node/GitHub deployment roles and policies, ALB-controller role/policy, and GitHub OIDC provider. **Recovery finding:** the EBS CSI role was unintentionally deleted by a targeted teardown recovery and is absent; it has no hourly cost and Terraform will recreate it in the next controlled session. |
+| Last verified | 2026-07-31T18:59:13-06:00 — P6.5 healthy CI baseline passed; the first controlled run exposed an immutable-image retry bug before Helm, while revision 1 remained healthy. |
+| AWS resources currently live | **Active P6.5 session (tear down by `2026-07-31T21:00:00-06:00`).** Temporary no-NAT VPC/public subnets/IGW, EKS 1.34 control plane, one Spot node, EBS CSI add-on, operator-installed ALB controller, `bedoux` namespace/release/PVC, and one ALB. No RDS, NAT Gateway, or EIP. Persistent: state bucket, two ECR repositories, cluster/node/GitHub deployment roles and policies, ALB-controller role/policy, and GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | Budget actual is USD 0.581 against the USD 20 cap (queried 2026-07-31; billing data lags). The P6.4 session's conservative USD 2–4 envelope remains below the USD 16 stop threshold. |
-| Next operator action | **P6.5**: merge the reviewed CI rollback-drill workflow, then apply the reviewed Terraform plan, bootstrap the operator-only cluster resources, run a healthy CI release followed by the controlled failed-release drill, and tear down by `2026-07-31T21:00:00-06:00`. |
+| Next operator action | **P6.5**: merge the small immutable-image retry repair, rerun the controlled Helm failure/atomic-rollback drill, then complete the guarded teardown and full inventory sweep by `2026-07-31T21:00:00-06:00`. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -536,6 +536,33 @@ complete with evidence above. The dedicated gate commit records the approval.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-07-31T18:59:13-06:00 — P6.5 healthy CI baseline; drill precondition bug found — Codex
+
+- **Phase/task:** P6.5 remains **IN PROGRESS**; same-day teardown target remains
+  `2026-07-31T21:00:00-06:00`.
+- **Infrastructure/verification:** the reviewed no-NAT Terraform plan applied and then produced a
+  clean no-change plan. EKS 1.34, one Spot node, and the EBS CSI add-on are `ACTIVE`; a live
+  Kubernetes check confirmed the node and all CSI controller/node pods ready. Operator bootstrap
+  created namespace `bedoux`, `gp3` StorageClass, and the pinned ALB controller with its
+  Terraform-managed IRSA role. No NAT Gateway exists.
+- **Healthy baseline:** GitHub Actions run `30676641212` passed OIDC, ECR image publish,
+  namespace-only Helm deploy, migration/seed, and public ALB health/catalog smoke. Locally, the
+  release is Helm revision 1 with API/web/Postgres ready and the `gp3` PVC bound. This host's DNS
+  initially lagged the ALB hostname, while the runner's built-in bounded retry passed; that is a
+  local resolver observation, not a deployment failure.
+- **First drill result (not T-602 evidence):** run `30676825495` failed before Helm because it
+  attempted to re-push the already-existing immutable commit tag. The conditional evidence step
+  also ran without kubeconfig because it was keyed to any failure. Helm history stayed at the
+  healthy deployed revision 1; no workload rollback occurred and the app remained healthy.
+- **Repair prepared:** workflow now reuses an existing immutable image after an ECR
+  `DescribeImages` check (already permitted by the scoped CI role), and only runs rollback
+  evidence when the identified Helm step itself failed. This preserves immutable tags and makes a
+  same-commit drill reach the intended web rollout failure.
+- **AWS:** created the temporary resources listed in the checkpoint; no NAT, RDS, or EIP. No
+  resources destroyed yet.
+- **Next action:** merge the focused workflow repair, retry the controlled drill, record actual
+  T-602 evidence, then use `terraform-session-destroy.sh` and the full teardown sweep.
 
 ### 2026-07-31T18:23:49-06:00 — P6.5 rollback-drill session opened; preflight passed — Codex
 
