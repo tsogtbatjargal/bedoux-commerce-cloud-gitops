@@ -99,8 +99,9 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   rollback to the captured pre-drill image, and public health verification (T-602). The corrected
   teardown helper prepared persistent state before its 14-resource temporary-only destroy plan;
   the final sweep was clean. No temporary billed AWS resources are live.
-- Next action: **P7.1 — RDS module + migration job.** Begin locally and do not open an AWS
-  session until its local work is ready for a deliberate, time-bounded verification session.
+- Next action: **P7.1 — RDS module + migration job.** The external-database profile is proven
+  locally; before opening any AWS session, manually complete `aws-session.md`'s **Before the
+  session** checklist, set a same-day deadline, and review the explicit RDS plan.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

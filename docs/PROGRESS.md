@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P7 — Managed data services |
 | Active task | P7.1 — RDS module + connectivity + migration job |
-| Last verified | 2026-08-01T12:15:10-06:00 — P7.1 offline Terraform/Helm/workflow validation passed; live kind validation is blocked by an unreachable local control-plane endpoint. |
+| Last verified | 2026-08-01T12:31:17-06:00 — P7.1 external-database migration/seed/catalog/order proof passed on rebuilt kind; disposable namespace removed. |
 | AWS resources currently live | No temporary AWS resources. Persistent allowlist only: state bucket, two ECR repositories, cluster/node/GitHub deployment roles and policies, ALB-controller role/policy, and GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | Budget actual was USD 0.581 before this session (billing data lags). Session spend remains within the conservative USD 2–4 learning-session envelope and below the USD 16 stop threshold. |
-| Next operator action | **P7.1:** implement and locally validate the RDS module, application connectivity configuration, and migration-job shape before opening a time-bounded AWS session. |
+| Next operator action | **P7.1:** manually complete `aws-session.md` preflight, set a same-day deadline, then review the explicit RDS Terraform plan before creating any AWS resource for T-701. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -542,6 +542,32 @@ in P6.5), and T-602 (P6.5) are recorded. The dedicated gate commit records the a
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-01T12:31:17-06:00 — P7.1 external-database profile proven locally — Codex
+
+- **Phase/task:** P7.1 remains **IN PROGRESS**. Its external-database migration, seed, catalog,
+  and order path is now proven locally; T-701 still requires the later short-lived RDS session.
+- **Local-runtime repair:** the old project kind control plane's Kubernetes API was healthy inside
+  its container but its rootless-Podman host-port forwarder was absent. A restart exposed an
+  unrecoverable `conmon` failure, so the exact broken `bedoux` kind cluster was deleted and
+  recreated using `k8s/kind-config.yaml` inside the documented `Delegate=yes` user scope. Its node
+  and system Pods then became Ready. This changed local-only project state; it did not contact AWS.
+- **Proof:** built fresh local API/web images and loaded them into kind. In disposable namespace
+  `p7-rds-test`, a local PostgreSQL 16 service stood in for the external endpoint and an
+  `rds-credentials` Secret supplied the SQLAlchemy URL. Helm installed the external profile (no
+  in-cluster Postgres Deployment); migration and seed hook Jobs both completed; API, web, and the
+  local database were Ready. An API-pod request returned six catalog products and submitted two
+  orders (the first command continued after its tool window, then the explicit verification made
+  the second); PostgreSQL confirmed two persisted rows. This proves the migration and app use the
+  external Secret URL end-to-end, not merely a rendered template.
+- **Local teardown:** `helm uninstall p7-rds` and `kubectl delete namespace p7-rds-test` completed;
+  follow-up checks returned namespace/release not found. The rebuilt `kind-bedoux` cluster remains
+  as the project local-development cluster; no disposable P7 workload remains.
+- **AWS:** none. No AWS session opened and no AWS resource was created, modified, or deleted.
+  Estimated cost: USD 0.
+- **Next action:** manually complete the **Before the session** checklist in `aws-session.md`, set
+  a same-day deadline, and review an `rds_enabled=true` Terraform plan before the short-lived
+  RDS T-701 exercise.
 
 ### 2026-08-01T12:15:10-06:00 — P7.1 local RDS and migration-job implementation checkpoint — Codex
 
