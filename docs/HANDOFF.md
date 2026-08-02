@@ -73,10 +73,12 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   public catalog smoke through successful GitHub Actions run `30715096011`, followed by a clean
   full teardown. It did **not** capture the required real RDS-backed order confirmation, so T-701
   remains incomplete. The session also overran its 16:00 MDT deadline; all temporary resources
-  were nevertheless removed, and future sessions require an independent operator alarm. Before
-  reopening P7.1, rehearse a bounded order-proof procedure locally, complete the full preflight
-  and fresh cost check, set the alarmed same-day deadline, and review a new explicit RDS plan.
-  P7.3 still owns the Secrets Manager replacement for the temporary Kubernetes Secret.
+  were nevertheless removed, and future sessions require an independent operator alarm. A bounded
+  `scripts/verify-order-proof.sh` procedure is now live-rehearsed locally against a disposable
+  external-profile database: explicit confirmation, one quantity-one order, read-back assertion,
+  and 5/15-second request limits. Before reopening P7.1, obtain owner approval, complete the full
+  preflight and fresh cost check, set the alarmed same-day deadline, and review a new explicit RDS
+  plan. P7.3 still owns the Secrets Manager replacement for the temporary Kubernetes Secret.
 - Three real findings surfaced and were fixed during P5, each documented with its own ADR
   or PROGRESS entry:
   1. **ADR 0007** — `bedoux-admin`'s scoped IAM policy (`bedoux-iam-scoped`) had a genuine
@@ -135,9 +137,9 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   `image_url`, presigned URL via IRSA in S3 mode, frontend storage-agnostic).
 
 ## What I want next
-Continue **P7.1 only**. First improve and rehearse the bounded public synthetic-order proof
-locally; then, only after owner-aware preflight and a fresh billing-console check, open a new
-short-lived RDS session. Manually walk the full **Before the session** checklist in
+Continue **P7.1 only**. The bounded synthetic-order proof has already been rehearsed locally.
+Only after fresh owner approval and a fresh billing-console check, open a new short-lived RDS
+session. Manually walk the full **Before the session** checklist in
 `docs/runbooks/aws-session.md`, review the explicit plan/cost, set a same-day teardown deadline
 with an independent operator alarm, and use `bedoux-admin`. Record a public synthetic-order
 confirmation backed by RDS, then tear down on time before considering T-701 complete.
