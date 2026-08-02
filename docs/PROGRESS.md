@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P7 — Managed data services |
-| Active task | P7.1 — RDS module + connectivity + migration job |
-| Last verified | 2026-08-01T19:07:59-06:00 — bounded external-profile synthetic-order rehearsal passed locally and disposable namespace was removed; T-701 still needs the real RDS session. |
+| Active task | None — P7.1 is complete. P7.2 is NOT STARTED pending owner approval of the S3 adapter boundary. |
+| Last verified | 2026-08-01T20:54:25-06:00 — T-701 passed in a short-lived RDS session; final teardown sweep was clean. |
 | AWS resources currently live | No temporary AWS resources. Persistent allowlist only: state bucket, two ECR repositories, cluster/node/GitHub deployment roles and policies, ALB-controller role/policy, and GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | Owner confirmed actual and forecast below USD 16 before the 2026-08-01 P7.1 session; billing data lags. Recheck the console before any new session rather than treating the prior value as current. |
-| Next operator action | **P7.1:** owner approves a fresh AWS session only after a new billing-console check; then complete preflight, set an independent teardown alarm, and review a new `rds_enabled=true` plan before capturing the real RDS-backed synthetic-order confirmation. |
+| Next operator action | **P7.2:** obtain explicit owner approval for the pending S3 adapter boundary in `docs/IMPLEMENTATION-PLAN.md` before marking the task IN PROGRESS. Do not open an AWS session until that decision and its local-first implementation are ready. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -516,7 +516,7 @@ in P6.5), and T-602 (P6.5) are recorded. The dedicated gate commit records the a
 
 ### P7 — Managed data services
 
-- [ ] P7.1 IN PROGRESS — RDS + migration job.
+- [x] P7.1 COMPLETE — RDS + migration job. Evidence: T-701 passed in the 2026-08-01 short-lived RDS session; migration/seed, one bounded public synthetic order, RDS-backed row count, and clean teardown are recorded below.
 - [ ] P7.2 NOT STARTED — S3 images via adapter + workload identity.
 - [ ] P7.3 NOT STARTED — Secrets Manager integration.
 - [ ] P7.4 NOT STARTED — teardown incl. snapshot policy check.
@@ -542,6 +542,37 @@ in P6.5), and T-602 (P6.5) are recorded. The dedicated gate commit records the a
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-01T20:54:25-06:00 — P7.1 T-701 passed against RDS; clean teardown — Codex
+
+- **Phase/task:** P7.1 is **COMPLETE**. T-701 is proven: the real short-lived RDS session ran
+  the migration and seed Jobs, served the catalog publicly, and persisted one bounded synthetic
+  order through the public application route.
+- **Preflight and plan:** owner confirmed actual and forecast AWS spend below USD 16, a 22:00 MDT
+  independent teardown alarm was set, and the fresh inventory showed no temporary resources. The
+  reviewed `rds_enabled=true` Terraform plan had no NAT Gateway and recreated the temporary VPC,
+  EKS 1.34 control plane, one Spot node, EBS CSI, and private encrypted Single-AZ RDS.
+- **Normal deployment evidence:** GitHub Actions run `30727844150` passed its OIDC/ECR build,
+  external-RDS Helm deployment, migration Job, seed Job, API/web rollout, and public health and
+  catalog smoke.
+- **Bounded order proof:** the explicit-confirmation verifier created and read back exactly one
+  quantity-one synthetic order through the public route. Its trap-protected, six-minute
+  kill-switch window restored ordering to disabled; public health then confirmed that state. A
+  direct SQLAlchemy query from the API workload confirmed the RDS-backed `orders` row count was
+  exactly 1. No endpoint, order identifier, credential, or connection string was retained.
+- **Teardown:** started at 20:00 MDT, ahead of the deadline. Ingress/ALB became absent; the Helm
+  release, namespace, controller, and temporary storage class were removed. The reviewed destroy
+  plan targeted 18 temporary Terraform objects and four RDS-related objects, with zero persistent
+  objects. The final sweep found zero EKS clusters, RDS instances/manual snapshots/subnet groups,
+  ALBs/target groups, project VPCs/security groups, NAT gateways/EIPs, available EBS volumes,
+  self-owned snapshots, or CloudFormation stacks. Persistent ECR repositories and required OIDC/
+  IAM deployment roles were directly verified present. All session-local credential and plan/log
+  artifacts were deleted.
+- **Cost:** this one-session RDS exercise is conservatively estimated at no more than USD 4;
+  billing data lags, so the owner must recheck the console before any future AWS session.
+- **Next action:** P7.2 remains **NOT STARTED**. Obtain the owner-approved S3 adapter boundary
+  described in `docs/IMPLEMENTATION-PLAN.md` before activating it; no AWS action is currently
+  authorized.
 
 ### 2026-08-01T19:07:59-06:00 — P7.1 bounded synthetic-order rehearsal passed locally — Codex
 

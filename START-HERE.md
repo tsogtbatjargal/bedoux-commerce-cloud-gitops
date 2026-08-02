@@ -99,15 +99,13 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   rollback to the captured pre-drill image, and public health verification (T-602). The corrected
   teardown helper prepared persistent state before its 14-resource temporary-only destroy plan;
   the final sweep was clean. No temporary billed AWS resources are live.
-- Next action: **P7.1 — RDS module + migration job remains in progress.** Its external-database
-  profile is proven locally and a 2026-08-01 AWS session proved the real RDS migration, seed,
-  API/web rollout, and public catalog smoke, then tore everything down cleanly. T-701 remains
-  incomplete because the required public synthetic-order confirmation was not captured before
-  teardown. The replacement bounded order-proof procedure is now live-rehearsed locally with a
-  disposable external-profile database. Before a fresh short-lived RDS session, obtain owner
-  approval, manually complete `aws-session.md`'s **Before the session** checklist, confirm the
-  billing console, set an independently alarmed same-day deadline, and review a new explicit RDS
-  plan. No temporary AWS resources are live.
+- **P7.1 is complete — T-701 passed 2026-08-01.** A fresh short-lived no-NAT RDS session passed
+  GitHub Actions run `30727844150` (migration, seed, API/web rollout, and public catalog), then
+  used the bounded verifier to create and read back one synthetic public order. A direct API
+  workload query confirmed exactly one RDS-backed order row and the kill switch was restored to
+  disabled. Teardown began ahead of the independently alarmed deadline and the final sweep was
+  clean; no temporary AWS resources are live. **P7.2 must not start** until the owner explicitly
+  approves the pending S3 adapter boundary in `docs/IMPLEMENTATION-PLAN.md`.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 
