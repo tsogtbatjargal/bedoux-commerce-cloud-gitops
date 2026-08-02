@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P7 — Managed data services |
 | Active task | P7.1 — RDS module + connectivity + migration job |
-| Last verified | 2026-08-01T18:55:07-06:00 — P7.1 teardown sweep clean after a real RDS migration/seed/API/web/catalog session; T-701 order confirmation still missing. |
+| Last verified | 2026-08-01T19:07:59-06:00 — bounded external-profile synthetic-order rehearsal passed locally and disposable namespace was removed; T-701 still needs the real RDS session. |
 | AWS resources currently live | No temporary AWS resources. Persistent allowlist only: state bucket, two ECR repositories, cluster/node/GitHub deployment roles and policies, ALB-controller role/policy, and GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | Owner confirmed actual and forecast below USD 16 before the 2026-08-01 P7.1 session; billing data lags. Recheck the console before any new session rather than treating the prior value as current. |
-| Next operator action | **P7.1:** rehearse a bounded RDS-backed synthetic-order proof locally, then complete a fresh preflight/cost check and independently alarmed AWS session before reviewing a new `rds_enabled=true` plan. |
+| Next operator action | **P7.1:** owner approves a fresh AWS session only after a new billing-console check; then complete preflight, set an independent teardown alarm, and review a new `rds_enabled=true` plan before capturing the real RDS-backed synthetic-order confirmation. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -542,6 +542,29 @@ in P6.5), and T-602 (P6.5) are recorded. The dedicated gate commit records the a
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-01T19:07:59-06:00 — P7.1 bounded synthetic-order rehearsal passed locally — Codex
+
+- **Phase/task:** P7.1 remains **IN PROGRESS**; T-701 still requires the real short-lived RDS
+  session. This was the required local rehearsal after the prior deadline overrun.
+- **Changed:** added `scripts/verify-order-proof.sh`. It requires explicit
+  `BEDOUX_ORDER_PROOF_CONFIRM=1`, checks healthy ordering before writing, creates exactly one
+  quantity-one synthetic order, retrieves its confirmation, never prints the base URL or order
+  ID, and bounds each connection/request to 5/15 seconds. `--dry-run` makes no HTTP call.
+  Updated the P7.1 runbook to use it only inside a time-bounded kill-switch window.
+- **Verifier checks:** `bash -n`, `--help`, no-write `--dry-run`, and the missing-confirmation
+  refusal all passed.
+- **Live local rehearsal:** reused healthy `kind-bedoux` with cached local images. In disposable
+  namespace `p7-order-proof`, a local PostgreSQL 16 Service stood in for the external endpoint;
+  the external chart profile's migration and seed Jobs completed and PostgreSQL/API/web became
+  ready. A 90-second-bounded web Service port-forward ran the verifier once; its successful
+  create/read-back path was cross-checked by PostgreSQL `orders` count of exactly 1. Helm release,
+  namespace, local database, credential, and port-forward were then removed.
+- **AWS:** none. No AWS session or resource mutation ran. Estimated cost: USD 0.
+- **Next action:** owner must approve a fresh P7.1 AWS session after a current billing-console
+  check. Manually complete preflight, set the independent teardown alarm, review the new plan,
+  deploy normally with ordering off, then use the verifier in the bounded proof window before
+  timely teardown.
 
 ### 2026-08-01T18:55:07-06:00 — P7.1 RDS session torn down; T-701 remains incomplete — Codex
 

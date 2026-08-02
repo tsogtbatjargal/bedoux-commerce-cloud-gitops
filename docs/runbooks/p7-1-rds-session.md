@@ -33,6 +33,18 @@ will replace this bootstrap mechanism with Secrets Manager.
 3. Record T-701 evidence: migration hook completion, API/web readiness, a non-empty catalog, and
    one order flow backed by RDS. Do not record credentials or the private endpoint.
 
+## Bounded synthetic-order proof
+
+Keep the AWS profile's order kill switch disabled except for this exact proof window. First run
+`scripts/verify-order-proof.sh --dry-run` locally to confirm the intended sequence. During the
+session, enable the chart's `api.ordersEnabled` setting with an explicitly time-bounded Helm
+upgrade, wait for the API rollout, then run the verifier against the public ALB with
+`BEDOUX_ORDER_PROOF_CONFIRM=1`. It creates exactly one quantity-one synthetic order and retrieves
+the confirmation. Restore `api.ordersEnabled=false` immediately in a shell `trap`, including if
+the verifier fails. The verifier's curl connect and total-request timeouts make it unsuitable for
+an unbounded wait; its success line is the order-flow evidence, without recording the ALB hostname
+or order ID.
+
 ## Teardown
 
 Delete the Helm release and namespace first, then follow the explicit prepare/plan/apply sequence
