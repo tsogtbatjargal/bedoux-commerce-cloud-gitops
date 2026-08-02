@@ -99,9 +99,14 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   rollback to the captured pre-drill image, and public health verification (T-602). The corrected
   teardown helper prepared persistent state before its 14-resource temporary-only destroy plan;
   the final sweep was clean. No temporary billed AWS resources are live.
-- Next action: **P7.1 — RDS module + migration job.** The external-database profile is proven
-  locally; before opening any AWS session, manually complete `aws-session.md`'s **Before the
-  session** checklist, set a same-day deadline, and review the explicit RDS plan.
+- Next action: **P7.1 — RDS module + migration job remains in progress.** Its external-database
+  profile is proven locally and a 2026-08-01 AWS session proved the real RDS migration, seed,
+  API/web rollout, and public catalog smoke, then tore everything down cleanly. T-701 remains
+  incomplete because the required public synthetic-order confirmation was not captured before
+  teardown. Before a fresh short-lived RDS session, rehearse that bounded order-proof procedure
+  locally, manually complete `aws-session.md`'s **Before the session** checklist, confirm the
+  billing console, set an independently alarmed same-day deadline, and review a new explicit
+  RDS plan. No temporary AWS resources are live.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

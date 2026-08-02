@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P7 — Managed data services |
 | Active task | P7.1 — RDS module + connectivity + migration job |
-| Last verified | 2026-08-01T12:31:17-06:00 — P7.1 external-database migration/seed/catalog/order proof passed on rebuilt kind; disposable namespace removed. |
+| Last verified | 2026-08-01T18:55:07-06:00 — P7.1 teardown sweep clean after a real RDS migration/seed/API/web/catalog session; T-701 order confirmation still missing. |
 | AWS resources currently live | No temporary AWS resources. Persistent allowlist only: state bucket, two ECR repositories, cluster/node/GitHub deployment roles and policies, ALB-controller role/policy, and GitHub OIDC provider. |
-| Month-to-date estimated AWS spend | Budget actual was USD 0.581 before this session (billing data lags). Session spend remains within the conservative USD 2–4 learning-session envelope and below the USD 16 stop threshold. |
-| Next operator action | **P7.1:** manually complete `aws-session.md` preflight, set a same-day deadline, then review the explicit RDS Terraform plan before creating any AWS resource for T-701. |
+| Month-to-date estimated AWS spend | Owner confirmed actual and forecast below USD 16 before the 2026-08-01 P7.1 session; billing data lags. Recheck the console before any new session rather than treating the prior value as current. |
+| Next operator action | **P7.1:** rehearse a bounded RDS-backed synthetic-order proof locally, then complete a fresh preflight/cost check and independently alarmed AWS session before reviewing a new `rds_enabled=true` plan. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -542,6 +542,100 @@ in P6.5), and T-602 (P6.5) are recorded. The dedicated gate commit records the a
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-01T18:55:07-06:00 — P7.1 RDS session torn down; T-701 remains incomplete — Codex
+
+- **Phase/task:** P7.1 remains **IN PROGRESS**; T-701 is **not** claimed. Owner's preflight
+  budget check was below USD 16 actual and forecast, but billing data remains delayed.
+- **Created and proved:** applied the reviewed no-NAT Terraform plan for the temporary VPC, EKS
+  1.34 control plane, one Spot node, EBS CSI add-on, and private RDS. RDS reached `available`;
+  the node was `Ready`; EBS CSI controller and node pods were fully ready. Installed the pinned
+  ALB controller, created the one-session `rds-credentials` Secret, and dispatched successful
+  GitHub Actions run `30715096011`: OIDC/ECR image build, external-RDS Helm deploy, migration
+  Job, seed Job, API/web rollout, and public health/non-empty-catalog smoke all passed. Direct
+  Kubernetes verification found both hook Jobs `Completed` and API/web `Running`.
+- **Missing evidence:** the required single RDS-backed order confirmation was not captured. A
+  controlled temporary order-enable attempt produced no confirmation artifact before teardown, so
+  no order write is asserted. The namespace deletion removes the temporary credential and makes
+  the final kill-switch state immaterial.
+- **Timebox incident:** the same-day deadline was 16:00 MDT; teardown began at 18:37 MDT after
+  a locally monitored operation outlived its expected timeout. This violated the session
+  timebox. Future sessions require an external operator timer and must begin teardown at the
+  deadline even if an evidence command is still running.
+- **Teardown:** deleted Ingress and confirmed zero ALBs; uninstalled the release and namespace;
+  uninstalled the ALB controller and deleted `gp3`; reviewed the targeted destroy plan (18
+  deletes: four RDS, no persistent addresses) and applied it. Final sweep: zero EKS clusters,
+  RDS instances/manual snapshots/subnet groups, ALBs/target groups, project VPCs/security groups,
+  NAT Gateways, unattached EIPs/EBS volumes, self snapshots, and active CloudFormation stacks.
+  Direct checks confirmed the two ECR repositories plus the GitHub OIDC provider and five
+  allowlisted IAM roles remain. The scoped identity cannot list every OIDC provider, so that
+  persistent provider was checked by its known exact identifier instead.
+- **Secret hygiene:** removed the temporary master-password file, all saved plans, kubeconfig,
+  logs, and request artifacts from `/tmp` after teardown.
+- **AWS cost:** provisional conservative working estimate is no more than USD 4; recheck the
+  billing console after usage data updates before another AWS session.
+- **Next action:** before reopening P7.1, rehearse a bounded order-proof procedure locally and
+  use an independently enforced session deadline. Then open a fresh short-lived RDS session only
+  after a new preflight and cost check; record a public synthetic-order confirmation before
+  teardown to complete T-701.
+
+### 2026-08-01T13:13:00-06:00 — P7.1 RDS Terraform plan reviewed — Codex
+
+- **Phase/task:** P7.1 remains **IN PROGRESS**. A saved plan was created with
+  `rds_enabled=true`; its sensitive password is supplied only from the owner-created mode-600
+  temporary file and is absent from this evidence.
+- **Plan boundary:** 28 creates, 10 updates, and 4 reads; **zero NAT Gateway changes** and no
+  unplanned AWS service. The temporary create set is the no-NAT VPC, single-Spot-node EKS,
+  EBS CSI add-on/access entries, and the private RDS instance, subnet group, DB security group,
+  and one EKS-source-only PostgreSQL ingress rule.
+- **RDS review:** PostgreSQL 16.14; encrypted, private, Single-AZ `db.t4g.micro`; fixed 20 GiB
+  gp3; zero backup retention; no final snapshot. This matches the short-lived P7.1 design.
+- **Persistent-resource review:** the plan applies standard project tags and rebinds the two
+  workload IAM-role trust policies to the newly created cluster OIDC issuer, with service-account
+  subjects limited to the ALB controller and EBS CSI controller. The GitHub role remains limited
+  to the exact repository's `main` subject and `sts.amazonaws.com` audience. The plan also shows
+  the existing ECR lifecycle policies and IAM policy attachments as Terraform `create` actions
+  because the recovery import helper currently rehydrates their parent resources but not those
+  attachment/lifecycle state addresses; it does not introduce an additional repository, role, or
+  policy. Their intended bounded lifecycle and least-privilege attachments were reviewed before
+  apply.
+- **AWS:** plan only; no infrastructure resource was created, modified, or deleted. Estimated
+  cost remains USD 0. **Next action:** owner approves applying exactly
+  `/tmp/bedoux-p7-1.tfplan`, then observe creation and continue the runbook.
+
+### 2026-08-01T13:01:47-06:00 — P7.1 AWS-session preflight re-established — Codex
+
+- **Phase/task:** P7.1 remains **IN PROGRESS**. Owner reconfirmed the monthly budget's actual
+  and forecast are each below USD 16; same-day teardown deadline is 16:00 MDT.
+- **Preflight:** fresh `bedoux-admin` CLI credentials authenticated as the documented non-root
+  IAM user; region remains pinned to `ca-central-1`. The owner checked billing in the console
+  after the CLI billing calls had rejected the expired credential. Current RDS pricing and the
+  conservative USD 2–4 session envelope were reviewed.
+- **Read-only inventory:** no temporary EKS, RDS instance/snapshot/subnet group, ALB, NAT
+  Gateway, unattached elastic IP/EBS volume, or CloudFormation stack exists. Only the two
+  allowlisted ECR repositories remain. Terraform was reconnected to the encrypted persistent
+  backend and the existing persistent roles, policies, and OIDC provider were imported into
+  session state.
+- **Teardown readiness:** `scripts/terraform-session-destroy.sh` now states its existing
+  `module.rds` target in `--help`; shell syntax and help-text assertion passed. The procedure is
+  available before any apply.
+- **AWS:** no infrastructure resource was created, modified, or deleted. Estimated cost: USD 0.
+- **Next action:** owner makes the one-session RDS master password available only out of band;
+  then create and inspect the explicit `rds_enabled=true` Terraform plan. Stop if it contains a
+  NAT Gateway, an unplanned service, or a projected total above USD 16.
+
+### 2026-08-01T12:41:35-06:00 — P7.1 AWS-session preflight blocked by expired login — Codex
+
+- **Phase/task:** P7.1 remains **IN PROGRESS**. Owner approved opening its AWS session, but the
+  required manual preflight did not complete because the `bedoux-admin` AWS login had expired.
+- **Checks attempted:** pinned region configuration reported `ca-central-1`; subsequent identity,
+  budget, cost, and temporary-resource inventory calls returned AWS CLI session-expired errors.
+  Do not treat the partial output as a valid inventory or budget check.
+- **AWS:** no Terraform plan/apply, Kubernetes mutation, or AWS resource mutation ran. Estimated
+  cost: USD 0.
+- **Next action:** owner reauthenticates `bedoux-admin`; then rerun the entire **Before the
+  session** checklist from the start, set the same-day teardown deadline, and review the explicit
+  RDS plan before creating resources.
 
 ### 2026-08-01T12:31:17-06:00 — P7.1 external-database profile proven locally — Codex
 

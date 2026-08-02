@@ -60,19 +60,23 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   the release (T-602). The improved teardown helper used an explicit state-only preparation step,
   reviewed a plan with exactly 14 temporary EKS/add-on/VPC deletes and no persistent addresses,
   and the final inventory sweep was clean. No temporary AWS resources are live. **P7.1 (RDS
-  module, connectivity, and migration job) is the only in-progress task**; its local proof is now
-  complete, so the next step is a deliberate, time-bounded AWS session after full preflight.
-- **P7.1 implementation is in progress locally (not yet T-701 evidence).** It adds a disabled-by-
+  module, connectivity, and migration job) is the only in-progress task.**
+- **P7.1 remains in progress; do not claim T-701 yet.** It adds a disabled-by-
   default, private, encrypted Single-AZ RDS module with EKS-security-group-only PostgreSQL
   ingress; an external Helm database mode consumes a pre-created `rds-credentials` Secret and
   omits the in-cluster Postgres workload. API/migration/seed readiness uses SQLAlchemy `SELECT 1`
   against the same connection URL the app uses. Offline Terraform/Helm/workflow checks pass. The
   stale kind port-forwarder was repaired by recreating the exact project cluster with the
   documented `Delegate=yes` scope; a disposable external-profile namespace then passed migration,
-  seed, six-product catalog, and persisted-order proof, and was deleted cleanly. Before any P7
-  AWS session, manually complete `aws-session.md`'s preflight, set a same-day deadline, and review
-  the explicit RDS plan. P7.3 still owns the Secrets Manager replacement for the temporary
-  Kubernetes Secret.
+  seed, six-product catalog, and persisted-order proof, and was deleted cleanly. The 2026-08-01
+  AWS session then proved real RDS provisioning, migration/seed Jobs, API/web readiness, and a
+  public catalog smoke through successful GitHub Actions run `30715096011`, followed by a clean
+  full teardown. It did **not** capture the required real RDS-backed order confirmation, so T-701
+  remains incomplete. The session also overran its 16:00 MDT deadline; all temporary resources
+  were nevertheless removed, and future sessions require an independent operator alarm. Before
+  reopening P7.1, rehearse a bounded order-proof procedure locally, complete the full preflight
+  and fresh cost check, set the alarmed same-day deadline, and review a new explicit RDS plan.
+  P7.3 still owns the Secrets Manager replacement for the temporary Kubernetes Secret.
 - Three real findings surfaced and were fixed during P5, each documented with its own ADR
   or PROGRESS entry:
   1. **ADR 0007** — `bedoux-admin`'s scoped IAM policy (`bedoux-iam-scoped`) had a genuine
@@ -131,12 +135,12 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   `image_url`, presigned URL via IRSA in S3 mode, frontend storage-agnostic).
 
 ## What I want next
-All P6 work is complete, but **do not start P7 yet.** The next action is owner approval of the P6
-gate. Once approved, first make the dedicated gate commit exactly
-`Phase 6 gate approved by owner; activate Phase 7`, then set P7 as active in
-`docs/PROGRESS.md`. Before any later AWS mutation, manually walk the full **Before the session**
-checklist in `docs/runbooks/aws-session.md`, review the Terraform plan/cost, set a same-day
-teardown time, and use `bedoux-admin`.
+Continue **P7.1 only**. First improve and rehearse the bounded public synthetic-order proof
+locally; then, only after owner-aware preflight and a fresh billing-console check, open a new
+short-lived RDS session. Manually walk the full **Before the session** checklist in
+`docs/runbooks/aws-session.md`, review the explicit plan/cost, set a same-day teardown deadline
+with an independent operator alarm, and use `bedoux-admin`. Record a public synthetic-order
+confirmation backed by RDS, then tear down on time before considering T-701 complete.
 There is no `/aws-session-start` for Codex: before touching AWS, manually walk the "Before
 the session" checklist in `docs/runbooks/aws-session.md`, and run its teardown sweep before
 ending any AWS session. Never create AWS resources outside that process. If asked to approve

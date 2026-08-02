@@ -120,7 +120,7 @@ scripts/terraform-session-destroy.sh apply --execute
 
 The state-only `prepare` dry run must be reviewed before `prepare --execute`; the latter detaches
 the persistent allowlist and cluster OIDC-provider state before the targeted plan is built. The
-helper then targets EKS, its add-on/access entries, and the VPC only, and deletes the captured
+helper then targets EKS, RDS, its add-on/access entries, and the VPC only, and deletes the captured
 cluster OIDC provider explicitly after the cluster is gone. Do not target
 `module.workload_iam`: its cluster OIDC provider is a dependency of persistent IRSA roles, and a
 targeted destroy can otherwise delete those roles. Complete every **Teardown** item in
