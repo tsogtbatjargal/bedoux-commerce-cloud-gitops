@@ -22,6 +22,9 @@ environment. Slash commands: `/aws-session-start` walks "Before the session",
 - [ ] Confirm no unexpected resources already exist.
 - [ ] Review the current Terraform plan and regional cost estimate.
 - [ ] Set the session end time and teardown reminder.
+- [ ] Set an independent operator alarm for that deadline. Do not allow an agent command or
+      terminal operation to extend the session: begin teardown at the alarm even if evidence
+      capture is still running.
 - [ ] Confirm the destruction command and inventory commands are available.
 - [ ] Record the planned persistent-resource exceptions.
 
@@ -64,4 +67,3 @@ Stop creating resources if:
 - an existing resource cannot be explained;
 - the teardown path has not been tested;
 - a required permission would need broad administrator access without review.
-

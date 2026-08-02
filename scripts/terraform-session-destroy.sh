@@ -18,7 +18,7 @@ the persistent ECR and IAM allowlist. Run only inside an active AWS session.
                    OIDC provider by its exact captured ARN.
 
 Run prepare --execute before plan. Detaching state first keeps Terraform's
-targeted destroy graph limited to EKS, its add-on/access entries, and the VPC;
+targeted destroy graph limited to EKS, RDS, its add-on/access entries, and the VPC;
 otherwise the cluster OIDC dependency can pull persistent IRSA roles into it.
 EOF
 }
