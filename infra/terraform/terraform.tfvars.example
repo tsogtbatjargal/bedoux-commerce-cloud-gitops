@@ -20,3 +20,8 @@ rds_database_name         = "bedoux"
 rds_master_username       = "bedoux"
 rds_instance_class        = "db.t4g.micro"
 rds_allocated_storage_gib = 20
+
+# P7.2 only: keep false for P6/P7.1 sessions. An approved P7.2 session sets
+# s3_images_enabled=true; Terraform stages only the synthetic SVG assets and
+# creates a temporary least-privilege API IRSA role.
+s3_images_enabled = false

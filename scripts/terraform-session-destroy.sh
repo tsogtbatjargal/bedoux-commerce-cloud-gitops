@@ -68,6 +68,7 @@ temporary_targets=(
   module.addons
   module.eks
   module.rds
+  module.product_images
   module.vpc
 )
 

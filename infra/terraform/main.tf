@@ -54,6 +54,20 @@ module "rds" {
   tags                          = local.tags
 }
 
+# P7.2 only: a short-lived private bucket and an IRSA role restricted to its
+# synthetic product-image prefix. This module is intentionally *not* part of
+# the persistent allowlist; the teardown helper destroys it with the session.
+module "product_images" {
+  count  = var.s3_images_enabled ? 1 : 0
+  source = "./modules/s3-images"
+
+  bucket_prefix          = "${var.cluster_name}-product-images-"
+  image_source_directory = "${path.root}/../../apps/web/public/static/products"
+  oidc_provider_arn      = module.workload_iam.oidc_provider_arn
+  oidc_issuer_url        = module.eks.oidc_issuer_url
+  tags                   = local.tags
+}
+
 module "workload_iam" {
   source = "./modules/iam-workload"
 

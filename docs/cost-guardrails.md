@@ -49,7 +49,8 @@ Only these may remain after a session, once their cost is understood:
 
 - Terraform state bucket and state history;
 - small ECR image repositories with lifecycle rules;
-- small S3 product-asset bucket;
+- a small S3 product-asset bucket **only when explicitly approved as persistent**; P7.2's
+  generated learning bucket is deliberately temporary and must be destroyed with its IRSA role;
 - Route 53 hosted zone if a domain is intentionally enabled;
 - IAM roles and policies that carry no hourly charge;
 - budget and anomaly-monitor configuration.
@@ -64,4 +65,3 @@ Pricing and program details must be rechecked before AWS deployment:
 - [Elastic Load Balancing pricing](https://aws.amazon.com/elasticloadbalancing/pricing/)
 - [NAT Gateway pricing](https://docs.aws.amazon.com/vpc/latest/userguide/nat-gateway-pricing.html)
 - [AWS Budgets](https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-create.html)
-

@@ -156,3 +156,9 @@ variable "rds_allocated_storage_gib" {
   type        = number
   default     = 20
 }
+
+variable "s3_images_enabled" {
+  description = "Create the short-lived P7.2 private product-image bucket and API IRSA role. Keep false outside a reviewed P7.2 session."
+  type        = bool
+  default     = false
+}

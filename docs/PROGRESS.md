@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P7 — Managed data services |
-| Active task | None — P7.1 is complete. P7.2 is NOT STARTED pending owner approval of the S3 adapter boundary. |
+| Active task | P7.2 — S3 images via adapter + workload identity (local implementation in progress; no AWS session open). |
 | Last verified | 2026-08-01T20:54:25-06:00 — T-701 passed in a short-lived RDS session; final teardown sweep was clean. |
 | AWS resources currently live | No temporary AWS resources. Persistent allowlist only: state bucket, two ECR repositories, cluster/node/GitHub deployment roles and policies, ALB-controller role/policy, and GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | Owner confirmed actual and forecast below USD 16 before the 2026-08-01 P7.1 session; billing data lags. Recheck the console before any new session rather than treating the prior value as current. |
-| Next operator action | **P7.2:** obtain explicit owner approval for the pending S3 adapter boundary in `docs/IMPLEMENTATION-PLAN.md` before marking the task IN PROGRESS. Do not open an AWS session until that decision and its local-first implementation are ready. |
+| Next operator action | **P7.2:** complete and verify the local storage-neutral image adapter before planning a time-bounded AWS session for the S3/IRSA proof. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -67,8 +67,9 @@ check can't miss them:
   [ADR 0005](decisions/0005-helm-migration-hook-job.md) (`post-install,pre-upgrade`,
   corrected same-day from an initial `pre-install` design — see the ADR). Full
   install/upgrade/failure/rollback evidence in this file's P3.4 entry below.
-- **P6/P7 boundary**: S3 image adapter — API returns `image_url`, presigned URL via IRSA
-  in S3 mode, frontend storage-agnostic.
+- ~~**P6/P7 boundary**~~ — **DONE 2026-08-02.** [ADR 0011](decisions/0011-s3-presigned-image-adapter.md): API returns storage-neutral `image_url`; static mode returns
+  `/static/products/...`; S3 mode returns an API-generated presigned URL using the pod's
+  scoped IRSA identity; frontend remains storage-agnostic and FastAPI never proxies bytes.
 - ~~**P5 — Spot/gp3**~~ — **DONE 2026-07-23.** [ADR 0006](decisions/0006-spot-node-gp3-pvc.md):
   Spot risk documented explicitly (no multi-node failover engineered); chart-side
   support for a real `gp3` StorageClass (`ebs.csi.aws.com`) landed in
@@ -517,7 +518,9 @@ in P6.5), and T-602 (P6.5) are recorded. The dedicated gate commit records the a
 ### P7 — Managed data services
 
 - [x] P7.1 COMPLETE — RDS + migration job. Evidence: T-701 passed in the 2026-08-01 short-lived RDS session; migration/seed, one bounded public synthetic order, RDS-backed row count, and clean teardown are recorded below.
-- [ ] P7.2 NOT STARTED — S3 images via adapter + workload identity.
+- [ ] P7.2 IN PROGRESS — S3 images via adapter + workload identity. Owner approved the
+      API-side presigned-URL/IRSA boundary on 2026-08-02; ADR 0011 records it. Local-first
+      implementation and tests are next; no AWS session is authorized yet.
 - [ ] P7.3 NOT STARTED — Secrets Manager integration.
 - [ ] P7.4 NOT STARTED — teardown incl. snapshot policy check.
 
@@ -542,6 +545,46 @@ in P6.5), and T-602 (P6.5) are recorded. The dedicated gate commit records the a
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-02T11:41:28-06:00 — P7.2 approved and local S3-adapter implementation underway — Codex
+
+- **Phase/task:** P7.2 is **IN PROGRESS**. Owner approved the S3 adapter boundary before any
+  implementation work. ADR 0011 records the decision: a product keeps a stable `products/...`
+  key, the API returns storage-neutral `image_url`, static mode returns `/static/products/...`,
+  and S3 mode produces a short-lived presigned `GetObject` URL through the API pod's IRSA
+  identity. The frontend has no AWS or storage-provider logic and FastAPI never proxies bytes.
+- **Local application:** added the static/S3 URL resolver, explicit S3-mode configuration
+  validation, `boto3` runtime dependency, and an Alembic migration that renames the historical
+  `image_path` column to `image_key` and converts existing `/static/...` values. The API/web
+  contract now exposes `image_url` only. A disposable local PostgreSQL 16 container on
+  localhost:5433 ran the migration and the full API suite (**18 passed**, one pre-existing
+  FastAPI/TestClient deprecation warning); a downgrade/upgrade cycle converted a seeded legacy
+  value back to `products/bottle-001.svg`. The container and its synthetic data were removed.
+  Current adapter/config/health tests pass (**8 passed**); web tests pass (**9 passed**) and the
+  TypeScript/Vite production build passes.
+- **AWS declarations, not applied:** `s3_images_enabled=false` remains the default. Its opt-in
+  Terraform module declares a private, AES256-encrypted, versioned, force-destroyable temporary
+  bucket; exactly the six version-controlled synthetic SVGs under `products/`; and a temporary
+  `bedoux-product-images-role` whose OIDC trust is bound to only
+  `system:serviceaccount:bedoux:bedoux-api` and whose policy grants only `s3:GetObject` on that
+  bucket's `products/*` prefix. The session-destroy helper explicitly targets this module. Helm
+  has a static default and an S3 overlay that preserves an operator-created IRSA ServiceAccount;
+  CI checks the required ServiceAccount/ConfigMap and, in S3 mode, masks and fetches the returned
+  HTTPS presigned image URL without logging it. `docs/runbooks/p7-2-s3-images-session.md`
+  documents the future preflight, bootstrap, T-702 proof, rollback, and teardown sequence.
+- **Verification:** `terraform fmt -check -recursive` and offline
+  `terraform validate -var=skip_aws_credentials_validation=true` passed. The provider's offline
+  mode now supplies inert credentials so validation cannot fall back to the host AWS profile;
+  Terraform schema validation had to run outside the filesystem sandbox because provider plugins
+  cannot start inside it, not because AWS access was needed. `helm lint`, static and S3 Helm
+  renders plus YAML parsing, workflow YAML parsing, `bash -n` plus `--help` for the changed
+  teardown helper, `git diff --check`, and `make docs-check` all passed. A real local API image
+  build installed `boto3`, completed as the non-root `bedoux` user, and was removed afterward.
+- **AWS:** none. No AWS session was opened, no AWS command was run for this task, and no AWS
+  resource was created or modified.
+- **Next action:** review the local implementation and create a focused PR. P7.2 is not complete
+  until a separately approved, fresh AWS session proves T-702 and its final teardown sweep is
+  clean.
 
 ### 2026-08-01T20:54:25-06:00 — P7.1 T-701 passed against RDS; clean teardown — Codex
 

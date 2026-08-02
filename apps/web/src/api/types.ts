@@ -5,7 +5,7 @@ export interface Product {
   description: string;
   category: string;
   price_cents: number;
-  image_path: string;
+  image_url: string;
 }
 
 export interface OrderItemOut {

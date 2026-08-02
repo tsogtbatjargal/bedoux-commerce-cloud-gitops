@@ -42,3 +42,13 @@ output "rds_port" {
   description = "RDS PostgreSQL port for a P7 session; null while rds_enabled is false."
   value       = try(module.rds[0].port, null)
 }
+
+output "product_images_bucket_name" {
+  description = "Temporary P7.2 bucket name; null while s3_images_enabled is false. Do not commit or retain a presigned URL."
+  value       = try(module.product_images[0].bucket_name, null)
+}
+
+output "product_images_api_role_arn" {
+  description = "Temporary P7.2 API IRSA role ARN; null while s3_images_enabled is false."
+  value       = try(module.product_images[0].api_role_arn, null)
+}

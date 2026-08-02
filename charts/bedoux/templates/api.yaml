@@ -14,6 +14,7 @@ spec:
       labels:
         app: api
     spec:
+      serviceAccountName: {{ .Values.api.serviceAccount.name }}
       # Blocks startup until either the in-cluster database or P7 external RDS
       # accepts the single credential URL consumed by the API.
       initContainers:
@@ -56,6 +57,22 @@ spec:
             # off by default in the AWS session values overlay.
             - name: BEDOUX_ORDERS_ENABLED
               value: {{ .Values.api.ordersEnabled | quote }}
+            - name: BEDOUX_IMAGE_STORAGE_MODE
+              value: {{ .Values.api.imageStorage.mode | quote }}
+            - name: BEDOUX_S3_PRESIGN_EXPIRES_SECONDS
+              value: {{ .Values.api.imageStorage.presignExpiresSeconds | quote }}
+            {{- if eq .Values.api.imageStorage.mode "s3" }}
+            - name: BEDOUX_S3_BUCKET
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ required "api.imageStorage.s3ConfigMapName is required in s3 mode" .Values.api.imageStorage.s3ConfigMapName }}
+                  key: {{ .Values.api.imageStorage.s3BucketKey }}
+            - name: BEDOUX_S3_REGION
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.api.imageStorage.s3ConfigMapName }}
+                  key: {{ .Values.api.imageStorage.s3RegionKey }}
+            {{- end }}
           resources:
             {{- toYaml .Values.api.resources | nindent 12 }}
           # /health deliberately never touches the database (see apps/api/app/main.py)

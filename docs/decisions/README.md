@@ -18,6 +18,7 @@ and flip the old one's status to `Superseded by NNNN`.
 | [0008](0008-alb-no-rewrite-web-proxies-api.md) | ALB Ingress can't rewrite paths — web's own nginx proxies /api internally | Accepted | 2026-07-28 |
 | [0009](0009-github-actions-oidc-least-privilege.md) | GitHub Actions uses a branch-bound OIDC role with namespace-scoped deployment access | Accepted | 2026-07-30 |
 | [0010](0010-local-git-guardrail-for-private-repo.md) | Use a local pre-push guardrail while private-repository branch protection is unavailable | Accepted | 2026-07-30 |
+| [0011](0011-s3-presigned-image-adapter.md) | Keep product-image delivery behind an API-side presigned-S3 adapter | Accepted | 2026-08-02 |
 
 ## Template
 

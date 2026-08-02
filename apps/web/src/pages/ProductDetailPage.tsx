@@ -50,7 +50,7 @@ export function ProductDetailPage() {
     <section aria-label="Product detail">
       <Link to="/">← Back to catalog</Link>
       <h1>{product.name}</h1>
-      <img src={product.image_path} alt="" width={240} height={240} />
+      <img src={product.image_url} alt="" width={240} height={240} />
       <p>{product.description}</p>
       <p>{formatCents(product.price_cents)}</p>
       <button

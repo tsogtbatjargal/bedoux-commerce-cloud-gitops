@@ -18,6 +18,11 @@ on:
         required: true
         default: false
         type: boolean
+      use_s3_images:
+        description: Deploy with P7.2's private S3 image adapter and pre-created API IRSA ServiceAccount.
+        required: true
+        default: false
+        type: boolean
 
 # The role trust policy admits only this repository's main branch. Keep this workflow
 # manually dispatched so a live AWS session is an intentional, time-bounded operation.
@@ -132,6 +137,7 @@ jobs:
           SEED_CATALOG: ${{ inputs.seed_catalog }}
           ROLLBACK_DRILL: ${{ inputs.rollback_drill }}
           USE_RDS: ${{ inputs.use_rds }}
+          USE_S3_IMAGES: ${{ inputs.use_s3_images }}
         shell: bash
         run: |
           set -euo pipefail
@@ -162,6 +168,11 @@ jobs:
           if [[ "$USE_RDS" == "true" ]]; then
             kubectl -n "$KUBERNETES_NAMESPACE" get secret rds-credentials >/dev/null
             helm_args+=(-f charts/bedoux/values-aws-rds.yaml)
+          fi
+          if [[ "$USE_S3_IMAGES" == "true" ]]; then
+            kubectl -n "$KUBERNETES_NAMESPACE" get serviceaccount bedoux-api >/dev/null
+            kubectl -n "$KUBERNETES_NAMESPACE" get configmap bedoux-image-storage >/dev/null
+            helm_args+=(-f charts/bedoux/values-aws-s3.yaml)
           fi
           if [[ "$SEED_CATALOG" == "true" ]]; then
             helm_args+=(--set seed.enabled=true)
@@ -195,6 +206,8 @@ jobs:
           printf '%s\n' 'Atomic rollback restored the prior web image and public health endpoint.'
 
       - name: Smoke-test the public ALB route
+        env:
+          USE_S3_IMAGES: ${{ inputs.use_s3_images }}
         shell: bash
         run: |
           set -euo pipefail
@@ -219,3 +232,13 @@ jobs:
           python -c 'import json; response = json.load(open("/tmp/bedoux-health.json")); assert response == {"status": "ok", "orders_enabled": False}, response'
           curl --fail --silent --show-error --connect-timeout 10 "$base_url/api/products?limit=1" > /tmp/bedoux-products.json
           python -c 'import json; products = json.load(open("/tmp/bedoux-products.json")); assert len(products) >= 1, products'
+          if [[ "$USE_S3_IMAGES" == "true" ]]; then
+            image_url="$(python -c 'import json; print(json.load(open("/tmp/bedoux-products.json"))[0]["image_url"])')"
+            echo "::add-mask::$image_url"
+            case "$image_url" in
+              https://*) ;;
+              *) echo "expected an S3 presigned HTTPS product image URL" >&2; exit 1 ;;
+            esac
+            curl --fail --silent --show-error --connect-timeout 10 "$image_url" -o /tmp/bedoux-product-image.svg
+            test -s /tmp/bedoux-product-image.svg
+          fi

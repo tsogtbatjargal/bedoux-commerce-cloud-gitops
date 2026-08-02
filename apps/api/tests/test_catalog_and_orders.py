@@ -18,6 +18,8 @@ def test_catalog_happy_path_and_order_confirmation(client, db_engine):
     assert listed.status_code == 200
     products = listed.json()
     assert len(products) == len(CATALOG)
+    assert all(product["image_url"].startswith("/static/products/") for product in products)
+    assert all("image_path" not in product for product in products)
 
     # Filter by category.
     kitchen = client.get("/products", params={"category": "kitchen"})

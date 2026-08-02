@@ -16,11 +16,11 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
 ## First actions
 1. Read START-HERE.md, then AGENTS.md, then docs/PROGRESS.md (the only authoritative state).
 2. Verify the last checkpoint before changing anything.
-3. Check docs/IMPLEMENTATION-PLAN.md's "Pending owner-approved decisions" section — only
-   one item remains open (the P6/P7 S3 adapter boundary); the two P5-scoped decisions are
-   done (ADR 0006, and the kill switch/request bounds).
+3. Check docs/IMPLEMENTATION-PLAN.md's "Pending owner-approved decisions" section — all
+   phase-start decisions are now recorded: ADR 0006, the kill switch/request bounds, and
+   ADR 0011's P7.2 S3 adapter boundary.
 
-## Current state (as of 2026-08-01)
+## Current state (as of 2026-08-02)
 - Phases 0-4 complete, gates approved. Local app (FastAPI + Postgres + React) proven on
   Compose (P2), then on kind with a Helm chart (P3, ADR 0005), with real drills throughout.
   AWS account readiness done in P4: non-root IAM identity `bedoux-admin`, region
@@ -77,6 +77,14 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   RDS-backed row. Ordering was restored disabled and the final teardown sweep was clean before the
   deadline. P7.2, not P7.1, is next; P7.3 still owns the Secrets Manager replacement for the
   temporary Kubernetes Secret.
+- **P7.2 is IN PROGRESS, local-only so far.** Owner approved ADR 0011: product records keep a
+  stable `products/...` key, the API returns storage-neutral `image_url`, static mode returns
+  the existing web asset URL, and S3 mode generates a short-lived presigned `GetObject` URL via
+  the API pod's IRSA identity. The private, temporary S3 bucket is declared with public access
+  blocked, encryption/versioning, six synthetic staged SVGs, and a role limited to
+  `s3:GetObject` on `products/*`; it is not persistent. The local migration, API/web tests,
+  rendered Helm profiles, Terraform validation, and real API image build are being verified
+  before an AWS session is requested. P7.3 still owns Secrets Manager.
 - Three real findings surfaced and were fixed during P5, each documented with its own ADR
   or PROGRESS entry:
   1. **ADR 0007** — `bedoux-admin`'s scoped IAM policy (`bedoux-iam-scoped`) had a genuine
@@ -130,17 +138,15 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   ECR/EKS permissions and `bedoux`-namespace edit access.
 - ADR 0010: until server-side protection becomes available, block direct local `main` pushes
   with the documented pre-push guardrail; never claim that it protects other clones or GitHub UI.
-- One decision remains pending, not yet implemented — see docs/IMPLEMENTATION-PLAN.md's
-  "Pending owner-approved decisions": the P6/P7 S3 image adapter boundary (API returns
-  `image_url`, presigned URL via IRSA in S3 mode, frontend storage-agnostic).
+- ADR 0011: API image delivery is storage-neutral (`image_url`); S3 mode uses a private bucket
+  and API-side presigned URLs through a ServiceAccount-specific IRSA role, never an image proxy.
 
 ## What I want next
-P7.1 is complete. Do **not** begin P7.2 until the owner explicitly approves the S3 image adapter
-boundary in `docs/IMPLEMENTATION-PLAN.md`: API returns `image_url`, presigned URLs use IRSA in S3
-mode, and the frontend remains storage-agnostic. Once approved, mark P7.2 IN PROGRESS and perform
-its local-first implementation and verification before seeking AWS-session approval. Any later
-AWS session still requires a fresh cost check, the complete preflight, an independently alarmed
-same-day deadline, and the final teardown sweep.
+Finish P7.2's local verification and review its changes. Do not open an AWS session until the
+local implementation is merged and the owner explicitly authorizes a fresh P7.2 session. That
+session requires a fresh cost check, the complete preflight, an independently alarmed same-day
+deadline, and the final teardown sweep. Use `docs/runbooks/p7-2-s3-images-session.md` alongside
+the standard AWS-session checklist.
 There is no `/aws-session-start` for Codex: before touching AWS, manually walk the "Before
 the session" checklist in `docs/runbooks/aws-session.md`, and run its teardown sweep before
 ending any AWS session. Never create AWS resources outside that process. If asked to approve
