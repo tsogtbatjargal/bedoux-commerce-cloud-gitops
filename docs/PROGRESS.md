@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P7 — Managed data services |
-| Active task | P7.2 — S3 images via adapter + workload identity (local implementation in progress; no AWS session open). |
-| Last verified | 2026-08-01T20:54:25-06:00 — T-701 passed in a short-lived RDS session; final teardown sweep was clean. |
+| Active task | P7.3 — Secrets Manager integration (not started). |
+| Last verified | 2026-08-02T12:55:45-06:00 — T-702 passed in a short-lived S3/IRSA session; final teardown sweep was clean. |
 | AWS resources currently live | No temporary AWS resources. Persistent allowlist only: state bucket, two ECR repositories, cluster/node/GitHub deployment roles and policies, ALB-controller role/policy, and GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | Owner confirmed actual and forecast below USD 16 before the 2026-08-01 P7.1 session; billing data lags. Recheck the console before any new session rather than treating the prior value as current. |
-| Next operator action | **P7.2:** complete and verify the local storage-neutral image adapter before planning a time-bounded AWS session for the S3/IRSA proof. |
+| Next operator action | **P7.3:** plan and implement the local Secrets Manager credential boundary; do not open AWS until its local proof and a fresh, explicitly approved session plan exist. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -518,9 +518,10 @@ in P6.5), and T-602 (P6.5) are recorded. The dedicated gate commit records the a
 ### P7 — Managed data services
 
 - [x] P7.1 COMPLETE — RDS + migration job. Evidence: T-701 passed in the 2026-08-01 short-lived RDS session; migration/seed, one bounded public synthetic order, RDS-backed row count, and clean teardown are recorded below.
-- [ ] P7.2 IN PROGRESS — S3 images via adapter + workload identity. Owner approved the
-      API-side presigned-URL/IRSA boundary on 2026-08-02; ADR 0011 records it. Local-first
-      implementation and tests are next; no AWS session is authorized yet.
+- [x] P7.2 COMPLETE — S3 images via adapter + workload identity. Evidence: T-702 passed in
+      the 2026-08-02 short-lived session: successful CI migration/seed/rollout and masked
+      direct-S3 image smoke, API-pod IRSA caller assertion, policy review limited to
+      `s3:GetObject` on `products/*`, and a clean teardown sweep.
 - [ ] P7.3 NOT STARTED — Secrets Manager integration.
 - [ ] P7.4 NOT STARTED — teardown incl. snapshot policy check.
 
@@ -545,6 +546,38 @@ in P6.5), and T-602 (P6.5) are recorded. The dedicated gate commit records the a
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-02T12:55:45-06:00 — P7.2 T-702 passed; clean S3/IRSA teardown — Codex
+
+- **Phase/task:** P7.2 is **COMPLETE**. The owner manually completed the AWS-session
+  preflight: non-root `bedoux-admin`, pinned region, spend below the USD 16 stop threshold,
+  clean initial inventory, reviewed no-NAT Terraform plan, and an independent 20:00 MDT
+  teardown alarm. The reviewed plan created only the temporary no-NAT EKS/RDS learning
+  profile plus the P7.2 private product-image bucket, six synthetic SVGs, and scoped API IRSA
+  role/policy; no public bucket policy or ACL was present.
+- **T-702 evidence:** GitHub Actions run `30761203972` succeeded with RDS, S3-image, and
+  catalog-seed modes enabled. It completed the migration/seed, workload rollout, and its public
+  smoke: the catalog returned storage-neutral `image_url`; the workflow masked the presigned
+  HTTPS URL and fetched the image directly from S3 without logging it. From inside the deployed
+  API pod, the STS assertion printed `API IRSA caller identity: expected role`. Terraform policy
+  review confirmed only `s3:GetObject` on the temporary bucket's `products/*` prefix.
+- **Teardown and hardening:** application release/namespace and controller were removed before the
+  guarded session destroy. The reviewed destroy plan had 32 temporary deletes, including the
+  product-images bucket, six objects, and image-read IRSA identity; it had zero persistent
+  addresses and zero NAT resources. The optional S3 module can be disabled in the normal
+  profile, so the destroy helper now detects it in state and explicitly enables it for the
+  destruction-only graph. `bash -n` passed and the regenerated plan included the module.
+- **Final sweep:** zero EKS clusters, RDS instances/manual snapshots/subnet groups, ALBs/target
+  groups, project VPCs/security groups, NAT gateways/EIPs, available project EBS volumes,
+  project snapshots, CloudFormation stacks, product-image buckets, image-read role, or image-read
+  policy. The session cluster OIDC provider was absent. The persistent GitHub OIDC provider and
+  two ECR repositories remain; the single persistent state bucket remains. The scoped IAM policy
+  prevents broad IAM enumeration, so the temporary policy and provider checks used direct lookup
+  rather than listing. Session-local password, saved plans, and logs were deleted.
+- **Cost:** conservatively estimated under USD 4 for this short-lived session; billing data
+  lags. No temporary billable resources remain.
+- **Next action:** P7.3 is not started. Implement and prove its local Secrets Manager credential
+  boundary before requesting a fresh, independently alarmed AWS session.
 
 ### 2026-08-02T11:41:28-06:00 — P7.2 approved and local S3-adapter implementation underway — Codex
 
