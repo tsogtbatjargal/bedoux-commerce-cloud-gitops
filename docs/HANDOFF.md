@@ -30,7 +30,7 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   cluster, node group, ALB, and app deployment were created, exercised, and torn down
   same-day. No AWS resources are currently live — confirmed via a full
   teardown sweep, not assumed.
-- **Phase 6 is active; P6.1–P6.3 are complete.** Terraform now recreates the P5
+- **Phase 6 is complete; its gate is owner-approved.** Terraform now recreates the P5
   learning profile with a public-only VPC (no NAT), EKS 1.34, one Spot `t3.medium` node,
   ECR lifecycle policy, IRSA/OIDC, EBS CSI, and controller permissions. P6.2 proved a
   real Terraform apply/verify/destroy cycle: cluster access initially failed because the
@@ -75,16 +75,17 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   Its bounded `scripts/verify-order-proof.sh` procedure created and read back exactly one
   quantity-one public synthetic order, then a direct API workload query confirmed exactly one
   RDS-backed row. Ordering was restored disabled and the final teardown sweep was clean before the
-  deadline. P7.2, not P7.1, is next; P7.3 still owns the Secrets Manager replacement for the
-  temporary Kubernetes Secret.
-- **P7.2 is IN PROGRESS, local-only so far.** Owner approved ADR 0011: product records keep a
-  stable `products/...` key, the API returns storage-neutral `image_url`, static mode returns
-  the existing web asset URL, and S3 mode generates a short-lived presigned `GetObject` URL via
-  the API pod's IRSA identity. The private, temporary S3 bucket is declared with public access
-  blocked, encryption/versioning, six synthetic staged SVGs, and a role limited to
-  `s3:GetObject` on `products/*`; it is not persistent. The local migration, API/web tests,
-  rendered Helm profiles, Terraform validation, and real API image build are being verified
-  before an AWS session is requested. P7.3 still owns Secrets Manager.
+  deadline. P7.2 then completed its S3/IRSA proof; P7.3 owns the Secrets Manager replacement for
+  the temporary Kubernetes Secret.
+- **P7.2 is complete — T-702 was proven 2026-08-02.** ADR 0011's storage-neutral boundary is
+  live: product records keep a stable `products/...` key; static mode returns the web asset URL;
+  S3 mode returns an API-generated presigned `GetObject` URL through a ServiceAccount-specific
+  IRSA role. Successful GitHub Actions run `30761203972` passed migration/seed/rollout and its
+  masked direct-S3 image smoke; an API-pod STS assertion confirmed the expected image-read role.
+  The temporary private/encrypted/versioned S3 bucket, its six synthetic objects, scoped role and
+  policy, RDS, EKS, and VPC were all removed in the same session. The final sweep was clean;
+  only the approved state bucket, two ECR repositories, and no-hourly-cost IAM/OIDC allowlist
+  remain. P7.3 owns the Secrets Manager replacement for the temporary Kubernetes Secret.
 - Three real findings surfaced and were fixed during P5, each documented with its own ADR
   or PROGRESS entry:
   1. **ADR 0007** — `bedoux-admin`'s scoped IAM policy (`bedoux-iam-scoped`) had a genuine
@@ -142,11 +143,10 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   and API-side presigned URLs through a ServiceAccount-specific IRSA role, never an image proxy.
 
 ## What I want next
-Finish P7.2's local verification and review its changes. Do not open an AWS session until the
-local implementation is merged and the owner explicitly authorizes a fresh P7.2 session. That
-session requires a fresh cost check, the complete preflight, an independently alarmed same-day
-deadline, and the final teardown sweep. Use `docs/runbooks/p7-2-s3-images-session.md` alongside
-the standard AWS-session checklist.
+Begin P7.3 locally: design and implement the Secrets Manager credential boundary, with local
+tests and documentation first. Do not open an AWS session until that implementation is merged and
+the owner explicitly authorizes a fresh P7.3 session. That session requires a fresh cost check,
+the complete preflight, an independently alarmed same-day deadline, and the final teardown sweep.
 There is no `/aws-session-start` for Codex: before touching AWS, manually walk the "Before
 the session" checklist in `docs/runbooks/aws-session.md`, and run its teardown sweep before
 ending any AWS session. Never create AWS resources outside that process. If asked to approve

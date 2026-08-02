@@ -104,10 +104,11 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   used the bounded verifier to create and read back one synthetic public order. A direct API
   workload query confirmed exactly one RDS-backed order row and the kill switch was restored to
   disabled. Teardown began ahead of the independently alarmed deadline and the final sweep was
-  clean; no temporary AWS resources are live. **P7.2 is IN PROGRESS as of 2026-08-02:** owner
-  approved ADR 0011's storage-neutral `image_url` boundary; the local static/S3 adapter,
-  migration, Terraform S3/IRSA declaration, Helm overlay, CI smoke, and session runbook are
-  being implemented and verified before any new AWS session is requested.
+  clean; no temporary AWS resources are live. **P7.2 is complete — T-702 passed
+  2026-08-02:** GitHub Actions run `30761203972` proved S3-backed `image_url` responses and its
+  masked direct-image smoke; an API-pod STS assertion proved the scoped image-read IRSA role.
+  The temporary S3/IRSA/RDS/EKS session was torn down cleanly, including the image bucket and its
+  six synthetic objects. **P7.3 (Secrets Manager) is next and not started.**
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

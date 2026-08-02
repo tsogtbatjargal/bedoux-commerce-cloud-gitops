@@ -121,7 +121,18 @@ if [[ "$action" == "plan" ]]; then
     target_args+=("-target=$target")
   done
 
-  terraform -chdir="$terraform_dir" plan -destroy "${target_args[@]}" -out="$plan_file"
+  # P7.2's image bucket is optional in the normal learning profile. Keep its
+  # module explicitly instantiated for a destruction-only plan whenever its
+  # bucket is present in state.
+  product_images_var_args=()
+  if terraform -chdir="$terraform_dir" state list | grep -Fxq \
+    'module.product_images[0].aws_s3_bucket.this'; then
+    product_images_var_args+=("-var=s3_images_enabled=true")
+    printf '%s\n' 'INFO: including the P7.2 product-images module present in Terraform state.'
+  fi
+
+  terraform -chdir="$terraform_dir" plan -destroy "${target_args[@]}" \
+    "${product_images_var_args[@]}" -out="$plan_file"
 
   planned_deletes="$(terraform -chdir="$terraform_dir" show -json "$plan_file" | jq -r \
     '.resource_changes[] | select(.change.actions == ["delete"]) | .address')"
