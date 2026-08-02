@@ -13,7 +13,7 @@ CATALOG = [
         "description": "Matte-glazed 350ml mug with the Bedoux wordmark.",
         "category": "kitchen",
         "price_cents": 1400,
-        "image_path": "/static/products/mug-001.svg",
+        "image_key": "products/mug-001.svg",
     },
     {
         "sku": "BDX-TOTE-001",
@@ -21,7 +21,7 @@ CATALOG = [
         "description": "Heavyweight cotton canvas tote, natural finish.",
         "category": "bags",
         "price_cents": 2200,
-        "image_path": "/static/products/tote-001.svg",
+        "image_key": "products/tote-001.svg",
     },
     {
         "sku": "BDX-TEE-001",
@@ -29,7 +29,7 @@ CATALOG = [
         "description": "Organic cotton crewneck, screen-printed logo.",
         "category": "apparel",
         "price_cents": 2800,
-        "image_path": "/static/products/tee-001.svg",
+        "image_key": "products/tee-001.svg",
     },
     {
         "sku": "BDX-CAP-001",
@@ -37,7 +37,7 @@ CATALOG = [
         "description": "Structured five-panel cap, embroidered front.",
         "category": "apparel",
         "price_cents": 2500,
-        "image_path": "/static/products/cap-001.svg",
+        "image_key": "products/cap-001.svg",
     },
     {
         "sku": "BDX-STK-001",
@@ -45,7 +45,7 @@ CATALOG = [
         "description": "Set of six vinyl die-cut stickers.",
         "category": "accessories",
         "price_cents": 900,
-        "image_path": "/static/products/sticker-001.svg",
+        "image_key": "products/sticker-001.svg",
     },
     {
         "sku": "BDX-BOTL-001",
@@ -53,7 +53,7 @@ CATALOG = [
         "description": "500ml double-wall stainless steel bottle.",
         "category": "kitchen",
         "price_cents": 3200,
-        "image_path": "/static/products/bottle-001.svg",
+        "image_key": "products/bottle-001.svg",
     },
 ]
 

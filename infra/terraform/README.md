@@ -42,6 +42,11 @@ separate persistent state bucket before migrating this root state to S3.
   requirement; no NAT Gateway is added. A session enables it with
   `-var=rds_enabled=true` and an out-of-band `TF_VAR_rds_master_password`.
   See [`docs/runbooks/p7-1-rds-session.md`](../../docs/runbooks/p7-1-rds-session.md).
+- P7.2 adds an **opt-in only** product-image module. With `s3_images_enabled=true`, it
+  creates a private, encrypted, versioned, force-destroyable session bucket, stages only the
+  six version-controlled synthetic SVGs under `products/`, and creates a temporary API IRSA
+  role with only `s3:GetObject` on that prefix. It is not on the persistent-resource allowlist
+  and must be included in the reviewed session-destroy plan.
 
 ## P6.1 validation
 

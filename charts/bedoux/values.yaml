@@ -12,6 +12,20 @@ api:
   # session profile overrides this to "false" via values-aws.yaml — see
   # docs/IMPLEMENTATION-PLAN.md's pending decision #4.
   ordersEnabled: true
+  serviceAccount:
+    # The default local/kind ServiceAccount has no AWS permissions. P7.2's AWS
+    # overlay uses an operator-created ServiceAccount with a temporary IRSA
+    # annotation instead, so a CI Helm upgrade cannot remove that annotation.
+    create: true
+    name: bedoux-api
+  imageStorage:
+    # ADR 0011: the frontend only receives image_url. Static is local/default;
+    # the P7.2 overlay switches the API to presigned S3 URLs via IRSA.
+    mode: static
+    s3ConfigMapName: ""
+    s3BucketKey: BEDOUX_S3_BUCKET
+    s3RegionKey: BEDOUX_S3_REGION
+    presignExpiresSeconds: 900
   resources:
     requests:
       cpu: 50m

@@ -13,7 +13,7 @@ class ProductOut(BaseModel):
     description: str
     category: str
     price_cents: int
-    image_path: str
+    image_url: str
 
 
 class OrderItemIn(BaseModel):

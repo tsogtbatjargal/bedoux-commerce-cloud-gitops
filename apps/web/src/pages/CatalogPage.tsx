@@ -86,7 +86,7 @@ export function CatalogPage() {
         {products.map((product) => (
           <li key={product.id}>
             <Link to={`/products/${product.id}`}>
-              <img src={product.image_path} alt="" width={80} height={80} />
+              <img src={product.image_url} alt="" width={80} height={80} />
               <span>{product.name}</span>
               <span>{formatCents(product.price_cents)}</span>
             </Link>

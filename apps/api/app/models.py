@@ -22,7 +22,9 @@ class Product(Base):
     description: Mapped[str] = mapped_column(Text, nullable=False, default="")
     category: Mapped[str] = mapped_column(String(100), nullable=False)
     price_cents: Mapped[int] = mapped_column(Integer, nullable=False)
-    image_path: Mapped[str] = mapped_column(String(300), nullable=False)
+    # Storage-neutral key, e.g. products/mug-001.svg. ADR 0011's adapter turns
+    # it into either a local static URL or a short-lived S3 presigned URL.
+    image_key: Mapped[str] = mapped_column(String(300), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
 

@@ -101,13 +101,12 @@ phase below.
    upgrade, a deliberately failed upgrade that didn't touch the running app, and a real
    rollback with data intact — in `docs/PROGRESS.md`'s P3.4 entry.
 
-2. **P6/P7 boundary — S3 image adapter shape.** Record near the end of P6 or when P7
-   opens, before implementing: the API decides `image_url` based on mode — local mode
-   returns `/static/products/...`; S3 mode generates a **presigned S3 URL using the API
-   pod's AWS identity** (this is IRSA — IAM Roles for Service Accounts — name it
-   explicitly when this is written up, since it's the actual platform-engineering skill
-   being demonstrated). The frontend always consumes `image_url` and never knows which
-   backend produced it — no image bytes proxy through FastAPI.
+2. **P6/P7 boundary — S3 image adapter shape. DONE 2026-08-02** — ADR 0011 records
+   the approved shape: the API returns storage-neutral `image_url`; local mode returns
+   `/static/products/...`; S3 mode generates a **presigned S3 URL using the API pod's
+   IRSA (IAM Roles for Service Accounts) identity**. The frontend always consumes
+   `image_url`, never knows which backend produced it, and FastAPI never proxies image
+   bytes.
 
 3. **P5 — accept Spot-node interruption risk; still provision a real gp3 PVC via the
    EBS CSI add-on.** Document explicitly rather than silently accepting: the PVC

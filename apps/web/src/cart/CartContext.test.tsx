@@ -10,7 +10,7 @@ const mug: Product = {
   description: "",
   category: "kitchen",
   price_cents: 1400,
-  image_path: "/static/products/mug-001.svg",
+  image_url: "/static/products/mug-001.svg",
 };
 
 const tote: Product = {
@@ -20,7 +20,7 @@ const tote: Product = {
   description: "",
   category: "bags",
   price_cents: 2200,
-  image_path: "/static/products/tote-001.svg",
+  image_url: "/static/products/tote-001.svg",
 };
 
 beforeEach(() => {

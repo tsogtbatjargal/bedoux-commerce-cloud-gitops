@@ -1,0 +1,11 @@
+# P7.2 AWS-session overlay. The operator creates the named ServiceAccount with
+# its temporary IRSA annotation and a non-secret ConfigMap holding the runtime
+# bucket name/region. Neither value is committed: the bucket name is generated
+# per session and the role ARN contains the AWS account number.
+api:
+  serviceAccount:
+    create: false
+    name: bedoux-api
+  imageStorage:
+    mode: s3
+    s3ConfigMapName: bedoux-image-storage

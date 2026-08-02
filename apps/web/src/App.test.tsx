@@ -13,7 +13,7 @@ const mug: Product = {
   description: "A mug.",
   category: "kitchen",
   price_cents: 1400,
-  image_path: "/static/products/mug-001.svg",
+  image_url: "/static/products/mug-001.svg",
 };
 
 function jsonResponse(body: unknown, status = 200) {
