@@ -1,10 +1,19 @@
 import json
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
 
 from app.config import Settings
 from app.database_credentials import resolve_database_url
+
+
+def test_alembic_uses_the_shared_database_credential_boundary():
+    migration_env = Path(__file__).parents[1] / "migrations" / "env.py"
+    source = migration_env.read_text()
+
+    assert "database_url = resolve_database_url()" in source
+    assert "settings.database_url" not in source
 
 
 def test_local_profile_keeps_database_url_without_an_aws_client():
