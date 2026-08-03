@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P7 — Managed data services |
 | Active task | P7.3 — Secrets Manager integration (IN PROGRESS). |
-| Last verified | 2026-08-03T13:50:25-06:00 — P7.3 local credential-boundary proof passed; no AWS session opened. |
-| AWS resources currently live | No temporary AWS resources. Persistent allowlist only: state bucket, two ECR repositories, cluster/node/GitHub deployment roles and policies, ALB-controller role/policy, and GitHub OIDC provider. |
+| Last verified | 2026-08-03T15:52:35-06:00 — P7.3 AWS apply succeeded; first focused workflow failed at the Alembic migration hook because migration configuration bypassed the shared resolver. |
+| AWS resources currently live | P7.3 session live until the independently alarmed 20:00 MDT deadline: no-NAT EKS 1.34 learning cluster, one Spot node, EBS CSI, ALB controller, short-lived Single-AZ RDS, and temporary Secrets Manager/IRSA resources. Persistent allowlist remains attached. |
 | Month-to-date estimated AWS spend | Owner confirmed actual and forecast below USD 16 before the 2026-08-01 P7.1 session; billing data lags. Recheck the console before any new session rather than treating the prior value as current. |
-| Next operator action | **P7.3:** complete local Secrets Manager credential-boundary proof; do not open AWS until that proof and a fresh, explicitly approved session plan exist. |
+| Next operator action | **P7.3:** merge PR #20 (`Fix P7.3 Alembic Secrets Manager resolution`), then rerun the focused workflow in the same approved session. Do not extend past the 20:00 MDT teardown deadline. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -546,6 +546,27 @@ in P6.5), and T-602 (P6.5) are recorded. The dedicated gate commit records the a
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-03T15:52:35-06:00 — P7.3 first AWS proof diagnosed; Alembic resolver fix in PR #20 — Codex
+
+- **Phase/task:** P7.3 remains **IN PROGRESS**. The approved, alarmed AWS session is still open;
+  no completion or T-703 evidence is claimed.
+- **Preflight/apply:** budget actual was below the USD 16 stop threshold; temporary inventory was
+  empty before apply. The reviewed Terraform plan had 26 creates, 10 in-place updates, 7 reads or
+  no-ops, no deletes/replacements, and zero NAT Gateway changes. Apply completed successfully.
+- **Bootstrap evidence:** EKS reached ready state with one node; `gp3` and namespace bootstrap
+  succeeded; the ALB controller chart 3.4.3 rolled out; `bedoux-api-secrets` exists with the
+  expected IRSA annotation; no Kubernetes `rds-credentials` Secret exists.
+- **First workflow:** focused run `30855771120` on merged `main` failed at `Deploy the Helm release`
+  with migration Job `BackoffLimitExceeded`. Pod evidence showed the init container had the
+  Secrets Manager environment and IRSA web-identity variables, but Alembic attempted the local
+  `localhost:5432` default. This isolated a merged-code gap: `migrations/env.py` used
+  `settings.database_url` instead of `resolve_database_url()`.
+- **Fix:** PR #20 changes Alembic online/offline configuration to use the shared resolver and adds
+  a focused wiring regression assertion. All four PR checks passed; the owner must merge PR #20
+  before the workflow can be rerun from `main`.
+- **Cost/teardown:** the 20:00 MDT alarm remains active. Do not retry until the fix is merged; if
+  it is not merged in time, cleanly tear down the live session and record the failed proof.
 
 ### 2026-08-03T13:50:25-06:00 — P7.3 local Secrets Manager boundary validated — Codex
 
