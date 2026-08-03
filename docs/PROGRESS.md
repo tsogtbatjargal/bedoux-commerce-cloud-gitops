@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P7 — Managed data services |
-| Active task | P7.3 — Secrets Manager integration (not started). |
-| Last verified | 2026-08-02T12:55:45-06:00 — T-702 passed in a short-lived S3/IRSA session; final teardown sweep was clean. |
+| Active task | P7.3 — Secrets Manager integration (IN PROGRESS). |
+| Last verified | 2026-08-03T13:50:25-06:00 — P7.3 local credential-boundary proof passed; no AWS session opened. |
 | AWS resources currently live | No temporary AWS resources. Persistent allowlist only: state bucket, two ECR repositories, cluster/node/GitHub deployment roles and policies, ALB-controller role/policy, and GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | Owner confirmed actual and forecast below USD 16 before the 2026-08-01 P7.1 session; billing data lags. Recheck the console before any new session rather than treating the prior value as current. |
-| Next operator action | **P7.3:** plan and implement the local Secrets Manager credential boundary; do not open AWS until its local proof and a fresh, explicitly approved session plan exist. |
+| Next operator action | **P7.3:** complete local Secrets Manager credential-boundary proof; do not open AWS until that proof and a fresh, explicitly approved session plan exist. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -522,7 +522,7 @@ in P6.5), and T-602 (P6.5) are recorded. The dedicated gate commit records the a
       the 2026-08-02 short-lived session: successful CI migration/seed/rollout and masked
       direct-S3 image smoke, API-pod IRSA caller assertion, policy review limited to
       `s3:GetObject` on `products/*`, and a clean teardown sweep.
-- [ ] P7.3 NOT STARTED — Secrets Manager integration.
+- [ ] P7.3 IN PROGRESS — Secrets Manager integration; local implementation underway, with AWS deliberately unopened.
 - [ ] P7.4 NOT STARTED — teardown incl. snapshot policy check.
 
 ### P8 — Observability and drills
@@ -546,6 +546,50 @@ in P6.5), and T-602 (P6.5) are recorded. The dedicated gate commit records the a
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-03T13:50:25-06:00 — P7.3 local Secrets Manager boundary validated — Codex
+
+- **Phase/task:** P7.3 remains **IN PROGRESS**. The merged P7.2 checkpoint was clean and no
+  temporary AWS resources are live.
+- **Changed:** added ADR 0012 and a shared API credential resolver. Local/kind profiles retain
+  `BEDOUX_DATABASE_URL`; the AWS profile supplies only a Secrets Manager name and region. The
+  API, migration hook, and seed hook call the same resolver. Added an opt-in encrypted
+  Secrets Manager Terraform module with a temporary `bedoux-api-secrets` IRSA role whose policy
+  is limited to `secretsmanager:GetSecretValue` on the exact secret. Added the external Helm
+  profile, workflow input/guards, teardown-helper target detection, and the P7.3 session runbook.
+- **Local proof:** the focused resolver/image-storage suite passed **10/10** without AWS
+  credentials; mocked retrieval asserted the exact secret-name request and malformed documents
+  were rejected. Helm lint passed; default, P7.1 Kubernetes-Secret, and P7.3 Secrets Manager
+  renders passed. The P7.3 render contained no Kubernetes `Secret`, no `rds-credentials`
+  reference, and no `BEDOUX_DATABASE_URL` environment variable; all startup hooks contained
+  `resolve_database_url`. Terraform format/credential-free validation passed in the project
+  toolbox, workflow YAML parsing passed, teardown-script `bash -n` passed, `make docs-check`
+  passed, and `git diff --check` passed.
+- **Known host note:** the full API suite was also attempted. Existing FastAPI `TestClient`
+  tests hang on this host's Python 3.14/httpx runtime even with a minimal FastAPI app and when
+  run alone; this is an environment/runtime limitation, not claimed P7.3 evidence. The focused
+  10-test suite is the local evidence for this task, and CI remains the Python 3.12 validation.
+- **AWS:** none. Estimated session cost: USD 0.
+- **Next action:** review and merge this local implementation, then obtain explicit owner
+  approval for a fresh, cost-checked, independently alarmed P7.3 AWS session. Do not create AWS
+  resources before walking the full manual preflight in `docs/runbooks/aws-session.md`.
+
+### 2026-08-03T11:48:30-06:00 — P7.3 started: local Secrets Manager boundary — Codex
+
+- **Phase/task:** P7.3 is **IN PROGRESS**. The merged P7.2 checkpoint is clean and no
+  temporary AWS resources are live.
+- **Scope:** replace P7.1's one-session `rds-credentials` Kubernetes Secret bootstrap with
+  direct Secrets Manager retrieval through a dedicated, namespace-bound API ServiceAccount
+  and IRSA role. Local/kind and CI validation retain the existing local `DATABASE_URL` path;
+  no AWS session is being opened for this implementation step.
+- **Architecture note:** the boundary will be recorded in ADR 0012 before completion. API,
+  migration, and seed processes will resolve the same JSON `DATABASE_URL` secret through the
+  AWS SDK, so the credential is not copied into a Kubernetes Secret. The existing S3 role
+  remains a separate session-scoped identity; a combined S3+Secrets session is not silently
+  introduced by P7.3.
+- **AWS:** none. Estimated session cost: USD 0.
+- **Next action:** implement the resolver, Terraform secret/IRSA module, Helm profile, CI
+  input, and the P7.3 runbook; then run credential-free local evidence and update this log.
 
 ### 2026-08-02T12:55:45-06:00 — P7.2 T-702 passed; clean S3/IRSA teardown — Codex
 

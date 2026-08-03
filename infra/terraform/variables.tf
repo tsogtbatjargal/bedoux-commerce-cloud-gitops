@@ -157,8 +157,32 @@ variable "rds_allocated_storage_gib" {
   default     = 20
 }
 
+variable "secrets_manager_enabled" {
+  description = "Create the short-lived P7.3 database secret and API IRSA role; requires rds_enabled=true."
+  type        = bool
+  default     = false
+}
+
+variable "secrets_manager_secret_name" {
+  description = "Stable, non-secret name for the short-lived P7.3 database credential."
+  type        = string
+  default     = "bedoux-rds-credentials"
+
+  validation {
+    condition     = can(regex("^bedoux-[a-z0-9-]+$", var.secrets_manager_secret_name))
+    error_message = "The Secrets Manager name must begin with bedoux- and contain only lowercase letters, digits, and hyphens."
+  }
+}
+
 variable "s3_images_enabled" {
   description = "Create the short-lived P7.2 private product-image bucket and API IRSA role. Keep false outside a reviewed P7.2 session."
   type        = bool
   default     = false
+}
+
+check "secrets_manager_requires_rds" {
+  assert {
+    condition     = !var.secrets_manager_enabled || var.rds_enabled
+    error_message = "Enable rds_enabled before enabling the P7.3 database secret."
+  }
 }

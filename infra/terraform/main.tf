@@ -68,6 +68,26 @@ module "product_images" {
   tags                   = local.tags
 }
 
+# P7.3 only: create the temporary database secret and a separate API IRSA role.
+# The secret value is held in encrypted Terraform state and AWS Secrets Manager;
+# it is never rendered into a Kubernetes Secret or committed configuration.
+module "database_secrets" {
+  count  = var.secrets_manager_enabled && var.rds_enabled ? 1 : 0
+  source = "./modules/secrets-manager"
+
+  secret_name = var.secrets_manager_secret_name
+  secret_string = jsonencode({
+    DATABASE_URL = "postgresql+psycopg://${urlencode(var.rds_master_username)}:${urlencode(var.rds_master_password)}@${try(module.rds[0].address, "")}:${try(module.rds[0].port, 5432)}/${urlencode(var.rds_database_name)}"
+  })
+  role_name                 = "bedoux-secrets-manager-role"
+  policy_name               = "bedoux-secrets-manager-policy"
+  oidc_provider_arn         = module.workload_iam.oidc_provider_arn
+  oidc_issuer_url           = module.eks.oidc_issuer_url
+  service_account_namespace = "bedoux"
+  service_account_name      = "bedoux-api-secrets"
+  tags                      = local.tags
+}
+
 module "workload_iam" {
   source = "./modules/iam-workload"
 

@@ -8,8 +8,11 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="BEDOUX_")
 
     # Local-dev-only default. Never a production credential — real deployments
-    # supply DATABASE_URL via Kubernetes Secrets (MVP) or Secrets Manager (P7).
+    # supply DATABASE_URL via the local/Kubernetes-secret path or a P7.3
+    # Secrets Manager name.
     database_url: str = "postgresql+psycopg://bedoux:bedoux@localhost:5432/bedoux"
+    database_secret_name: str | None = None
+    database_secret_region: str = "ca-central-1"
 
     # Order-write kill switch (pending decision #4, docs/IMPLEMENTATION-PLAN.md).
     # Defaults on for local/kind so P2/P3 tests and demos keep working; the AWS

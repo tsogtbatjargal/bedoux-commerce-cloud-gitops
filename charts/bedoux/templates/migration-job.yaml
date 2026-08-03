@@ -37,6 +37,7 @@ spec:
         app: bedoux-migrate
     spec:
       restartPolicy: Never
+      serviceAccountName: {{ .Values.api.serviceAccount.name }}
       initContainers:
         - name: wait-for-postgres
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
@@ -44,10 +45,10 @@ spec:
             - python
             - -c
             - |
-              import os
               import time
               from sqlalchemy import create_engine, text
-              engine = create_engine(os.environ["BEDOUX_DATABASE_URL"], pool_pre_ping=True)
+              from app.database_credentials import resolve_database_url
+              engine = create_engine(resolve_database_url(), pool_pre_ping=True)
               while True:
                   try:
                       with engine.connect() as connection:
@@ -56,19 +57,11 @@ spec:
                   except Exception:
                       time.sleep(1)
           env:
-            - name: BEDOUX_DATABASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "bedoux.databaseCredentialsSecretName" . }}
-                  key: {{ include "bedoux.databaseCredentialsSecretKey" . }}
+            {{- include "bedoux.databaseCredentialEnv" . | nindent 12 }}
       containers:
         - name: migrate
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
           imagePullPolicy: {{ .Values.api.image.pullPolicy }}
           command: ["python", "-m", "alembic", "upgrade", "head"]
           env:
-            - name: BEDOUX_DATABASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "bedoux.databaseCredentialsSecretName" . }}
-                  key: {{ include "bedoux.databaseCredentialsSecretKey" . }}
+            {{- include "bedoux.databaseCredentialEnv" . | nindent 12 }}

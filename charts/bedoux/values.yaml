@@ -73,12 +73,16 @@ postgres:
 
 # The in-cluster database remains the default for Compose/kind/P6. P7.1 switches
 # this to external and supplies a pre-created Kubernetes Secret containing only
-# DATABASE_URL; P7.3 replaces that bootstrap Secret with Secrets Manager.
+# DATABASE_URL; P7.3's AWS overlay selects direct Secrets Manager retrieval.
 database:
   mode: in-cluster
+  credentialSource: kubernetes-secret
   credentialsSecret:
     name: postgres-credentials
     key: DATABASE_URL
+  secretManager:
+    name: ""
+    region: ca-central-1
 
 # Per ADR 0005: fail-fast migration hook, no automatic downgrade on rollback (helm
 # rollback doesn't re-fire pre-upgrade hooks at all, verified live — nothing to

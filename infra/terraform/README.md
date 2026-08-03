@@ -47,6 +47,13 @@ separate persistent state bucket before migrating this root state to S3.
   six version-controlled synthetic SVGs under `products/`, and creates a temporary API IRSA
   role with only `s3:GetObject` on that prefix. It is not on the persistent-resource allowlist
   and must be included in the reviewed session-destroy plan.
+- P7.3 adds an **opt-in only** Secrets Manager module. With both `rds_enabled=true` and
+  `secrets_manager_enabled=true`, it stores one JSON `DATABASE_URL` field in a temporary
+  encrypted secret and creates a separate `bedoux-api-secrets` IRSA role with only
+  `secretsmanager:GetSecretValue` on that secret. The value is never synchronized into a
+  Kubernetes Secret; the API, migration, and seed processes fetch it through the AWS SDK.
+  The module is not on the persistent-resource allowlist and must be included in the reviewed
+  session-destroy plan. See [`docs/runbooks/p7-3-secrets-manager-session.md`](../../docs/runbooks/p7-3-secrets-manager-session.md).
 
 ## P6.1 validation
 
