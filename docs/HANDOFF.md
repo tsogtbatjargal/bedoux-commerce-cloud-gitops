@@ -20,7 +20,7 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
    phase-start decisions are now recorded: ADR 0006, the kill switch/request bounds, and
    ADR 0011's P7.2 S3 adapter boundary.
 
-## Current state (as of 2026-08-02)
+## Current state (as of 2026-08-03)
 - Phases 0-4 complete, gates approved. Local app (FastAPI + Postgres + React) proven on
   Compose (P2), then on kind with a Helm chart (P3, ADR 0005), with real drills throughout.
   AWS account readiness done in P4: non-root IAM identity `bedoux-admin`, region
@@ -85,7 +85,8 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   The temporary private/encrypted/versioned S3 bucket, its six synthetic objects, scoped role and
   policy, RDS, EKS, and VPC were all removed in the same session. The final sweep was clean;
   only the approved state bucket, two ECR repositories, and no-hourly-cost IAM/OIDC allowlist
-  remain. P7.3 owns the Secrets Manager replacement for the temporary Kubernetes Secret.
+  remain. **P7.3 is now IN PROGRESS locally:** ADR 0012 selects direct Secrets Manager retrieval
+  through a separate `bedoux-api-secrets` IRSA identity; no AWS session is open yet.
 - Three real findings surfaced and were fixed during P5, each documented with its own ADR
   or PROGRESS entry:
   1. **ADR 0007** — `bedoux-admin`'s scoped IAM policy (`bedoux-iam-scoped`) had a genuine
@@ -141,11 +142,14 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   with the documented pre-push guardrail; never claim that it protects other clones or GitHub UI.
 - ADR 0011: API image delivery is storage-neutral (`image_url`); S3 mode uses a private bucket
   and API-side presigned URLs through a ServiceAccount-specific IRSA role, never an image proxy.
+- ADR 0012: the P7.3 API, migration, and seed processes retrieve a JSON `DATABASE_URL` directly
+  from a temporary Secrets Manager secret through the exact `bedoux-api-secrets` ServiceAccount;
+  no Kubernetes credential Secret is synchronized.
 
 ## What I want next
-Begin P7.3 locally: design and implement the Secrets Manager credential boundary, with local
-tests and documentation first. Do not open an AWS session until that implementation is merged and
-the owner explicitly authorizes a fresh P7.3 session. That session requires a fresh cost check,
+Continue P7.3 locally: run the final credential-free tests and review the direct Secrets Manager
+boundary. Do not open an AWS session until that implementation is merged and the owner explicitly
+authorizes a fresh P7.3 session. That session requires a fresh cost check,
 the complete preflight, an independently alarmed same-day deadline, and the final teardown sweep.
 There is no `/aws-session-start` for Codex: before touching AWS, manually walk the "Before
 the session" checklist in `docs/runbooks/aws-session.md`, and run its teardown sweep before

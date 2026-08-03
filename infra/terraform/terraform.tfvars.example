@@ -25,3 +25,9 @@ rds_allocated_storage_gib = 20
 # s3_images_enabled=true; Terraform stages only the synthetic SVG assets and
 # creates a temporary least-privilege API IRSA role.
 s3_images_enabled = false
+
+# P7.3 only: keep false outside an approved RDS + Secrets Manager session. The
+# secret value is assembled by Terraform from the out-of-band RDS password and
+# held in encrypted state; never put a password or DATABASE_URL in this file.
+secrets_manager_enabled   = false
+secrets_manager_secret_name = "bedoux-rds-credentials"

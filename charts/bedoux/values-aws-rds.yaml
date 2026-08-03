@@ -1,8 +1,9 @@
 # P7.1 overlay. The RDS endpoint and credential never appear here: the session
 # operator creates rds-credentials in the namespace from an out-of-band value.
-# P7.3 will replace this Kubernetes Secret bootstrap with Secrets Manager.
+# P7.3 layers values-aws-secrets.yaml to replace that bootstrap with Secrets Manager.
 database:
   mode: external
+  credentialSource: kubernetes-secret
   credentialsSecret:
     name: rds-credentials
     key: DATABASE_URL

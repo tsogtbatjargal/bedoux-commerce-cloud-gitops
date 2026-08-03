@@ -52,3 +52,13 @@ output "product_images_api_role_arn" {
   description = "Temporary P7.2 API IRSA role ARN; null while s3_images_enabled is false."
   value       = try(module.product_images[0].api_role_arn, null)
 }
+
+output "database_secret_name" {
+  description = "Temporary P7.3 database secret name; null while secrets_manager_enabled is false."
+  value       = try(module.database_secrets[0].secret_name, null)
+}
+
+output "database_secrets_api_role_arn" {
+  description = "Temporary P7.3 API IRSA role ARN; null while secrets_manager_enabled is false."
+  value       = try(module.database_secrets[0].role_arn, null)
+}

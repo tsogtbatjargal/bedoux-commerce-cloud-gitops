@@ -1,4 +1,6 @@
-{{- if eq .Values.database.mode "in-cluster" }}
+{{- if and (eq .Values.database.mode "in-cluster") (ne .Values.database.credentialSource "kubernetes-secret") }}
+{{- fail "in-cluster database mode requires database.credentialSource=kubernetes-secret" }}
+{{- else if eq .Values.database.mode "in-cluster" }}
 apiVersion: v1
 kind: Secret
 metadata:
@@ -55,7 +57,7 @@ spec:
             - containerPort: 5432
           envFrom:
             - secretRef:
-                name: postgres-credentials
+                name: {{ include "bedoux.databaseCredentialsSecretName" . }}
           env:
             - name: PGDATA
               value: /var/lib/postgresql/data/pgdata

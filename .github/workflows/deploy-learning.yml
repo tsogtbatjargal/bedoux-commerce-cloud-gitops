@@ -14,7 +14,12 @@ on:
         default: false
         type: boolean
       use_rds:
-        description: Deploy against the P7 RDS credential Secret already bootstrapped in the namespace.
+        description: Deploy against the P7 RDS database profile.
+        required: true
+        default: false
+        type: boolean
+      use_secrets_manager:
+        description: Resolve the P7.3 database URL directly from Secrets Manager through the API IRSA role.
         required: true
         default: false
         type: boolean
@@ -137,6 +142,7 @@ jobs:
           SEED_CATALOG: ${{ inputs.seed_catalog }}
           ROLLBACK_DRILL: ${{ inputs.rollback_drill }}
           USE_RDS: ${{ inputs.use_rds }}
+          USE_SECRETS_MANAGER: ${{ inputs.use_secrets_manager }}
           USE_S3_IMAGES: ${{ inputs.use_s3_images }}
         shell: bash
         run: |
@@ -165,9 +171,26 @@ jobs:
             --set-string "web.image.repository=$ECR_REGISTRY/bedoux-web"
             --set-string "web.image.tag=$web_image_tag"
           )
+          if [[ "$USE_SECRETS_MANAGER" == "true" && "$USE_RDS" != "true" ]]; then
+            echo 'use_secrets_manager requires use_rds=true' >&2
+            exit 1
+          fi
+          if [[ "$USE_SECRETS_MANAGER" == "true" && "$USE_S3_IMAGES" == "true" ]]; then
+            echo 'P7.2 S3 and P7.3 Secrets Manager identities are separate; run those proofs independently.' >&2
+            exit 1
+          fi
           if [[ "$USE_RDS" == "true" ]]; then
-            kubectl -n "$KUBERNETES_NAMESPACE" get secret rds-credentials >/dev/null
             helm_args+=(-f charts/bedoux/values-aws-rds.yaml)
+          fi
+          if [[ "$USE_SECRETS_MANAGER" == "true" ]]; then
+            kubectl -n "$KUBERNETES_NAMESPACE" get serviceaccount bedoux-api-secrets >/dev/null
+            if kubectl -n "$KUBERNETES_NAMESPACE" get secret rds-credentials >/dev/null 2>&1; then
+              echo 'refusing to deploy Secrets Manager mode while rds-credentials Kubernetes Secret exists' >&2
+              exit 1
+            fi
+            helm_args+=(-f charts/bedoux/values-aws-secrets.yaml)
+          elif [[ "$USE_RDS" == "true" ]]; then
+            kubectl -n "$KUBERNETES_NAMESPACE" get secret rds-credentials >/dev/null
           fi
           if [[ "$USE_S3_IMAGES" == "true" ]]; then
             kubectl -n "$KUBERNETES_NAMESPACE" get serviceaccount bedoux-api >/dev/null

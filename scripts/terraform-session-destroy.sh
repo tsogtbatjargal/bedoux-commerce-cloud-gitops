@@ -18,7 +18,7 @@ the persistent ECR and IAM allowlist. Run only inside an active AWS session.
                    OIDC provider by its exact captured ARN.
 
 Run prepare --execute before plan. Detaching state first keeps Terraform's
-targeted destroy graph limited to EKS, RDS, its add-on/access entries, and the VPC;
+targeted destroy graph limited to EKS, RDS, P7 managed-data modules, its add-on/access entries, and the VPC;
 otherwise the cluster OIDC dependency can pull persistent IRSA roles into it.
 EOF
 }
@@ -69,6 +69,7 @@ temporary_targets=(
   module.eks
   module.rds
   module.product_images
+  module.database_secrets
   module.vpc
 )
 
@@ -131,8 +132,15 @@ if [[ "$action" == "plan" ]]; then
     printf '%s\n' 'INFO: including the P7.2 product-images module present in Terraform state.'
   fi
 
+  secrets_manager_var_args=()
+  if terraform -chdir="$terraform_dir" state list | grep -Fxq \
+    'module.database_secrets[0].aws_secretsmanager_secret.this'; then
+    secrets_manager_var_args+=("-var=secrets_manager_enabled=true" "-var=rds_enabled=true")
+    printf '%s\n' 'INFO: including the P7.3 database secret module present in Terraform state.'
+  fi
+
   terraform -chdir="$terraform_dir" plan -destroy "${target_args[@]}" \
-    "${product_images_var_args[@]}" -out="$plan_file"
+    "${product_images_var_args[@]}" "${secrets_manager_var_args[@]}" -out="$plan_file"
 
   planned_deletes="$(terraform -chdir="$terraform_dir" show -json "$plan_file" | jq -r \
     '.resource_changes[] | select(.change.actions == ["delete"]) | .address')"
