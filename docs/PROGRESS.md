@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P7 — Managed data services |
-| Active task | P7.3 — Secrets Manager integration (IN PROGRESS). |
-| Last verified | 2026-08-03T15:52:35-06:00 — P7.3 AWS apply succeeded; first focused workflow failed at the Alembic migration hook because migration configuration bypassed the shared resolver. |
-| AWS resources currently live | P7.3 session live until the independently alarmed 20:00 MDT deadline: no-NAT EKS 1.34 learning cluster, one Spot node, EBS CSI, ALB controller, short-lived Single-AZ RDS, and temporary Secrets Manager/IRSA resources. Persistent allowlist remains attached. |
+| Active task | P7.3 — Secrets Manager integration (COMPLETE); P7.4 remains NOT STARTED. |
+| Last verified | 2026-08-03T16:23:26-06:00 — P7.3 T-703 passed: successful Secrets Manager workflow proof and clean teardown sweep. |
+| AWS resources currently live | No temporary AWS resources. Persistent allowlist only: encrypted state bucket, two ECR repositories, cluster/node/GitHub deployment roles and policies, ALB-controller role/policy, GitHub OIDC provider, and their persistent IAM attachments. |
 | Month-to-date estimated AWS spend | Owner confirmed actual and forecast below USD 16 before the 2026-08-01 P7.1 session; billing data lags. Recheck the console before any new session rather than treating the prior value as current. |
-| Next operator action | **P7.3:** merge PR #20 (`Fix P7.3 Alembic Secrets Manager resolution`), then rerun the focused workflow in the same approved session. Do not extend past the 20:00 MDT teardown deadline. |
+| Next operator action | Owner activates P7.4 when ready; do not begin it early. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -522,7 +522,9 @@ in P6.5), and T-602 (P6.5) are recorded. The dedicated gate commit records the a
       the 2026-08-02 short-lived session: successful CI migration/seed/rollout and masked
       direct-S3 image smoke, API-pod IRSA caller assertion, policy review limited to
       `s3:GetObject` on `products/*`, and a clean teardown sweep.
-- [ ] P7.3 IN PROGRESS — Secrets Manager integration; local implementation underway, with AWS deliberately unopened.
+- [x] P7.3 COMPLETE — Secrets Manager integration. Evidence: T-703 passed in the 2026-08-03
+      short-lived session: direct Secrets Manager retrieval through `bedoux-api-secrets` IRSA,
+      migration/seed, API/web rollout, six-product catalog, public health, and clean teardown.
 - [ ] P7.4 NOT STARTED — teardown incl. snapshot policy check.
 
 ### P8 — Observability and drills
@@ -546,6 +548,33 @@ in P6.5), and T-602 (P6.5) are recorded. The dedicated gate commit records the a
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-03T16:23:26-06:00 — P7.3 T-703 passed; successful Secrets Manager proof and clean teardown — Codex
+
+- **Phase/task:** P7.3 is **COMPLETE**. T-703 is recorded; P7.4 remains **NOT STARTED** pending
+  explicit owner activation.
+- **Successful workflow:** run `30856761749` on merged `main` completed successfully with
+  `use_rds=true`, `use_secrets_manager=true`, `seed_catalog=true`, and `use_s3_images=false`.
+  The Helm release deployed at revision 1; API and web deployments rolled out successfully.
+- **Credential-boundary evidence:** migration Job and seed Job each completed successfully;
+  the API used ServiceAccount `bedoux-api-secrets` with only the Secrets Manager name/region
+  environment variables; its IRSA annotation matched the expected role suffix; and the P7.1
+  Kubernetes `rds-credentials` Secret was absent. The merged Alembic fix was required after the
+  first run exposed its localhost fallback.
+- **Public proof:** `/api/health` returned `status=ok` with `orders_enabled=false`; the public
+  catalog returned exactly six products. No secret value, database URL, role ARN, account ID, or
+  ALB hostname was recorded.
+- **T-703 teardown:** Ingress/ALB, Helm release, namespace, and ALB controller were removed.
+  The reviewed destroy plan contained 23 temporary deletes, 0 NAT Gateway deletes, and 0
+  persistent ECR deletes. Final inventory was zero EKS clusters, RDS instances, manual snapshots,
+  automated backups, subnet groups, load balancers, target groups, project VPCs, NAT gateways,
+  EIPs, project EBS volumes, self-owned snapshots, project security groups, and temporary
+  Secrets Manager objects/IRSA role/policy. The two ECR repositories and one state bucket remained.
+- **State/cost hygiene:** persistent Terraform state was re-imported and restored to 19 managed
+  persistent resource addresses; the independently scheduled alarm was canceled after clean
+  teardown; session-local plans/logs and the out-of-band password variable were removed. The
+  preflight budget actual remained below the USD 16 stop threshold.
+- **Next action:** owner explicitly activates P7.4 before any P7.4 implementation or AWS session.
 
 ### 2026-08-03T15:52:35-06:00 — P7.3 first AWS proof diagnosed; Alembic resolver fix in PR #20 — Codex
 
