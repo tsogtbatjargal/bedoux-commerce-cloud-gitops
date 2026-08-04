@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P8 — Observability and operations drills |
-| Active task | P8.1 — app logging + request IDs (NOT STARTED). |
-| Last verified | 2026-08-04T12:21:51-06:00 — owner approved the P7 gate; P8 activated by dedicated gate commit. |
+| Active task | P8.1 — app logging + request IDs (COMPLETE); P8.2 remains NOT STARTED. |
+| Last verified | 2026-08-04T12:37:26-06:00 — P8.1 local JSON log and request-ID proof passed. |
 | AWS resources currently live | No temporary AWS resources. Persistent allowlist only: encrypted state bucket, two ECR repositories, cluster/node/GitHub deployment roles and policies, ALB-controller role/policy, GitHub OIDC provider, and their persistent IAM attachments. |
 | Month-to-date estimated AWS spend | Owner confirmed actual and forecast below USD 16 before the 2026-08-01 P7.1 session; billing data lags. Recheck the console before any new session rather than treating the prior value as current. |
-| Next operator action | Begin P8.1 locally; no temporary AWS session is open. |
+| Next operator action | Owner directs P8.2 when ready; its CloudWatch work requires a fresh, fully preflighted AWS session. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -533,7 +533,9 @@ in P6.5), and T-602 (P6.5) are recorded. The dedicated gate commit records the a
 
 ### P8 — Observability and drills
 
-- [ ] P8.1 NOT STARTED — app logging + request IDs.
+- [x] P8.1 COMPLETE — app logging + request IDs. API stdout now emits one structured JSON
+      completion event per request; a valid `X-Request-ID` UUID is normalized and returned, or a
+      new UUID is generated. Focused Python 3.12 tests and a real local container proof passed.
 - [ ] P8.2 NOT STARTED — CloudWatch dashboard + alarms.
 - [ ] P8.3 NOT STARTED — four troubleshooting drills.
 - [ ] P8.4 NOT STARTED — troubleshooting runbooks.
@@ -552,6 +554,40 @@ in P6.5), and T-602 (P6.5) are recorded. The dedicated gate commit records the a
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-04T12:37:26-06:00 — P8.1 complete: structured JSON logs and request IDs — Codex
+
+- **Phase/task:** P8.1 is **COMPLETE**. P8.2 remains **NOT STARTED**; no AWS session is open.
+- **Changed:** added the dependency-free `app.observability` boundary and one outer API middleware.
+  Every completed request produces one stdout JSON event with only UTC timestamp, level, logger,
+  event, request ID, method, path, status code, and duration. A valid incoming UUID request ID is
+  normalized and returned in `X-Request-ID`; invalid or absent IDs are replaced. The middleware
+  retains the P5 413 body-size guard and also correlates that rejection. Uvicorn access logging is
+  disabled in the image to avoid duplicate plaintext request records.
+- **Safety/documentation:** request bodies, query strings, headers, credentials, and database URLs
+  are outside the fixed event schema. `docs/architecture.md` records the boundary and leaves
+  CloudWatch forwarding, dashboarding, and alarms to P8.2.
+- **Local evidence:** focused `test_observability.py` passed **3/3** in a disposable pinned
+  Python 3.12 container (the CI runtime). A real local API image then served `/health` with a
+  supplied non-sensitive request ID, echoed it in the response header, and emitted the matching
+  JSON completion record to stdout. `compileall`, `git diff --check`, and `make docs-check` passed.
+  The host's Python 3.14 ASGI test runner still hangs on its first request, the pre-existing
+  runtime limitation already recorded for P7.3; it was not used as task evidence.
+- **Cleanup/AWS:** the temporary local container and image were removed. AWS: none; estimated
+  session cost: USD 0.
+- **Next action:** owner directs P8.2 when ready; complete a fresh AWS-session preflight before
+  any CloudWatch resource is created.
+
+### 2026-08-04T12:26:27-06:00 — P8.1 started: local structured logging and request IDs — Codex
+
+- **Phase/task:** P8.1 is **IN PROGRESS**. The merged P7 gate checkpoint is clean; no temporary
+  AWS resources are live and no AWS session is open.
+- **Scope:** add local-first structured JSON API logs and request-ID propagation with focused
+  regression coverage. CloudWatch wiring, dashboards, alarms, drills, and AWS work remain later
+  P8 tasks.
+- **AWS:** none. Estimated session cost: USD 0.
+- **Next action:** inspect the existing FastAPI middleware/logging and test conventions, implement
+  the smallest compatible request-context boundary, then run focused local evidence.
 
 ### 2026-08-04T12:14:13-06:00 — P7.4 activated: teardown and snapshot policy review — Codex
 

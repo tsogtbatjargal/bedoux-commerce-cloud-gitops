@@ -88,7 +88,9 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   remain. **P7.3 and P7.4 are complete:** ADR 0012's direct Secrets Manager retrieval through
   the separate `bedoux-api-secrets` IRSA identity passed live, and the RDS deletion/backup
   policy plus T-703 same-day teardown evidence are recorded. **P7's gate is approved and P8 is
-  active; P8.1 remains not started.**
+  active. P8.1 is complete:** the API emits safe structured JSON completion logs with request-ID
+  propagation, proven in the pinned local runtime and a real local container. P8.2 remains not
+  started and will require a new AWS-session preflight.
 - Three real findings surfaced and were fixed during P5, each documented with its own ADR
   or PROGRESS entry:
   1. **ADR 0007** — `bedoux-admin`'s scoped IAM policy (`bedoux-iam-scoped`) had a genuine
@@ -149,10 +151,9 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   no Kubernetes credential Secret is synchronized.
 
 ## What I want next
-P7's gate is approved and P8 is active. Begin P8.1 locally; do not open an AWS session until a
-later P8 task requires it and its full runbook preflight is complete. Any future AWS session still
-requires a fresh cost check, the complete preflight, an independently alarmed same-day deadline,
-and the final teardown sweep.
+P8.1 is complete. Do not begin P8.2 until the owner directs it; its CloudWatch work requires a
+fresh cost check, the complete preflight, an independently alarmed same-day deadline, and the
+final teardown sweep.
 There is no `/aws-session-start` for Codex: before touching AWS, manually walk the "Before
 the session" checklist in `docs/runbooks/aws-session.md`, and run its teardown sweep before
 ending any AWS session. Never create AWS resources outside that process. If asked to approve
