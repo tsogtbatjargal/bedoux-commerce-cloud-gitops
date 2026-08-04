@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P7 — Managed data services |
-| Active task | P7.3 — Secrets Manager integration (COMPLETE); P7.4 remains NOT STARTED. |
-| Last verified | 2026-08-03T16:23:26-06:00 — P7.3 T-703 passed: successful Secrets Manager workflow proof and clean teardown sweep. |
+| Active task | P7 complete; P8.1 remains NOT STARTED pending the P7 phase-gate approval. |
+| Last verified | 2026-08-04T12:15:30-06:00 — P7.4 complete: RDS snapshot policy verified and T-703 teardown evidence mapped. |
 | AWS resources currently live | No temporary AWS resources. Persistent allowlist only: encrypted state bucket, two ECR repositories, cluster/node/GitHub deployment roles and policies, ALB-controller role/policy, GitHub OIDC provider, and their persistent IAM attachments. |
 | Month-to-date estimated AWS spend | Owner confirmed actual and forecast below USD 16 before the 2026-08-01 P7.1 session; billing data lags. Recheck the console before any new session rather than treating the prior value as current. |
-| Next operator action | Owner activates P7.4 when ready; do not begin it early. |
+| Next operator action | Owner approves the P7 gate before any P8 work; no temporary AWS session is open. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -525,7 +525,11 @@ in P6.5), and T-602 (P6.5) are recorded. The dedicated gate commit records the a
 - [x] P7.3 COMPLETE — Secrets Manager integration. Evidence: T-703 passed in the 2026-08-03
       short-lived session: direct Secrets Manager retrieval through `bedoux-api-secrets` IRSA,
       migration/seed, API/web rollout, six-product catalog, public health, and clean teardown.
-- [ ] P7.4 NOT STARTED — teardown incl. snapshot policy check.
+- [x] P7.4 COMPLETE — same-day teardown incl. snapshot policy check. The RDS module policy is
+      explicitly `deletion_protection=false`, `skip_final_snapshot=true`,
+      `delete_automated_backups=true`, and `backup_retention_period=0`; the existing T-703 live
+      sweep recorded zero RDS instances, manual snapshots, automated backups, and subnet groups
+      after teardown. No additional AWS session was needed.
 
 ### P8 — Observability and drills
 
@@ -548,6 +552,34 @@ in P6.5), and T-602 (P6.5) are recorded. The dedicated gate commit records the a
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-04T12:14:13-06:00 — P7.4 activated: teardown and snapshot policy review — Codex
+
+- **Phase/task:** P7.4 is **IN PROGRESS** by explicit owner instruction. P7.3/T-703 remains the
+  last verified checkpoint; no AWS session is open and no temporary AWS resources are live.
+- **Scope:** verify the RDS learning-profile deletion policy and map the already-recorded T-703
+  same-day teardown sweep to the P7.4 requirements. Do not create another AWS environment unless
+  a required snapshot-policy proof is missing.
+- **Next action:** run credential-free Terraform/module checks and inspect the recorded T-703
+  evidence; then either complete P7.4 with that evidence or open a fresh owner-approved session
+  only if the proof is insufficient.
+
+### 2026-08-04T12:15:30-06:00 — P7.4 complete: snapshot policy and teardown evidence closed — Codex
+
+- **Phase/task:** P7.4 is **COMPLETE**. P7 is now complete at the task level; the P7 phase gate
+  remains pending owner approval before P8 work begins. No AWS session is open.
+- **Policy evidence:** `infra/terraform/modules/rds/main.tf` keeps the learning profile
+  deliberate and cost-bounded: `deletion_protection=false`, `skip_final_snapshot=true`,
+  `delete_automated_backups=true`, and `backup_retention_period=0`. Terraform format check and
+  credential-free validation passed in the documented `bedoux-aws` toolbox; `bash -n
+  scripts/terraform-session-destroy.sh` passed; `make docs-check` passed via the toolbox.
+- **Teardown evidence:** the existing live T-703 sweep already recorded zero RDS instances,
+  manual snapshots, automated backups, and subnet groups, along with zero other temporary
+  resources. The reviewed destroy plan had 23 temporary deletes, zero NAT Gateway deletes, and
+  zero persistent ECR deletes; only the persistent allowlist remained.
+- **AWS:** none created or destroyed in this closeout validation. Estimated cost: USD 0. No new
+  session was opened because the required live teardown evidence already exists.
+- **Next action:** owner approval of the P7 phase gate; do not start P8.1 early.
 
 ### 2026-08-03T16:23:26-06:00 — P7.3 T-703 passed; successful Secrets Manager proof and clean teardown — Codex
 

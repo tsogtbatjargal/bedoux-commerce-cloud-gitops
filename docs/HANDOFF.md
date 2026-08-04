@@ -85,8 +85,10 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   The temporary private/encrypted/versioned S3 bucket, its six synthetic objects, scoped role and
   policy, RDS, EKS, and VPC were all removed in the same session. The final sweep was clean;
   only the approved state bucket, two ECR repositories, and no-hourly-cost IAM/OIDC allowlist
-  remain. **P7.3 is now IN PROGRESS locally:** ADR 0012 selects direct Secrets Manager retrieval
-  through a separate `bedoux-api-secrets` IRSA identity; no AWS session is open yet.
+  remain. **P7.3 and P7.4 are complete:** ADR 0012's direct Secrets Manager retrieval through
+  the separate `bedoux-api-secrets` IRSA identity passed live, and the RDS deletion/backup
+  policy plus T-703 same-day teardown evidence are recorded. P8 remains inactive pending the
+  owner-approved P7 phase gate.
 - Three real findings surfaced and were fixed during P5, each documented with its own ADR
   or PROGRESS entry:
   1. **ADR 0007** — `bedoux-admin`'s scoped IAM policy (`bedoux-iam-scoped`) had a genuine
@@ -147,10 +149,10 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   no Kubernetes credential Secret is synchronized.
 
 ## What I want next
-Continue P7.3 locally: run the final credential-free tests and review the direct Secrets Manager
-boundary. Do not open an AWS session until that implementation is merged and the owner explicitly
-authorizes a fresh P7.3 session. That session requires a fresh cost check,
-the complete preflight, an independently alarmed same-day deadline, and the final teardown sweep.
+P7 is complete at the task level. Do not begin P8 until the owner explicitly approves the P7
+phase gate in its own commit ("Phase 7 gate approved by owner; activate Phase 8"). Any future AWS
+session still requires a fresh cost check, the complete preflight, an independently alarmed
+same-day deadline, and the final teardown sweep.
 There is no `/aws-session-start` for Codex: before touching AWS, manually walk the "Before
 the session" checklist in `docs/runbooks/aws-session.md`, and run its teardown sweep before
 ending any AWS session. Never create AWS resources outside that process. If asked to approve
