@@ -62,3 +62,8 @@ output "database_secrets_api_role_arn" {
   description = "Temporary P7.3 API IRSA role ARN; null while secrets_manager_enabled is false."
   value       = try(module.database_secrets[0].role_arn, null)
 }
+
+output "cloudwatch_application_log_group_name" {
+  description = "Temporary P8 application log group; null while observability_enabled is false."
+  value       = try(module.observability[0].application_log_group_name, null)
+}

@@ -20,7 +20,7 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
    phase-start decisions are now recorded: ADR 0006, the kill switch/request bounds, and
    ADR 0011's P7.2 S3 adapter boundary.
 
-## Current state (as of 2026-08-03)
+## Current state (as of 2026-08-04)
 - Phases 0-4 complete, gates approved. Local app (FastAPI + Postgres + React) proven on
   Compose (P2), then on kind with a Helm chart (P3, ADR 0005), with real drills throughout.
   AWS account readiness done in P4: non-root IAM identity `bedoux-admin`, region
@@ -89,8 +89,11 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   the separate `bedoux-api-secrets` IRSA identity passed live, and the RDS deletion/backup
   policy plus T-703 same-day teardown evidence are recorded. **P7's gate is approved and P8 is
   active. P8.1 is complete:** the API emits safe structured JSON completion logs with request-ID
-  propagation, proven in the pinned local runtime and a real local container. P8.2 remains not
-  started and will require a new AWS-session preflight.
+  propagation, proven in the pinned local runtime and a real local container. **P8.2 is in
+  progress locally:** Terraform and its session runbook declare temporary three-day CloudWatch
+  Container Insights logs, an IRSA-restricted agent, JSON-log metric filters, dashboard, and
+  notification-free alarms. Offline Terraform, shell, and docs checks pass. No AWS session is
+  open and no CloudWatch resource exists yet.
 - Three real findings surfaced and were fixed during P5, each documented with its own ADR
   or PROGRESS entry:
   1. **ADR 0007** — `bedoux-admin`'s scoped IAM policy (`bedoux-iam-scoped`) had a genuine
@@ -151,8 +154,12 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   no Kubernetes credential Secret is synchronized.
 
 ## What I want next
-P8.1 is complete. Do not begin P8.2 until the owner directs it; its CloudWatch work requires a
-fresh cost check, the complete preflight, an independently alarmed same-day deadline, and the
+P8.2 is the only active item. Review and merge its local Terraform/runbook change set, then open
+a fresh P8.2 AWS session only after a current cost check, the complete preflight, an independently
+alarmed same-day deadline, and a reviewed plan. The session selects an exact compatible
+`amazon-cloudwatch-observability` add-on version; it must not use `latest`. Apply infrastructure
+without alarms first, deploy the normal RDS/Secrets Manager profile, then discover only the ALB
+ARN suffix and review the second plan that adds the four notification-free alarms. Complete the
 final teardown sweep.
 There is no `/aws-session-start` for Codex: before touching AWS, manually walk the "Before
 the session" checklist in `docs/runbooks/aws-session.md`, and run its teardown sweep before

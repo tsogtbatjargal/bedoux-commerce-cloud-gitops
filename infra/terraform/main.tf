@@ -105,6 +105,24 @@ module "addons" {
   tags              = local.tags
 }
 
+# P8.2 only: CloudWatch Container Insights, structured application-log metrics,
+# dashboard, and no-action alarms. Everything in this module is session-temporary;
+# keep it disabled outside a reviewed P8 exercise.
+module "observability" {
+  count  = var.observability_enabled ? 1 : 0
+  source = "./modules/observability"
+
+  cluster_name             = module.eks.cluster_name
+  oidc_provider_arn        = module.workload_iam.oidc_provider_arn
+  oidc_issuer_url          = module.eks.oidc_issuer_url
+  cloudwatch_addon_version = var.cloudwatch_observability_addon_version
+  log_retention_days       = var.cloudwatch_log_retention_days
+  alarms_enabled           = var.observability_alarms_enabled
+  alb_arn_suffix           = var.observability_alb_arn_suffix
+  rds_instance_identifier  = try(module.rds[0].identifier, "")
+  tags                     = local.tags
+}
+
 module "ecr" {
   source = "./modules/ecr"
 
@@ -133,5 +151,19 @@ check "rds_password_when_enabled" {
   assert {
     condition     = !var.rds_enabled || (var.rds_master_password != null && length(var.rds_master_password) >= 8)
     error_message = "Set a non-committed rds_master_password of at least eight characters when rds_enabled is true."
+  }
+}
+
+check "observability_addon_version_when_enabled" {
+  assert {
+    condition     = !var.observability_enabled || var.cloudwatch_observability_addon_version != null
+    error_message = "Set the exact reviewed cloudwatch_observability_addon_version when observability_enabled is true."
+  }
+}
+
+check "observability_alarms_require_wiring" {
+  assert {
+    condition     = !var.observability_alarms_enabled || (var.observability_enabled && var.rds_enabled && var.observability_alb_arn_suffix != "")
+    error_message = "P8 alarms require observability_enabled, rds_enabled, and a discovered observability_alb_arn_suffix."
   }
 }

@@ -180,6 +180,47 @@ variable "s3_images_enabled" {
   default     = false
 }
 
+variable "observability_enabled" {
+  description = "Create the temporary P8.2 CloudWatch observability resources. Keep false outside a reviewed P8 session."
+  type        = bool
+  default     = false
+}
+
+variable "cloudwatch_observability_addon_version" {
+  description = "Exact amazon-cloudwatch-observability EKS add-on version reviewed for the active P8 session."
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "cloudwatch_log_retention_days" {
+  description = "P8 CloudWatch Container Insights log retention; fixed to the learning-profile three-day limit."
+  type        = number
+  default     = 3
+
+  validation {
+    condition     = var.cloudwatch_log_retention_days == 3
+    error_message = "CloudWatch log retention must remain three days in the learning profile."
+  }
+}
+
+variable "observability_alarms_enabled" {
+  description = "Create P8 dashboard alarms after the ALB is available. All alarms are notification-free learning evidence."
+  type        = bool
+  default     = false
+}
+
+variable "observability_alb_arn_suffix" {
+  description = "Non-sensitive ALB ARN suffix (app/name/id) discovered after the session Ingress is created; never commit a full ARN."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.observability_alb_arn_suffix == "" || can(regex("^app/[A-Za-z0-9-]+/[0-9a-f]+$", var.observability_alb_arn_suffix))
+    error_message = "observability_alb_arn_suffix must be empty or an ALB ARN suffix in app/name/id form."
+  }
+}
+
 check "secrets_manager_requires_rds" {
   assert {
     condition     = !var.secrets_manager_enabled || var.rds_enabled

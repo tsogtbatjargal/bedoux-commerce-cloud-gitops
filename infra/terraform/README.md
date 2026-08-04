@@ -54,6 +54,14 @@ separate persistent state bucket before migrating this root state to S3.
   Kubernetes Secret; the API, migration, and seed processes fetch it through the AWS SDK.
   The module is not on the persistent-resource allowlist and must be included in the reviewed
   session-destroy plan. See [`docs/runbooks/p7-3-secrets-manager-session.md`](../../docs/runbooks/p7-3-secrets-manager-session.md).
+- P8.2 adds an **opt-in only** observability module. With `observability_enabled=true` and an
+  exact, reviewed EKS CloudWatch Observability add-on version, it creates three temporary
+  Container Insights log groups with exactly three-day retention, an IRSA-only CloudWatch agent
+  role, two JSON-log metric filters, and a small dashboard. A second reviewed apply after the ALB
+  exists enables four notification-free alarms. The module, including its CloudWatch resources and
+  agent role, is not on the persistent-resource allowlist and the guarded destroy helper removes
+  it with the session. See
+  [`docs/runbooks/p8-2-cloudwatch-session.md`](../../docs/runbooks/p8-2-cloudwatch-session.md).
 
 ## P6.1 validation
 
