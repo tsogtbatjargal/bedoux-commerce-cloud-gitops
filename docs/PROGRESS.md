@@ -9,12 +9,12 @@ checked here and its evidence is recorded in the session log.
 | Field | Value |
 |---|---|
 | State | IN PROGRESS |
-| Active phase | P7 — Managed data services |
-| Active task | P7 complete; P8.1 remains NOT STARTED pending the P7 phase-gate approval. |
-| Last verified | 2026-08-04T12:15:30-06:00 — P7.4 complete: RDS snapshot policy verified and T-703 teardown evidence mapped. |
+| Active phase | P8 — Observability and operations drills |
+| Active task | P8.1 — app logging + request IDs (NOT STARTED). |
+| Last verified | 2026-08-04T12:21:51-06:00 — owner approved the P7 gate; P8 activated by dedicated gate commit. |
 | AWS resources currently live | No temporary AWS resources. Persistent allowlist only: encrypted state bucket, two ECR repositories, cluster/node/GitHub deployment roles and policies, ALB-controller role/policy, GitHub OIDC provider, and their persistent IAM attachments. |
 | Month-to-date estimated AWS spend | Owner confirmed actual and forecast below USD 16 before the 2026-08-01 P7.1 session; billing data lags. Recheck the console before any new session rather than treating the prior value as current. |
-| Next operator action | Owner approves the P7 gate before any P8 work; no temporary AWS session is open. |
+| Next operator action | Begin P8.1 locally; no temporary AWS session is open. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -580,6 +580,16 @@ Append newest entries immediately below this heading. Never include secrets or A
 - **AWS:** none created or destroyed in this closeout validation. Estimated cost: USD 0. No new
   session was opened because the required live teardown evidence already exists.
 - **Next action:** owner approval of the P7 phase gate; do not start P8.1 early.
+
+### 2026-08-04T12:21:51-06:00 — P7 gate approved; P8 activated — Codex (owner: Tsogo)
+
+- **Phase/task:** owner explicitly approved the completed P7 gate. P7.1–P7.4 and T-701–T-703
+  evidence are recorded; P8 is now active and P8.1 is **NOT STARTED**.
+- **Gate record:** this state change is recorded in its own commit with the exact required
+  message: `Phase 7 gate approved by owner; activate Phase 8`.
+- **AWS:** none. No AWS session was opened and no resources were created or modified.
+- **Next action:** begin P8.1 locally; do not open an AWS session until a later P8 task requires
+  it and its full runbook preflight is complete.
 
 ### 2026-08-03T16:23:26-06:00 — P7.3 T-703 passed; successful Secrets Manager proof and clean teardown — Codex
 
