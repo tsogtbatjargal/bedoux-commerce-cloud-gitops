@@ -108,9 +108,10 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   2026-08-02:** GitHub Actions run `30761203972` proved S3-backed `image_url` responses and its
   masked direct-image smoke; an API-pod STS assertion proved the scoped image-read IRSA role.
   The temporary S3/IRSA/RDS/EKS session was torn down cleanly, including the image bucket and its
-  six synthetic objects. **P7.3 (Secrets Manager) is IN PROGRESS locally:** the shared
-  API/Job resolver, direct Secrets Manager/IRSA Terraform module, Helm profile, CI input, and
-  session runbook are being validated; no AWS session is open.
+  six synthetic objects. **P7.3 and P7.4 are complete:** the Secrets Manager/IRSA proof passed,
+  and the RDS deletion/backup policy plus T-703 same-day teardown evidence are recorded in
+  `docs/PROGRESS.md`. No temporary AWS resources are live. P8 remains inactive pending the
+  owner-approved P7 phase gate.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 
