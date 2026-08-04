@@ -75,8 +75,17 @@ Multi-AZ RDS, tested backups, and controlled deployments.
 The difference is deliberate and documented as a cost-versus-availability
 decision.
 
+## Observability design
+
+- The API emits one structured JSON completion event to stdout for each HTTP request. Its fixed
+  schema includes UTC timestamp, level, event, request ID, method, path, status code, and duration.
+- A valid incoming `X-Request-ID` UUID is normalized and returned; otherwise the API creates one
+  and returns it in the response header. Request bodies, query strings, headers, credentials, and
+  database URLs are never included in this event.
+- P8.2 will forward these stdout events to CloudWatch Logs and build the dashboard and alarms; the
+  local P8.1 boundary intentionally has no AWS dependency.
+
 ## Current diagrams
 
 - [System context](diagrams/system-context.drawio)
 - [Learning and delivery path](diagrams/learning-path.drawio)
-
