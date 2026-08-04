@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P8 — Observability and operations drills |
-| Active task | P8.1 — app logging + request IDs (COMPLETE); P8.2 remains NOT STARTED. |
-| Last verified | 2026-08-04T12:37:26-06:00 — P8.1 local JSON log and request-ID proof passed. |
+| Active task | P8.2 — CloudWatch wiring, dashboard + alarms (IN PROGRESS). |
+| Last verified | 2026-08-04T13:09:27-06:00 — P8.2 offline Terraform configurations and runbook checks passed. |
 | AWS resources currently live | No temporary AWS resources. Persistent allowlist only: encrypted state bucket, two ECR repositories, cluster/node/GitHub deployment roles and policies, ALB-controller role/policy, GitHub OIDC provider, and their persistent IAM attachments. |
 | Month-to-date estimated AWS spend | Owner confirmed actual and forecast below USD 16 before the 2026-08-01 P7.1 session; billing data lags. Recheck the console before any new session rather than treating the prior value as current. |
-| Next operator action | Owner directs P8.2 when ready; its CloudWatch work requires a fresh, fully preflighted AWS session. |
+| Next operator action | Review/merge the P8.2 local implementation, then request a fresh, fully preflighted P8 AWS session. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -536,7 +536,9 @@ in P6.5), and T-602 (P6.5) are recorded. The dedicated gate commit records the a
 - [x] P8.1 COMPLETE — app logging + request IDs. API stdout now emits one structured JSON
       completion event per request; a valid `X-Request-ID` UUID is normalized and returned, or a
       new UUID is generated. Focused Python 3.12 tests and a real local container proof passed.
-- [ ] P8.2 NOT STARTED — CloudWatch dashboard + alarms.
+- [ ] P8.2 IN PROGRESS — CloudWatch dashboard + alarms. Local Terraform and runbook design
+      begins before any AWS session; CloudWatch resources remain temporary and require a fresh
+      runbook preflight plus owner awareness before apply.
 - [ ] P8.3 NOT STARTED — four troubleshooting drills.
 - [ ] P8.4 NOT STARTED — troubleshooting runbooks.
 
@@ -554,6 +556,46 @@ in P6.5), and T-602 (P6.5) are recorded. The dedicated gate commit records the a
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-04T13:09:27-06:00 — P8.2 local CloudWatch implementation verified — Codex
+
+- **Phase/task:** P8.2 remains **IN PROGRESS**. No AWS session is open and no temporary AWS
+  resources are live; this entry records only local implementation evidence.
+- **Changed:** added the opt-in Terraform observability module and P8.2 runbook. It declares the
+  exact-version EKS CloudWatch Observability add-on, three pre-created Container Insights log
+  groups with fixed three-day retention, and a `bedoux-*` IRSA role trusted only by
+  `amazon-cloudwatch:cloudwatch-agent` (not by nodes). Structured JSON application logs yield
+  request-count and 5xx-count metric filters; the dashboard covers 5xx rate, dynamic ALB unhealthy
+  targets, namespace pod restarts, and short-lived RDS CPU. A second reviewed alarm-only apply is
+  required after the session Ingress exists, using a helper that outputs only the ALB ARN suffix.
+  All four notification-free alarms require the RDS profile and that suffix, preventing a partial
+  alarm set. The guarded session-destroy helper detects and destroys the temporary module.
+- **Safety:** the collector uses AWS's documented CloudWatch agent policy through IRSA rather than
+  node credentials; Application Signals/tracing are deliberately out of scope. The add-on version
+  is mandatory when enabled, so a session must select and record a compatible exact version rather
+  than use `latest`. No dashboard or alarm sends actions/notifications.
+- **Local evidence:** `terraform fmt -check -recursive infra/terraform`; offline Terraform
+  validation for both disabled and fully enabled P8 inputs (inert credentials and placeholder
+  values only); `bash -n` for both helper scripts; `discover-alb-arn-suffix.sh --help`;
+  `git diff --check`; and `make docs-check` all passed. Provider validation had to run outside the
+  filesystem sandbox because its pinned local provider processes cannot start under sandbox
+  restrictions; it made no AWS calls.
+- **AWS:** none created, modified, or queried for this task. Estimated session cost: USD 0.
+- **Next action:** review this local change set, merge it, then open a fresh P8.2 AWS session only
+  after the full manual preflight, current cost/forecast check, independent deadline alarm, and a
+  reviewed plan.
+
+### 2026-08-04T13:02:11-06:00 — P8.2 started: CloudWatch observability design — Codex
+
+- **Phase/task:** P8.2 is **IN PROGRESS**. The P8.1 merge checkpoint was verified on `main`;
+  no AWS session is open and no temporary AWS resources are live.
+- **Scope:** design and locally validate Terraform, Helm/collector wiring, dashboard, alarm, and
+  teardown-runbook changes for three-day CloudWatch retention. The design must retain the hard
+  USD 20/month guardrail, use least-privilege workload identity, and keep all P8 resources
+  session-temporary.
+- **AWS:** none. Estimated session cost: USD 0.
+- **Next action:** research the supported low-cost EKS CloudWatch collection path, then implement
+  local declarations and tests before requesting a fresh, time-bounded AWS session.
 
 ### 2026-08-04T12:37:26-06:00 — P8.1 complete: structured JSON logs and request IDs — Codex
 

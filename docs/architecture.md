@@ -82,8 +82,13 @@ decision.
 - A valid incoming `X-Request-ID` UUID is normalized and returned; otherwise the API creates one
   and returns it in the response header. Request bodies, query strings, headers, credentials, and
   database URLs are never included in this event.
-- P8.2 will forward these stdout events to CloudWatch Logs and build the dashboard and alarms; the
-  local P8.1 boundary intentionally has no AWS dependency.
+- P8.2's opt-in EKS CloudWatch Observability add-on forwards those stdout events to the temporary
+  Container Insights application log group through an IRSA role restricted to the CloudWatch agent
+  ServiceAccount. The log group has three-day retention. Two JSON metric filters derive request
+  count and 5xx count; a dashboard derives 5xx rate and displays ALB unhealthy targets, namespace
+  pod restarts, and short-lived RDS CPU utilization. The collector, dashboard, metric filters, and
+  notification-free alarms are session-temporary; the local P8.1 boundary itself has no AWS
+  dependency.
 
 ## Current diagrams
 
