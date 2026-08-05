@@ -116,8 +116,14 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   (2026-08-05):** a time-bounded no-NAT session proved temporary three-day Container Insights
   logging (including the add-on-created `performance` group), the IRSA-restricted collector,
   structured application-log delivery, dashboard, and four notification-free alarms, all `OK`.
-  The temporary app/ALB/RDS session remains live only for a possible owner-directed P8.3 drill and
-  must begin teardown at its independent 17:30 MDT alarm. P8.3 has not started.
+  The owner deferred P8.3 to a fresh, fully time-budgeted session; the P8.2 session was torn down
+  and independently verified clean well before its 17:30 MDT alarm. **P8.3 (four troubleshooting
+  drills) has not started.** No AWS resources are currently live.
+- Next action: owner decides when to open a fresh AWS session for P8.3. Along the way,
+  `scripts/terraform-session-destroy.sh` had two real bugs fixed live during this teardown
+  (invalid CloudWatch add-on version placeholder; unset RDS password breaking plan evaluation) —
+  see `docs/PROGRESS.md`'s latest session log entry; that fix should go through the normal PR
+  review before the next AWS session relies on it.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

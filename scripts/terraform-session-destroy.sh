@@ -138,13 +138,27 @@ if [[ "$action" == "plan" ]]; then
     'module.database_secrets[0].aws_secretsmanager_secret.this'; then
     secrets_manager_var_args+=("-var=secrets_manager_enabled=true" "-var=rds_enabled=true")
     printf '%s\n' 'INFO: including the P7.3 database secret module present in Terraform state.'
+    # The destroy plan only deletes this secret; its content is never applied,
+    # so any non-null placeholder satisfies the DATABASE_URL string
+    # interpolation without needing the original session's real password.
+    if [[ -z "${TF_VAR_rds_master_password:-}" ]]; then
+      export TF_VAR_rds_master_password='session-destroy-placeholder-not-a-real-credential'
+      printf '%s\n' 'INFO: TF_VAR_rds_master_password was unset; using a destroy-only placeholder.'
+    fi
   fi
 
   observability_var_args=()
   if terraform -chdir="$terraform_dir" state list | grep -Fq \
     'module.observability[0]'; then
-    observability_var_args+=("-var=observability_enabled=true" "-var=rds_enabled=true" "-var=cloudwatch_observability_addon_version=state-destroy-placeholder")
-    printf '%s\n' 'INFO: including the P8 observability module present in Terraform state.'
+    live_addon_version="$(aws eks describe-addon --profile bedoux-admin --region ca-central-1 \
+      --cluster-name bedoux --addon-name amazon-cloudwatch-observability \
+      --query 'addon.addonVersion' --output text 2>/dev/null || true)"
+    if [[ -z "$live_addon_version" || "$live_addon_version" == "None" ]]; then
+      printf 'REFUSING: could not read the live amazon-cloudwatch-observability addon version.\n' >&2
+      exit 1
+    fi
+    observability_var_args+=("-var=observability_enabled=true" "-var=rds_enabled=true" "-var=cloudwatch_observability_addon_version=$live_addon_version")
+    printf 'INFO: including the P8 observability module present in Terraform state (addon %s).\n' "$live_addon_version"
   fi
 
   terraform -chdir="$terraform_dir" plan -destroy "${target_args[@]}" \

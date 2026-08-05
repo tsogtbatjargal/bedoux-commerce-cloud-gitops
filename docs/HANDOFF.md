@@ -20,7 +20,7 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
    phase-start decisions are now recorded: ADR 0006, the kill switch/request bounds, and
    ADR 0011's P7.2 S3 adapter boundary.
 
-## Current state (as of 2026-08-04)
+## Current state (as of 2026-08-05)
 - Phases 0-4 complete, gates approved. Local app (FastAPI + Postgres + React) proven on
   Compose (P2), then on kind with a Helm chart (P3, ADR 0005), with real drills throughout.
   AWS account readiness done in P4: non-root IAM identity `bedoux-admin`, region
@@ -89,11 +89,23 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   the separate `bedoux-api-secrets` IRSA identity passed live, and the RDS deletion/backup
   policy plus T-703 same-day teardown evidence are recorded. **P7's gate is approved and P8 is
   active. P8.1 is complete:** the API emits safe structured JSON completion logs with request-ID
-  propagation, proven in the pinned local runtime and a real local container. **P8.2 is in
-  progress locally:** Terraform and its session runbook declare temporary three-day CloudWatch
-  Container Insights logs, an IRSA-restricted agent, JSON-log metric filters, dashboard, and
-  notification-free alarms. Offline Terraform, shell, and docs checks pass. No AWS session is
-  open and no CloudWatch resource exists yet.
+  propagation, proven in the pinned local runtime and a real local container. **P8.2 is
+  complete (2026-08-05):** a time-bounded no-NAT session proved temporary three-day Container
+  Insights logging (including the add-on-created `performance` group), the IRSA-restricted
+  collector, structured application-log delivery, dashboard, and four notification-free alarms,
+  all `OK`. The session was torn down and independently verified clean well before its 17:30
+  MDT alarm. **P8.3 (four troubleshooting drills) has not started** — the owner explicitly
+  deferred it to a fresh, fully time-budgeted session rather than start it with only ~75 minutes
+  left, the same class of risk that caused the P6.4/P6.5 teardown-recovery incident. Along the
+  way, **two real bugs were found and fixed live** in `scripts/terraform-session-destroy.sh`
+  (first time RDS + Secrets Manager + Observability were all live together during a teardown):
+  an invalid hardcoded CloudWatch add-on version placeholder that the AWS provider rejected
+  (now reads the live add-on version read-only instead), and an unset RDS master password
+  breaking Terraform's plan-time string interpolation (now defaults to a clearly-labeled,
+  destroy-only placeholder only when unset — never applied to a live secret). Both fixes were
+  proven by successfully destroying the live session with them (37 resources, 0 add/change).
+  The fix is uncommitted/unreviewed as of this handoff — review and merge it via PR before the
+  next AWS session relies on it.
 - Three real findings surfaced and were fixed during P5, each documented with its own ADR
   or PROGRESS entry:
   1. **ADR 0007** — `bedoux-admin`'s scoped IAM policy (`bedoux-iam-scoped`) had a genuine
@@ -154,13 +166,13 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   no Kubernetes credential Secret is synchronized.
 
 ## What I want next
-P8.2 is the only active item. Review and merge its local Terraform/runbook change set, then open
-a fresh P8.2 AWS session only after a current cost check, the complete preflight, an independently
-alarmed same-day deadline, and a reviewed plan. The session selects an exact compatible
-`amazon-cloudwatch-observability` add-on version; it must not use `latest`. Apply infrastructure
-without alarms first, deploy the normal RDS/Secrets Manager profile, then discover only the ALB
-ARN suffix and review the second plan that adds the four notification-free alarms. Complete the
-final teardown sweep.
+First review and merge the pending `scripts/terraform-session-destroy.sh` fix (uncommitted at
+this handoff; see `docs/PROGRESS.md`'s latest session log entry for the exact bugs and fixes) via
+the normal PR flow. Then P8.3 — four troubleshooting drills (unhealthy ALB target, failed pod, DB
+connection error, failed rollout), each needing induce → diagnose-from-tooling-only → fix →
+written evidence — is the only active item, and needs its own fully time-budgeted AWS session
+(not a leftover window from a prior session). Open it only after a current cost check, the
+complete preflight, an independently alarmed same-day deadline, and a reviewed plan.
 There is no `/aws-session-start` for Codex: before touching AWS, manually walk the "Before
 the session" checklist in `docs/runbooks/aws-session.md`, and run its teardown sweep before
 ending any AWS session. Never create AWS resources outside that process. If asked to approve
