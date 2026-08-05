@@ -112,10 +112,12 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   and the RDS deletion/backup policy plus T-703 same-day teardown evidence are recorded in
   `docs/PROGRESS.md`. No temporary AWS resources are live. **P7's gate is approved and P8 is
   active. P8.1 is complete:** the API emits safe structured JSON completion logs with request-ID
-  propagation, proven in the pinned local runtime and a real local container. **P8.2 is in
-  progress locally:** its Terraform/runbook design adds temporary three-day CloudWatch Container
-  Insights logging, an IRSA-restricted collector, metric filters, dashboard, and no-action alarms.
-  No AWS session is open; do not apply it until the fresh session preflight is complete.
+  propagation, proven in the pinned local runtime and a real local container. **P8.2 is complete
+  (2026-08-05):** a time-bounded no-NAT session proved temporary three-day Container Insights
+  logging (including the add-on-created `performance` group), the IRSA-restricted collector,
+  structured application-log delivery, dashboard, and four notification-free alarms, all `OK`.
+  The temporary app/ALB/RDS session remains live only for a possible owner-directed P8.3 drill and
+  must begin teardown at its independent 17:30 MDT alarm. P8.3 has not started.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 
