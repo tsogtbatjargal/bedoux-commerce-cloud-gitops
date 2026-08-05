@@ -55,7 +55,7 @@ separate persistent state bucket before migrating this root state to S3.
   The module is not on the persistent-resource allowlist and must be included in the reviewed
   session-destroy plan. See [`docs/runbooks/p7-3-secrets-manager-session.md`](../../docs/runbooks/p7-3-secrets-manager-session.md).
 - P8.2 adds an **opt-in only** observability module. With `observability_enabled=true` and an
-  exact, reviewed EKS CloudWatch Observability add-on version, it creates three temporary
+  exact, reviewed EKS CloudWatch Observability add-on version, it creates four temporary
   Container Insights log groups with exactly three-day retention, an IRSA-only CloudWatch agent
   role, two JSON-log metric filters, and a small dashboard. A second reviewed apply after the ALB
   exists enables four notification-free alarms. The module, including its CloudWatch resources and
