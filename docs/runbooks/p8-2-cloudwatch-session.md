@@ -9,7 +9,7 @@ AWS mutation and manually complete its teardown sweep before the session ends.
 This is a short, evidence-focused session. It enables the AWS-supported EKS CloudWatch
 Observability add-on through one IRSA role restricted to
 `system:serviceaccount:amazon-cloudwatch:cloudwatch-agent`. It deliberately does **not** enable
-Application Signals or tracing. Container Insights metrics and the three container log groups are
+Application Signals or tracing. Container Insights metrics and the four container log groups are
 temporary; all groups have three-day retention and are removed in the same-day Terraform destroy.
 
 ## Prepare non-committed inputs
@@ -43,7 +43,7 @@ temporary; all groups have three-day retention and are removed in the same-day T
 1. Import the persistent allowlist with `scripts/terraform-persistent-state.sh import --execute`.
 2. Plan with the four exported session inputs. Confirm it contains the no-NAT EKS profile, one
    short-lived Single-AZ RDS instance, the P7 Secrets Manager identity, and only these P8 resources:
-   - three `/aws/containerinsights/bedoux/{application,dataplane,host}` log groups at exactly three
+   - four `/aws/containerinsights/bedoux/{application,dataplane,host,performance}` log groups at exactly three
      days retention;
    - one `bedoux-cloudwatch-observability-role` whose OIDC trust has only the CloudWatch agent
      service-account subject, with AWS's documented `CloudWatchAgentServerPolicy` attachment;
@@ -96,7 +96,7 @@ scripts/terraform-session-destroy.sh apply --execute
 ```
 
 The destroy helper detects an observability module in state and includes it. Review the saved plan:
-it must delete the CloudWatch add-on, CloudWatch agent IRSA role, three log groups, two metric
+it must delete the CloudWatch add-on, CloudWatch agent IRSA role, four log groups, two metric
 filters, dashboard, alarms, RDS/Secrets Manager session resources, EKS/VPC resources, and no
 persistent ECR or IAM address. Complete every **Teardown** item in
 [aws-session.md](aws-session.md), including a read-only inventory of CloudWatch log groups,

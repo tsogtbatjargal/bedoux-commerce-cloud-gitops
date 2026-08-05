@@ -1,9 +1,12 @@
 locals {
-  oidc_issuer_host             = trimprefix(var.oidc_issuer_url, "https://")
-  metrics_namespace            = "Bedoux/Application"
-  alarms_enabled_with_alb      = var.alarms_enabled && var.alb_arn_suffix != ""
-  alarms_enabled_with_rds      = var.alarms_enabled && var.rds_instance_identifier != ""
-  container_insights_log_kinds = toset(["application", "dataplane", "host"])
+  oidc_issuer_host        = trimprefix(var.oidc_issuer_url, "https://")
+  metrics_namespace       = "Bedoux/Application"
+  alarms_enabled_with_alb = var.alarms_enabled && var.alb_arn_suffix != ""
+  alarms_enabled_with_rds = var.alarms_enabled && var.rds_instance_identifier != ""
+  # The EKS CloudWatch Observability add-on emits its own performance log group
+  # in addition to application, dataplane, and host. Manage all four explicitly
+  # so the learning profile never leaves telemetry at the AWS default retention.
+  container_insights_log_kinds = toset(["application", "dataplane", "host", "performance"])
 }
 
 resource "aws_cloudwatch_log_group" "container_insights" {
