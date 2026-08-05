@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P8 — Observability and operations drills |
-| Active task | P8.3 — four troubleshooting drills (NOT STARTED; requires explicit owner direction). |
-| Last verified | 2026-08-05T16:11:55-06:00 — P8.2 complete: CloudWatch delivery, dashboard, and four notification-free alarms verified; all alarms reached `OK`. |
-| AWS resources currently live | P8 temporary session is active: no-NAT VPC, EKS 1.34 cluster with one Spot node, temporary RDS and Secrets Manager profile, EBS CSI and CloudWatch Observability add-ons, four three-day Container Insights log groups, application metric filters, dashboard, four notification-free alarms, and the temporary Bedoux application release behind an ALB. Persistent allowlist also remains: encrypted state bucket, two ECR repositories, cluster/node/GitHub deployment roles and policies, ALB-controller role/policy, GitHub OIDC provider, and their persistent IAM attachments. |
-| Month-to-date estimated AWS spend | Owner confirmed actual and forecast below USD 16 at P8.2 session start; billing data lags. Independent teardown alarm is set for 2026-08-05 17:30 America/Edmonton. |
-| Next operator action | Owner decides whether to begin P8.3 drills within the remaining session window; otherwise begin teardown at the independent 17:30 MDT alarm. |
+| Active task | P8.3 — four troubleshooting drills (NOT STARTED; owner deferred to a fresh, fully time-budgeted session). |
+| Last verified | 2026-08-05T16:41:00-06:00 — P8 session torn down; independent full read-only sweep confirmed clean. |
+| AWS resources currently live | **None temporary.** Persistent allowlist only: encrypted state bucket, two ECR repositories, cluster/node/GitHub deployment roles and policies, ALB-controller role/policy, GitHub OIDC provider (`token.actions.githubusercontent.com`), and their persistent IAM attachments — all confirmed present. The session's own cluster OIDC provider, EKS cluster, RDS instance, Secrets Manager secret, CloudWatch log groups/dashboard/alarms, ALB, and VPC are confirmed deleted. |
+| Month-to-date estimated AWS spend | Owner confirmed actual and forecast below USD 16 at P8.2 session start; billing data lags. The independent 17:30 MDT teardown alarm was pre-empted — teardown completed by ~16:41 MDT, before it could fire. |
+| Next operator action | Owner decides when to open a fresh, fully time-budgeted session for P8.3's four drills (each needs induce → diagnose-from-tooling-only → fix → written evidence). No AWS resource is live in the meantime. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -557,6 +557,45 @@ in P6.5), and T-602 (P6.5) are recorded. The dedicated gate commit records the a
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-05T16:41:00-06:00 — P8 session torn down; P8.3 deferred; two teardown-script bugs found and fixed — Claude
+
+- **Phase/task:** P8.3 remains **NOT STARTED**. Given ~75 minutes remaining before the 17:30 MDT
+  alarm and P8.3's four-drill scope (each needs induce/diagnose/fix/write-up), owner explicitly
+  chose to defer P8.3 to a fresh, fully time-budgeted session rather than start it in a
+  time-constrained window — the same class of risk that caused the P6.4/P6.5 teardown-recovery
+  incident.
+- **Teardown sequence:** deleted the `bedoux` Ingress, confirmed its ALB gone; `helm uninstall`
+  for the `bedoux` release and `aws-load-balancer-controller`; deleted the `bedoux` and
+  `amazon-cloudwatch` namespaces; ran `scripts/terraform-session-destroy.sh prepare`,
+  `prepare --execute`, `plan`, `apply --execute` per `docs/runbooks/p8-2-cloudwatch-session.md`.
+- **Two real bugs found and fixed in `scripts/terraform-session-destroy.sh`** (first time RDS +
+  Secrets Manager + Observability were all live simultaneously during a teardown): (1) the
+  `plan` step hardcoded `cloudwatch_observability_addon_version=state-destroy-placeholder`, which
+  the AWS provider rejected outright (addon_version must be valid semver) — fixed by reading the
+  live add-on's real version via `aws eks describe-addon` (read-only) and refusing the plan if it
+  can't be read, rather than guessing. (2) `module.database_secrets`'s `DATABASE_URL`
+  interpolation calls `urlencode(var.rds_master_password)`, which fails plan evaluation entirely
+  when the password is null/unset (the operator's original session-scoped shell variable is gone
+  by teardown time, by design — it's never persisted) — fixed by defaulting to a clearly-labeled,
+  non-real destroy-only placeholder only when the env var is unset; the value is never applied to
+  a live secret, only used to satisfy plan-time string interpolation for a resource being deleted.
+  Both fixes verified by successfully running the real plan/apply against the live session
+  afterward (37 resources destroyed, 0 add/change).
+- **Verification, independent of the script's own success message:** full read-only sweep —
+  `eks list-clusters`, ELB, RDS instances/snapshots, NAT gateways, EIPs, EBS volumes/snapshots,
+  running EC2, project-tagged VPCs, CloudFormation stacks, CloudWatch Container Insights log
+  groups/dashboards/alarms, Secrets Manager secrets — all empty. Cluster OIDC provider confirmed
+  deleted (`NoSuchEntity`); persistent GitHub Actions OIDC provider and all five persistent IAM
+  roles confirmed still present. One resourcegroupstaggingapi entry (an RDS security-group-rule
+  ARN) still appeared in the tag index; directly checked via `describe-security-group-rules` and
+  confirmed `InvalidSecurityGroupRuleId.NotFound` — the same tag-index-lags-real-deletion pattern
+  documented since P5.5, not a real leftover.
+- **AWS:** full P8 temporary session (no-NAT VPC, EKS 1.34, one Spot node, RDS, Secrets Manager,
+  CloudWatch Observability add-on, ALB) destroyed. Persistent allowlist untouched. Session ended
+  by ~16:41 MDT, before the 17:30 MDT alarm could fire.
+- **Next action:** owner decides when to open a fresh, fully time-budgeted AWS session for P8.3.
+  The `terraform-session-destroy.sh` fix should be reviewed and merged via PR like prior fixes.
 
 ### 2026-08-05T16:11:55-06:00 — P8.2 complete: CloudWatch wiring, dashboard, and alarms — Codex
 
