@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P8 — Observability and operations drills |
-| Active task | P8.2 — CloudWatch wiring, dashboard + alarms (IN PROGRESS). |
-| Last verified | 2026-08-04T13:09:27-06:00 — P8.2 offline Terraform configurations and runbook checks passed. |
-| AWS resources currently live | No temporary AWS resources. Persistent allowlist only: encrypted state bucket, two ECR repositories, cluster/node/GitHub deployment roles and policies, ALB-controller role/policy, GitHub OIDC provider, and their persistent IAM attachments. |
-| Month-to-date estimated AWS spend | Owner confirmed actual and forecast below USD 16 before the 2026-08-01 P7.1 session; billing data lags. Recheck the console before any new session rather than treating the prior value as current. |
-| Next operator action | Review/merge the P8.2 local implementation, then request a fresh, fully preflighted P8 AWS session. |
+| Active task | P8.3 — four troubleshooting drills (NOT STARTED; requires explicit owner direction). |
+| Last verified | 2026-08-05T16:11:55-06:00 — P8.2 complete: CloudWatch delivery, dashboard, and four notification-free alarms verified; all alarms reached `OK`. |
+| AWS resources currently live | P8 temporary session is active: no-NAT VPC, EKS 1.34 cluster with one Spot node, temporary RDS and Secrets Manager profile, EBS CSI and CloudWatch Observability add-ons, four three-day Container Insights log groups, application metric filters, dashboard, four notification-free alarms, and the temporary Bedoux application release behind an ALB. Persistent allowlist also remains: encrypted state bucket, two ECR repositories, cluster/node/GitHub deployment roles and policies, ALB-controller role/policy, GitHub OIDC provider, and their persistent IAM attachments. |
+| Month-to-date estimated AWS spend | Owner confirmed actual and forecast below USD 16 at P8.2 session start; billing data lags. Independent teardown alarm is set for 2026-08-05 17:30 America/Edmonton. |
+| Next operator action | Owner decides whether to begin P8.3 drills within the remaining session window; otherwise begin teardown at the independent 17:30 MDT alarm. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -536,9 +536,10 @@ in P6.5), and T-602 (P6.5) are recorded. The dedicated gate commit records the a
 - [x] P8.1 COMPLETE — app logging + request IDs. API stdout now emits one structured JSON
       completion event per request; a valid `X-Request-ID` UUID is normalized and returned, or a
       new UUID is generated. Focused Python 3.12 tests and a real local container proof passed.
-- [ ] P8.2 IN PROGRESS — CloudWatch dashboard + alarms. Local Terraform and runbook design
-      begins before any AWS session; CloudWatch resources remain temporary and require a fresh
-      runbook preflight plus owner awareness before apply.
+- [x] P8.2 COMPLETE — CloudWatch dashboard + alarms. The live no-NAT session proved four
+      three-day Container Insights log groups (including add-on-created `performance`), a
+      least-privilege collector IRSA role, structured application-log delivery, a dashboard, and
+      four no-action alarms. Evidence: 2026-08-05 session entry below.
 - [ ] P8.3 NOT STARTED — four troubleshooting drills.
 - [ ] P8.4 NOT STARTED — troubleshooting runbooks.
 
@@ -556,6 +557,57 @@ in P6.5), and T-602 (P6.5) are recorded. The dedicated gate commit records the a
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-05T16:11:55-06:00 — P8.2 complete: CloudWatch wiring, dashboard, and alarms — Codex
+
+- **Phase/task:** P8.2 is **COMPLETE**. P8.3 remains **NOT STARTED** and requires explicit owner
+  direction; T-801 is intentionally still pending because its controlled alarm firing and recovery
+  belongs to P8.3.
+- **Deployment evidence:** operator bootstrapped the temporary `bedoux` namespace, gp3
+  StorageClass, and pinned ALB controller through its existing scoped IRSA role. The scoped
+  `bedoux-api-secrets` ServiceAccount exists and the disallowed Kubernetes database-credential
+  Secret is absent. GitHub Actions run `31051082528` completed successfully: immutable images,
+  migration, catalog seed, API/web rollout, and public health/catalog smoke all passed with
+  RDS + Secrets Manager mode enabled and S3-image mode disabled. Ordering remained disabled.
+- **Observability evidence:** the exact-version CloudWatch Observability add-on and its collector
+  pods are active. All four Container Insights groups (`application`, `dataplane`, `host`, and
+  `performance`) have exactly three-day retention; the add-on-created `performance` group was
+  corrected through a separately merged declaration/import and owner-approved one-resource
+  Terraform apply. Bounded inspection found structured `http_request_completed` records in the
+  application log group after normal health/catalog traffic. The dashboard exists.
+- **Alarm evidence:** the reviewed alarm-only plan had exactly 4 adds, 0 changes, and 0 destroys;
+  owner approved its apply. It created API 5xx-rate, ALB unhealthy-target, Bedoux pod-restart,
+  and RDS CPU alarms. Each has zero alarm, OK, and insufficient-data action targets; by
+  16:11:55-06:00 all four were `OK`. No synthetic failure was introduced.
+- **AWS created/modified:** temporary P8 infrastructure, application release/ALB, and four
+  notification-free alarms; no NAT Gateway. Estimated session cost is not final because billing
+  data lags. The independent teardown deadline remains 17:30 MDT.
+- **Next action:** only if the owner explicitly directs it, begin P8.3's controlled drills; else
+  begin the documented teardown at 17:30 MDT and complete the full inventory sweep.
+
+### 2026-08-05T15:57:51-06:00 — P8.2 live infrastructure correction verified — Codex
+
+- **Phase/task:** P8.2 remains **IN PROGRESS**. This entry corrects the stale offline-only
+  checkpoint before additional deployment work proceeds.
+- **Session/preflight:** owner confirmed current budget actual and forecast below USD 16, set an
+  independent 17:30 MDT teardown alarm, and approved the reviewed initial P8.2 infrastructure
+  plan. The no-NAT temporary profile is live: EKS 1.34 with one Spot node, temporary RDS and
+  Secrets Manager profile, EBS CSI, and the exact-version CloudWatch Observability add-on. No
+  application release, ALB, or alarms exist yet.
+- **Finding and correction:** the add-on also created the Container Insights `performance` log
+  group, which was absent from the original three-group Terraform declaration and therefore had
+  no retention setting. The missing declaration was fixed and merged separately; its existing
+  group was imported into Terraform state. Owner approved the resulting one-resource corrective
+  plan, which changed only that group's retention and standard tags (0 add, 1 change, 0 destroy).
+  Read-only verification now confirms `application`, `dataplane`, `host`, and `performance` all
+  retain for exactly **3 days**.
+- **AWS created/modified:** temporary session resources above; this checkpoint additionally
+  modified only the `performance` log-group retention. Estimated session cost is not yet final;
+  billing data lags. Standard session teardown remains mandatory at 17:30 MDT.
+- **Next action:** bootstrap the temporary Kubernetes namespace, gp3 StorageClass, ALB controller,
+  and Secrets Manager service account; then dispatch the approved RDS/Secrets Manager deployment
+  workflow and capture normal application-log/dashboard evidence. Review a separate alarm-only
+  plan before requesting owner approval to apply it.
 
 ### 2026-08-04T13:09:27-06:00 — P8.2 local CloudWatch implementation verified — Codex
 
