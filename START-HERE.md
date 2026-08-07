@@ -134,9 +134,12 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   four P8.3 drills, both deadline-overrun incidents) — no hypothetical capability described.
   **P9.2 is complete:** all six diagrams exist and are exported to sibling SVGs — the two
   existing (`system-context`, `learning-path`) plus four new (`request-path`, `ci-cd`,
-  `vpc-network`, `identity`), each grounded in real facts, not invented.
-- Next action: **P9.3** — time the P9.1 script against a clock using the finished diagrams, trim
-  to fit 15 minutes, refine. No AWS session needed.
+  `vpc-network`, `identity`), each grounded in real facts, not invented. **P9.3 is complete:**
+  measured word-count timing showed the script fits 15:00 at every realistic pace (14:19 at the
+  slowest tested) with no cuts needed — correcting an earlier unmeasured guess. **P9 gate — all
+  of P9.1–P9.3 complete. This is the project's final phase; ready for owner approval.**
+- Next action: **owner** approves the P9 gate. That completes `docs/IMPLEMENTATION-PLAN.md`'s
+  Definition of Done.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 
