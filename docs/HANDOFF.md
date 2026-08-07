@@ -119,8 +119,8 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
 - **P8.4 is complete.** `docs/runbooks/p8-troubleshooting.md` documents all four P8.3 drills as
   symptom → diagnose (exact commands, real output shapes) → root cause → fix → recovery check,
   written directly from the commands proven live in the same P8.3 session — not generic
-  guidance. T-801 (P8.2) and T-802 (P8.3) are both satisfied. **P8 gate — all of P8.1–P8.4
-  complete with evidence. Ready for owner approval to activate P9.**
+  guidance. T-801 (P8.2) and T-802 (P8.3) are both satisfied. **P8 gate approved by owner
+  2026-08-07; P9 (interview package) is active.**
 - Three real findings surfaced and were fixed during P5, each documented with its own ADR
   or PROGRESS entry:
   1. **ADR 0007** — `bedoux-admin`'s scoped IAM policy (`bedoux-iam-scoped`) had a genuine
@@ -181,13 +181,13 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   no Kubernetes credential Secret is synchronized.
 
 ## What I want next
-P8 is fully complete (P8.1–P8.4, T-801 and T-802 both satisfied) and its gate is awaiting owner
-approval. If asked to approve a phase gate, make that its own commit ("Phase 8 gate approved by
-owner; activate Phase 9") before starting any P9 work — do not start P9 early. Once approved, P9
-is the interview package: a timed 15-minute walkthrough script, all six diagrams finalized and
-exported, and a timed dry-run. It needs no AWS session (`$0` cost) — draw on the real evidence
-already accumulated across P5–P8 (drills, rollback, IAM findings, the two deadline-overrun
-incidents and how they were handled) rather than describing hypothetical capability.
+The P8 gate is approved (2026-08-07) and P9 — the interview package — is active. Start with
+**P9.1**: a timed 15-minute walkthrough script (problem 1 min, architecture + request path 3,
+K8s/AWS responsibilities 3, CI/CD + identity 3, observability + troubleshooting 3, cost/
+reliability trade-offs 2). Then P9.2 (all six diagrams finalized and exported) and P9.3 (timed
+dry-run, refined). P9 needs no AWS session (`$0` cost) — draw on the real evidence already
+accumulated across P5–P8 (drills, rollback, IAM findings, the two deadline-overrun incidents and
+how they were handled) rather than describing hypothetical capability.
 There is no `/aws-session-start` for Codex: before touching AWS, manually walk the "Before
 the session" checklist in `docs/runbooks/aws-session.md`, and run its teardown sweep before
 ending any AWS session. Never create AWS resources outside that process. If asked to approve

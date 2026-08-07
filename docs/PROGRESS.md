@@ -9,12 +9,12 @@ checked here and its evidence is recorded in the session log.
 | Field | Value |
 |---|---|
 | State | IN PROGRESS |
-| Active phase | P8 — Observability and operations drills |
-| Active task | P8 gate — all of P8.1–P8.4 complete, awaiting owner approval to activate P9. |
+| Active phase | P9 — Interview package |
+| Active task | P9.1 — walkthrough script (NOT STARTED). |
 | Last verified | 2026-08-07T11:13:36-06:00 — All four P8.3 drills induced/diagnosed/fixed/recovered; session torn down and independently verified clean roughly 2h50m under its 14:04 MDT deadline. P8.4 troubleshooting runbooks written directly from that evidence. |
 | AWS resources currently live | **None temporary.** Persistent allowlist only: encrypted state bucket, two ECR repositories, five persistent IAM roles, GitHub OIDC provider — all confirmed present. EKS cluster, RDS instance, Secrets Manager secret, CloudWatch log groups/dashboard, ALB controller, and VPC all confirmed deleted. |
 | Month-to-date estimated AWS spend | USD 3.727 actual at session start; this session's footprint was ~70 minutes of EKS+RDS+Observability (billing data lags — recheck before the next session). |
-| Next operator action | **owner**: approve the P8 gate to activate P9 (interview package). |
+| Next operator action | **P9.1**: draft the timed 15-minute walkthrough script (problem 1 min, architecture + request path 3, K8s/AWS responsibilities 3, CI/CD + identity 3, observability + troubleshooting 3, cost/reliability trade-offs 2). P9 needs no AWS session ($0 cost). |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -551,8 +551,9 @@ in P6.5), and T-602 (P6.5) are recorded. The dedicated gate commit records the a
       fix → recovery check, written directly from the commands actually proven live on
       2026-08-07 — not generic guidance. Evidence: session log below.
 
-**P8 gate — all of P8.1–P8.4 complete with evidence above (T-801 from P8.2, T-802 from P8.3).
-Ready for owner approval to activate P9.**
+**P8 gate — APPROVED by owner 2026-08-07; P9 activated.** All of P8.1–P8.4 complete with
+evidence above (T-801 from P8.2, T-802 from P8.3). The dedicated gate commit records the
+approval.
 
 ### P9 — Interview package
 
