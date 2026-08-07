@@ -125,10 +125,11 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   revocation), and failed rollout (Helm `--atomic`) — were induced, diagnosed purely from tooling
   output, fixed, and recovered, each with independently-confirmed evidence. Full teardown
   completed roughly 2h50m under deadline; independent sweep confirmed clean. No AWS resources
-  are currently live.
-- Next action: **P8.4** — write/verify troubleshooting runbooks from the four P8.3 drills. T-801
-  (P8.2) and T-802 (P8.3) are both satisfied; the P8 gate is ready for owner review once P8.4 is
-  done.
+  are currently live. **P8.4 is complete:** `docs/runbooks/p8-troubleshooting.md` documents all
+  four drills as symptom → diagnose → root cause → fix → recovery check, written directly from
+  the commands proven live that same session — not generic guidance. **P8 gate — all of
+  P8.1–P8.4 complete with evidence. Ready for owner approval to activate P9.**
+- Next action: **owner** approves the P8 gate to activate P9 (interview package).
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

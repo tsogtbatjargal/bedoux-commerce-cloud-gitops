@@ -116,6 +116,11 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   `ImagePullBackOff` → Helm's own atomic rollback fired automatically) — were induced, diagnosed
   purely from tooling output, fixed, and independently confirmed recovered. Teardown finished
   roughly 2h50m under the 14:04 MDT deadline; independent sweep confirmed clean.
+- **P8.4 is complete.** `docs/runbooks/p8-troubleshooting.md` documents all four P8.3 drills as
+  symptom → diagnose (exact commands, real output shapes) → root cause → fix → recovery check,
+  written directly from the commands proven live in the same P8.3 session — not generic
+  guidance. T-801 (P8.2) and T-802 (P8.3) are both satisfied. **P8 gate — all of P8.1–P8.4
+  complete with evidence. Ready for owner approval to activate P9.**
 - Three real findings surfaced and were fixed during P5, each documented with its own ADR
   or PROGRESS entry:
   1. **ADR 0007** — `bedoux-admin`'s scoped IAM policy (`bedoux-iam-scoped`) had a genuine
@@ -176,14 +181,13 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   no Kubernetes credential Secret is synchronized.
 
 ## What I want next
-P8.3 is done (see `docs/PROGRESS.md`'s 2026-08-07 session log entry for full per-drill evidence).
-**P8.4 — write/verify troubleshooting runbooks from the four P8.3 drills** is the only active
-item. Base each runbook on the actual induce/diagnose/fix sequence already recorded (unhealthy
-ALB target, CrashLoopBackOff, DB connection error via security-group revocation, failed rollout
-via Helm `--atomic`) rather than writing generic guidance — the point is that a future operator
-(or a future Codex/Claude session) can reproduce the diagnosis using only the tooling commands
-already proven to work. Once P8.4 lands, T-801 (P8.2) and T-802 (P8.3) are both satisfied and the
-P8 gate is ready for owner review to activate P9 (interview package).
+P8 is fully complete (P8.1–P8.4, T-801 and T-802 both satisfied) and its gate is awaiting owner
+approval. If asked to approve a phase gate, make that its own commit ("Phase 8 gate approved by
+owner; activate Phase 9") before starting any P9 work — do not start P9 early. Once approved, P9
+is the interview package: a timed 15-minute walkthrough script, all six diagrams finalized and
+exported, and a timed dry-run. It needs no AWS session (`$0` cost) — draw on the real evidence
+already accumulated across P5–P8 (drills, rollback, IAM findings, the two deadline-overrun
+incidents and how they were handled) rather than describing hypothetical capability.
 There is no `/aws-session-start` for Codex: before touching AWS, manually walk the "Before
 the session" checklist in `docs/runbooks/aws-session.md`, and run its teardown sweep before
 ending any AWS session. Never create AWS resources outside that process. If asked to approve

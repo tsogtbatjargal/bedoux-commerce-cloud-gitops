@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P8 — Observability and operations drills |
-| Active task | P8.3 — four troubleshooting drills (**COMPLETE**; T-802 evidence recorded below). |
-| Last verified | 2026-08-07T11:13:36-06:00 — All four drills induced/diagnosed/fixed/recovered; session torn down and independently verified clean roughly 2h50m under its 14:04 MDT deadline. |
+| Active task | P8 gate — all of P8.1–P8.4 complete, awaiting owner approval to activate P9. |
+| Last verified | 2026-08-07T11:13:36-06:00 — All four P8.3 drills induced/diagnosed/fixed/recovered; session torn down and independently verified clean roughly 2h50m under its 14:04 MDT deadline. P8.4 troubleshooting runbooks written directly from that evidence. |
 | AWS resources currently live | **None temporary.** Persistent allowlist only: encrypted state bucket, two ECR repositories, five persistent IAM roles, GitHub OIDC provider — all confirmed present. EKS cluster, RDS instance, Secrets Manager secret, CloudWatch log groups/dashboard, ALB controller, and VPC all confirmed deleted. |
 | Month-to-date estimated AWS spend | USD 3.727 actual at session start; this session's footprint was ~70 minutes of EKS+RDS+Observability (billing data lags — recheck before the next session). |
-| Next operator action | P8.3 is done. **P8.4** — write/verify troubleshooting runbooks from today's four drills — is next; then the P8 gate (T-801 dashboard/alarm evidence from P8.2 + T-802 four drill write-ups, both now satisfied) is ready for owner review. |
+| Next operator action | **owner**: approve the P8 gate to activate P9 (interview package). |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -545,7 +545,14 @@ in P6.5), and T-602 (P6.5) are recorded. The dedicated gate commit records the a
       (CrashLoopBackOff), DB connection error (security-group revocation), and failed rollout
       (Helm `--atomic`), each induced, diagnosed from tooling output alone, fixed, and recovered.
       Full teardown and independent sweep confirmed clean.
-- [ ] P8.4 NOT STARTED — troubleshooting runbooks.
+- [x] P8.4 COMPLETE — troubleshooting runbooks. `docs/runbooks/p8-troubleshooting.md` documents
+      all four P8.3 drills (unhealthy ALB target, failed pod, DB connection error, failed
+      rollout), each as symptom → diagnose (exact commands, real output shapes) → root cause →
+      fix → recovery check, written directly from the commands actually proven live on
+      2026-08-07 — not generic guidance. Evidence: session log below.
+
+**P8 gate — all of P8.1–P8.4 complete with evidence above (T-801 from P8.2, T-802 from P8.3).
+Ready for owner approval to activate P9.**
 
 ### P9 — Interview package
 
@@ -561,6 +568,22 @@ in P6.5), and T-602 (P6.5) are recorded. The dedicated gate commit records the a
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-07T11:45:00-06:00 — P8.4 complete: troubleshooting runbooks; P8 gate ready — Claude
+
+- **Phase/task:** P8.4 is **COMPLETE**. No AWS session opened; this is a docs-only task.
+- **Changed:** added `docs/runbooks/p8-troubleshooting.md`, four playbooks (unhealthy ALB
+  target, failed pod, DB connection error, failed rollout), each structured symptom → diagnose
+  (exact commands, real output shapes) → root cause → fix → recovery check.
+- **"Verified" for a docs-only task**: every command and output shape in the runbook was copied
+  directly from the commands actually run and proven live during the 2026-08-07T11:13:36-06:00
+  P8.3 session (see that entry above for the raw evidence) — not written from memory or general
+  Kubernetes/AWS knowledge. No new AWS session was opened to re-verify, since the underlying
+  commands were already proven working hours earlier in this same session.
+- **AWS:** none. No AWS resources created, modified, or deleted. Estimated cost: USD 0.
+- **Gate:** T-801 (P8.2 dashboard/alarm evidence) and T-802 (P8.3 four drill write-ups) are both
+  satisfied. **P8 gate is ready for owner approval to activate P9** (interview package).
+- **Next action:** owner reviews and approves the P8 gate.
 
 ### 2026-08-07T11:13:36-06:00 — P8.3 complete: four troubleshooting drills, clean teardown — Claude
 
