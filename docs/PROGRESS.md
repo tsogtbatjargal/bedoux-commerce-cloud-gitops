@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P9 — Interview package |
-| Active task | P9.3 — timed dry-run (NOT STARTED). |
-| Last verified | 2026-08-07T15:05:00-06:00 — P9.2 complete: all six diagrams finalized and exported. |
+| Active task | P9 gate — all of P9.1–P9.3 complete, awaiting owner approval. |
+| Last verified | 2026-08-07T15:25:00-06:00 — P9.3 timed dry-run complete: script measured to fit 15:00 at every realistic delivery pace, no cuts needed. |
 | AWS resources currently live | **None temporary.** Persistent allowlist only: encrypted state bucket, two ECR repositories, five persistent IAM roles, GitHub OIDC provider — all confirmed present. EKS cluster, RDS instance, Secrets Manager secret, CloudWatch log groups/dashboard, ALB controller, and VPC all confirmed deleted. |
 | Month-to-date estimated AWS spend | USD 3.727 actual at last check; no AWS session opened since (billing data lags — recheck before the next session). |
-| Next operator action | **P9.3**: time the P9.1 script against a clock using the finished P9.2 diagrams, trim to fit 15 minutes, refine. P9 needs no AWS session ($0 cost). |
+| Next operator action | **owner**: approve the P9 gate. This is the project's final phase — approval marks the implementation plan's Definition of Done fully met. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -572,7 +572,19 @@ approval.
       `startSize=44` title text — fixed by starting children at `y=54` instead, verified by
       re-exporting and visually reviewing every diagram. `make docs-check` passes (xmllint +
       sibling-SVG presence for all six).
-- [ ] P9.3 NOT STARTED — timed dry-run.
+- [x] P9.3 COMPLETE — timed dry-run. T-901 satisfied: measured by word count of the spoken
+      lines per section (1,332 words) against a realistic technical-presentation pace (100-150
+      wpm) plus overhead for diagram-pointing pauses and section transitions. Result: fits 15:00
+      at every pace tested, with margin from ~40s (slowest, 100 wpm) to ~5:00 (briskest,
+      150 wpm) — no cuts needed. This corrected an earlier unmeasured guess in the script that
+      assumed it ran long. Full breakdown in `docs/interview/walkthrough-script.md`'s "P9.3
+      timed dry-run" section.
+
+**P9 gate — all of P9.1–P9.3 complete with evidence above (T-901, T-902 both satisfied).
+This is the final phase — `docs/IMPLEMENTATION-PLAN.md`'s "Definition of done" is now fully
+met (local-first proof, automated tests, Terraform create/destroy, keyless CI/CD, documented
+request/identity/deployment paths, a runbook-diagnosable failed deployment, a verified-empty
+teardown discipline, and a 15-minute technical tour). Ready for owner approval.**
 
 ## Blockers
 
@@ -582,6 +594,31 @@ approval.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-07T15:25:00-06:00 — P9.3 complete: timed dry-run; P9 gate ready — Claude
+
+- **Phase/task:** P9.3 is **COMPLETE**. No AWS session opened; this is a docs-only task.
+- **Method:** I cannot literally speak the script aloud, so I measured it the honest way
+  available: counted the actual spoken-line word count per section (1,332 words total: 109,
+  192, 211, 236, 368, 216), then computed reading time at three realistic technical-presentation
+  paces (100/130/150 wpm) plus a concrete overhead estimate — 6 diagram-pointing pauses (~5s
+  each), 5 inter-section transitions (~3s each), and a 15s intro/outro settle, 60s total.
+- **Result:** the script fits the 15:00 target at every pace tested — 14:19 at the slowest
+  (100 wpm), 11:15 at a typical pace (130 wpm), 9:53 at the briskest (150 wpm). No content cuts
+  were needed. This corrects an earlier unmeasured guess left in the P9.1 draft, which assumed
+  (without counting) that the script ran to ~15:30-16:00 and would need trimming — a real count
+  showed the opposite. Recorded honestly in `docs/interview/walkthrough-script.md`'s "P9.3 timed
+  dry-run" section, including the per-section word counts and the correction itself, not just
+  the final number.
+- **AWS:** none. No AWS resources created, modified, or deleted. Estimated cost: USD 0.
+- **Gate:** T-901 (timed dry-run recorded) and T-902 (diagram set complete, from P9.2) are both
+  satisfied. **P9 gate is ready for owner approval.** This is the project's final phase —
+  approval marks `docs/IMPLEMENTATION-PLAN.md`'s "Definition of done" fully met: local-first
+  proof throughout, automated tests, Terraform create/destroy, keyless CI/CD via OIDC, the
+  request/identity/deployment paths documented and now diagrammed, a runbook-diagnosable failed
+  deployment (P8.4), a repeatedly-verified-empty teardown discipline, and this 15-minute
+  technical tour.
+- **Next action:** owner reviews and approves the P9 gate.
 
 ### 2026-08-07T15:05:00-06:00 — P9.2 complete: final diagram set — Claude
 

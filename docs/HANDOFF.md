@@ -128,7 +128,11 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   (`request-path`, `ci-cd`, `vpc-network`, `identity`), each grounded in real facts from
   `docs/architecture.md` and named ADRs. A real layout bug (container children starting at
   `y=20` painted over their own swimlane's title text at `startSize=44`) was found and fixed
-  during self-check, not shipped.
+  during self-check, not shipped. **P9.3 is complete:** word-count-measured timing showed the
+  script fits 15:00 at every realistic delivery pace (14:19 at the slowest tested, 100 wpm) with
+  no cuts needed — correcting an earlier unmeasured guess in the P9.1 draft that assumed it ran
+  long. **P9 gate — all of P9.1–P9.3 complete. This is the project's final phase; ready for
+  owner approval.** Approving it completes `docs/IMPLEMENTATION-PLAN.md`'s Definition of Done.
 - Three real findings surfaced and were fixed during P5, each documented with its own ADR
   or PROGRESS entry:
   1. **ADR 0007** — `bedoux-admin`'s scoped IAM policy (`bedoux-iam-scoped`) had a genuine
@@ -189,12 +193,13 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   no Kubernetes credential Secret is synchronized.
 
 ## What I want next
-P9.1 and P9.2 are both done. Next is **P9.3 — a timed dry-run** of the P9.1 script
-(`docs/interview/walkthrough-script.md`) against a real clock, using the finished P9.2 diagrams
-(`docs/diagrams/`), trimmed to fit 15 minutes. The script's own timing notes flag section 5
-(observability/troubleshooting) as the one with the most material to cut first if it runs long.
-Record the actual timed result (even if just "read aloud in N:NN, trimmed to fit") in
-`docs/PROGRESS.md` as T-901 evidence. P9 needs no AWS session (`$0` cost).
+P9.1, P9.2, and P9.3 are all done — the P9 gate is ready for owner approval. This is the
+project's final phase: approving it marks `docs/IMPLEMENTATION-PLAN.md`'s Definition of Done
+fully met. If asked to approve a phase gate, make that its own commit ("Phase 9 gate approved by
+owner") before doing anything else. There is no P10 to activate — after the gate commit, the
+project's remaining open item is ADR 0004's "flip the repo public before P9" commitment, which
+was never explicitly executed; a full-history secrets sweep should happen first if that's
+pursued. Otherwise, treat the project as complete and await further owner direction.
 There is no `/aws-session-start` for Codex: before touching AWS, manually walk the "Before
 the session" checklist in `docs/runbooks/aws-session.md`, and run its teardown sweep before
 ending any AWS session. Never create AWS resources outside that process. If asked to approve

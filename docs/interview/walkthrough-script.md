@@ -134,11 +134,33 @@ runs slightly long on purpose so trimming has somewhere to come from.
 
 ---
 
-## Timing notes (for P9.3)
+## P9.3 timed dry-run (2026-08-07)
 
-- Target: 15:00. This draft reads at roughly 15:30–16:00 aloud — trim section 5 (observability/
-  troubleshooting) first, since it has the most material to cut without losing the point.
-- Have the system-context and learning-path diagrams (P9.2) visible/ready before section 2.
+Target: 15:00. Measured by word count of the spoken lines per section (1,332 words total),
+against a realistic technical-presentation pace, plus overhead for diagram-pointing pauses (6
+diagram references × ~5s) and inter-section transitions (5 × ~3s) and a brief intro/outro
+settle (~15s) — 60s of overhead total.
+
+| Pace | Raw reading time | + overhead | vs. 15:00 target |
+|---|---|---|---|
+| 100 wpm (slow, deliberate) | 13:19 | 14:19 | fits, ~40s margin |
+| 130 wpm (typical technical delivery) | 10:15 | 11:15 | fits, ~3:45 margin |
+| 150 wpm (brisk) | 8:53 | 9:53 | fits, ~5:07 margin |
+
+**Result: the script fits 15 minutes at every realistic delivery pace, with margin to spare —
+no cuts were needed.** This corrects an earlier, unmeasured guess in this file that assumed the
+draft ran long; a real word-count pass showed otherwise. Per-section word counts, for reference:
+problem 109, architecture/request-path 192, K8s/AWS responsibilities 211, CI/CD/identity 236,
+observability/troubleshooting 368 (the longest section, and still not the deciding factor since
+overall time comfortably fits), cost/reliability 216.
+
+**Practical notes for delivery, not cuts:**
+- Have all six `docs/diagrams/` diagrams exported and visible/ready before their referenced
+  section (system-context and learning-path before section 2; request-path also section 2;
+  ci-cd before section 4; vpc-network and identity before section 3).
+- The margin at a typical pace (~3:45–5:00) is better spent on natural pauses, audience
+  questions, and elaborating on a diagram than on rushing — this is a technical interview, not
+  a race to the shortest possible delivery.
 - If asked to go deeper on any one area, the natural extension points are: the IAM
   self-escalation finding (ADR 0007) for identity questions, the P8.3 drills for
   troubleshooting/SRE questions, and the two deadline-overrun incidents for questions about
