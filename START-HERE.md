@@ -118,12 +118,20 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   structured application-log delivery, dashboard, and four notification-free alarms, all `OK`.
   The owner deferred P8.3 to a fresh, fully time-budgeted session; the P8.2 session was torn down
   and independently verified clean well before its 17:30 MDT alarm. **P8.3 (four troubleshooting
-  drills) has not started.** No AWS resources are currently live.
-- Next action: owner decides when to open a fresh AWS session for P8.3. Along the way,
-  `scripts/terraform-session-destroy.sh` had two real bugs fixed live during this teardown
-  (invalid CloudWatch add-on version placeholder; unset RDS password breaking plan evaluation) —
-  see `docs/PROGRESS.md`'s latest session log entry; that fix should go through the normal PR
-  review before the next AWS session relies on it.
+  drills) has not started.** A first P8.3 AWS session attempt (2026-08-06) hit a real,
+  previously-undiscovered bug — `apps/api/migrations/env.py` crashed on any DB password
+  containing a `%`-encodable character (Alembic's `Config.set_main_option` uses `%`-style
+  interpolation) — and separately overran its planned teardown deadline by ~3 hours while that
+  was being diagnosed, an operational mistake now recorded honestly in `docs/PROGRESS.md`. The
+  session was emergency torn down and independently verified clean. The fix is proven both by a
+  unit test and a real local `kind` migration run against Postgres with a `%2B`-containing
+  password (per this project's local-before-AWS rule) and is ready for review. No AWS resources
+  are currently live.
+- Next action: review and merge the Alembic `%`-escaping fix, then open a fresh,
+  fully time-budgeted, **independently alarmed** AWS session for P8.3. Along the way,
+  `scripts/terraform-session-destroy.sh` had two earlier real bugs fixed live during a prior
+  teardown (invalid CloudWatch add-on version placeholder; unset RDS password breaking plan
+  evaluation) — already merged.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 
