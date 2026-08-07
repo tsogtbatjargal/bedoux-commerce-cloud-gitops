@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P9 — Interview package |
-| Active task | P9.2 — final diagram set (NOT STARTED). |
-| Last verified | 2026-08-07T12:05:00-06:00 — P9.1 walkthrough script complete, grounded in real recorded evidence. |
+| Active task | P9.3 — timed dry-run (NOT STARTED). |
+| Last verified | 2026-08-07T15:05:00-06:00 — P9.2 complete: all six diagrams finalized and exported. |
 | AWS resources currently live | **None temporary.** Persistent allowlist only: encrypted state bucket, two ECR repositories, five persistent IAM roles, GitHub OIDC provider — all confirmed present. EKS cluster, RDS instance, Secrets Manager secret, CloudWatch log groups/dashboard, ALB controller, and VPC all confirmed deleted. |
 | Month-to-date estimated AWS spend | USD 3.727 actual at last check; no AWS session opened since (billing data lags — recheck before the next session). |
-| Next operator action | **P9.2**: finalize and export all six diagrams (`docs/diagrams/`). P9 needs no AWS session ($0 cost). |
+| Next operator action | **P9.3**: time the P9.1 script against a clock using the finished P9.2 diagrams, trim to fit 15 minutes, refine. P9 needs no AWS session ($0 cost). |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -563,7 +563,15 @@ approval.
       (ADR 0007), the ALB no-rewrite finding (ADR 0008), OIDC least privilege (ADR 0009), the
       P8.3 drills, and both deadline-overrun incidents and how they were closed out. No
       hypothetical capability described.
-- [ ] P9.2 NOT STARTED — final diagram set.
+- [x] P9.2 COMPLETE — final diagram set. All six diagrams exist and are exported to sibling
+      SVGs: `system-context.drawio`, `learning-path.drawio` (existing), plus four new —
+      `request-path.drawio`, `ci-cd.drawio`, `vpc-network.drawio`, `identity.drawio`. Each is
+      grounded in real facts from `docs/architecture.md` and named ADRs, not invented. Exported
+      via the documented podman fallback (no drawio desktop CLI on this host). A real layout
+      finding: swimlane child boxes at `y=20` painted over the lower half of the swimlane's own
+      `startSize=44` title text — fixed by starting children at `y=54` instead, verified by
+      re-exporting and visually reviewing every diagram. `make docs-check` passes (xmllint +
+      sibling-SVG presence for all six).
 - [ ] P9.3 NOT STARTED — timed dry-run.
 
 ## Blockers
@@ -574,6 +582,30 @@ approval.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-07T15:05:00-06:00 — P9.2 complete: final diagram set — Claude
+
+- **Phase/task:** P9.2 is **COMPLETE**. No AWS session opened; this is a docs-only task.
+- **Changed:** added four new diagrams to `docs/diagrams/` — `request-path.drawio`,
+  `ci-cd.drawio`, `vpc-network.drawio`, `identity.drawio` — alongside the two existing ones
+  (`system-context.drawio`, `learning-path.drawio`). Each grounded directly in
+  `docs/architecture.md` and named ADRs (0002, 0008, 0009, 0011, 0012, plus the P5.5 no-NAT
+  finding and the P8.3 atomic-rollback drill) — no invented components. `docs/architecture.md`'s
+  "Current diagrams" list updated to reference all six.
+- **Export path:** no drawio desktop CLI on this host; used the documented podman fallback
+  (`docker.io/rlespinasse/drawio-export:latest`), renamed the `-PageName`-suffixed output to
+  match the sibling `.svg` naming `make docs-check` expects.
+- **Real finding, self-check caught and fixed:** the first export of every new diagram had a
+  genuine layout bug — child boxes placed at `y=20` relative to a `swimlane`/container with
+  `startSize=44` sit *inside* the title-bar region, so their opaque fill painted over the lower
+  half of the container's own title text. Visually this looked like clipped/cut-off headers.
+  Fixed by starting children at `y=54` (clear of the header) across all affected diagrams;
+  verified by re-exporting to PNG and visually re-reviewing each one until clean. Also fixed a
+  genuine text/edge overlap in `request-path.drawio` (an edge label sat directly on top of the
+  `web` pod box's own wrapped text) by repositioning both.
+- **AWS:** none. No AWS resources created, modified, or deleted. Estimated cost: USD 0.
+- **Next action:** P9.3 — time the P9.1 script against a clock using these diagrams, trim to fit
+  15 minutes, refine.
 
 ### 2026-08-07T12:05:00-06:00 — P9.1 complete: 15-minute walkthrough script — Claude
 

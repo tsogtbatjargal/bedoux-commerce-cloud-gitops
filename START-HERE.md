@@ -132,9 +132,11 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   `docs/interview/walkthrough-script.md` is a timed 15-minute script grounded entirely in real
   recorded evidence (ADR 0007's IAM self-escalation fix, ADR 0008's ALB no-rewrite finding, the
   four P8.3 drills, both deadline-overrun incidents) — no hypothetical capability described.
-- Next action: **P9.2** — finalize and export all six diagrams. Two exist today
-  (`docs/diagrams/system-context.drawio`, `learning-path.drawio`); four more (request-path,
-  CI/CD, VPC/network, identity) are new work. No AWS session needed.
+  **P9.2 is complete:** all six diagrams exist and are exported to sibling SVGs — the two
+  existing (`system-context`, `learning-path`) plus four new (`request-path`, `ci-cd`,
+  `vpc-network`, `identity`), each grounded in real facts, not invented.
+- Next action: **P9.3** — time the P9.1 script against a clock using the finished diagrams, trim
+  to fit 15 minutes, refine. No AWS session needed.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

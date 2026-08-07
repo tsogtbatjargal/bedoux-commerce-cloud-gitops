@@ -1,0 +1,58 @@
+<mxfile host="app.diagrams.net" modified="2026-08-07T00:00:00.000Z" agent="Claude" version="24.7.17" type="device">
+  <diagram id="bedoux-request-path" name="Request Path">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="700" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="Bedoux Commerce Cloud — Runtime Request Path (learning profile)" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;fontSize=22;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="20" width="840" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="user" value="Customer&#xa;web browser" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="270" width="150" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="alb" value="Application Load Balancer&#xa;HTTP only, raw ALB DNS name&#xa;no Route53 / ACM (ADR 0002)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="270" y="260" width="210" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="controller" value="AWS Load Balancer Controller&#xa;reconciles Ingress + target groups" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="270" y="90" width="210" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="ingress" value="Ingress: single rule&#xa;/ → web (ip target mode)&#xa;no path-based split" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="560" y="90" width="210" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="web" value="web pod&#xa;React static assets + nginx&#xa;nginx proxies /api/* internally&#xa;to the api Service, stripping&#xa;the prefix (ALB has no rewrite&#xa;of its own — ADR 0008)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="580" y="250" width="240" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="api" value="api pod&#xa;FastAPI&#xa;never reachable directly&#xa;from the public ALB DNS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="900" y="260" width="210" height="110" as="geometry"/>
+        </mxCell>
+        <mxCell id="rds" value="PostgreSQL&#xa;RDS Single-AZ (P7+ profile)&#xa;security-group-scoped to EKS SG" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1200" y="150" width="230" height="110" as="geometry"/>
+        </mxCell>
+        <mxCell id="s3" value="Amazon S3 product images&#xa;API-generated presigned GetObject&#xa;scoped IRSA role (ADR 0011)&#xa;opt-in, P7.2 profile only" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;dashed=1;opacity=70;" vertex="1" parent="1">
+          <mxGeometry x="1200" y="330" width="230" height="110" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-user-alb" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=12;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="user" target="alb">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-controller-ingress" value="watches / reconciles" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;endArrow=block;endFill=1;fontSize=11;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="controller" target="ingress">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-ingress-alb" value="configures target group" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;endArrow=block;endFill=1;fontSize=11;exitX=0.3;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="ingress" target="alb">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-alb-web" value="ip target mode" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=11;exitX=1;exitY=0.7;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;" edge="1" parent="1" source="alb" target="web">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-web-api" value="internal proxy" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=11;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;" edge="1" parent="1" source="web" target="api">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-api-rds" value="SQL" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=11;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="api" target="rds">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-api-s3" value="presigned GetObject&#xa;(opt-in)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;endArrow=block;endFill=1;fontSize=11;exitX=1;exitY=0.7;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="api" target="s3">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
