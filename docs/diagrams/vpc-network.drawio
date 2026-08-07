@@ -1,0 +1,55 @@
+<mxfile host="app.diagrams.net" modified="2026-08-07T00:00:00.000Z" agent="Claude" version="24.7.17" type="device">
+  <diagram id="bedoux-vpc-network" name="VPC and Network">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1500" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="Bedoux Commerce Cloud — Learning-profile VPC" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;fontSize=22;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="480" y="20" width="600" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="igw" value="Internet Gateway" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="620" y="90" width="220" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="nonat" value="No NAT Gateway&#xa;deliberate — a real finding (P5.5):&#xa;eksctl/Terraform both default to&#xa;creating one silently; explicitly&#xa;disabled here. Nodes don't need&#xa;NAT since subnets are public." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="70" width="280" height="130" as="geometry"/>
+        </mxCell>
+        <mxCell id="vpc" value="VPC — 10.42.0.0/16" style="swimlane;html=1;horizontal=1;startSize=38;rounded=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=16;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="120" y="220" width="900" height="620" as="geometry"/>
+        </mxCell>
+        <mxCell id="rt" value="Public route table&#xa;0.0.0.0/0 → Internet Gateway" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;" vertex="1" parent="vpc">
+          <mxGeometry x="260" y="60" width="380" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="subnetA" value="Public subnet — ca-central-1a" style="swimlane;html=1;horizontal=1;startSize=32;rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13;fontStyle=1;" vertex="1" parent="vpc">
+          <mxGeometry x="40" y="160" width="380" height="420" as="geometry"/>
+        </mxCell>
+        <mxCell id="node" value="EKS Spot node&#xa;1× t3.medium&#xa;public IP assigned&#xa;runs api + web pods" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;" vertex="1" parent="subnetA">
+          <mxGeometry x="70" y="60" width="240" height="110" as="geometry"/>
+        </mxCell>
+        <mxCell id="alb-node" value="ALB target&#xa;(pod IPs, ip target mode)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="subnetA">
+          <mxGeometry x="70" y="200" width="240" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="subnetB" value="Public subnet — ca-central-1b" style="swimlane;html=1;horizontal=1;startSize=32;rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13;fontStyle=1;" vertex="1" parent="vpc">
+          <mxGeometry x="460" y="160" width="380" height="420" as="geometry"/>
+        </mxCell>
+        <mxCell id="rds" value="RDS PostgreSQL&#xa;publicly_accessible = false&#xa;spans both subnets (subnet group)&#xa;isolated by security group, not&#xa;by network placement" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontStyle=1;" vertex="1" parent="subnetB">
+          <mxGeometry x="70" y="60" width="240" height="130" as="geometry"/>
+        </mxCell>
+        <mxCell id="sg" value="RDS security group&#xa;ingress: tcp/5432 from&#xa;EKS cluster security group only&#xa;(no CIDR-based rule at all)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;dashed=1;" vertex="1" parent="subnetB">
+          <mxGeometry x="70" y="230" width="240" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="eks-cp" value="EKS control plane&#xa;AWS-managed, outside the VPC's&#xa;subnets — endpoint is public" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="120" y="870" width="320" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-igw-rt" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="igw" target="rt">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-node-sg" value="tcp/5432 only" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=10;exitX=1;exitY=0.7;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="vpc" source="node" target="sg">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-sg-rds" value="allows" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;endArrow=block;endFill=1;fontSize=10;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="subnetB" source="sg" target="rds">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

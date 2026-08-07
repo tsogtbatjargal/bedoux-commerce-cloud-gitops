@@ -123,6 +123,12 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   2026-08-07; P9 (interview package) is active. P9.1 is complete:**
   `docs/interview/walkthrough-script.md` is a timed 15-minute script (1/3/3/3/3/2 min per the
   plan's allocation) grounded entirely in real recorded evidence — no hypothetical capability.
+  **P9.2 is complete:** all six diagrams exist and are exported to sibling SVGs in
+  `docs/diagrams/` — the two existing (`system-context`, `learning-path`) plus four new
+  (`request-path`, `ci-cd`, `vpc-network`, `identity`), each grounded in real facts from
+  `docs/architecture.md` and named ADRs. A real layout bug (container children starting at
+  `y=20` painted over their own swimlane's title text at `startSize=44`) was found and fixed
+  during self-check, not shipped.
 - Three real findings surfaced and were fixed during P5, each documented with its own ADR
   or PROGRESS entry:
   1. **ADR 0007** — `bedoux-admin`'s scoped IAM policy (`bedoux-iam-scoped`) had a genuine
@@ -183,13 +189,12 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   no Kubernetes credential Secret is synchronized.
 
 ## What I want next
-P9.1 is done (`docs/interview/walkthrough-script.md`). Next is **P9.2 — finalize and export all
-six diagrams**. Two exist today: `docs/diagrams/system-context.drawio` and `learning-path.drawio`
-(both already exported to SVG). Four more are new work: request-path, CI/CD, VPC/network, and
-identity — each should mirror what's actually true today (per `docs/architecture.md` and the
-relevant ADRs), not a generic diagram. Use the drawio-skill for these. Then P9.3: a timed
-dry-run of the P9.1 script against a clock, trimmed to fit 15 minutes, using the finished
-diagrams. P9 needs no AWS session (`$0` cost).
+P9.1 and P9.2 are both done. Next is **P9.3 — a timed dry-run** of the P9.1 script
+(`docs/interview/walkthrough-script.md`) against a real clock, using the finished P9.2 diagrams
+(`docs/diagrams/`), trimmed to fit 15 minutes. The script's own timing notes flag section 5
+(observability/troubleshooting) as the one with the most material to cut first if it runs long.
+Record the actual timed result (even if just "read aloud in N:NN, trimmed to fit") in
+`docs/PROGRESS.md` as T-901 evidence. P9 needs no AWS session (`$0` cost).
 There is no `/aws-session-start` for Codex: before touching AWS, manually walk the "Before
 the session" checklist in `docs/runbooks/aws-session.md`, and run its teardown sweep before
 ending any AWS session. Never create AWS resources outside that process. If asked to approve
