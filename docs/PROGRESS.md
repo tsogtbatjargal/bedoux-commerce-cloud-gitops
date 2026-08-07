@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P8 — Observability and operations drills |
-| Active task | P8.3 — four troubleshooting drills (NOT STARTED; session overran its deadline before any drill began and was torn down). |
-| Last verified | 2026-08-06T19:21:00-06:00 — Emergency teardown complete; independent full read-only sweep confirmed clean. |
+| Active task | P8.3 — four troubleshooting drills (**COMPLETE**; T-802 evidence recorded below). |
+| Last verified | 2026-08-07T11:13:36-06:00 — All four drills induced/diagnosed/fixed/recovered; session torn down and independently verified clean roughly 2h50m under its 14:04 MDT deadline. |
 | AWS resources currently live | **None temporary.** Persistent allowlist only: encrypted state bucket, two ECR repositories, five persistent IAM roles, GitHub OIDC provider — all confirmed present. EKS cluster, RDS instance, Secrets Manager secret, CloudWatch log groups/dashboard, ALB controller, and VPC all confirmed deleted. |
-| Month-to-date estimated AWS spend | USD 2.575 actual at session start; this session added a ~6-hour EKS+RDS+Observability footprint (billing data lags, exact total not yet known — recheck before the next session). |
-| Next operator action | **Real finding, not yet fixed:** `apps/api/migrations/env.py` passes the resolved `DATABASE_URL` straight into `config.set_main_option(...)`, which uses Python's `ConfigParser` `%`-interpolation — any password containing a literal `%` character (routine after `urlencode()`, e.g. `+` becomes `%2B`) crashes Alembic before it can connect, independent of Secrets Manager vs. K8s-Secret mode. Fix (escape `%` as `%%`, or set the URL via `config.attributes` instead of the ini option) needs to land and be proven **locally against kind first**, per this project's own "local before AWS" rule — it was never actually exercised locally because P7.1's local proof used a password without special characters. Only after that, open a fresh, fully time-budgeted AWS session for P8.3's four drills. |
+| Month-to-date estimated AWS spend | USD 3.727 actual at session start; this session's footprint was ~70 minutes of EKS+RDS+Observability (billing data lags — recheck before the next session). |
+| Next operator action | P8.3 is done. **P8.4** — write/verify troubleshooting runbooks from today's four drills — is next; then the P8 gate (T-801 dashboard/alarm evidence from P8.2 + T-802 four drill write-ups, both now satisfied) is ready for owner review. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -540,7 +540,11 @@ in P6.5), and T-602 (P6.5) are recorded. The dedicated gate commit records the a
       three-day Container Insights log groups (including add-on-created `performance`), a
       least-privilege collector IRSA role, structured application-log delivery, a dashboard, and
       four no-action alarms. Evidence: 2026-08-05 session entry below.
-- [ ] P8.3 NOT STARTED — four troubleshooting drills.
+- [x] P8.3 COMPLETE — four troubleshooting drills. Evidence: session log
+      2026-08-07T11:13:36-06:00; T-802 satisfied — unhealthy ALB target, failed pod
+      (CrashLoopBackOff), DB connection error (security-group revocation), and failed rollout
+      (Helm `--atomic`), each induced, diagnosed from tooling output alone, fixed, and recovered.
+      Full teardown and independent sweep confirmed clean.
 - [ ] P8.4 NOT STARTED — troubleshooting runbooks.
 
 ### P9 — Interview package
@@ -557,6 +561,76 @@ in P6.5), and T-602 (P6.5) are recorded. The dedicated gate commit records the a
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-07T11:13:36-06:00 — P8.3 complete: four troubleshooting drills, clean teardown — Claude
+
+- **Phase/task:** P8.3 is **COMPLETE**; T-802 evidence recorded below. This session applied the
+  lesson from 2026-08-06 directly: an actual enforced background alarm (1h/30m/10m/deadline
+  notifications via a persistent monitor) was armed at session start, not just intent to watch
+  the clock. Session finished roughly 2h50m under its 14:04 MDT deadline.
+- **Preflight (10:04 MDT):** non-root `bedoux-admin`, region `ca-central-1` pinned, budget actual
+  USD 3.727 of USD 20 (well below the USD 16 stop threshold), full read-only leftover sweep
+  clean.
+- **Infrastructure applied cleanly:** same P8.2-shaped Terraform plan (43 add/10 change/0
+  destroy; no NAT/EIP; all four log groups at retention 3), reviewed before applying. Both
+  add-ons reached `ACTIVE`; the operator setup (namespace, `gp3` StorageClass,
+  `bedoux-api-secrets` ServiceAccount, ALB controller 3.4.3) completed normally.
+- **App deployed successfully with the Alembic fix**: main-branch GitHub Actions run
+  `31199043032` passed OIDC, ECR push, migration (no `%`-interpolation crash this time),
+  seed, API/web rollout, and public ALB smoke — proving PR #29's fix works in the real RDS +
+  Secrets Manager profile, not just locally. Confirmed independently: `/api/health` returned
+  `{"status":"ok","orders_enabled":false}`, and `/api/products` returned real RDS-backed
+  catalog rows.
+- **Drill 1 — unhealthy ALB target:** induced by scaling `web` to 0 replicas. Diagnosed purely
+  from tooling: `kubectl get deployment` showed `0/0`, `kubectl get endpoints` showed none,
+  `aws elbv2 describe-target-health` showed `draining`/`Target.DeregistrationInProgress`, and
+  `curl` against the ALB returned `503`. Fixed by scaling back to 1; target returned `healthy`
+  and the ALB returned `200` within ~20s.
+- **Drill 2 — failed pod (CrashLoopBackOff):** induced by patching the `api` Deployment's
+  container command to exit 1 immediately, simulating an application crash distinct from
+  Drill 1's "no pods at all." Diagnosed purely from tooling: `kubectl get pods` showed
+  `CrashLoopBackOff`, `kubectl describe pod` showed `BackOff restarting failed container`, and
+  `kubectl logs` on the crashed pod showed the exact injected error text. The deployment's
+  rolling-update strategy correctly kept the previous good pod serving throughout — zero
+  user-facing impact during this drill. Fixed via `kubectl rollout undo deployment/api`;
+  confirmed `1/1 Running` and `/api/health` returned `200`.
+- **Drill 3 — DB connection error:** induced by revoking the RDS security group's ingress rule
+  (`ec2:RevokeSecurityGroupIngress`) that allows TCP 5432 from the EKS cluster security group,
+  then deleting the running API pod to force a fresh connection attempt. Diagnosed from tooling:
+  the new pod stuck at `Init:0/5` indefinitely (the `wait-for-postgres` init container retries
+  silently by design, so pod phase alone was the first signal); a disposable debug pod's
+  `pg_isready` against the RDS endpoint returned `no response` (network-level evidence); and
+  `aws ec2 describe-security-group-rules` on the RDS security group returned zero ingress rules
+  (infrastructure-level evidence, confirming the exact root cause). Fixed by restoring the
+  identical rule (verified against Terraform's own `cluster_security_group_id` output to avoid
+  any drift); the pod progressed `Init:0/5` → `5/5` → `Running` → `1/1 Ready`, `/api/health`
+  returned `200`.
+- **Drill 4 — failed rollout:** induced via `helm upgrade --atomic` with a deliberately
+  nonexistent web image tag. Diagnosed from tooling: `kubectl describe pod` on the new pod
+  showed `ErrImagePull` → `ImagePullBackOff` with the exact missing-tag error, while the
+  previous-revision pod kept `1/1 Running` throughout — zero user-facing downtime during the
+  failed rollout. Helm's own `--atomic` flag then fired automatically after its 3-minute
+  timeout (`context deadline exceeded`), rolling the release back without manual intervention;
+  `helm history` showed revision 2 `failed` → revision 3 `Rollback to 1` → `deployed`. Confirmed
+  recovered: original web pod still `1/1 Running`, `/api/health` and `/` both returned `200`.
+- **Teardown:** deleted the Ingress and confirmed its ALB gone; uninstalled the Helm release and
+  ALB controller; deleted the `bedoux` and `amazon-cloudwatch` namespaces; ran the guarded
+  `terraform-session-destroy.sh prepare` / `prepare --execute` / `plan` / `apply --execute`
+  sequence (32 destroyed, 0 add/change). Independent full read-only sweep afterward: zero EKS
+  clusters, ALBs, RDS instances/snapshots, NAT gateways, EIPs, EBS volumes, running EC2,
+  project-tagged VPCs, CloudFormation stacks, CloudWatch log groups/dashboards, Secrets Manager
+  secrets. Cluster OIDC provider confirmed deleted (`NoSuchEntity`); all five persistent IAM
+  roles and the GitHub OIDC provider confirmed present. Two resourcegroupstaggingapi entries
+  (Drill 3's original revoked security-group-rule ARN, and an RDS security-group-rule ARN from
+  the destroyed session) still appeared in the tag index; both directly checked via
+  `describe-security-group-rules` and confirmed `InvalidSecurityGroupRuleId.NotFound` — the same
+  tag-index-lags-real-deletion pattern documented since P5.5, not a real leftover.
+- **AWS:** full P8.3 session (no-NAT VPC, EKS 1.34, one Spot node, RDS, Secrets Manager,
+  CloudWatch Observability add-on, ALB controller) created and destroyed within ~70 minutes.
+  Exact cost not yet known (billing data lags); recheck actual/forecast before the next session.
+- **Next action:** P8.4 — write/verify troubleshooting runbooks from these four drills. T-801
+  (from P8.2) and T-802 (this session) are both now satisfied; the P8 gate is ready for owner
+  review once P8.4 is done.
 
 ### 2026-08-06T19:21:00-06:00 — P8.3 session opened, hit a real migration bug, overran its deadline, emergency torn down — Claude
 

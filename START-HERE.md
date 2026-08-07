@@ -116,22 +116,19 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   (2026-08-05):** a time-bounded no-NAT session proved temporary three-day Container Insights
   logging (including the add-on-created `performance` group), the IRSA-restricted collector,
   structured application-log delivery, dashboard, and four notification-free alarms, all `OK`.
-  The owner deferred P8.3 to a fresh, fully time-budgeted session; the P8.2 session was torn down
-  and independently verified clean well before its 17:30 MDT alarm. **P8.3 (four troubleshooting
-  drills) has not started.** A first P8.3 AWS session attempt (2026-08-06) hit a real,
-  previously-undiscovered bug — `apps/api/migrations/env.py` crashed on any DB password
-  containing a `%`-encodable character (Alembic's `Config.set_main_option` uses `%`-style
-  interpolation) — and separately overran its planned teardown deadline by ~3 hours while that
-  was being diagnosed, an operational mistake now recorded honestly in `docs/PROGRESS.md`. The
-  session was emergency torn down and independently verified clean. The fix is proven both by a
-  unit test and a real local `kind` migration run against Postgres with a `%2B`-containing
-  password (per this project's local-before-AWS rule) and is ready for review. No AWS resources
+  The owner deferred P8.3 once already on 2026-08-05; a first 2026-08-06 attempt hit a real,
+  previously-undiscovered Alembic `%`-interpolation bug and separately overran its deadline by
+  ~3 hours (recorded honestly in `docs/PROGRESS.md`), was fixed, proven locally, and merged.
+  **P8.3 is now complete (2026-08-07).** This session applied the lesson directly: an actual
+  enforced background alarm (not just intent) was armed at session start. All four drills —
+  unhealthy ALB target, failed pod (CrashLoopBackOff), DB connection error (RDS security-group
+  revocation), and failed rollout (Helm `--atomic`) — were induced, diagnosed purely from tooling
+  output, fixed, and recovered, each with independently-confirmed evidence. Full teardown
+  completed roughly 2h50m under deadline; independent sweep confirmed clean. No AWS resources
   are currently live.
-- Next action: review and merge the Alembic `%`-escaping fix, then open a fresh,
-  fully time-budgeted, **independently alarmed** AWS session for P8.3. Along the way,
-  `scripts/terraform-session-destroy.sh` had two earlier real bugs fixed live during a prior
-  teardown (invalid CloudWatch add-on version placeholder; unset RDS password breaking plan
-  evaluation) — already merged.
+- Next action: **P8.4** — write/verify troubleshooting runbooks from the four P8.3 drills. T-801
+  (P8.2) and T-802 (P8.3) are both satisfied; the P8 gate is ready for owner review once P8.4 is
+  done.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 
