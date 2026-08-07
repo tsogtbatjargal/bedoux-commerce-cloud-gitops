@@ -20,7 +20,7 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
    phase-start decisions are now recorded: ADR 0006, the kill switch/request bounds, and
    ADR 0011's P7.2 S3 adapter boundary.
 
-## Current state (as of 2026-08-06)
+## Current state (as of 2026-08-07)
 - Phases 0-4 complete, gates approved. Local app (FastAPI + Postgres + React) proven on
   Compose (P2), then on kind with a Helm chart (P3, ADR 0005), with real drills throughout.
   AWS account readiness done in P4: non-root IAM identity `bedoux-admin`, region
@@ -97,22 +97,25 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   MDT alarm. Two real teardown-script bugs found live that session (invalid hardcoded CloudWatch
   add-on version placeholder; unset RDS password breaking Terraform's plan-time string
   interpolation) were fixed, proven, and merged.
-- **P8.3 (four troubleshooting drills) has not started.** A first AWS session attempt
-  (2026-08-06) hit a real, previously-undiscovered bug: `apps/api/migrations/env.py` passed the
-  resolved `DATABASE_URL` straight into `config.set_main_option(...)`, and Alembic's `Config`
-  uses Python's `ConfigParser` `%`-style interpolation by default — any password containing a
-  literal `%` (routine after `urlencode()`, e.g. `+` becomes `%2B`) crashed migration before any
-  connection attempt, independent of Secrets Manager vs. Kubernetes-Secret mode. Neither P7.1's
-  nor P7.3's earlier local/AWS proofs caught this because neither session's password happened to
-  contain a percent-encodable character. Separately, and independently of the bug itself, the
-  session overran its planned teardown deadline by roughly three hours while that failure was
-  being diagnosed — no independent wall-clock alarm had been set for this particular session,
-  unlike every prior P8 session. Both are recorded honestly in `docs/PROGRESS.md`'s session log
-  rather than glossed over. The session was emergency torn down immediately on discovery and
-  independently verified clean. The fix (escape `%` as `%%` before `set_main_option`) is proven
-  two ways: a unit test reproducing the exact `ConfigParser` round-trip, and a real local `kind`
-  migration run against Postgres with a `%2B`-containing password (per this project's
-  local-before-AWS rule) — ready for review, not yet merged as of this handoff.
+- **P8.3 (four troubleshooting drills) is complete (2026-08-07), T-802 satisfied.** A first AWS
+  session attempt (2026-08-06) hit a real, previously-undiscovered bug — Alembic's
+  `Config.set_main_option` crashed on any DB password containing a `%`-encodable character — and
+  separately overran its planned teardown deadline by roughly three hours while that was being
+  diagnosed, with no independent wall-clock alarm set. Both were recorded honestly in
+  `docs/PROGRESS.md` rather than glossed over; the session was emergency torn down and
+  independently verified clean, and the fix (escape `%` as `%%`) was proven two ways (a unit
+  test and a real local `kind` migration run) and merged as PR #29. The 2026-08-07 retry applied
+  the lesson directly: an actual enforced background alarm (1h/30m/10m/deadline notifications)
+  was armed at session start, not just intent. The app deployed successfully with the fix
+  (main-branch run `31199043032` proved OIDC/ECR/migration/seed/rollout/ALB smoke all passing
+  against the real RDS + Secrets Manager profile). All four drills — unhealthy
+  ALB target (scale-to-0 → ALB `draining` → `503`), failed pod (CrashLoopBackOff via a bad
+  container command → `kubectl logs` showed the exact injected error), DB connection error
+  (revoked the RDS security group's ingress rule → `pg_isready` timeout + empty rule list, both
+  from tooling), and failed rollout (`helm upgrade --atomic` with a nonexistent image tag →
+  `ImagePullBackOff` → Helm's own atomic rollback fired automatically) — were induced, diagnosed
+  purely from tooling output, fixed, and independently confirmed recovered. Teardown finished
+  roughly 2h50m under the 14:04 MDT deadline; independent sweep confirmed clean.
 - Three real findings surfaced and were fixed during P5, each documented with its own ADR
   or PROGRESS entry:
   1. **ADR 0007** — `bedoux-admin`'s scoped IAM policy (`bedoux-iam-scoped`) had a genuine
@@ -173,15 +176,14 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   no Kubernetes credential Secret is synchronized.
 
 ## What I want next
-First review and merge the pending Alembic `%`-escaping fix in `apps/api/migrations/env.py` (see
-`docs/PROGRESS.md`'s latest session log entry for the exact bug, proof, and evidence) via the
-normal PR flow — it is already proven locally (unit test + real kind migration run), just not
-yet merged. Then P8.3 — four troubleshooting drills (unhealthy ALB target, failed pod, DB
-connection error, failed rollout), each needing induce → diagnose-from-tooling-only → fix →
-written evidence — is the only active item, and needs its own fully time-budgeted AWS session
-(not a leftover window from a prior session). Open it only after a current cost check, the
-complete preflight, and — this matters, given what happened 2026-08-06 — an actual independent
-wall-clock alarm set at session start, not just a plan to "keep an eye on the time."
+P8.3 is done (see `docs/PROGRESS.md`'s 2026-08-07 session log entry for full per-drill evidence).
+**P8.4 — write/verify troubleshooting runbooks from the four P8.3 drills** is the only active
+item. Base each runbook on the actual induce/diagnose/fix sequence already recorded (unhealthy
+ALB target, CrashLoopBackOff, DB connection error via security-group revocation, failed rollout
+via Helm `--atomic`) rather than writing generic guidance — the point is that a future operator
+(or a future Codex/Claude session) can reproduce the diagnosis using only the tooling commands
+already proven to work. Once P8.4 lands, T-801 (P8.2) and T-802 (P8.3) are both satisfied and the
+P8 gate is ready for owner review to activate P9 (interview package).
 There is no `/aws-session-start` for Codex: before touching AWS, manually walk the "Before
 the session" checklist in `docs/runbooks/aws-session.md`, and run its teardown sweep before
 ending any AWS session. Never create AWS resources outside that process. If asked to approve
