@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P8 — Observability and operations drills |
-| Active task | P8.3 — four troubleshooting drills (NOT STARTED; owner deferred to a fresh, fully time-budgeted session). |
-| Last verified | 2026-08-05T16:41:00-06:00 — P8 session torn down; independent full read-only sweep confirmed clean. |
-| AWS resources currently live | **None temporary.** Persistent allowlist only: encrypted state bucket, two ECR repositories, cluster/node/GitHub deployment roles and policies, ALB-controller role/policy, GitHub OIDC provider (`token.actions.githubusercontent.com`), and their persistent IAM attachments — all confirmed present. The session's own cluster OIDC provider, EKS cluster, RDS instance, Secrets Manager secret, CloudWatch log groups/dashboard/alarms, ALB, and VPC are confirmed deleted. |
-| Month-to-date estimated AWS spend | Owner confirmed actual and forecast below USD 16 at P8.2 session start; billing data lags. The independent 17:30 MDT teardown alarm was pre-empted — teardown completed by ~16:41 MDT, before it could fire. |
-| Next operator action | Owner decides when to open a fresh, fully time-budgeted session for P8.3's four drills (each needs induce → diagnose-from-tooling-only → fix → written evidence). No AWS resource is live in the meantime. |
+| Active task | P8.3 — four troubleshooting drills (NOT STARTED; session overran its deadline before any drill began and was torn down). |
+| Last verified | 2026-08-06T19:21:00-06:00 — Emergency teardown complete; independent full read-only sweep confirmed clean. |
+| AWS resources currently live | **None temporary.** Persistent allowlist only: encrypted state bucket, two ECR repositories, five persistent IAM roles, GitHub OIDC provider — all confirmed present. EKS cluster, RDS instance, Secrets Manager secret, CloudWatch log groups/dashboard, ALB controller, and VPC all confirmed deleted. |
+| Month-to-date estimated AWS spend | USD 2.575 actual at session start; this session added a ~6-hour EKS+RDS+Observability footprint (billing data lags, exact total not yet known — recheck before the next session). |
+| Next operator action | **Real finding, not yet fixed:** `apps/api/migrations/env.py` passes the resolved `DATABASE_URL` straight into `config.set_main_option(...)`, which uses Python's `ConfigParser` `%`-interpolation — any password containing a literal `%` character (routine after `urlencode()`, e.g. `+` becomes `%2B`) crashes Alembic before it can connect, independent of Secrets Manager vs. K8s-Secret mode. Fix (escape `%` as `%%`, or set the URL via `config.attributes` instead of the ini option) needs to land and be proven **locally against kind first**, per this project's own "local before AWS" rule — it was never actually exercised locally because P7.1's local proof used a password without special characters. Only after that, open a fresh, fully time-budgeted AWS session for P8.3's four drills. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -557,6 +557,64 @@ in P6.5), and T-602 (P6.5) are recorded. The dedicated gate commit records the a
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-06T19:21:00-06:00 — P8.3 session opened, hit a real migration bug, overran its deadline, emergency torn down — Claude
+
+- **Phase/task:** P8.3 (four troubleshooting drills) is **NOT STARTED** — no drill was reached.
+  This entry is an honest account of a session that went wrong operationally, not a completed
+  task.
+- **Preflight (13:12 MDT):** non-root `bedoux-admin`, region `ca-central-1` pinned, budget
+  actual USD 2.575 of USD 20 (well below the USD 16 stop threshold), full read-only leftover
+  sweep clean. Planned same-day teardown deadline: 16:12 MDT (~3 hours).
+- **Infrastructure applied cleanly:** the same P8.2-shaped Terraform plan (no-NAT VPC, EKS 1.34,
+  one Spot node, RDS Single-AZ, Secrets Manager identity, CloudWatch Observability add-on) —
+  43 add/10 change/0 destroy, reviewed for no NAT/EIP/Application-Signals/retention-above-3-days
+  before applying. Apply succeeded; both add-ons reached `ACTIVE`, agent/fluent-bit pods
+  `Running`, all four log groups at retention 3. Operator setup (namespace, `gp3` StorageClass,
+  `bedoux-api-secrets` ServiceAccount, ALB controller 3.4.3) completed normally, matching the
+  P6.4/P7.3 pattern exactly.
+- **Real finding: a genuine, previously-undiscovered Alembic bug**, unrelated to the P7.3
+  Secrets Manager resolver fix from 2026-08-03. GitHub Actions run `31127050923`'s `Deploy the
+  Helm release` step failed: the migration Job hit `BackoffLimitExceeded` across all 3 retries.
+  Pod logs showed the real cause: `apps/api/migrations/env.py` passes the resolved
+  `DATABASE_URL` directly to `config.set_main_option("sqlalchemy.url", database_url)`, and
+  Alembic's `Config` uses Python's `ConfigParser` with `%`-style interpolation by default — any
+  password containing a literal `%` character (routine after `urlencode()`, since `+` becomes
+  `%2B` and this session's freshly generated password happened to contain a `+`) crashes with
+  `ValueError: invalid interpolation syntax` before any connection attempt is made. This is
+  independent of Secrets Manager vs. Kubernetes-Secret mode, and was never caught by P7.1's or
+  P7.3's local/AWS proofs because neither session's password happened to contain a
+  percent-encoded character. Helm's `--atomic` correctly rolled back the release; no application
+  release, ALB, or partial state was left behind by this failure itself.
+- **Real finding: I lost track of the session clock while diagnosing.** The planned teardown
+  deadline was 16:12 MDT. Root-causing the migration failure (pulling workflow logs, inspecting
+  pod logs across three retry attempts, tracing the exact `configparser` failure) ran long
+  without a check against the clock, and the emergency teardown wasn't started until ~19:09 MDT
+  — the live EKS/RDS/Observability footprint ran roughly 3 hours past its intended window before
+  I caught it via a routine `/usage` check surfacing the wall-clock time. This is exactly the
+  failure mode this project's "independently alarmed deadline" convention (used since P6.5) is
+  meant to prevent, and I did not set one for this session. **Should have set an independent
+  wall-clock alarm at session start, the same discipline used for every prior P8 session.**
+- **Emergency teardown, immediate on discovery:** deleted the Ingress (already gone via atomic
+  rollback), uninstalled the ALB controller, deleted the `bedoux` and `amazon-cloudwatch`
+  namespaces, ran the guarded `scripts/terraform-session-destroy.sh prepare` /
+  `prepare --execute` / `plan` / `apply --execute` sequence (33 destroyed, 0 add/change).
+  Independent full read-only sweep afterward: zero EKS clusters, ALBs, RDS instances/snapshots,
+  NAT gateways, EIPs, EBS volumes, running EC2, project-tagged VPCs, CloudFormation stacks,
+  CloudWatch log groups/dashboards, Secrets Manager secrets. Cluster OIDC provider confirmed
+  deleted (`NoSuchEntity`); all five persistent IAM roles and the GitHub OIDC provider confirmed
+  present. One resourcegroupstaggingapi entry (a security-group-rule ARN) still appeared in the
+  tag index; directly checked via `describe-security-group-rules` and confirmed
+  `InvalidSecurityGroupRuleId.NotFound` — the same tag-index-lags-real-deletion pattern
+  documented since P5.5, not a real leftover.
+- **AWS:** full P8.3-attempt session (no-NAT VPC, EKS 1.34, one Spot node, RDS, Secrets Manager,
+  CloudWatch Observability add-on, ALB controller) created and destroyed. Exact cost not yet
+  known (billing data lags); recheck actual/forecast before the next session.
+- **Next action:** fix the Alembic `%`-interpolation bug (escape `%` as `%%`, or route the URL
+  through `config.attributes` instead of the ini option), and — per this project's own
+  local-before-AWS discipline — **prove the fix locally against kind with a password containing
+  a percent-encodable character** before it's trusted in a new AWS session. Only after that does
+  a fresh, fully time-budgeted, independently-alarmed session attempt P8.3's four drills.
 
 ### 2026-08-05T16:41:00-06:00 — P8 session torn down; P8.3 deferred; two teardown-script bugs found and fixed — Claude
 

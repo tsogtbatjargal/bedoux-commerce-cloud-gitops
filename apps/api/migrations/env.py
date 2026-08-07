@@ -9,7 +9,12 @@ from app import models  # noqa: F401  ensures models are registered on Base.meta
 
 config = context.config
 database_url = resolve_database_url()
-config.set_main_option("sqlalchemy.url", database_url)
+# ConfigParser's default interpolation treats a literal "%" specially (it expects
+# "%%" or "%(name)s"); a URL-encoded password containing "%" (e.g. "+" -> "%2B")
+# crashes set_main_option with "invalid interpolation syntax" before any connection
+# is attempted. Escaping here round-trips correctly: BasicInterpolation un-escapes
+# "%%" back to "%" whenever engine_from_config later reads the value.
+config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

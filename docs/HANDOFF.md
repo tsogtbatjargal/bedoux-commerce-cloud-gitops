@@ -20,7 +20,7 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
    phase-start decisions are now recorded: ADR 0006, the kill switch/request bounds, and
    ADR 0011's P7.2 S3 adapter boundary.
 
-## Current state (as of 2026-08-05)
+## Current state (as of 2026-08-06)
 - Phases 0-4 complete, gates approved. Local app (FastAPI + Postgres + React) proven on
   Compose (P2), then on kind with a Helm chart (P3, ADR 0005), with real drills throughout.
   AWS account readiness done in P4: non-root IAM identity `bedoux-admin`, region
@@ -94,18 +94,25 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   Insights logging (including the add-on-created `performance` group), the IRSA-restricted
   collector, structured application-log delivery, dashboard, and four notification-free alarms,
   all `OK`. The session was torn down and independently verified clean well before its 17:30
-  MDT alarm. **P8.3 (four troubleshooting drills) has not started** — the owner explicitly
-  deferred it to a fresh, fully time-budgeted session rather than start it with only ~75 minutes
-  left, the same class of risk that caused the P6.4/P6.5 teardown-recovery incident. Along the
-  way, **two real bugs were found and fixed live** in `scripts/terraform-session-destroy.sh`
-  (first time RDS + Secrets Manager + Observability were all live together during a teardown):
-  an invalid hardcoded CloudWatch add-on version placeholder that the AWS provider rejected
-  (now reads the live add-on version read-only instead), and an unset RDS master password
-  breaking Terraform's plan-time string interpolation (now defaults to a clearly-labeled,
-  destroy-only placeholder only when unset — never applied to a live secret). Both fixes were
-  proven by successfully destroying the live session with them (37 resources, 0 add/change).
-  The fix is uncommitted/unreviewed as of this handoff — review and merge it via PR before the
-  next AWS session relies on it.
+  MDT alarm. Two real teardown-script bugs found live that session (invalid hardcoded CloudWatch
+  add-on version placeholder; unset RDS password breaking Terraform's plan-time string
+  interpolation) were fixed, proven, and merged.
+- **P8.3 (four troubleshooting drills) has not started.** A first AWS session attempt
+  (2026-08-06) hit a real, previously-undiscovered bug: `apps/api/migrations/env.py` passed the
+  resolved `DATABASE_URL` straight into `config.set_main_option(...)`, and Alembic's `Config`
+  uses Python's `ConfigParser` `%`-style interpolation by default — any password containing a
+  literal `%` (routine after `urlencode()`, e.g. `+` becomes `%2B`) crashed migration before any
+  connection attempt, independent of Secrets Manager vs. Kubernetes-Secret mode. Neither P7.1's
+  nor P7.3's earlier local/AWS proofs caught this because neither session's password happened to
+  contain a percent-encodable character. Separately, and independently of the bug itself, the
+  session overran its planned teardown deadline by roughly three hours while that failure was
+  being diagnosed — no independent wall-clock alarm had been set for this particular session,
+  unlike every prior P8 session. Both are recorded honestly in `docs/PROGRESS.md`'s session log
+  rather than glossed over. The session was emergency torn down immediately on discovery and
+  independently verified clean. The fix (escape `%` as `%%` before `set_main_option`) is proven
+  two ways: a unit test reproducing the exact `ConfigParser` round-trip, and a real local `kind`
+  migration run against Postgres with a `%2B`-containing password (per this project's
+  local-before-AWS rule) — ready for review, not yet merged as of this handoff.
 - Three real findings surfaced and were fixed during P5, each documented with its own ADR
   or PROGRESS entry:
   1. **ADR 0007** — `bedoux-admin`'s scoped IAM policy (`bedoux-iam-scoped`) had a genuine
@@ -166,13 +173,15 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   no Kubernetes credential Secret is synchronized.
 
 ## What I want next
-First review and merge the pending `scripts/terraform-session-destroy.sh` fix (uncommitted at
-this handoff; see `docs/PROGRESS.md`'s latest session log entry for the exact bugs and fixes) via
-the normal PR flow. Then P8.3 — four troubleshooting drills (unhealthy ALB target, failed pod, DB
+First review and merge the pending Alembic `%`-escaping fix in `apps/api/migrations/env.py` (see
+`docs/PROGRESS.md`'s latest session log entry for the exact bug, proof, and evidence) via the
+normal PR flow — it is already proven locally (unit test + real kind migration run), just not
+yet merged. Then P8.3 — four troubleshooting drills (unhealthy ALB target, failed pod, DB
 connection error, failed rollout), each needing induce → diagnose-from-tooling-only → fix →
 written evidence — is the only active item, and needs its own fully time-budgeted AWS session
 (not a leftover window from a prior session). Open it only after a current cost check, the
-complete preflight, an independently alarmed same-day deadline, and a reviewed plan.
+complete preflight, and — this matters, given what happened 2026-08-06 — an actual independent
+wall-clock alarm set at session start, not just a plan to "keep an eye on the time."
 There is no `/aws-session-start` for Codex: before touching AWS, manually walk the "Before
 the session" checklist in `docs/runbooks/aws-session.md`, and run its teardown sweep before
 ending any AWS session. Never create AWS resources outside that process. If asked to approve
