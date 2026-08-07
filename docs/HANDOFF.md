@@ -120,7 +120,9 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   symptom → diagnose (exact commands, real output shapes) → root cause → fix → recovery check,
   written directly from the commands proven live in the same P8.3 session — not generic
   guidance. T-801 (P8.2) and T-802 (P8.3) are both satisfied. **P8 gate approved by owner
-  2026-08-07; P9 (interview package) is active.**
+  2026-08-07; P9 (interview package) is active. P9.1 is complete:**
+  `docs/interview/walkthrough-script.md` is a timed 15-minute script (1/3/3/3/3/2 min per the
+  plan's allocation) grounded entirely in real recorded evidence — no hypothetical capability.
 - Three real findings surfaced and were fixed during P5, each documented with its own ADR
   or PROGRESS entry:
   1. **ADR 0007** — `bedoux-admin`'s scoped IAM policy (`bedoux-iam-scoped`) had a genuine
@@ -181,13 +183,13 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   no Kubernetes credential Secret is synchronized.
 
 ## What I want next
-The P8 gate is approved (2026-08-07) and P9 — the interview package — is active. Start with
-**P9.1**: a timed 15-minute walkthrough script (problem 1 min, architecture + request path 3,
-K8s/AWS responsibilities 3, CI/CD + identity 3, observability + troubleshooting 3, cost/
-reliability trade-offs 2). Then P9.2 (all six diagrams finalized and exported) and P9.3 (timed
-dry-run, refined). P9 needs no AWS session (`$0` cost) — draw on the real evidence already
-accumulated across P5–P8 (drills, rollback, IAM findings, the two deadline-overrun incidents and
-how they were handled) rather than describing hypothetical capability.
+P9.1 is done (`docs/interview/walkthrough-script.md`). Next is **P9.2 — finalize and export all
+six diagrams**. Two exist today: `docs/diagrams/system-context.drawio` and `learning-path.drawio`
+(both already exported to SVG). Four more are new work: request-path, CI/CD, VPC/network, and
+identity — each should mirror what's actually true today (per `docs/architecture.md` and the
+relevant ADRs), not a generic diagram. Use the drawio-skill for these. Then P9.3: a timed
+dry-run of the P9.1 script against a clock, trimmed to fit 15 minutes, using the finished
+diagrams. P9 needs no AWS session (`$0` cost).
 There is no `/aws-session-start` for Codex: before touching AWS, manually walk the "Before
 the session" checklist in `docs/runbooks/aws-session.md`, and run its teardown sweep before
 ending any AWS session. Never create AWS resources outside that process. If asked to approve

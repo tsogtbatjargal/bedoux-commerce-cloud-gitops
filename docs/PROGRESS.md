@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P9 — Interview package |
-| Active task | P9.1 — walkthrough script (NOT STARTED). |
-| Last verified | 2026-08-07T11:13:36-06:00 — All four P8.3 drills induced/diagnosed/fixed/recovered; session torn down and independently verified clean roughly 2h50m under its 14:04 MDT deadline. P8.4 troubleshooting runbooks written directly from that evidence. |
+| Active task | P9.2 — final diagram set (NOT STARTED). |
+| Last verified | 2026-08-07T12:05:00-06:00 — P9.1 walkthrough script complete, grounded in real recorded evidence. |
 | AWS resources currently live | **None temporary.** Persistent allowlist only: encrypted state bucket, two ECR repositories, five persistent IAM roles, GitHub OIDC provider — all confirmed present. EKS cluster, RDS instance, Secrets Manager secret, CloudWatch log groups/dashboard, ALB controller, and VPC all confirmed deleted. |
-| Month-to-date estimated AWS spend | USD 3.727 actual at session start; this session's footprint was ~70 minutes of EKS+RDS+Observability (billing data lags — recheck before the next session). |
-| Next operator action | **P9.1**: draft the timed 15-minute walkthrough script (problem 1 min, architecture + request path 3, K8s/AWS responsibilities 3, CI/CD + identity 3, observability + troubleshooting 3, cost/reliability trade-offs 2). P9 needs no AWS session ($0 cost). |
+| Month-to-date estimated AWS spend | USD 3.727 actual at last check; no AWS session opened since (billing data lags — recheck before the next session). |
+| Next operator action | **P9.2**: finalize and export all six diagrams (`docs/diagrams/`). P9 needs no AWS session ($0 cost). |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -557,7 +557,12 @@ approval.
 
 ### P9 — Interview package
 
-- [ ] P9.1 NOT STARTED — walkthrough script.
+- [x] P9.1 COMPLETE — walkthrough script. `docs/interview/walkthrough-script.md` is a timed
+      15-minute script (1/3/3/3/3/2 min per the plan's allocation) grounded entirely in real
+      evidence already recorded in this file and named ADRs — the IAM self-escalation finding
+      (ADR 0007), the ALB no-rewrite finding (ADR 0008), OIDC least privilege (ADR 0009), the
+      P8.3 drills, and both deadline-overrun incidents and how they were closed out. No
+      hypothetical capability described.
 - [ ] P9.2 NOT STARTED — final diagram set.
 - [ ] P9.3 NOT STARTED — timed dry-run.
 
@@ -569,6 +574,24 @@ approval.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-07T12:05:00-06:00 — P9.1 complete: 15-minute walkthrough script — Claude
+
+- **Phase/task:** P9.1 is **COMPLETE**. No AWS session opened; this is a docs-only task.
+- **Changed:** added `docs/interview/walkthrough-script.md`, a timed 15-minute script split
+  1/3/3/3/3/2 minutes across problem, architecture + request path, K8s/AWS responsibilities,
+  CI/CD + identity, observability + troubleshooting, and cost/reliability trade-offs, matching
+  `docs/IMPLEMENTATION-PLAN.md`'s exact P9 allocation.
+- **Grounding, not generic content:** every claim cites a real, already-recorded finding rather
+  than describing hypothetical capability — the IAM self-escalation hole and its console-applied
+  fix (ADR 0007), the ALB no-path-rewrite finding (ADR 0008), the OIDC subject-claim finding
+  (ADR 0009), all four P8.3 drills with their real diagnostic commands, and both deadline-overrun
+  incidents (P6.4/P6.5's EBS CSI role, and P8.3's ~3-hour overrun) presented honestly as real
+  operational mistakes and how they were closed out, not omitted.
+- **AWS:** none. No AWS resources created, modified, or deleted. Estimated cost: USD 0.
+- **Next action:** P9.2 — finalize and export all six diagrams. Two exist today
+  (`docs/diagrams/system-context.drawio`, `learning-path.drawio`); four more
+  (request-path, CI/CD, VPC/network, identity) are new work.
 
 ### 2026-08-07T11:45:00-06:00 — P8.4 complete: troubleshooting runbooks; P8 gate ready — Claude
 
