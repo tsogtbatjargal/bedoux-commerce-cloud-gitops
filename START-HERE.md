@@ -128,10 +128,13 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   are currently live. **P8.4 is complete:** `docs/runbooks/p8-troubleshooting.md` documents all
   four drills as symptom → diagnose → root cause → fix → recovery check, written directly from
   the commands proven live that same session — not generic guidance. **P8 gate approved by
-  owner 2026-08-07; P9 (interview package) is active.**
-- Next action: **P9.1** — draft the timed 15-minute walkthrough script (problem 1 min,
-  architecture + request path 3, K8s/AWS responsibilities 3, CI/CD + identity 3, observability +
-  troubleshooting 3, cost/reliability trade-offs 2). No AWS session needed.
+  owner 2026-08-07; P9 (interview package) is active.** **P9.1 is complete:**
+  `docs/interview/walkthrough-script.md` is a timed 15-minute script grounded entirely in real
+  recorded evidence (ADR 0007's IAM self-escalation fix, ADR 0008's ALB no-rewrite finding, the
+  four P8.3 drills, both deadline-overrun incidents) — no hypothetical capability described.
+- Next action: **P9.2** — finalize and export all six diagrams. Two exist today
+  (`docs/diagrams/system-context.drawio`, `learning-path.drawio`); four more (request-path,
+  CI/CD, VPC/network, identity) are new work. No AWS session needed.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 
