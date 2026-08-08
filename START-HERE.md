@@ -136,10 +136,13 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   existing (`system-context`, `learning-path`) plus four new (`request-path`, `ci-cd`,
   `vpc-network`, `identity`), each grounded in real facts, not invented. **P9.3 is complete:**
   measured word-count timing showed the script fits 15:00 at every realistic pace (14:19 at the
-  slowest tested) with no cuts needed — correcting an earlier unmeasured guess. **P9 gate — all
-  of P9.1–P9.3 complete. This is the project's final phase; ready for owner approval.**
-- Next action: **owner** approves the P9 gate. That completes `docs/IMPLEMENTATION-PLAN.md`'s
-  Definition of Done.
+  slowest tested) with no cuts needed — correcting an earlier unmeasured guess. **P9 gate
+  approved by owner 2026-08-07. All phases P0–P9 are complete — this is the project's final
+  milestone.** Per the owner's explicit decision, the repository **remains private**; ADR 0004's
+  "flip public before P9" clause is superseded by
+  [ADR 0013](docs/decisions/0013-remain-private-at-p9.md).
+- Next action: none required. Any further work starts with its own new task/ADR, not a
+  reopening of P0–P9.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

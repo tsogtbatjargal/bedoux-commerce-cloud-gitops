@@ -8,13 +8,13 @@ checked here and its evidence is recorded in the session log.
 
 | Field | Value |
 |---|---|
-| State | IN PROGRESS |
-| Active phase | P9 — Interview package |
-| Active task | P9 gate — all of P9.1–P9.3 complete, awaiting owner approval. |
-| Last verified | 2026-08-07T15:25:00-06:00 — P9.3 timed dry-run complete: script measured to fit 15:00 at every realistic delivery pace, no cuts needed. |
-| AWS resources currently live | **None temporary.** Persistent allowlist only: encrypted state bucket, two ECR repositories, five persistent IAM roles, GitHub OIDC provider — all confirmed present. EKS cluster, RDS instance, Secrets Manager secret, CloudWatch log groups/dashboard, ALB controller, and VPC all confirmed deleted. |
-| Month-to-date estimated AWS spend | USD 3.727 actual at last check; no AWS session opened since (billing data lags — recheck before the next session). |
-| Next operator action | **owner**: approve the P9 gate. This is the project's final phase — approval marks the implementation plan's Definition of Done fully met. |
+| State | COMPLETE |
+| Active phase | P9 — Interview package (project complete) |
+| Active task | None. All phases P0–P9 complete; P9 gate approved by owner 2026-08-07. |
+| Last verified | 2026-08-07T15:40:00-06:00 — P9 gate approved. ADR 0013 records the owner's decision to keep the repository private, superseding ADR 0004's "flip public before P9" clause. |
+| AWS resources currently live | **None temporary.** Persistent allowlist only: encrypted state bucket, two ECR repositories, five persistent IAM roles, GitHub OIDC provider — all confirmed present. |
+| Month-to-date estimated AWS spend | USD 3.727 actual at last check; no AWS session opened since (billing data lags — recheck before any future session). |
+| Next operator action | None required. The project's Definition of Done is met. Any further work (e.g., a future public-flip decision, or new features) starts with its own new task/ADR, not a reopening of P0–P9. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -580,11 +580,14 @@ approval.
       assumed it ran long. Full breakdown in `docs/interview/walkthrough-script.md`'s "P9.3
       timed dry-run" section.
 
-**P9 gate — all of P9.1–P9.3 complete with evidence above (T-901, T-902 both satisfied).
-This is the final phase — `docs/IMPLEMENTATION-PLAN.md`'s "Definition of done" is now fully
-met (local-first proof, automated tests, Terraform create/destroy, keyless CI/CD, documented
-request/identity/deployment paths, a runbook-diagnosable failed deployment, a verified-empty
-teardown discipline, and a 15-minute technical tour). Ready for owner approval.**
+**P9 gate — APPROVED by owner 2026-08-07. Project complete.** All of P9.1–P9.3 complete with
+evidence above (T-901, T-902 both satisfied). `docs/IMPLEMENTATION-PLAN.md`'s "Definition of
+done" is fully met (local-first proof, automated tests, Terraform create/destroy, keyless
+CI/CD, documented request/identity/deployment paths, a runbook-diagnosable failed deployment, a
+verified-empty teardown discipline, and a 15-minute technical tour). The dedicated gate commit
+records the approval. Per the owner's explicit decision, the repository **remains private** —
+ADR 0004's "flip public before P9" clause is superseded by
+[ADR 0013](decisions/0013-remain-private-at-p9.md).
 
 ## Blockers
 
@@ -594,6 +597,22 @@ teardown discipline, and a 15-minute technical tour). Ready for owner approval.*
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-07T15:40:00-06:00 — P9 gate approved; project complete; ADR 0013 (remain private) — Claude
+
+- **Phase/task:** owner explicitly approved the P9 gate. **All phases P0–P9 are now complete.**
+  This is the project's final milestone; there is no P10.
+- **Decision recorded, not silently applied:** ADR 0004 committed to flipping the repository
+  from private to public "before P9," preceded by a full-history secrets sweep. At this
+  decision point the owner chose to keep the repository **private** instead. Per this project's
+  own rule ("never silently change an architecture decision"), wrote
+  [ADR 0013](decisions/0013-remain-private-at-p9.md) superseding only that one clause of
+  ADR 0004 — everything else in ADR 0004 (hosting, collaborator model, branch discipline)
+  stands unchanged. ADR 0004's status line updated to point at the supersession; the decisions
+  index updated.
+- **AWS:** none. No AWS resources created, modified, or deleted. Estimated cost: USD 0.
+- **Next action:** none required. The dedicated gate commit ("Phase 9 gate approved by owner")
+  follows this entry, per the project's gate-commit convention used for every prior phase.
 
 ### 2026-08-07T15:25:00-06:00 — P9.3 complete: timed dry-run; P9 gate ready — Claude
 
