@@ -131,8 +131,10 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   during self-check, not shipped. **P9.3 is complete:** word-count-measured timing showed the
   script fits 15:00 at every realistic delivery pace (14:19 at the slowest tested, 100 wpm) with
   no cuts needed — correcting an earlier unmeasured guess in the P9.1 draft that assumed it ran
-  long. **P9 gate — all of P9.1–P9.3 complete. This is the project's final phase; ready for
-  owner approval.** Approving it completes `docs/IMPLEMENTATION-PLAN.md`'s Definition of Done.
+  long. **P9 gate approved by owner 2026-08-07. All phases P0–P9 are complete — this is the
+  project's final milestone.** Per the owner's explicit decision, the repository **remains
+  private**; ADR 0004's "flip public before P9" clause is superseded by
+  [ADR 0013](decisions/0013-remain-private-at-p9.md).
 - Three real findings surfaced and were fixed during P5, each documented with its own ADR
   or PROGRESS entry:
   1. **ADR 0007** — `bedoux-admin`'s scoped IAM policy (`bedoux-iam-scoped`) had a genuine
@@ -193,13 +195,14 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   no Kubernetes credential Secret is synchronized.
 
 ## What I want next
-P9.1, P9.2, and P9.3 are all done — the P9 gate is ready for owner approval. This is the
-project's final phase: approving it marks `docs/IMPLEMENTATION-PLAN.md`'s Definition of Done
-fully met. If asked to approve a phase gate, make that its own commit ("Phase 9 gate approved by
-owner") before doing anything else. There is no P10 to activate — after the gate commit, the
-project's remaining open item is ADR 0004's "flip the repo public before P9" commitment, which
-was never explicitly executed; a full-history secrets sweep should happen first if that's
-pursued. Otherwise, treat the project as complete and await further owner direction.
+The project is complete: the P9 gate is approved (2026-08-07) and all phases P0–P9 are done.
+There is no P10. The owner explicitly decided to keep the repository private — ADR 0013 records
+that decision and supersedes ADR 0004's "flip public before P9" clause; do not silently revisit
+that, or attempt a public flip, without a fresh, explicit owner decision (and, per ADR 0004's
+still-standing prerequisite, a full-history secrets/account-ID sweep first). Nothing else is
+outstanding. If a new session is opened against this repo, its first job is to confirm this
+checkpoint is still accurate before treating anything as "next work" — there is no default task
+to pick up.
 There is no `/aws-session-start` for Codex: before touching AWS, manually walk the "Before
 the session" checklist in `docs/runbooks/aws-session.md`, and run its teardown sweep before
 ending any AWS session. Never create AWS resources outside that process. If asked to approve

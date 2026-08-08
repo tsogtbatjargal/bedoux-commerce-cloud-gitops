@@ -1,6 +1,6 @@
 # ADR 0004: Host at bedoux-tech, start private, flip to public before the interview package
 
-- Status: Accepted
+- Status: Accepted; "flip to public before P9" clause superseded by [ADR 0013](0013-remain-private-at-p9.md)
 - Date: 2026-07-18
 
 Supersedes [ADR 0003](0003-repo-hosting-and-branch-discipline.md).

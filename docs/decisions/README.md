@@ -11,7 +11,7 @@ and flip the old one's status to `Superseded by NNNN`.
 | [0001](0001-application-stack.md) | Keep the application stack small | Accepted | 2026-07-17 |
 | [0002](0002-mvp-aws-service-deferrals.md) | Defer Route 53/ACM, RDS, S3 images, and Secrets Manager from the MVP | Accepted | 2026-07-17 |
 | [0003](0003-repo-hosting-and-branch-discipline.md) | Public bedoux-tech repo; direct-to-main until CI/CD | Superseded by 0004 | 2026-07-17 |
-| [0004](0004-start-private-flip-public-later.md) | Host at bedoux-tech, start private, flip public before P9 | Accepted | 2026-07-18 |
+| [0004](0004-start-private-flip-public-later.md) | Host at bedoux-tech, start private, flip public before P9 | "flip public" clause superseded by 0013 | 2026-07-18 |
 | [0005](0005-helm-migration-hook-job.md) | Database migrations run as a Helm post-install/pre-upgrade hook Job | Accepted | 2026-07-19 |
 | [0006](0006-spot-node-gp3-pvc.md) | Accept Spot-node interruption risk in P5; provision a real gp3 PVC via EBS CSI | Accepted | 2026-07-23 |
 | [0007](0007-bedoux-iam-scoped-self-escalation-fix.md) | Close a self-escalation hole in bedoux-iam-scoped; add the EKS nodegroup SLR check | Accepted | 2026-07-28 |
@@ -20,6 +20,7 @@ and flip the old one's status to `Superseded by NNNN`.
 | [0010](0010-local-git-guardrail-for-private-repo.md) | Use a local pre-push guardrail while private-repository branch protection is unavailable | Accepted | 2026-07-30 |
 | [0011](0011-s3-presigned-image-adapter.md) | Keep product-image delivery behind an API-side presigned-S3 adapter | Accepted | 2026-08-02 |
 | [0012](0012-secrets-manager-direct-workload-retrieval.md) | Retrieve the database credential directly from Secrets Manager | Accepted | 2026-08-03 |
+| [0013](0013-remain-private-at-p9.md) | Remain private at P9; ADR 0004's public flip is not exercised | Accepted | 2026-08-07 |
 
 ## Template
 
