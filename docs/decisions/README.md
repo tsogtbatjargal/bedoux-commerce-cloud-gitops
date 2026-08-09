@@ -21,6 +21,7 @@ and flip the old one's status to `Superseded by NNNN`.
 | [0011](0011-s3-presigned-image-adapter.md) | Keep product-image delivery behind an API-side presigned-S3 adapter | Accepted | 2026-08-02 |
 | [0012](0012-secrets-manager-direct-workload-retrieval.md) | Retrieve the database credential directly from Secrets Manager | Accepted | 2026-08-03 |
 | [0013](0013-remain-private-at-p9.md) | Remain private at P9; ADR 0004's public flip is not exercised | Accepted | 2026-08-07 |
+| [0014](0014-post-p9-optimization-track-scope.md) | Post-P9 optimization track (P10-P14): scope and guardrail interactions | Accepted | 2026-08-09 |
 
 ## Template
 
