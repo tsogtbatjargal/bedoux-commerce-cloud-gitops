@@ -88,3 +88,51 @@ test lands in `docs/PROGRESS.md` (checklist line + session log), never in this f
 
 - **T-901** — 15-minute walkthrough dry-run completed within time; notes recorded.
 - **T-902** — all six diagrams final with exported SVGs in `docs/diagrams/`.
+
+## T-10xx — P10 Security hardening
+
+- **T-1001** — `trivy` re-scan of the API base image recorded; any now-fixable CVEs patched.
+- **T-1002** — kind cluster NetworkPolicy drill: default-deny plus explicit allows proven,
+  cross-namespace/rogue-pod traffic denied.
+- **T-1003** — CI log shows a `cosign` signature generated and verified before Helm deploy;
+  SBOM artifact present.
+- **T-1004** — IAM re-review notes for every role/policy created since P5, no unreviewed
+  broad grants found (or findings fixed and re-verified).
+- **T-1005** — live AWS session: NetworkPolicy applied to a real cluster, unauthorized-pod
+  drill diagnosed from `kubectl`/network tooling output, clean teardown sweep.
+
+## T-11xx — P11 Bounded autoscaling & HA
+
+- **T-1101** — kind HPA proof: synthetic load drives a scale-out with an enforced
+  `maxReplicas` ceiling, scale-in observed after load stops.
+- **T-1102** — live AWS session: real load test (k6/Locust) evidence — before/after replica
+  counts and latency numbers.
+- **T-1103** — node-loss drill: one AZ's node cordoned/drained mid-load, pods reschedule to
+  the other AZ, zero request failures recorded.
+- **T-1104** — `/aws-teardown-verify` sweep clean after the session.
+
+## T-12xx — P12 TLS & custom domain
+
+- **T-1201** — ACM certificate issued and DNS-validated (or explicitly documented-only per
+  the owner's P12 decision).
+- **T-1202** — HTTPS reachable through the ALB, HTTP→HTTPS redirect proven with a real
+  browser/curl check.
+- **T-1203** — teardown/persistence of the Route 53 hosted zone matches the owner's recorded
+  P12 decision, not left ambiguous.
+
+## T-13xx — P13 Delivery maturity
+
+- **T-1301** — successful canary promotion: staged rollout reaches 100% after passing its
+  automated health gate.
+- **T-1302** — blocked canary drill: an injected regression is caught by the health gate,
+  promotion blocked, automatic rollback confirmed, diagnosed from tooling output alone.
+
+## T-14xx — P14 Cost & performance capstone
+
+- **T-1401** — resource requests/limits right-sized from real CloudWatch/metrics-server data
+  gathered in P11–P13, not guessed.
+- **T-1402** — ECR lifecycle tag-prefix mismatch fixed and verified against a real image push.
+- **T-1403** — cost report: actual spend across P10–P13 sessions compared against the
+  USD 20/month cap.
+- **T-1404** — `docs/interview/walkthrough-script.md` and diagram set updated with new
+  evidence; `make docs-check` passes.

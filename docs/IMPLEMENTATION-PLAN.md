@@ -263,3 +263,104 @@ The project is complete when:
 - the AWS resource inventory is empty after teardown, except for explicitly approved
   persistent resources;
 - the complete architecture can be explained in a 15-minute technical tour.
+
+This "Definition of done" describes P0–P9, which is complete and gate-approved. It is not
+reopened by the track below.
+
+## Phase 10+ — Production-hardening / optimization track
+
+Started 2026-08-09 at the owner's request to optimize and improve the working prototype,
+prioritizing reliability/HA, security hardening, delivery maturity, and performance/cost.
+[ADR 0014](decisions/0014-post-p9-optimization-track-scope.md) records this track's scope and
+how it reads the hard limits in `docs/cost-guardrails.md` (no unbounded autoscaling, no
+routine Multi-AZ RDS, Route 53 gated on an explicit domain decision). Same operating model as
+P0–P9: hard USD 20/month cap, session-based with same-day teardown, local-first proof before
+any AWS session, phase gates need explicit owner approval, one task `IN PROGRESS` at a time.
+
+Phases are sequenced cheapest/lowest-risk first, each closing a gap already named in
+`docs/architecture.md`'s "MVP profile vs production profile" table, this file's own
+"Production target (documented, not deployed)" section, or `docs/PROGRESS.md`'s "Known open
+issues" — not generic best-practice work invented for its own sake.
+
+| Phase | Goal | Est. cost |
+|---|---|---|
+| P10 | Security hardening: CVE re-scan/fix, NetworkPolicies, image signing + SBOM, IAM re-review | $0–2/session |
+| P11 | Bounded autoscaling & HA: HPA (capped), PodDisruptionBudgets, multi-AZ node spread, load-tested proof | $3–5/session |
+| P12 | TLS & custom domain: ACM + Route 53, HTTPS at the ALB — owner domain decision required first | $0–1/mo if a domain is enabled |
+| P13 | Delivery maturity: canary-style staged rollout with an automated health gate on top of existing CI | $2–4/session |
+| P14 | Cost & performance capstone: data-driven right-sizing, ECR lifecycle fix, spend report, refresh interview package | $0–2 |
+
+### P10 — Security hardening ($0–2/session)
+
+- **Goal:** close the two `docs/PROGRESS.md` "Known open issues" (unfixed OS CVEs, ECR
+  lifecycle mismatch — the ECR fix is P14.2) plus add defense-in-depth explicitly out of scope
+  for P0–P9: NetworkPolicies and signed images.
+- **Steps:** P10.1 re-run `trivy` against the current API base image, fix what now has an
+  upstream patch; P10.2 default-deny `NetworkPolicy` + explicit allows (web→api, api→postgres)
+  proven on kind first; P10.3 `cosign` image signing + SBOM generation in the existing GitHub
+  Actions pipeline (P6.3's workflow), Helm deploy verifies the signature before rollout;
+  P10.4 read-only IAM re-review of every role/policy created since P5; P10.5 one short AWS
+  session applying the NetworkPolicies to a real cluster and drilling that Postgres is
+  unreachable from an unauthorized pod, then teardown.
+- **Gate:** T-1001 CVE re-scan recorded; T-1002 kind NetworkPolicy drill; T-1003 signed-image
+  verification in CI logs; T-1004 IAM re-review notes; T-1005 live AWS NetworkPolicy drill +
+  clean teardown.
+- **Rollback:** NetworkPolicies/signing are additive Helm/CI changes — revert via Helm values
+  or workflow file.
+
+### P11 — Bounded autoscaling & HA ($3–5/session)
+
+- **Goal:** prove horizontal scaling and node-loss resilience for real, with hard caps so the
+  "unbounded... autoscaling" prohibition in `docs/cost-guardrails.md` is never violated (see
+  ADR 0014's bounded-vs-unbounded reading).
+- **Steps:** P11.1 HPA on `api`/`web` with an explicit `maxReplicas` cap (e.g. 3) +
+  `metrics-server`, proven first on kind with synthetic load; P11.2 `PodDisruptionBudget` +
+  topology spread across a small 2-node, 2-AZ Spot nodegroup (Terraform `eks` module update);
+  P11.3 real AWS session — load test (k6/Locust) drives real scale-out, before/after replica
+  counts and latency captured as evidence; P11.4 node-loss drill — cordon/drain one AZ's node
+  mid-load, prove pods reschedule to the other AZ with no request failures; P11.5 teardown +
+  `/aws-teardown-verify` sweep.
+- **Gate:** T-1101 kind HPA proof; T-1102 live scale-out evidence; T-1103 node-loss drill;
+  T-1104 clean teardown sweep.
+- **Rollback:** standard `terraform destroy` + Helm values revert; nothing persists.
+
+### P12 — TLS & custom domain ($0–1/month if enabled)
+
+- **Owner decision required before P12.1 starts** (per ADR 0014): buy a new domain, use a
+  subdomain of one already owned, or skip live deployment and leave the Terraform module
+  written but never applied. Record the answer as an update to ADR 0014 or a new dedicated
+  ADR before work starts.
+- **Steps:** P12.1 new `infra/terraform/modules/route53-acm` module — hosted zone (only if a
+  domain is enabled) + ACM certificate with DNS validation; P12.2 ALB HTTPS listener,
+  HTTP→HTTPS redirect, real browser TLS check; P12.3 teardown — hosted zone retained only if
+  explicitly approved as persistent, as `docs/cost-guardrails.md` already anticipates.
+- **Gate:** T-1201 cert issued and validated; T-1202 HTTPS reachable + redirect proven;
+  T-1203 teardown/persistence matches the owner's P12 decision.
+- **Rollback:** `terraform destroy` on the new module; DNS changes are additive.
+
+### P13 — Delivery maturity ($2–4/session)
+
+- **Goal:** a real progressive-delivery signal beyond the existing `helm upgrade --atomic`
+  rollback (P8.3's drill 4), without a second, competing deployment path — extends the
+  existing push-based CI (P6.3–P6.5) rather than adding a pull-based GitOps controller.
+- **Steps:** P13.1 staged rollout — deploy the new version alongside the old (two Deployments
+  or a weighted Ingress split), route a small percentage of traffic, auto-check health/error
+  rate before promoting to 100%; P13.2 drill — inject a deliberate latency/error regression
+  into the canary, prove the health gate blocks promotion and rolls back automatically,
+  diagnosed from tooling output alone.
+- **Gate:** T-1301 successful canary promotion; T-1302 blocked-and-rolled-back canary drill.
+- **Rollback:** canary logic lives in the CI workflow + chart; revert either file.
+
+### P14 — Cost & performance capstone ($0–2)
+
+- **Goal:** close the loop with real data from P10–P13 instead of guessed values, fix the
+  already-known ECR issue, and fold results into the existing interview package.
+- **Steps:** P14.1 right-size `charts/bedoux/values.yaml` resources using real
+  CloudWatch/metrics-server data from P11–P13 sessions; P14.2 fix the ECR lifecycle
+  tag-prefix mismatch; P14.3 Spot interruption handling review — diversify instance types,
+  still bounded; P14.4 short cost report — actual spend across P10–P13 sessions vs. the
+  USD 20/month cap; P14.5 extend (not replace) `docs/interview/walkthrough-script.md` and the
+  diagram set with the new evidence.
+- **Gate:** T-1401 right-sizing evidence; T-1402 ECR fix verified; T-1403 cost report;
+  T-1404 walkthrough/diagram updates pass `make docs-check`.
+- **Rollback:** n/a (docs/config only).

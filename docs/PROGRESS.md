@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | COMPLETE |
 | Active phase | P9 — Interview package (project complete) |
 | Active task | None. All phases P0–P9 complete; P9 gate approved by owner 2026-08-07. |
-| Last verified | 2026-08-07T15:40:00-06:00 — P9 gate approved. ADR 0013 records the owner's decision to keep the repository private, superseding ADR 0004's "flip public before P9" clause. |
+| Last verified | 2026-08-09T00:00:00-06:00 — P10–P14 optimization track bootstrapped: ADR 0014 written, `docs/IMPLEMENTATION-PLAN.md`/`docs/TEST-PLAN.md`/this file extended. No phase work started. |
 | AWS resources currently live | **None temporary.** Persistent allowlist only: encrypted state bucket, two ECR repositories, five persistent IAM roles, GitHub OIDC provider — all confirmed present. |
 | Month-to-date estimated AWS spend | USD 3.727 actual at last check; no AWS session opened since (billing data lags — recheck before any future session). |
-| Next operator action | None required. The project's Definition of Done is met. Any further work (e.g., a future public-flip decision, or new features) starts with its own new task/ADR, not a reopening of P0–P9. |
+| Next operator action | Owner approves the start of P10.1 (security hardening) whenever ready — see [ADR 0014](decisions/0014-post-p9-optimization-track-scope.md) and `docs/IMPLEMENTATION-PLAN.md`'s "Phase 10+" section. P0–P9's Definition of Done remains met and is not reopened. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -589,6 +589,56 @@ records the approval. Per the owner's explicit decision, the repository **remain
 ADR 0004's "flip public before P9" clause is superseded by
 [ADR 0013](decisions/0013-remain-private-at-p9.md).
 
+### P10 — Security hardening
+
+- [ ] P10.1 NOT STARTED — re-scan and fix opportunistically fixable CVEs on the API base image.
+- [ ] P10.2 NOT STARTED — default-deny NetworkPolicy + explicit allows, proven on kind.
+- [ ] P10.3 NOT STARTED — image signing (cosign) + SBOM in CI, verified before Helm deploy.
+- [ ] P10.4 NOT STARTED — IAM re-review of every role/policy created since P5.
+- [ ] P10.5 NOT STARTED — live AWS NetworkPolicy drill + clean teardown.
+
+Gate: T-1001..T-1005.
+
+### P11 — Bounded autoscaling & HA
+
+- [ ] P11.1 NOT STARTED — HPA on api/web with an explicit maxReplicas cap, proven on kind.
+- [ ] P11.2 NOT STARTED — PodDisruptionBudget + topology spread on a 2-node/2-AZ nodegroup.
+- [ ] P11.3 NOT STARTED — live load test proving real scale-out.
+- [ ] P11.4 NOT STARTED — node-loss drill across AZs.
+- [ ] P11.5 NOT STARTED — teardown + sweep.
+
+Gate: T-1101..T-1104.
+
+### P12 — TLS & custom domain
+
+- [ ] **Owner decision pending** (per ADR 0014): buy a domain / use an owned subdomain / skip
+      live deployment. Must be answered before P12.1 starts.
+- [ ] P12.1 NOT STARTED — `route53-acm` Terraform module.
+- [ ] P12.2 NOT STARTED — ALB HTTPS listener + redirect, browser TLS check.
+- [ ] P12.3 NOT STARTED — teardown; hosted zone persistence matches the owner's decision.
+
+Gate: T-1201..T-1203.
+
+### P13 — Delivery maturity
+
+- [ ] P13.1 NOT STARTED — staged/canary rollout with an automated health gate.
+- [ ] P13.2 NOT STARTED — blocked-canary drill (injected regression, automatic rollback).
+
+Gate: T-1301..T-1302.
+
+### P14 — Cost & performance capstone
+
+- [ ] P14.1 NOT STARTED — data-driven resource right-sizing.
+- [ ] P14.2 NOT STARTED — fix the ECR lifecycle tag-prefix mismatch.
+- [ ] P14.3 NOT STARTED — Spot instance-type diversification review.
+- [ ] P14.4 NOT STARTED — cost report across P10–P13 sessions vs. the USD 20/month cap.
+- [ ] P14.5 NOT STARTED — extend the interview walkthrough script + diagrams.
+
+Gate: T-1401..T-1404.
+
+**P10–P14 track bootstrapped 2026-08-09; no phase work started. Owner approval required
+before P10.1 begins, same gate discipline as P0–P9.**
+
 ## Blockers
 
 - None. GitHub server-side branch protection remains unavailable while the repository is private
@@ -597,6 +647,26 @@ ADR 0004's "flip public before P9" clause is superseded by
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-09T00:00:00-06:00 — P10-P14 optimization track bootstrapped — Claude
+
+- **Phase/task:** new work, not a reopening of P0–P9. The owner asked to optimize and improve
+  the working prototype, prioritizing reliability/HA, security hardening, delivery maturity,
+  and performance/cost. Per `AGENTS.md`, this starts as its own new task/ADR — a plan was
+  presented via plan mode and approved by the owner before any doc changes were made.
+- **Changed:** added [ADR 0014](decisions/0014-post-p9-optimization-track-scope.md) (scope +
+  guardrail interactions for the new track); appended a "Phase 10+" section to
+  `docs/IMPLEMENTATION-PLAN.md` (P10 security hardening, P11 bounded autoscaling & HA, P12
+  TLS/custom domain, P13 delivery maturity, P14 cost/performance capstone); appended
+  `T-1001..T-1404` to `docs/TEST-PLAN.md`; appended the P10–P14 checklist (all unchecked) to
+  this file; updated the overall-status table's "Next operator action."
+- **Decision recorded:** ADR 0014 interprets `docs/cost-guardrails.md`'s "no unbounded
+  autoscaling" as satisfied by a hard `maxReplicas`/node cap (not a ban on autoscaling
+  itself), treats Multi-AZ RDS as a single reviewed one-off (never routine), and defers the
+  Route 53 domain decision to P12 pending the owner's explicit choice.
+- **AWS:** none. No AWS resources created, modified, or deleted. Estimated cost: USD 0.
+- **Next action:** owner approves the start of P10.1 (re-scan/fix the API base image CVEs)
+  whenever ready. No phase work has started; this entry only records the track's bootstrap.
 
 ### 2026-08-07T15:40:00-06:00 — P9 gate approved; project complete; ADR 0013 (remain private) — Claude
 
