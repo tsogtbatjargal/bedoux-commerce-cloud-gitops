@@ -10,7 +10,7 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | COMPLETE |
 | Active phase | P9 — Interview package (project complete) |
-| Active task | None. All phases P0–P9 complete; P9 gate approved by owner 2026-08-07. |
+| Active task | P10.1 complete; P10.2 (default-deny NetworkPolicy on kind) not yet started. |
 | Last verified | 2026-08-09T00:00:00-06:00 — P10–P14 optimization track bootstrapped: ADR 0014 written, `docs/IMPLEMENTATION-PLAN.md`/`docs/TEST-PLAN.md`/this file extended. No phase work started. |
 | AWS resources currently live | **None temporary.** Persistent allowlist only: encrypted state bucket, two ECR repositories, five persistent IAM roles, GitHub OIDC provider — all confirmed present. |
 | Month-to-date estimated AWS spend | USD 3.727 actual at last check; no AWS session opened since (billing data lags — recheck before any future session). |
@@ -88,13 +88,16 @@ check can't miss them:
 
 ## Known open issues (not blockers, revisit when fixable)
 
-- **22 unfixed OS-level CVEs on the API image's `python:3.12-slim` (Debian 13) base**,
-  found during the P2.5 trivy scan (2026-07-18). No upstream fix exists yet — this is
-  not something the app can fix on its own. Re-scan with
+- **23 unfixed OS-level CVEs on the API image's `python:3.12-slim` (Debian 13) base**,
+  re-scanned 2026-08-09 (P10.1) — up from 22 at the P2.5 baseline (2026-07-18). Still no
+  upstream fix for any of them: every finding's `Fixed Version` column is empty and each
+  Debian package status is `affected` or `fix_deferred`, confirmed with
   `trivy image --severity HIGH,CRITICAL --input /tmp/image.tar` (recipe in
-  `docs/local-tooling.md`) periodically and whenever the base image tag is bumped;
-  fix opportunistically the moment a patched Debian package lands upstream, otherwise
-  revisit at the latest before P9 (interview package) so the final state is current.
+  `docs/local-tooling.md`) against a freshly built image, not the stale P2.5 result. This is
+  not something the app can fix on its own. The web image (`nginx-unprivileged` on Alpine)
+  re-scanned clean at 0 HIGH/CRITICAL, same as P2.5. Re-scan again opportunistically
+  (P14 capstone at the latest, or sooner if the base image tag is bumped) — fix the moment a
+  patched Debian package lands upstream.
 - **ECR tagged-image lifecycle prefix mismatch (identified 2026-07-31):** the ECR rule matches
   `sha-` tags, while P6.4's deployment workflow emits bare commit-SHA tags. This is a bounded
   storage/cost-hygiene gap, not a runtime or security issue; defer the one-line alignment to a
@@ -591,7 +594,10 @@ ADR 0004's "flip public before P9" clause is superseded by
 
 ### P10 — Security hardening
 
-- [ ] P10.1 NOT STARTED — re-scan and fix opportunistically fixable CVEs on the API base image.
+- [x] P10.1 COMPLETE — re-scanned the API base image; 23 HIGH/CRITICAL OS-level CVEs found
+      (up from 22 at P2.5), none opportunistically fixable — every finding's `Fixed Version`
+      is still empty. Web image re-confirmed clean (0 HIGH/CRITICAL). Evidence: T-1001,
+      session log 2026-08-09.
 - [ ] P10.2 NOT STARTED — default-deny NetworkPolicy + explicit allows, proven on kind.
 - [ ] P10.3 NOT STARTED — image signing (cosign) + SBOM in CI, verified before Helm deploy.
 - [ ] P10.4 NOT STARTED — IAM re-review of every role/policy created since P5.
@@ -647,6 +653,30 @@ before P10.1 begins, same gate discipline as P0–P9.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-09T17:44:00-06:00 — P10.1 complete: CVE re-scan, no fix available — Claude
+
+- **Phase/task:** P10.1 is **COMPLETE**. Local-only work, no AWS session opened.
+- **Method:** built the current `apps/api` image fresh (`podman build`), exported it
+  (`podman save`), and scanned it with `trivy image --severity HIGH,CRITICAL --input
+  <tarball>` per `docs/local-tooling.md`'s documented recipe — the same method P2.5 used, not
+  a copy of the old result. Also rebuilt and re-scanned `apps/web` for a cheap cross-check.
+- **Result:** the API image (`python:3.12-slim`, Debian 13.6 "trixie") now shows **23**
+  HIGH/CRITICAL OS-level CVEs, one more than the 22 recorded at P2.5 (2026-07-18). Checked
+  every finding's `Fixed Version` column in the trivy table: **all 23 are empty** — Debian
+  has not shipped a patched package for any of them (status `affected` or `fix_deferred`).
+  There is nothing to fix this round; this is a genuine "still no upstream fix" result, not
+  an unchecked assumption carried forward. The Python dependency layer itself (fastapi/
+  starlette, fixed at P2.5) scanned clean — 0 additional vulnerabilities. `apps/web`
+  (nginx-unprivileged on Alpine 3.21.3) re-scanned at 0 HIGH/CRITICAL, matching P2.5.
+  No code, Dockerfile, or dependency changes were made, so the existing test suite was not
+  re-run — there is nothing new to verify.
+- **Cleanup:** both scan tarballs and both locally tagged images (`bedoux-api:p10-1`,
+  `bedoux-web:p10-1`) were removed after the scan — no leftover local state.
+- **AWS:** none. No AWS resources created, modified, or deleted. Estimated cost: USD 0.
+- **Gate:** T-1001 satisfied (re-scan recorded, evidence above).
+- **Next action:** owner approves P10.2 (default-deny `NetworkPolicy` + explicit allows,
+  proven on kind) whenever ready.
 
 ### 2026-08-09T00:00:00-06:00 — P10-P14 optimization track bootstrapped — Claude
 
