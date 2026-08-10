@@ -1,6 +1,14 @@
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 name: bedoux
+# kindnet (kind's default CNI) does not enforce NetworkPolicy at all -- a NetworkPolicy
+# object applies cleanly to the API server but silently has zero effect on traffic.
+# Disabled here so Calico (installed separately, see docs/local-tooling.md) is the
+# only CNI, and P10.2's NetworkPolicy drill is real enforcement, not a no-op. podSubnet
+# matches Calico's own default so its manifest works unmodified.
+networking:
+  disableDefaultCNI: true
+  podSubnet: "192.168.0.0/16"
 nodes:
   - role: control-plane
     kubeadmConfigPatches:

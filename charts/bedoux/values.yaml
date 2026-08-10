@@ -111,3 +111,19 @@ ingress:
 # kind has no ebs.csi.aws.com provisioner to satisfy it.
 storageClass:
   create: false
+
+# P10.2: default-deny NetworkPolicy + explicit allows (web->api, api/migrate/seed->
+# postgres, ingress-controller->web/api, DNS egress). Requires a CNI that actually
+# enforces NetworkPolicy -- kindnet (kind's default CNI) silently ignores these
+# objects, so kind clusters using this must disable the default CNI and install one
+# that enforces it (Calico; see docs/local-tooling.md). Off by default so existing
+# AWS/kind usage is unaffected until explicitly enabled and proven.
+networkPolicy:
+  enabled: false
+  # Matches the namespace ingress traffic is allowed in from. kind's ingress-nginx
+  # guide creates an "ingress-nginx" namespace, so this default is kind-only -- the
+  # AWS ALB profile doesn't route through an in-cluster namespace at all (ALB
+  # target-type ip sends traffic to pod IPs from outside the pod network), so this
+  # selector needs its own review before P10.5's live AWS drill.
+  ingressNamespaceSelector:
+    kubernetes.io/metadata.name: ingress-nginx

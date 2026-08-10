@@ -10,7 +10,7 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | COMPLETE |
 | Active phase | P9 — Interview package (project complete) |
-| Active task | P10.1 complete; P10.2 (default-deny NetworkPolicy on kind) not yet started. |
+| Active task | P10.2 complete; P10.3 (image signing + SBOM in CI) not yet started. |
 | Last verified | 2026-08-09T00:00:00-06:00 — P10–P14 optimization track bootstrapped: ADR 0014 written, `docs/IMPLEMENTATION-PLAN.md`/`docs/TEST-PLAN.md`/this file extended. No phase work started. |
 | AWS resources currently live | **None temporary.** Persistent allowlist only: encrypted state bucket, two ECR repositories, five persistent IAM roles, GitHub OIDC provider — all confirmed present. |
 | Month-to-date estimated AWS spend | USD 3.727 actual at last check; no AWS session opened since (billing data lags — recheck before any future session). |
@@ -598,7 +598,19 @@ ADR 0004's "flip public before P9" clause is superseded by
       (up from 22 at P2.5), none opportunistically fixable — every finding's `Fixed Version`
       is still empty. Web image re-confirmed clean (0 HIGH/CRITICAL). Evidence: T-1001,
       session log 2026-08-09.
-- [ ] P10.2 NOT STARTED — default-deny NetworkPolicy + explicit allows, proven on kind.
+- [x] P10.2 COMPLETE — `charts/bedoux/templates/networkpolicy.yaml` (default-deny +
+      explicit allows), gated by `networkPolicy.enabled` (off by default). Real finding:
+      kind's default CNI (kindnet) does not enforce NetworkPolicy at all — objects apply
+      but have zero effect. Rebuilt the kind cluster with the default CNI disabled and
+      Calico v3.32.1 installed so the drill is real enforcement, not a no-op; two
+      one-time host-environment issues hit and fixed along the way (iptables-legacy vs.
+      nft, and the host's `fs.inotify.max_user_instances` limit), both recorded in
+      `docs/local-tooling.md`. Live drill: an unlabeled pod could not reach
+      `postgres:5432`, `api:8000`, or `web:8080` directly (all three hung until
+      `timeout` killed them — real enforcement, not a DNS failure, since the hostnames
+      resolved fine); `web`→`api` and `api`→`postgres` both confirmed reachable; the
+      full golden path (catalog, an order, cross-checked in Postgres) worked identically
+      before and after enabling the policies. Evidence: T-1002, session log 2026-08-09.
 - [ ] P10.3 NOT STARTED — image signing (cosign) + SBOM in CI, verified before Helm deploy.
 - [ ] P10.4 NOT STARTED — IAM re-review of every role/policy created since P5.
 - [ ] P10.5 NOT STARTED — live AWS NetworkPolicy drill + clean teardown.
@@ -653,6 +665,51 @@ before P10.1 begins, same gate discipline as P0–P9.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-09T22:50:00-06:00 — P10.2 complete: NetworkPolicy drill, real CNI finding — Claude
+
+- **Phase/task:** P10.2 is **COMPLETE**. Local-only work on kind, no AWS session opened.
+- **Chart change:** `charts/bedoux/templates/networkpolicy.yaml` — default-deny-all,
+  allow-dns-egress, and explicit allows for web→api, api/bedoux-migrate/bedoux-seed→
+  postgres, and ingress-controller-namespace→web/api. Gated by a new
+  `networkPolicy.enabled` value (default `false`, so existing kind/AWS usage is
+  unaffected until explicitly proven).
+- **Real finding before any drill could be real:** kind's default CNI (kindnet) does
+  not enforce `NetworkPolicy` — the objects apply to the API server with no error and
+  do nothing. Confirmed this is a known kindnet limitation, not assumed. Fixed by
+  setting `networking.disableDefaultCNI: true` + a matching `podSubnet` in
+  `k8s/kind-config.yaml` and installing Calico v3.32.1 (pinned to the actual latest
+  release at setup time) after cluster creation, before anything else.
+- **Two more real findings, both host-environment issues, both fixed and documented in
+  `docs/local-tooling.md`:** (1) ingress-nginx's hostPort mapping broke
+  (`CNI-HOSTPORT-SETMARK` chain creation failed, "table `nat` does not exist") because
+  the kind node's `iptables` alternative defaults to legacy mode, which needs a kernel
+  module this host doesn't have loaded (only the nftables-based one) — fixed by
+  switching the node to `iptables-nft`. (2) ingress-nginx then crash-looped on "too
+  many open files" — not a container limit but the *host's*
+  `fs.inotify.max_user_instances` (128) nearly exhausted by kubelet/containerd/Calico
+  plus several long-running MCP sidecar containers under the same user; fixed with a
+  one-time `sudo sysctl -w fs.inotify.max_user_instances=1024` (run by the owner
+  directly — not something this agent can do without an interactive password).
+- **Baseline proof (policies disabled):** fresh `bedoux-api`/`bedoux-web` images built
+  and loaded, `helm install` on the Calico-backed cluster — migration and seed Jobs
+  completed, all pods `Ready`, full golden path through the kind Ingress (catalog,
+  a real order, cross-checked via `psql` in the real Postgres pod) worked identically
+  to every prior kind session, confirming the CNI swap itself introduced no regression.
+- **Drill (policies enabled):** `helm upgrade --set networkPolicy.enabled=true`; all 7
+  NetworkPolicy objects present. An unlabeled `busybox` pod (`rogue`) could not reach
+  `postgres:5432`, `api:8000`, or `web:8080` — all three `nc` attempts hung until
+  `timeout` killed them (hostnames resolved fine via the DNS-allow rule, so this is
+  real connection-level denial, not a DNS failure disguised as one). Positive control:
+  `web`→`api` (`/health` returned 200) and `api`→`postgres` (a real TCP connect)
+  both succeeded. Re-ran the full golden path through the Ingress with policies
+  active — catalog 200, a second real order, both identical to the baseline run.
+  `rogue` deleted after the drill.
+- **AWS:** none. No AWS resources created, modified, or deleted. Estimated cost: USD 0.
+- **Gate:** T-1002 satisfied (kind NetworkPolicy drill, evidence above).
+- **Next action:** owner approves P10.3 (image signing + SBOM in CI) whenever ready.
+  Kind cluster `bedoux` (now Calico-backed) is left running as the ongoing local dev
+  cluster, same precedent as P3.1.
 
 ### 2026-08-09T17:44:00-06:00 — P10.1 complete: CVE re-scan, no fix available — Claude
 
