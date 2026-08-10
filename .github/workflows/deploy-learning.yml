@@ -9,7 +9,7 @@ on:
         default: false
         type: boolean
       rollback_drill:
-        description: Deliberately fail the web rollout and verify Helm atomic rollback (P6.5 only).
+        description: Deliberately crash the signed web image and verify Helm atomic rollback.
         required: true
         default: false
         type: boolean
@@ -43,6 +43,8 @@ env:
   AWS_REGION: ca-central-1
   EKS_CLUSTER: bedoux
   KUBERNETES_NAMESPACE: bedoux
+  COSIGN_CERTIFICATE_IDENTITY: https://github.com/bedoux-tech/bedoux-commerce-cloud/.github/workflows/deploy-learning.yml@refs/heads/main
+  COSIGN_CERTIFICATE_OIDC_ISSUER: https://token.actions.githubusercontent.com
 
 jobs:
   deploy:
@@ -50,6 +52,11 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install pinned cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: v3.0.6
 
       - name: Inspect non-sensitive GitHub OIDC claims
         # This is deliberately before AWS authentication. It emits only issuer,
@@ -95,6 +102,7 @@ jobs:
             docker login --username AWS --password-stdin "$registry"
 
       - name: Build and push immutable application images
+        id: images
         env:
           ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
         shell: bash
@@ -116,6 +124,67 @@ jobs:
 
           build_and_push_if_missing api
           build_and_push_if_missing web
+
+          for component in api web; do
+            digest="$(aws ecr describe-images --repository-name "bedoux-$component" \
+              --image-ids "imageTag=$GITHUB_SHA" --query 'imageDetails[0].imageDigest' --output text)"
+            [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+            printf '%s_digest=%s\n' "$component" "$digest" >> "$GITHUB_OUTPUT"
+          done
+
+      - name: Prepare SBOM output directory
+        run: mkdir -p sbom
+
+      - name: Generate API SPDX SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          image: ${{ steps.ecr.outputs.registry }}/bedoux-api@${{ steps.images.outputs.api_digest }}
+          format: spdx-json
+          output-file: sbom/bedoux-api.spdx.json
+          syft-version: v1.50.0
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Generate web SPDX SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          image: ${{ steps.ecr.outputs.registry }}/bedoux-web@${{ steps.images.outputs.web_digest }}
+          format: spdx-json
+          output-file: sbom/bedoux-web.spdx.json
+          syft-version: v1.50.0
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Upload deployment SBOM artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: bedoux-deployment-sboms-${{ github.sha }}
+          path: sbom/*.spdx.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Sign immutable image digests with GitHub OIDC
+        env:
+          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
+          API_IMAGE_DIGEST: ${{ steps.images.outputs.api_digest }}
+          WEB_IMAGE_DIGEST: ${{ steps.images.outputs.web_digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          verify_args=(
+            "--certificate-identity=$COSIGN_CERTIFICATE_IDENTITY"
+            "--certificate-oidc-issuer=$COSIGN_CERTIFICATE_OIDC_ISSUER"
+          )
+          for image_reference in \
+            "$ECR_REGISTRY/bedoux-api@$API_IMAGE_DIGEST" \
+            "$ECR_REGISTRY/bedoux-web@$WEB_IMAGE_DIGEST"; do
+            if cosign verify "$image_reference" "${verify_args[@]}" >/dev/null 2>&1; then
+              printf '%s\n' 'Reusing an existing signature from this main-branch workflow.'
+            else
+              cosign sign --yes "$image_reference" >/dev/null
+              printf '%s\n' 'Created a keyless signature for an immutable image digest.'
+            fi
+          done
 
       - name: Configure namespace-scoped EKS access
         shell: bash
@@ -139,6 +208,8 @@ jobs:
         id: helm_deploy
         env:
           ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
+          API_IMAGE_DIGEST: ${{ steps.images.outputs.api_digest }}
+          WEB_IMAGE_DIGEST: ${{ steps.images.outputs.web_digest }}
           SEED_CATALOG: ${{ inputs.seed_catalog }}
           ROLLBACK_DRILL: ${{ inputs.rollback_drill }}
           USE_RDS: ${{ inputs.use_rds }}
@@ -147,14 +218,22 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          verify_args=(
+            "--certificate-identity=$COSIGN_CERTIFICATE_IDENTITY"
+            "--certificate-oidc-issuer=$COSIGN_CERTIFICATE_OIDC_ISSUER"
+          )
+          for image_reference in \
+            "$ECR_REGISTRY/bedoux-api@$API_IMAGE_DIGEST" \
+            "$ECR_REGISTRY/bedoux-web@$WEB_IMAGE_DIGEST"; do
+            cosign verify "$image_reference" "${verify_args[@]}" >/dev/null
+          done
+          printf '%s\n' 'Verified both main-branch image signatures before Helm rollout.'
+
           release_timeout="10m"
-          web_image_tag="$GITHUB_SHA"
           if [[ "$ROLLBACK_DRILL" == "true" ]]; then
-            # The migration hook still runs with the valid API image. Only the web
-            # Deployment receives this deliberately unavailable tag, exercising a
-            # real rollout failure followed by Helm's --atomic rollback.
+            # Keep both verified image digests. Only the web command is overridden,
+            # exercising a real rollout failure without bypassing signature policy.
             release_timeout="3m"
-            web_image_tag="rollback-drill-missing-${GITHUB_RUN_ID}"
           fi
           helm_args=(
             upgrade --install bedoux charts/bedoux
@@ -168,9 +247,14 @@ jobs:
             --set storageClass.create=false
             --set-string "api.image.repository=$ECR_REGISTRY/bedoux-api"
             --set-string "api.image.tag=$GITHUB_SHA"
+            --set-string "api.image.digest=$API_IMAGE_DIGEST"
             --set-string "web.image.repository=$ECR_REGISTRY/bedoux-web"
-            --set-string "web.image.tag=$web_image_tag"
+            --set-string "web.image.tag=$GITHUB_SHA"
+            --set-string "web.image.digest=$WEB_IMAGE_DIGEST"
           )
+          if [[ "$ROLLBACK_DRILL" == "true" ]]; then
+            helm_args+=(--set-json 'web.command=["sh","-c","echo signed rollback drill failure >&2; exit 1"]')
+          fi
           if [[ "$USE_SECRETS_MANAGER" == "true" && "$USE_RDS" != "true" ]]; then
             echo 'use_secrets_manager requires use_rds=true' >&2
             exit 1

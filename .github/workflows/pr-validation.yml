@@ -84,21 +84,95 @@ jobs:
           terraform -chdir=infra/terraform validate -var=skip_aws_credentials_validation=true
       - name: Lint and render all Helm profiles
         run: |
+          set -euo pipefail
           helm lint charts/bedoux
           helm template bedoux charts/bedoux >/dev/null
           helm template bedoux charts/bedoux -f charts/bedoux/values-aws.yaml >/dev/null
           helm template bedoux charts/bedoux -f charts/bedoux/values-aws.yaml -f charts/bedoux/values-aws-rds.yaml >/dev/null
+          digest="sha256:$(printf 'a%.0s' {1..64})"
+          rendered="$(helm template bedoux charts/bedoux \
+            --set-string "api.image.digest=$digest" \
+            --set-string "web.image.digest=$digest")"
+          grep -q "localhost/bedoux-api@$digest" <<< "$rendered"
+          grep -q "localhost/bedoux-web@$digest" <<< "$rendered"
+          if grep -q 'localhost/bedoux-api:p3\|localhost/bedoux-web:p3' <<< "$rendered"; then
+            echo 'digest-pinned render unexpectedly retained a mutable application tag' >&2
+            exit 1
+          fi
 
   container-security:
     name: Container build and scan
     runs-on: ubuntu-24.04
+    services:
+      registry:
+        image: registry:2.8.3
+        ports:
+          - 5000:5000
     steps:
       - uses: actions/checkout@v4
+      - name: Install pinned cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: v3.0.6
       - name: Build immutable candidate images
+        id: candidate-images
+        shell: bash
         run: |
-          docker build --tag bedoux-api:pr-${{ github.sha }} apps/api
-          docker build --tag bedoux-web:pr-${{ github.sha }} apps/web
+          set -euo pipefail
+          for component in api web; do
+            local_image="bedoux-$component:pr-${GITHUB_SHA}"
+            registry_image="localhost:5000/bedoux-$component:pr-${GITHUB_SHA}"
+            docker build --tag "$local_image" --tag "$registry_image" "apps/$component"
+            docker push "$registry_image" >/dev/null
+            image_reference="$(docker inspect --format '{{ index .RepoDigests 0 }}' "$registry_image")"
+            test -n "$image_reference"
+            printf '%s_reference=%s\n' "$component" "$image_reference" >> "$GITHUB_OUTPUT"
+          done
       - name: Scan images for fixable high and critical vulnerabilities
         run: |
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock docker.io/aquasec/trivy:0.72.0 image --exit-code 1 --ignore-unfixed --severity HIGH,CRITICAL bedoux-api:pr-${{ github.sha }}
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock docker.io/aquasec/trivy:0.72.0 image --exit-code 1 --ignore-unfixed --severity HIGH,CRITICAL bedoux-web:pr-${{ github.sha }}
+      - name: Prepare SBOM output directory
+        run: mkdir -p sbom
+      - name: Generate API SPDX SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          image: bedoux-api:pr-${{ github.sha }}
+          format: spdx-json
+          output-file: sbom/bedoux-api.spdx.json
+          syft-version: v1.50.0
+          upload-artifact: false
+          upload-release-assets: false
+      - name: Generate web SPDX SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          image: bedoux-web:pr-${{ github.sha }}
+          format: spdx-json
+          output-file: sbom/bedoux-web.spdx.json
+          syft-version: v1.50.0
+          upload-artifact: false
+          upload-release-assets: false
+      - name: Upload candidate SBOM artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: bedoux-candidate-sboms-${{ github.sha }}
+          path: sbom/*.spdx.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Sign and verify candidate images in the ephemeral registry
+        env:
+          API_IMAGE_REFERENCE: ${{ steps.candidate-images.outputs.api_reference }}
+          WEB_IMAGE_REFERENCE: ${{ steps.candidate-images.outputs.web_reference }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          key_prefix="$RUNNER_TEMP/bedoux-ci-cosign"
+          export COSIGN_PASSWORD="$(openssl rand -hex 32)"
+          trap 'rm -f "$key_prefix.key" "$key_prefix.pub"; unset COSIGN_PASSWORD' EXIT
+          cosign generate-key-pair --output-key-prefix "$key_prefix" >/dev/null
+
+          for image_reference in "$API_IMAGE_REFERENCE" "$WEB_IMAGE_REFERENCE"; do
+            cosign sign --yes --allow-insecure-registry --key "$key_prefix.key" "$image_reference" >/dev/null
+            cosign verify --allow-insecure-registry --key "$key_prefix.pub" "$image_reference" >/dev/null
+          done
+          printf '%s\n' 'Cosign signed and verified both immutable candidate image digests.'

@@ -147,10 +147,15 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   scope and how it reads `docs/cost-guardrails.md`'s hard limits (bounded autoscaling only,
   Multi-AZ RDS as a one-off reviewed exception, Route 53 gated on an explicit owner domain
   decision at P12). Full phase table in `docs/IMPLEMENTATION-PLAN.md`'s "Phase 10+" section;
-  checklist in `docs/PROGRESS.md`. **No phase work has started** — same gate discipline as
-  P0–P9 applies (one task `IN PROGRESS` at a time, owner approves each phase gate).
-- Next action: owner approves the start of P10.1 (re-scan/fix the API base image's known CVEs)
-  whenever ready.
+  checklist in `docs/PROGRESS.md`. **P10.1 is complete:** the current API/web image re-scan is
+  recorded, with no currently fixable API base-image CVE. **P10.2 is complete:** default-deny and
+  explicit-allow NetworkPolicies were proven on the retained Calico-backed kind cluster.
+  **P10.3 is complete:** green PR CI generated and validated API/web SPDX artifacts and signed and
+  verified both immutable candidate digests without OIDC or AWS access; the main deployment path
+  keylessly signs, exact-identity verifies before Helm, and deploys the verified digest. No AWS
+  session was opened.
+- Next action: owner directs P10.4's read-only IAM role/policy re-review; P10.5 remains the next
+  AWS-costing task and requires a fresh session preflight.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

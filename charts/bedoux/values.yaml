@@ -6,6 +6,8 @@ api:
   image:
     repository: localhost/bedoux-api
     tag: p3
+    # Empty keeps local repository:tag behavior. CI supplies a verified sha256 digest.
+    digest: ""
     pullPolicy: IfNotPresent
   replicas: 1
   # On everywhere by default (kind/local demos need working checkout); the AWS
@@ -38,7 +40,11 @@ web:
   image:
     repository: localhost/bedoux-web
     tag: p3
+    # Empty keeps local repository:tag behavior. CI supplies a verified sha256 digest.
+    digest: ""
     pullPolicy: IfNotPresent
+  # Test-only rollback drills may override this while retaining a signed image digest.
+  command: []
   replicas: 1
   resources:
     requests:

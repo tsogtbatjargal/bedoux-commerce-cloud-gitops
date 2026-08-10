@@ -19,7 +19,7 @@ spec:
       # and the database accepts the URL consumed by the API.
       initContainers:
         - name: wait-for-postgres
-          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
+          image: {{ include "bedoux.imageReference" .Values.api.image | quote }}
           command:
             - python
             - -c
@@ -39,7 +39,7 @@ spec:
             {{- include "bedoux.databaseCredentialEnv" . | nindent 12 }}
       containers:
         - name: api
-          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
+          image: {{ include "bedoux.imageReference" .Values.api.image | quote }}
           imagePullPolicy: {{ .Values.api.image.pullPolicy }}
           ports:
             - containerPort: 8000
