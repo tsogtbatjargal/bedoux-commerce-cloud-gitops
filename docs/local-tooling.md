@@ -56,6 +56,7 @@ only a presence check.
 | helm | v3.21.3 | `~/.local/bin/helm` | official `get-helm-3` install script |
 | terraform | v1.15.8 | `~/.local/bin/terraform` | official HashiCorp release zip |
 | trivy | 0.72.0 | `~/.local/bin/trivy` | official GitHub release tarball (added P2.5, for image scanning) |
+| Calico | v3.32.1 | in-cluster manifest, not a host binary | official manifest (added P10.2, NetworkPolicy enforcement on kind — see below) |
 
 `node`/`npm` currently resolve to a Zed-editor-bundled install
 (`~/.local/share/zed/node/...`), which is outside this project's control. If that ever
@@ -138,6 +139,51 @@ rm /tmp/<name>.tar
 Confirm it landed with `podman exec <cluster>-control-plane crictl images | grep <name>`
 (faster than waiting for a pod to fail scheduling). Remember `kind load` also needs the
 `app.slice` delegated-scope wrapper from the section above, same as `kind create cluster`.
+
+## NetworkPolicy-enforcing kind cluster (added P10.2)
+
+kind's default CNI, **kindnet, does not enforce `NetworkPolicy` at all** — the objects
+apply cleanly to the API server and every command reports success, but traffic is never
+actually blocked. Proving `charts/bedoux`'s `networkPolicy.enabled` templates for real
+requires disabling the default CNI and installing one that enforces policy (Calico here,
+pinned to whatever `curl -s https://api.github.com/repos/projectcalico/calico/releases/latest`
+reports at setup time — v3.32.1 as of P10.2).
+
+`k8s/kind-config.yaml` sets `networking.disableDefaultCNI: true` and a matching
+`podSubnet: "192.168.0.0/16"` (Calico's own default, so its manifest applies unmodified).
+After `kind create cluster`, before anything else:
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.32.1/manifests/calico.yaml
+kubectl wait --for=condition=Ready node/<cluster>-control-plane --timeout=180s
+kubectl wait --for=condition=Ready pod -l k8s-app=calico-node -n kube-system --timeout=180s
+```
+
+Then install ingress-nginx and load images as usual. **Two real environmental findings
+from doing this on this host, both one-time fixes:**
+
+1. **ingress-nginx's hostPort mapping breaks** (`CNI-HOSTPORT-SETMARK` iptables chain
+   creation fails with `can't initialize iptables table 'nat'`) once the default CNI is
+   disabled. Cause: the kind node image's `iptables` alternative defaults to
+   `iptables-legacy`, which needs the classic `iptable_nat` kernel module — not loaded on
+   this host (only the nftables-based `nft_nat` is). Fix, once per cluster: switch the
+   node to the nft-backed binary, which uses the module that's already loaded, then
+   delete the stuck pod so it reschedules:
+   ```bash
+   podman exec <cluster>-control-plane update-alternatives --set iptables /usr/sbin/iptables-nft
+   kubectl delete pod -n ingress-nginx -l app.kubernetes.io/component=controller
+   ```
+2. **ingress-nginx then crash-loops with `too many open files`** creating its file
+   watcher — not a container resource limit, but the *host's* `fs.inotify.max_user_instances`
+   (default 128 on this host) nearly exhausted by kubelet/containerd/Calico plus several
+   long-running MCP sidecar containers sharing the same user. Check usage with
+   `cat /proc/sys/fs/inotify/max_user_instances` against a count of open `inotify` fds
+   across `/proc/*/fd`; fix (needs sudo, one-time, doesn't disturb anything running):
+   `sudo sysctl -w fs.inotify.max_user_instances=1024`.
+
+Both were host-state issues specific to running many long-lived containers on this
+workstation, not a project or Calico bug — recorded here so a future session recognizes
+them immediately instead of re-diagnosing from scratch.
 
 ## Real-browser verification via Playwright MCP (added 2026-07-19)
 
