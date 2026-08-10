@@ -77,9 +77,12 @@ In GitHub Actions, select **Deploy learning session**, choose the `main` branch,
 
 1. exchanges GitHub's OIDC token for the branch-bound, short-lived deployment role;
 2. builds and pushes API/web images tagged with the immutable commit SHA;
-3. deploys the AWS Helm profile with ordering still disabled;
-4. waits for the workloads and ALB; and
-5. verifies public `/api/health` and a non-empty catalog.
+3. generates a short-retention SPDX JSON SBOM artifact and keylessly signs both immutable image
+   digests with the exact `main` workflow identity;
+4. re-verifies both identities inside the Helm step and deploys those exact digests with ordering
+   still disabled;
+5. waits for the workloads and ALB; and
+6. verifies public `/api/health` and a non-empty catalog.
 
 The Helm command uses `--atomic`: an ordinary failed install or upgrade is rolled back before the
 workflow returns failure. This is a safety property, not P6.5 evidence; P6.5 owns the deliberate
@@ -93,10 +96,12 @@ session's PostgreSQL volume is new). Do not run the drill against an absent rele
 Then dispatch **Deploy learning session** again from the same `main` commit with
 `rollback_drill=true` and `seed_catalog=false`. The workflow first captures the web Deployment's
 actual pre-drill image. It still builds and pushes its immutable images when absent; on a repeat
-dispatch it deliberately reuses existing commit-tagged images. It then passes a unique,
-deliberately unavailable **web** image tag to Helm. The valid API image lets the pre-upgrade
-migration hook finish; the web Deployment then fails to roll out. The drill uses a three-minute
-wait and Helm `--atomic`, which must restore that captured pre-drill image.
+dispatch it deliberately reuses existing commit-tagged images. Both digests must pass the normal
+signature gate. The drill then overrides only the signed web container's command so it exits with
+the fixed drill error; the valid signed API image lets the pre-upgrade migration hook finish, while
+the web Deployment crash-loops and fails to roll out. This replaced the historical missing-tag
+injection because an unsigned/nonexistent image must not bypass P10.3's pre-Helm gate. The drill
+uses a three-minute wait and Helm `--atomic`, which must restore the captured pre-drill image.
 
 The workflow is expected to finish **failed from its Helm step**. Its conditional evidence step
 must nevertheless run and show the Helm history/status, current workloads, the restored web image

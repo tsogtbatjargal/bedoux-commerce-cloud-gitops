@@ -36,14 +36,20 @@ several services per [ADR 0002](decisions/0002-mvp-aws-service-deferrals.md):
 
 ## Delivery path
 
-1. A pull request runs formatting, linting, tests, builds, and security scans.
+1. A pull request runs formatting, linting, tests, builds, security scans, SPDX SBOM generation,
+   and a real `cosign` sign/verify proof against an ephemeral local registry. The PR job uses an
+   ephemeral key and receives no GitHub OIDC token or AWS credential.
 2. A protected branch workflow exchanges GitHub's OIDC token for temporary AWS
    credentials.
 3. Immutable images tagged with the Git commit SHA are pushed to ECR.
-4. Helm deploys the selected image versions.
-5. Kubernetes performs a rolling update and readiness gates traffic.
-6. A smoke test verifies the public health and catalog endpoints.
-7. A failed verification triggers an intentional Helm rollback.
+4. The workflow generates short-retention SPDX JSON artifacts and uses keyless `cosign` signing;
+   the certificate identity is the exact `deploy-learning.yml` workflow on `main`.
+5. The Helm step re-verifies both signatures against that identity and GitHub's OIDC issuer, then
+   deploys the exact verified digests rather than mutable tags.
+6. Kubernetes performs a rolling update and readiness gates traffic.
+7. A smoke test verifies the public health and catalog endpoints.
+8. A failed verification stops before Helm; a failed signed rollout triggers intentional Helm
+   atomic rollback.
 
 ## Identity boundaries
 

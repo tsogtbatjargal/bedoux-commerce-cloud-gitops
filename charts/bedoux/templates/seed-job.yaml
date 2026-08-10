@@ -27,7 +27,7 @@ spec:
       serviceAccountName: {{ .Values.api.serviceAccount.name }}
       initContainers:
         - name: wait-for-postgres
-          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
+          image: {{ include "bedoux.imageReference" .Values.api.image | quote }}
           command:
             - python
             - -c
@@ -47,7 +47,7 @@ spec:
             {{- include "bedoux.databaseCredentialEnv" . | nindent 12 }}
       containers:
         - name: seed
-          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
+          image: {{ include "bedoux.imageReference" .Values.api.image | quote }}
           imagePullPolicy: {{ .Values.api.image.pullPolicy }}
           command: ["python", "-m", "app.seed"]
           env:

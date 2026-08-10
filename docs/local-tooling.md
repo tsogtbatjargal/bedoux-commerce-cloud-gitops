@@ -58,6 +58,12 @@ only a presence check.
 | trivy | 0.72.0 | `~/.local/bin/trivy` | official GitHub release tarball (added P2.5, for image scanning) |
 | Calico | v3.32.1 | in-cluster manifest, not a host binary | official manifest (added P10.2, NetworkPolicy enforcement on kind — see below) |
 
+P10.3's supply-chain tools run only on GitHub-hosted runners; they are not workstation
+prerequisites. The workflow pins `cosign-installer` v4.1.2 by immutable commit and explicitly
+selects cosign v3.0.6; pins `sbom-action` v0.24.0 by immutable commit and explicitly selects Syft
+v1.50.0; pins `upload-artifact` v7.0.1 by immutable commit; and uses `registry:2.8.3` only as an
+ephemeral PR-job service. SPDX JSON artifacts retain for seven days.
+
 `node`/`npm` currently resolve to a Zed-editor-bundled install
 (`~/.local/share/zed/node/...`), which is outside this project's control. If that ever
 disappears from `PATH`, install `nodejs`/`npm` into the `bedoux-aws` toolbox the same way as

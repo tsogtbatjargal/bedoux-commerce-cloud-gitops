@@ -16,6 +16,18 @@ helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 {{- end -}}
 
 {{/*
+  CI deploys the immutable digest it signed and verified. Local profiles keep the
+  existing repository:tag behavior when digest is empty.
+*/}}
+{{- define "bedoux.imageReference" -}}
+{{- if .digest -}}
+{{- printf "%s@%s" .repository .digest -}}
+{{- else -}}
+{{- printf "%s:%s" .repository .tag -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
   The application, migration Job, and seed Job all consume the same boundary.
   In Secrets Manager mode only the non-secret name and region enter the Pod;
   the SDK fetches the JSON DATABASE_URL using the Pod ServiceAccount identity.

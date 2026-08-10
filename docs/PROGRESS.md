@@ -8,13 +8,13 @@ checked here and its evidence is recorded in the session log.
 
 | Field | Value |
 |---|---|
-| State | COMPLETE |
-| Active phase | P9 — Interview package (project complete) |
-| Active task | P10.2 complete; P10.3 (image signing + SBOM in CI) not yet started. |
-| Last verified | 2026-08-09T00:00:00-06:00 — P10–P14 optimization track bootstrapped: ADR 0014 written, `docs/IMPLEMENTATION-PLAN.md`/`docs/TEST-PLAN.md`/this file extended. No phase work started. |
+| State | IN PROGRESS |
+| Active phase | P10 — Security hardening |
+| Active task | P10.3 — image signing + SBOM in CI (IN PROGRESS). |
+| Last verified | 2026-08-10T08:24:43-06:00 — P10.2 checkpoint re-verified: Calico node/workloads healthy, seven NetworkPolicies present, rogue pod absent, local API health passed. |
 | AWS resources currently live | **None temporary.** Persistent allowlist only: encrypted state bucket, two ECR repositories, five persistent IAM roles, GitHub OIDC provider — all confirmed present. |
 | Month-to-date estimated AWS spend | USD 3.727 actual at last check; no AWS session opened since (billing data lags — recheck before any future session). |
-| Next operator action | Owner approves the start of P10.1 (security hardening) whenever ready — see [ADR 0014](decisions/0014-post-p9-optimization-track-scope.md) and `docs/IMPLEMENTATION-PLAN.md`'s "Phase 10+" section. P0–P9's Definition of Done remains met and is not reopened. |
+| Next operator action | Implement P10.3 on its feature branch: generate an SBOM artifact, sign immutable images, and verify signatures before Helm rollout; satisfy T-1003 without opening an AWS session. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -611,7 +611,7 @@ ADR 0004's "flip public before P9" clause is superseded by
       resolved fine); `web`→`api` and `api`→`postgres` both confirmed reachable; the
       full golden path (catalog, an order, cross-checked in Postgres) worked identically
       before and after enabling the policies. Evidence: T-1002, session log 2026-08-09.
-- [ ] P10.3 NOT STARTED — image signing (cosign) + SBOM in CI, verified before Helm deploy.
+- [ ] P10.3 IN PROGRESS — image signing (cosign) + SBOM in CI, verified before Helm deploy.
 - [ ] P10.4 NOT STARTED — IAM re-review of every role/policy created since P5.
 - [ ] P10.5 NOT STARTED — live AWS NetworkPolicy drill + clean teardown.
 
@@ -665,6 +665,21 @@ before P10.1 begins, same gate discipline as P0–P9.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-10T08:24:43-06:00 — P10.3 started: image signing + SBOM in CI — Codex
+
+- **Phase/task:** P10.3 is **IN PROGRESS** on feature branch
+  `p10-3-image-signing-sbom`. P10.1/P10.2 remain complete; later P10 tasks have not started.
+- **Checkpoint verification:** merged `main` was clean at the P10 handoff refresh. The retained
+  Calico-backed kind cluster has one Ready node, its Calico node is Running, all seven P10.2
+  NetworkPolicies remain present, application/Postgres pods are healthy, the drill's rogue pod is
+  absent, and the local `/api/health` path passed.
+- **Scope:** add pinned SBOM generation and keyless `cosign` image signing to CI, and require
+  signature verification before the Helm deployment command. Keep PR validation free of AWS
+  credentials and do not open an AWS session for this task.
+- **AWS:** none. No AWS resources created, modified, queried, or deleted. Estimated cost: USD 0.
+- **Next action:** confirm current official cosign/GitHub Actions patterns and inspect the chart's
+  image-reference shape, then implement the smallest verifiable workflow change.
 
 ### 2026-08-09T22:50:00-06:00 — P10.2 complete: NetworkPolicy drill, real CNI finding — Claude
 
