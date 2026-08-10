@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P10 — Security hardening |
 | Active task | P10.4 IN PROGRESS — IAM re-review complete; accepted ADR 0015 remediation staged offline, awaiting review/merge and later live proof. |
-| Last verified | 2026-08-10T16:47:19-06:00 — Terraform boundary/CNI/ECR/EBS declarations validate; IAM v4 has zero Access Analyzer findings; no AWS mutation. |
+| Last verified | 2026-08-10T17:55:38-06:00 — draft PR #42 run 31444052466 passed API, web, Terraform/Helm, and signed container/SBOM checks; no AWS mutation. |
 | AWS resources currently live | **None temporary.** Persistent allowlist only: encrypted state bucket, two ECR repositories, five persistent IAM roles, GitHub OIDC provider — all confirmed present. |
 | Month-to-date estimated AWS spend | USD 3.727 actual at last check; no AWS session opened since (billing data lags — recheck before any future session). |
-| Next operator action | Review and merge the staged P10.4 declaration PR. Separately approve the later P10.5 AWS session for live remediation and T-1004/T-1005 proof. |
+| Next operator action | Review and merge draft PR #42. Separately approve the later P10.5 AWS session for live remediation and T-1004/T-1005 proof. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -669,6 +669,18 @@ before P10.1 begins, same gate discipline as P0–P9.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-10T17:55:38-06:00 — P10.4 declaration PR green — Codex
+
+- **Publish:** commit `99fdac1` was pushed on `p10-4-iam-review`; draft PR #42 is open against
+  `main`, mergeable, and contains only the reviewed P10.4 inventory/remediation scope.
+- **CI evidence:** GitHub Actions run `31444052466` passed all four jobs: API tests; web
+  lint/test/build; Terraform/Helm validation; and container build/scan plus SBOM and cosign proof.
+  Existing Node-action deprecation and React fast-refresh annotations remain non-blocking and are
+  unrelated to this IAM change.
+- **AWS:** no resources created, modified, or deleted. P10.4/T-1004 remain **IN PROGRESS** until
+  the merged declarations are applied inside an explicitly approved AWS session and the live v4
+  read-back plus denied unbounded-role test pass.
 
 ### 2026-08-10T16:47:19-06:00 — ADR 0015 accepted; bounded IAM remediation staged — Codex
 
