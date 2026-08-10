@@ -14,7 +14,7 @@ and flip the old one's status to `Superseded by NNNN`.
 | [0004](0004-start-private-flip-public-later.md) | Host at bedoux-tech, start private, flip public before P9 | "flip public" clause superseded by 0013 | 2026-07-18 |
 | [0005](0005-helm-migration-hook-job.md) | Database migrations run as a Helm post-install/pre-upgrade hook Job | Accepted | 2026-07-19 |
 | [0006](0006-spot-node-gp3-pvc.md) | Accept Spot-node interruption risk in P5; provision a real gp3 PVC via EBS CSI | Accepted | 2026-07-23 |
-| [0007](0007-bedoux-iam-scoped-self-escalation-fix.md) | Close a self-escalation hole in bedoux-iam-scoped; add the EKS nodegroup SLR check | Accepted | 2026-07-28 |
+| [0007](0007-bedoux-iam-scoped-self-escalation-fix.md) | Close a self-escalation hole in bedoux-iam-scoped; add the EKS nodegroup SLR check | Superseded in part by 0015 | 2026-07-28 |
 | [0008](0008-alb-no-rewrite-web-proxies-api.md) | ALB Ingress can't rewrite paths — web's own nginx proxies /api internally | Accepted | 2026-07-28 |
 | [0009](0009-github-actions-oidc-least-privilege.md) | GitHub Actions uses a branch-bound OIDC role with namespace-scoped deployment access | Accepted | 2026-07-30 |
 | [0010](0010-local-git-guardrail-for-private-repo.md) | Use a local pre-push guardrail while private-repository branch protection is unavailable | Accepted | 2026-07-30 |
@@ -22,6 +22,7 @@ and flip the old one's status to `Superseded by NNNN`.
 | [0012](0012-secrets-manager-direct-workload-retrieval.md) | Retrieve the database credential directly from Secrets Manager | Accepted | 2026-08-03 |
 | [0013](0013-remain-private-at-p9.md) | Remain private at P9; ADR 0004's public flip is not exercised | Accepted | 2026-08-07 |
 | [0014](0014-post-p9-optimization-track-scope.md) | Post-P9 optimization track (P10-P14): scope and guardrail interactions | Accepted | 2026-08-09 |
+| [0015](0015-bound-delegated-project-roles.md) | Bound every delegated project role to the operator's non-IAM ceiling | Accepted | 2026-08-10 |
 
 ## Template
 

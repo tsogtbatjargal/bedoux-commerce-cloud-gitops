@@ -14,6 +14,11 @@ variable "github_oidc_subject" {
   type = string
 }
 
+variable "permissions_boundary_arn" {
+  description = "Immutable maximum-permissions boundary required on every delegated project role."
+  type        = string
+}
+
 variable "oidc_issuer_url" {
   type    = string
   default = "https://token.actions.githubusercontent.com"

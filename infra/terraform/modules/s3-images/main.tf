@@ -83,9 +83,10 @@ data "aws_iam_policy_document" "api_assume_role" {
 }
 
 resource "aws_iam_role" "api" {
-  name               = "bedoux-product-images-role"
-  assume_role_policy = data.aws_iam_policy_document.api_assume_role.json
-  tags               = var.tags
+  name                 = "bedoux-product-images-role"
+  assume_role_policy   = data.aws_iam_policy_document.api_assume_role.json
+  permissions_boundary = var.permissions_boundary_arn
+  tags                 = var.tags
 }
 
 data "aws_iam_policy_document" "api_image_read" {

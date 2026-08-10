@@ -55,7 +55,6 @@ persistent_addresses=(
   'module.iam_cluster.aws_iam_role.cluster'
   'module.iam_cluster.aws_iam_role.node'
   'module.iam_cluster.aws_iam_role_policy_attachment.cluster'
-  'module.iam_cluster.aws_iam_role_policy_attachment.node_cni'
   'module.iam_cluster.aws_iam_role_policy_attachment.node_ecr'
   'module.iam_cluster.aws_iam_role_policy_attachment.node_worker'
   'module.github_actions_oidc.aws_iam_openid_connect_provider.this'
@@ -65,8 +64,10 @@ persistent_addresses=(
   'module.workload_iam.aws_iam_policy.alb_controller'
   'module.workload_iam.aws_iam_role.alb_controller'
   'module.workload_iam.aws_iam_role.ebs_csi'
+  'module.workload_iam.aws_iam_role.vpc_cni'
   'module.workload_iam.aws_iam_role_policy_attachment.alb_controller'
   'module.workload_iam.aws_iam_role_policy_attachment.ebs_csi'
+  'module.workload_iam.aws_iam_role_policy_attachment.vpc_cni'
 )
 
 run() {
@@ -156,6 +157,7 @@ conditional_import_role() {
 
 conditional_import_role 'module.workload_iam.aws_iam_role.ebs_csi' bedoux-ebs-csi-role
 conditional_import_role 'module.workload_iam.aws_iam_role.alb_controller' bedoux-alb-controller-role
+conditional_import_role 'module.workload_iam.aws_iam_role.vpc_cni' bedoux-vpc-cni-role
 
 if ! "$execute"; then
   printf '%s\n' 'DRY RUN: conditionally import the ALB controller policy only when it already exists.'

@@ -10,8 +10,10 @@ separate persistent state bucket before migrating this root state to S3.
 - The VPC has public subnets only and **no NAT Gateway resources**. The single
   Spot node uses public IP addressing, matching the verified P5 profile.
 - EKS, its managed Spot node group, ECR repositories, cluster/node IAM roles,
-  the EKS OIDC provider, the EBS CSI IRSA role/add-on, and the ALB Controller
-  IRSA role/policy are represented as code.
+  the EKS OIDC provider, the VPC CNI and EBS CSI IRSA roles/add-ons, and the ALB Controller
+  IRSA role/policy are represented as code. Every project role has AWS-managed
+  `PowerUserAccess` as a permissions boundary: it grants nothing and caps even a rewritten
+  project policy at the operator's non-IAM ceiling (ADR 0015).
 - The P6.3 GitHub Actions OIDC provider and `bedoux-github-actions-role` are
   represented as code but first created only in P6.4's live AWS session. Its
   trust is restricted to this repository's protected `main` branch through the
@@ -21,7 +23,9 @@ separate persistent state bucket before migrating this root state to S3.
   the learning EKS cluster. EKS grants it edit access only in the `bedoux`
   namespace.
 - `bedoux-iam-scoped` and the EKS node-group service-linked role are account
-  foundations from P4/P5 and are deliberately not managed here.
+  foundations from P4/P5 and are deliberately not managed here. The owner-controlled v4 policy
+  source and exact application order live in
+  [`docs/runbooks/p10-iam-remediation.md`](../../docs/runbooks/p10-iam-remediation.md).
 - P6.2/P6.4 must import the persistent P5 ECR repositories and IAM roles before an
   apply, rather than attempting to create duplicate names. On P6.4's first session, the
   helper deliberately skips the not-yet-created GitHub OIDC provider, role, and policy; the
@@ -32,8 +36,12 @@ separate persistent state bucket before migrating this root state to S3.
   that allowlist also includes the GitHub OIDC provider and deployment role/policy.
 - `bootstrap/` owns the persistent, versioned, encrypted Terraform state bucket.
   It is intentionally never part of the session-environment destroy.
-- EBS CSI is pinned to `v1.63.0-eksbuild.1`, verified compatible and default for
-  EKS `1.34` in `ca-central-1` on 2026-07-30.
+- VPC CNI is pinned to `v1.22.4-eksbuild.3` and uses only the exact
+  `kube-system/aws-node` ServiceAccount through IRSA. The node role retains worker-node and ECR
+  pull-only permissions, not CNI permissions.
+- EBS CSI is pinned to `v1.63.1-eksbuild.1` and uses the tag-scoped
+  `AmazonEBSCSIDriverPolicyV2`. Both add-on versions were the EKS 1.34 defaults in
+  `ca-central-1` when rechecked on 2026-08-10.
 - P7.1 adds an **opt-in only** RDS for PostgreSQL 16.14 module. It is disabled
   by default, creates a short-lived encrypted Single-AZ `db.t4g.micro` instance
   with fixed 20 GiB gp3 storage, no public address, no backups/final snapshot,
