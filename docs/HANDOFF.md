@@ -135,6 +135,34 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   project's final milestone.** Per the owner's explicit decision, the repository **remains
   private**; ADR 0004's "flip public before P9" clause is superseded by
   [ADR 0013](decisions/0013-remain-private-at-p9.md).
+- **P10-P14 optimization track bootstrapped 2026-08-09**, at the owner's explicit request to
+  optimize/improve the working prototype (reliability/HA, security hardening, delivery
+  maturity, performance/cost). This is new, additive work — it does not reopen P0–P9.
+  [ADR 0014](decisions/0014-post-p9-optimization-track-scope.md) records the track's scope
+  and how it reads `docs/cost-guardrails.md`'s hard limits: bounded autoscaling only (a hard
+  `maxReplicas`/node cap satisfies the guardrail; "unbounded" is what's banned), Multi-AZ RDS
+  only as a single reviewed one-off (never routine), and the Route 53 domain decision is
+  deferred to P12 pending an explicit owner choice. Full phase table (P10 security hardening,
+  P11 bounded autoscaling & HA, P12 TLS/custom domain, P13 delivery maturity, P14 cost/perf
+  capstone) is in `docs/IMPLEMENTATION-PLAN.md`'s "Phase 10+" section; checklist and gate
+  evidence ids (`T-1001`..`T-1404`) are in `docs/PROGRESS.md`/`docs/TEST-PLAN.md`.
+- **P10.1 is complete (2026-08-09).** Re-scanned the API base image (`python:3.12-slim`,
+  Debian 13) with `trivy`: 23 HIGH/CRITICAL OS-level CVEs (up from 22 at P2.5), every one
+  still with an empty `Fixed Version` — genuinely nothing fixable this round, not an
+  unchecked assumption. `apps/web` re-confirmed clean at 0. T-1001 satisfied.
+- **P10.2 is complete (2026-08-09).** `charts/bedoux/templates/networkpolicy.yaml` adds
+  default-deny-all + explicit allows (web↔api, api/bedoux-migrate/bedoux-seed↔postgres,
+  ingress-controller-namespace→web/api), gated by `networkPolicy.enabled` (default `false`).
+  **Real finding:** kind's default CNI (kindnet) does not enforce `NetworkPolicy` at all —
+  objects apply with no error and do nothing. `k8s/kind-config.yaml` now disables the default
+  CNI in favor of Calico (pin the actual latest release at setup time — v3.32.1 as of P10.2;
+  recipe plus two host-environment findings, an `iptables-legacy`-vs-`nft` mismatch and the
+  host's `fs.inotify.max_user_instances` limit, are documented in `docs/local-tooling.md`).
+  Live drill on the Calico-backed cluster: an unlabeled pod could not reach
+  `postgres:5432`/`api:8000`/`web:8080` directly; the legitimate paths and the full golden
+  path (catalog + a real order, cross-checked in Postgres) worked identically with the
+  policies active. T-1002 satisfied. **The kind cluster `bedoux` is left running**, now
+  Calico-backed, as the ongoing local dev cluster — same precedent as P3.1.
 - Three real findings surfaced and were fixed during P5, each documented with its own ADR
   or PROGRESS entry:
   1. **ADR 0007** — `bedoux-admin`'s scoped IAM policy (`bedoux-iam-scoped`) had a genuine
@@ -193,16 +221,46 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
 - ADR 0012: the P7.3 API, migration, and seed processes retrieve a JSON `DATABASE_URL` directly
   from a temporary Secrets Manager secret through the exact `bedoux-api-secrets` ServiceAccount;
   no Kubernetes credential Secret is synchronized.
+- ADR 0013: the repository remains private at P9 (ADR 0004's "flip public before P9" clause is
+  not exercised); a future flip requires its own new ADR plus the full-history secrets sweep
+  ADR 0004 already specified — not implied by staying private now.
+- ADR 0014: scope of the post-P9 optimization track (P10-P14) — additive, does not reopen
+  P0–P9; bounded autoscaling (hard caps) satisfies the "no unbounded autoscaling" guardrail;
+  Multi-AZ RDS only as a single reviewed one-off, never routine; the Route 53 domain decision
+  is deferred to P12 pending an explicit owner choice.
 
 ## What I want next
-The project is complete: the P9 gate is approved (2026-08-07) and all phases P0–P9 are done.
-There is no P10. The owner explicitly decided to keep the repository private — ADR 0013 records
-that decision and supersedes ADR 0004's "flip public before P9" clause; do not silently revisit
-that, or attempt a public flip, without a fresh, explicit owner decision (and, per ADR 0004's
-still-standing prerequisite, a full-history secrets/account-ID sweep first). Nothing else is
-outstanding. If a new session is opened against this repo, its first job is to confirm this
-checkpoint is still accurate before treating anything as "next work" — there is no default task
-to pick up.
+P0–P9 are complete and closed (P9 gate approved 2026-08-07) — do not reopen or re-litigate
+that work, and do not silently revisit ADR 0013's "remain private" decision without a fresh,
+explicit owner decision plus ADR 0004's still-standing full-history secrets sweep prerequisite.
+
+The **active work is the P10-P14 optimization track** (bootstrapped 2026-08-09, see ADR 0014
+and `docs/IMPLEMENTATION-PLAN.md`'s "Phase 10+" section). P10.1 and P10.2 are complete.
+**Next task: P10.3** — add `cosign` image signing + SBOM generation to the existing GitHub
+Actions pipeline (P6.3's workflow), and make the Helm deploy step verify the signature before
+rollout. CI-only, no AWS resource. After that: P10.4 (IAM re-review, read-only AWS), then
+P10.5 (one short live AWS session applying the P10.2 NetworkPolicies for real and drilling
+them, ~$1-2, same-day teardown).
+
+Mark whichever task you start `IN PROGRESS` in `docs/PROGRESS.md` before changing anything,
+same as every prior phase. Land each task via its own feature branch + PR (not a direct
+commit to `main`) — every P0–P10 commit in `git log` follows this pattern; CI (API tests,
+web lint/test/build, Terraform/Helm validation, container build+scan) must be green before
+merging.
+
+Two real local-environment findings from P10.2 that a fresh kind cluster will need again:
+kindnet doesn't enforce `NetworkPolicy` (Calico is now required — see `k8s/kind-config.yaml`
+and `docs/local-tooling.md`'s "NetworkPolicy-enforcing kind cluster" section for the exact
+recipe and two host-specific fixes). The kind cluster `bedoux` is currently left running,
+Calico-backed, with `networkPolicy.enabled=true` from the P10.2 drill — check its state before
+assuming a clean starting point.
+
+Every P10-P14 AWS-costing item stays session-based with same-day teardown per
+`docs/cost-guardrails.md` — nothing runs continuously. `docs/cost-guardrails.md` flatly
+prohibits unbounded autoscaling and routine Multi-AZ RDS (ADR 0014 explains how P10-P14 reads
+those limits); a Route 53 hosted zone is deferred to P12 pending an explicit owner decision on
+buying a domain vs. using a subdomain vs. skipping live deployment — do not assume an answer.
+
 There is no `/aws-session-start` for Codex: before touching AWS, manually walk the "Before
 the session" checklist in `docs/runbooks/aws-session.md`, and run its teardown sweep before
 ending any AWS session. Never create AWS resources outside that process. If asked to approve
