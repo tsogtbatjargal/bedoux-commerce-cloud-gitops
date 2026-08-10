@@ -163,6 +163,15 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   path (catalog + a real order, cross-checked in Postgres) worked identically with the
   policies active. T-1002 satisfied. **The kind cluster `bedoux` is left running**, now
   Calico-backed, as the ongoing local dev cluster — same precedent as P3.1.
+- **P10.3 is complete (2026-08-10), T-1003 satisfied.** Green PR CI generated API/web
+  SPDX 2.3 SBOMs, uploaded one seven-day artifact, and signed and verified both immutable
+  candidate digests against an ephemeral registry/key without granting PR jobs OIDC or AWS
+  access. The main deployment workflow keylessly signs ECR digests, constrains verification
+  to the exact `deploy-learning.yml` identity on `main` plus GitHub's issuer, verifies inside
+  the Helm step, and deploys `repository@sha256` references. The rollback drill now keeps the
+  signed digest and injects a failing web command instead of bypassing the gate with an unsigned
+  missing tag. No AWS session was opened; the narrowly scoped ECR layer-read declaration remains
+  unapplied until the next reviewed AWS session.
 - Three real findings surfaced and were fixed during P5, each documented with its own ADR
   or PROGRESS entry:
   1. **ADR 0007** — `bedoux-admin`'s scoped IAM policy (`bedoux-iam-scoped`) had a genuine
@@ -235,12 +244,13 @@ that work, and do not silently revisit ADR 0013's "remain private" decision with
 explicit owner decision plus ADR 0004's still-standing full-history secrets sweep prerequisite.
 
 The **active work is the P10-P14 optimization track** (bootstrapped 2026-08-09, see ADR 0014
-and `docs/IMPLEMENTATION-PLAN.md`'s "Phase 10+" section). P10.1 and P10.2 are complete.
-**Next task: P10.3** — add `cosign` image signing + SBOM generation to the existing GitHub
-Actions pipeline (P6.3's workflow), and make the Helm deploy step verify the signature before
-rollout. CI-only, no AWS resource. After that: P10.4 (IAM re-review, read-only AWS), then
-P10.5 (one short live AWS session applying the P10.2 NetworkPolicies for real and drilling
-them, ~$1-2, same-day teardown).
+and `docs/IMPLEMENTATION-PLAN.md`'s "Phase 10+" section). P10.1, P10.2, and P10.3 are complete.
+**Next task: P10.4** — perform a read-only IAM re-review of every role/policy created since P5;
+record each trust boundary and permission scope, and fix any genuine broad grant before checking
+off T-1004. This is read-only AWS and must not mutate account state. After that: P10.5 (one short
+live AWS session applying the P10.2 NetworkPolicies for real and drilling them, ~$1-2, same-day
+teardown); that session must also apply the reviewed P10.3 ECR layer-read policy delta before the
+signed deployment workflow runs.
 
 Mark whichever task you start `IN PROGRESS` in `docs/PROGRESS.md` before changing anything,
 same as every prior phase. Land each task via its own feature branch + PR (not a direct

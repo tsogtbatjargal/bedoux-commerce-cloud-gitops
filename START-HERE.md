@@ -150,9 +150,12 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   checklist in `docs/PROGRESS.md`. **P10.1 is complete:** the current API/web image re-scan is
   recorded, with no currently fixable API base-image CVE. **P10.2 is complete:** default-deny and
   explicit-allow NetworkPolicies were proven on the retained Calico-backed kind cluster.
-  **P10.3 is in progress:** add signed, digest-pinned images and SPDX SBOM artifacts to CI; no AWS
-  session is open.
-- Next action: complete P10.3's feature-branch CI proof and record T-1003 before P10.4 begins.
+  **P10.3 is complete:** green PR CI generated and validated API/web SPDX artifacts and signed and
+  verified both immutable candidate digests without OIDC or AWS access; the main deployment path
+  keylessly signs, exact-identity verifies before Helm, and deploys the verified digest. No AWS
+  session was opened.
+- Next action: owner directs P10.4's read-only IAM role/policy re-review; P10.5 remains the next
+  AWS-costing task and requires a fresh session preflight.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

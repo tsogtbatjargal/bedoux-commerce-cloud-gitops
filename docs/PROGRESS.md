@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P10 — Security hardening |
-| Active task | P10.3 — image signing + SBOM in CI (IN PROGRESS). |
-| Last verified | 2026-08-10T08:24:43-06:00 — P10.2 checkpoint re-verified: Calico node/workloads healthy, seven NetworkPolicies present, rogue pod absent, local API health passed. |
+| Active task | P10.3 complete; P10.4 (read-only IAM re-review) not yet started. |
+| Last verified | 2026-08-10T08:54:55-06:00 — P10.3/T-1003: green CI signed and verified both image digests; uploaded API/web SPDX 2.3 SBOMs validated. |
 | AWS resources currently live | **None temporary.** Persistent allowlist only: encrypted state bucket, two ECR repositories, five persistent IAM roles, GitHub OIDC provider — all confirmed present. |
 | Month-to-date estimated AWS spend | USD 3.727 actual at last check; no AWS session opened since (billing data lags — recheck before any future session). |
-| Next operator action | Implement P10.3 on its feature branch: generate an SBOM artifact, sign immutable images, and verify signatures before Helm rollout; satisfy T-1003 without opening an AWS session. |
+| Next operator action | Owner directs P10.4: read-only IAM re-review of every project role/policy created since P5. No AWS mutation or session is required. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -611,7 +611,11 @@ ADR 0004's "flip public before P9" clause is superseded by
       resolved fine); `web`→`api` and `api`→`postgres` both confirmed reachable; the
       full golden path (catalog, an order, cross-checked in Postgres) worked identically
       before and after enabling the policies. Evidence: T-1002, session log 2026-08-09.
-- [ ] P10.3 IN PROGRESS — image signing (cosign) + SBOM in CI, verified before Helm deploy.
+- [x] P10.3 COMPLETE — pinned cosign + SPDX SBOM generation in CI. PR validation signs and
+      verifies both candidate digests in an ephemeral local registry without OIDC/AWS access;
+      the main deployment workflow keylessly signs ECR digests, re-verifies the exact workflow
+      identity inside the Helm step, and deploys the verified digests. Evidence: T-1003, CI run
+      `31400205491`, session log 2026-08-10.
 - [ ] P10.4 NOT STARTED — IAM re-review of every role/policy created since P5.
 - [ ] P10.5 NOT STARTED — live AWS NetworkPolicy drill + clean teardown.
 
@@ -665,6 +669,39 @@ before P10.1 begins, same gate discipline as P0–P9.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-10T08:54:55-06:00 — P10.3 complete: signed images + SPDX SBOMs — Codex
+
+- **Phase/task:** P10.3 is **COMPLETE**; T-1003 is satisfied. P10.4 remains **NOT STARTED**.
+- **PR CI proof:** run `31400205491` passed all four jobs. Its container-security job built and
+  scanned both candidates, pushed them only to an ephemeral job-local registry, generated a fresh
+  ephemeral cosign key, then signed and verified both immutable image digests. The fixed success
+  log states that both candidate digests were signed and verified. The PR job retains its existing
+  `contents: read` workflow permission and receives neither GitHub OIDC nor AWS credentials.
+- **SBOM evidence:** pinned `sbom-action`/Syft generated API and web SPDX JSON documents and the
+  pinned artifact action uploaded one seven-day candidate bundle. The non-expired artifact was
+  downloaded to a temporary directory and both files independently validated as SPDX 2.3 with
+  non-empty package inventories; the local copies were deleted immediately after validation.
+- **Deployment gate:** the main-only workflow uses its existing GitHub OIDC permission for keyless
+  cosign signing. Verification accepts only the exact `deploy-learning.yml` identity on
+  `refs/heads/main` from GitHub's OIDC issuer and runs inside the Helm step before any Helm command.
+  The chart now supports optional `repository@sha256` references, so normal CI deploys the exact
+  verified digest rather than re-resolving a tag. Local profiles remain backward-compatible with
+  `repository:tag` when `digest` is empty.
+- **Rollback compatibility:** the historical missing-image-tag drill would violate the new gate.
+  Future controlled rollback runs keep the signed digest and inject a fixed failing web command;
+  Helm still exercises a real failed rollout and atomic recovery without an unsigned-image bypass.
+- **Least privilege:** Terraform adds only `ecr:GetDownloadUrlForLayer`, scoped to the two existing
+  repository ARNs, because cosign/SBOM readers must fetch OCI layers. This declaration was
+  credential-free validated; it is not applied in this no-AWS task and must be included in the
+  next reviewed AWS session plan before the main deployment workflow is dispatched.
+- **Pinned versions:** cosign-installer v4.1.2 by commit (cosign v3.0.6), sbom-action v0.24.0 by
+  commit (Syft v1.50.0), upload-artifact v7.0.1 by commit, ephemeral registry 2.8.3.
+- **Local validation:** 20 embedded workflow shell blocks passed syntax checks; workflow YAML
+  parsed; Helm lint/all profiles/digest and rollback renders passed; credential-free Terraform
+  validation, docs check, diff check, and sensitive-pattern sweep all passed.
+- **AWS:** none. No AWS resources created, modified, queried, or deleted. Estimated cost: USD 0.
+- **Next action:** merge the green P10.3 PR, then owner directs P10.4's read-only IAM review.
 
 ### 2026-08-10T08:24:43-06:00 — P10.3 started: image signing + SBOM in CI — Codex
 
