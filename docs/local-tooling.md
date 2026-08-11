@@ -64,6 +64,13 @@ selects cosign v3.0.6; pins `sbom-action` v0.24.0 by immutable commit and explic
 v1.50.0; pins `upload-artifact` v7.0.1 by immutable commit; and uses `registry:2.8.3` only as an
 ephemeral PR-job service. SPDX JSON artifacts retain for seven days.
 
+All JavaScript GitHub Actions now use releases whose official manifests declare `node24`:
+`checkout` v7.0.1, `setup-python` v7.0.0, `setup-node` v7.0.0,
+`setup-terraform` v4.0.1, `setup-helm` v5.0.1, and
+`configure-aws-credentials` v6.2.3. Every external action reference is pinned to its immutable
+40-character commit SHA. Run `make actions-check` to reject mutable tags before push;
+`make docs-check` includes the same check.
+
 `node`/`npm` currently resolve to a Zed-editor-bundled install
 (`~/.local/share/zed/node/...`), which is outside this project's control. If that ever
 disappears from `PATH`, install `nodejs`/`npm` into the `bedoux-aws` toolbox the same way as
