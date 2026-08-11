@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P11 — Bounded autoscaling & HA |
-| Active task | P11.1 NOT STARTED — HPA on api/web with an explicit maxReplicas cap, proven on kind. |
+| Active task | CI maintenance fix IN PROGRESS — replace deprecated Node 20 GitHub Actions with commit-pinned Node 24 releases; P11.1 remains NOT STARTED. |
 | Last verified | 2026-08-11T15:42:08-06:00 — P10.5 PR #43 and the dedicated P10 gate PR #44 each passed all four CI jobs and merged to GitHub `main`; the stale local merge wrapper was excluded. No AWS access. |
 | AWS resources currently live | Temporary session resources are gone. Persistent allowlist resources still exist in AWS but are detached from Terraform state after the session teardown prep: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | Still below the USD 20 cap; recheck before the next AWS session. |
-| Next operator action | Start P11.1. |
+| Next operator action | Complete and verify the Node 24 GitHub Actions maintenance fix; then return to P11.1 NOT STARTED. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -669,6 +669,24 @@ before P10.1 begins, same gate discipline as P0–P9.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-11T15:52:14-06:00 — Node 24 GitHub Actions maintenance fix in progress — Codex
+
+- **Cause:** the warnings shown by `gh run watch` are GitHub Actions annotations from JavaScript
+  actions whose manifests still declare `node20`; they are not emitted by the `gh` command
+  itself. PR validation exposed checkout, Python, Node, Terraform, and Helm setup actions, while
+  the deployment-only AWS credentials action had the same latent issue.
+- **Local fix:** replaced all six affected action families with current official releases whose
+  manifests declare `node24`, pinned every reference to its immutable commit SHA, and added
+  `scripts/check-github-actions.sh`. `make actions-check` now rejects every mutable external
+  action reference, and `make docs-check` includes that regression gate.
+- **Local validation:** all 18 external action references pass the immutable-pin check; both
+  workflow YAML files parse; the new script passes `bash -n` and `--help`; `docs-check`
+  passes; no deprecated action-major reference remains under `.github`.
+- **State:** maintenance fix remains **IN PROGRESS** until a PR run proves the four validation
+  jobs complete without Node 20 deprecation annotations. P11.1 remains **NOT STARTED**.
+- **AWS:** none. No AWS command, resource, identity, or billing system was accessed. Estimated
+  incremental cost USD 0.
 
 ### 2026-08-11T15:42:08-06:00 — P10.5 and gate publication history repaired — Codex
 

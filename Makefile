@@ -1,13 +1,17 @@
-.PHONY: tools-check docs-check
+.PHONY: tools-check actions-check docs-check
 
 tools-check:
 	./scripts/check-tools.sh
+
+actions-check:
+	./scripts/check-github-actions.sh
 
 # docs-check gates every docs/diagram commit:
 #  1. every .drawio file is valid XML
 #  2. every .drawio file has an exported sibling .svg
 #  3. the agent doc spine exists
-docs-check:
+#  4. every external GitHub Action is pinned to an immutable commit
+docs-check: actions-check
 	@for d in docs/diagrams/*.drawio; do \
 		xmllint --noout "$$d" || exit 1; \
 		svg="$${d%.drawio}.svg"; \
