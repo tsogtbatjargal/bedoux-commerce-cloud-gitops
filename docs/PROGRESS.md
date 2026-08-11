@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P11 — Bounded autoscaling & HA |
 | Active task | P11.1 NOT STARTED — HPA on api/web with an explicit maxReplicas cap, proven on kind. |
-| Last verified | 2026-08-11T15:58:35-06:00 — Node 24 maintenance PR #46 run `31540126318` passed all four CI jobs; its check-run annotations contain no Node 20 deprecation warning. No AWS access. |
+| Last verified | 2026-08-11T16:42:14-06:00 — draft PR #47 publishes the synchronized repository skills; all four required CI checks are green. No AWS access. |
 | AWS resources currently live | Temporary session resources are gone. Persistent allowlist resources still exist in AWS but are detached from Terraform state after the session teardown prep: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | Still below the USD 20 cap; recheck before the next AWS session. |
-| Next operator action | Start P11.1 locally and mark it `IN PROGRESS` before implementation. |
+| Next operator action | Review and merge draft PR #47; P11.1 remains NOT STARTED until that maintenance PR lands. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -669,6 +669,33 @@ before P10.1 begins, same gate discipline as P0–P9.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-11T16:36:15-06:00 — repository workflow skills synchronized and validated — Codex
+
+- **Synchronization:** preserved the complete dirty `repo-workflow-skills` worktree in a stash,
+  moved its obsolete `e900669` base to synchronized `origin/main` at `5b1c7d6`, restored every
+  tracked and untracked change, and manually reconciled the expected `START-HERE.md`, handoff,
+  and progress overlaps without losing the merged P10/Node 24 evidence.
+- **Shared skill layout:** added exactly three canonical skills under `.agents/skills/`:
+  `phase-orchestrator`, `aws-session-guardrail`, and `github-pr-branch-workflow`. Official tool
+  discovery differs, so minimal `.claude/skills/` wrappers load those same canonical bodies for
+  Claude Code; operating procedures remain single-source in `docs/workflows/` and `docs/runbooks/`.
+- **Guardrail correction:** separated standalone read-only AWS verification from mutation and
+  live EKS drills. Invoking a skill grants no AWS authority; every mutation still requires the
+  owner-approved `docs/runbooks/aws-session.md` process and its stop conditions.
+- **Validation:** all six skill entry points pass `quick_validate.py`; all three Codex
+  `agents/openai.yaml` manifests match their skill interfaces; three isolated Luna forward tests
+  correctly preserved P11.1 as not started, required T-1101 live kind evidence, prohibited AWS
+  use, and routed branch work through a reviewed PR. The synchronized tree passes `actions-check`
+  (18 immutable external actions), `docs-check`, diff checks, and a sensitive-pattern sweep.
+- **AWS:** none. No AWS command, resource, identity, or billing system was accessed; estimated
+  incremental cost USD 0.
+- **Publication evidence:** commit `651fbed` was pushed only to `repo-workflow-skills` and draft
+  PR #47 targets `main` at `5b1c7d6`. GitHub Actions run `31543342646` completed all four
+  required checks successfully: API tests; web lint, test, and build; Terraform and Helm
+  validation; and container build and scan. The temporary pre-sync safety stash was dropped only
+  after the branch was committed and published.
+- **Next action:** owner review and merge of draft PR #47. P11.1 remains **NOT STARTED**.
 
 ### 2026-08-11T15:52:14-06:00 — Node 24 GitHub Actions maintenance fix complete — Codex
 
