@@ -98,7 +98,10 @@ if [[ "$action" == "detach" ]]; then
 fi
 
 if "$execute"; then
-  task_account_id="$(aws sts get-caller-identity --profile bedoux-admin --query Account --output text)"
+  task_account_id="${BEDOUX_ACCOUNT_ID:-}"
+  if [[ -z "$task_account_id" ]]; then
+    task_account_id="$(aws sts get-caller-identity --profile bedoux-admin --query Account --output text)"
+  fi
 else
   task_account_id='<AWS_ACCOUNT_ID>'
 fi

@@ -15,6 +15,9 @@ resource "aws_eks_addon" "vpc_cni" {
   addon_name               = "vpc-cni"
   addon_version            = var.vpc_cni_addon_version
   service_account_role_arn = var.vpc_cni_role_arn
+  configuration_values = jsonencode({
+    enableNetworkPolicy = "true"
+  })
 
   resolve_conflicts_on_create = "OVERWRITE"
   resolve_conflicts_on_update = "OVERWRITE"

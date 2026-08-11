@@ -67,7 +67,10 @@ for role in "${roles[@]}"; do
   printf 'PASS: required boundary is attached to %s.\n' "$role"
 done
 
-task_account_id="$(aws sts get-caller-identity --profile "$profile" --query Account --output text)"
+task_account_id="${BEDOUX_ACCOUNT_ID:-}"
+if [[ -z "$task_account_id" ]]; then
+  task_account_id="$(aws sts get-caller-identity --profile "$profile" --query Account --output text)"
+fi
 scoped_policy_arn="arn:aws:iam::${task_account_id}:policy/bedoux-iam-scoped"
 default_version="$(aws iam get-policy --profile "$profile" --policy-arn "$scoped_policy_arn" \
   --query 'Policy.DefaultVersionId' --output text)"
