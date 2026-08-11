@@ -9,12 +9,12 @@ checked here and its evidence is recorded in the session log.
 | Field | Value |
 |---|---|
 | State | IN PROGRESS |
-| Active phase | P10 — Security hardening |
-| Active task | P10 gate awaiting owner approval — P10.5 is complete; start P11 only after the owner approves the gate. |
+| Active phase | P11 — Bounded autoscaling & HA |
+| Active task | P11.1 NOT STARTED — HPA on api/web with an explicit maxReplicas cap, proven on kind. |
 | Last verified | 2026-08-11T11:33:53-06:00 — live NetworkPolicy proof passed both ways (rogue pod denied to postgres, `app=api` pod accepted), then the guarded teardown and inventory sweep returned the temporary cluster/VPC as gone. |
 | AWS resources currently live | Temporary session resources are gone. Persistent allowlist resources still exist in AWS but are detached from Terraform state after the session teardown prep: state bucket, two ECR repositories, five persistent IAM roles, GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | Still below the USD 20 cap; recheck before the next AWS session. |
-| Next operator action | Wait for owner approval of the P10 gate; after that, start P11.1. |
+| Next operator action | Start P11.1. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -750,6 +750,13 @@ Append newest entries immediately below this heading. Never include secrets or A
   for `bedoux` and `The vpc ID ... does not exist` for the session VPC ID.
 - **State:** marked P10.5 complete in `docs/PROGRESS.md`; P10 now awaits owner gate approval
   before P11 starts.
+
+### 2026-08-11T11:44:48-06:00 — P10 gate approved; P11 activated — Codex
+
+- **Handoff:** P10.5 is complete and the live session is torn down cleanly. The phase gate is
+  approved and the project has moved to P11.
+- **State:** updated the authoritative progress log to set the active phase to P11 and the active
+  task to P11.1. No AWS resources were created or modified for the handoff itself.
 
 ### 2026-08-10T17:55:38-06:00 — P10.4 declaration PR green — Codex
 
