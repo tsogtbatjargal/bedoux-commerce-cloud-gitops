@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P11 — Bounded autoscaling & HA |
-| Active task | CI maintenance fix IN PROGRESS — replace deprecated Node 20 GitHub Actions with commit-pinned Node 24 releases; P11.1 remains NOT STARTED. |
-| Last verified | 2026-08-11T15:42:08-06:00 — P10.5 PR #43 and the dedicated P10 gate PR #44 each passed all four CI jobs and merged to GitHub `main`; the stale local merge wrapper was excluded. No AWS access. |
+| Active task | P11.1 NOT STARTED — HPA on api/web with an explicit maxReplicas cap, proven on kind. |
+| Last verified | 2026-08-11T15:58:35-06:00 — Node 24 maintenance PR #46 run `31540126318` passed all four CI jobs; its check-run annotations contain no Node 20 deprecation warning. No AWS access. |
 | AWS resources currently live | Temporary session resources are gone. Persistent allowlist resources still exist in AWS but are detached from Terraform state after the session teardown prep: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | Still below the USD 20 cap; recheck before the next AWS session. |
-| Next operator action | Complete and verify the Node 24 GitHub Actions maintenance fix; then return to P11.1 NOT STARTED. |
+| Next operator action | Start P11.1 locally and mark it `IN PROGRESS` before implementation. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -670,7 +670,7 @@ before P10.1 begins, same gate discipline as P0–P9.**
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
 
-### 2026-08-11T15:52:14-06:00 — Node 24 GitHub Actions maintenance fix in progress — Codex
+### 2026-08-11T15:52:14-06:00 — Node 24 GitHub Actions maintenance fix complete — Codex
 
 - **Cause:** the warnings shown by `gh run watch` are GitHub Actions annotations from JavaScript
   actions whose manifests still declare `node20`; they are not emitted by the `gh` command
@@ -683,8 +683,11 @@ Append newest entries immediately below this heading. Never include secrets or A
 - **Local validation:** all 18 external action references pass the immutable-pin check; both
   workflow YAML files parse; the new script passes `bash -n` and `--help`; `docs-check`
   passes; no deprecated action-major reference remains under `.github`.
-- **State:** maintenance fix remains **IN PROGRESS** until a PR run proves the four validation
-  jobs complete without Node 20 deprecation annotations. P11.1 remains **NOT STARTED**.
+- **Live validation:** draft PR #46 run `31540126318` passed all four jobs: API tests, web
+  lint/test/build, Terraform/Helm validation, and container build/scan/sign/SBOM. Direct queries
+  of all four check-run annotation sets found no Node 20 deprecation warning. The one remaining
+  annotation is the pre-existing React fast-refresh lint warning in `CartContext.tsx`.
+- **State:** maintenance fix is **COMPLETE**. P11.1 remains **NOT STARTED**.
 - **AWS:** none. No AWS command, resource, identity, or billing system was accessed. Estimated
   incremental cost USD 0.
 
