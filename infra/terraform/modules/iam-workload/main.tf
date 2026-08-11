@@ -37,14 +37,50 @@ data "aws_iam_policy_document" "ebs_assume_role" {
 }
 
 resource "aws_iam_role" "ebs_csi" {
-  name               = "bedoux-ebs-csi-role"
-  assume_role_policy = data.aws_iam_policy_document.ebs_assume_role.json
-  tags               = var.tags
+  name                 = "bedoux-ebs-csi-role"
+  assume_role_policy   = data.aws_iam_policy_document.ebs_assume_role.json
+  permissions_boundary = var.permissions_boundary_arn
+  tags                 = var.tags
 }
 
 resource "aws_iam_role_policy_attachment" "ebs_csi" {
   role       = aws_iam_role.ebs_csi.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEBSCSIDriverPolicyV2"
+}
+
+data "aws_iam_policy_document" "vpc_cni_assume_role" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [aws_iam_openid_connect_provider.this.arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${local.oidc_issuer_host}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${local.oidc_issuer_host}:sub"
+      values   = ["system:serviceaccount:kube-system:aws-node"]
+    }
+  }
+}
+
+resource "aws_iam_role" "vpc_cni" {
+  name                 = "bedoux-vpc-cni-role"
+  assume_role_policy   = data.aws_iam_policy_document.vpc_cni_assume_role.json
+  permissions_boundary = var.permissions_boundary_arn
+  tags                 = var.tags
+}
+
+resource "aws_iam_role_policy_attachment" "vpc_cni" {
+  role       = aws_iam_role.vpc_cni.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
 }
 
 data "aws_iam_policy_document" "alb_assume_role" {
@@ -77,9 +113,10 @@ resource "aws_iam_policy" "alb_controller" {
 }
 
 resource "aws_iam_role" "alb_controller" {
-  name               = "bedoux-alb-controller-role"
-  assume_role_policy = data.aws_iam_policy_document.alb_assume_role.json
-  tags               = var.tags
+  name                 = "bedoux-alb-controller-role"
+  assume_role_policy   = data.aws_iam_policy_document.alb_assume_role.json
+  permissions_boundary = var.permissions_boundary_arn
+  tags                 = var.tags
 }
 
 resource "aws_iam_role_policy_attachment" "alb_controller" {

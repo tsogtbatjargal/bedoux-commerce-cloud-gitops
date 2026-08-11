@@ -12,7 +12,14 @@ variable "ebs_addon_version" {
   nullable = true
 }
 
+variable "vpc_cni_role_arn" {
+  type = string
+}
+
+variable "vpc_cni_addon_version" {
+  type = string
+}
+
 variable "tags" {
   type = map(string)
 }
-

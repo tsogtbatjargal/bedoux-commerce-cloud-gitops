@@ -116,7 +116,13 @@ variable "node_disk_size_gib" {
 variable "ebs_csi_addon_version" {
   description = "Exact EBS CSI add-on version compatible with kubernetes_version."
   type        = string
-  default     = "v1.63.0-eksbuild.1"
+  default     = "v1.63.1-eksbuild.1"
+}
+
+variable "vpc_cni_addon_version" {
+  description = "Exact VPC CNI add-on version compatible with kubernetes_version."
+  type        = string
+  default     = "v1.22.4-eksbuild.3"
 }
 
 variable "rds_enabled" {

@@ -41,9 +41,10 @@ data "aws_iam_policy_document" "agent_assume_role" {
 }
 
 resource "aws_iam_role" "agent" {
-  name               = "bedoux-cloudwatch-observability-role"
-  assume_role_policy = data.aws_iam_policy_document.agent_assume_role.json
-  tags               = var.tags
+  name                 = "bedoux-cloudwatch-observability-role"
+  assume_role_policy   = data.aws_iam_policy_document.agent_assume_role.json
+  permissions_boundary = var.permissions_boundary_arn
+  tags                 = var.tags
 }
 
 # AWS documents this managed policy as the supported permission set for the EKS

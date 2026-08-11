@@ -1,0 +1,78 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ScopedBoundedRoleManagement",
+      "Effect": "Allow",
+      "Action": "iam:*Role*",
+      "Resource": "arn:aws:iam::*:role/bedoux-*",
+      "Condition": {
+        "ArnEquals": {
+          "iam:PermissionsBoundary": "arn:aws:iam::aws:policy/PowerUserAccess"
+        }
+      }
+    },
+    {
+      "Sid": "ScopedPolicyManagement",
+      "Effect": "Allow",
+      "Action": "iam:*Policy*",
+      "Resource": "arn:aws:iam::*:policy/bedoux-*"
+    },
+    {
+      "Sid": "ScopedOidcProviderManagement",
+      "Effect": "Allow",
+      "Action": [
+        "iam:GetOpenIDConnectProvider",
+        "iam:CreateOpenIDConnectProvider",
+        "iam:TagOpenIDConnectProvider",
+        "iam:DeleteOpenIDConnectProvider"
+      ],
+      "Resource": "arn:aws:iam::*:oidc-provider/*"
+    },
+    {
+      "Sid": "DenyCreateRoleWithoutRequiredBoundary",
+      "Effect": "Deny",
+      "Action": "iam:CreateRole",
+      "Resource": "arn:aws:iam::*:role/bedoux-*",
+      "Condition": {
+        "ArnNotEquals": {
+          "iam:PermissionsBoundary": "arn:aws:iam::aws:policy/PowerUserAccess"
+        }
+      }
+    },
+    {
+      "Sid": "DenyReplacingRequiredBoundary",
+      "Effect": "Deny",
+      "Action": "iam:PutRolePermissionsBoundary",
+      "Resource": "arn:aws:iam::*:role/bedoux-*",
+      "Condition": {
+        "ArnNotEquals": {
+          "iam:PermissionsBoundary": "arn:aws:iam::aws:policy/PowerUserAccess"
+        }
+      }
+    },
+    {
+      "Sid": "DenyRemovingRequiredBoundary",
+      "Effect": "Deny",
+      "Action": "iam:DeleteRolePermissionsBoundary",
+      "Resource": "arn:aws:iam::*:role/bedoux-*"
+    },
+    {
+      "Sid": "DenySelfEscalationViaOwnPolicy",
+      "Effect": "Deny",
+      "Action": [
+        "iam:CreatePolicyVersion",
+        "iam:SetDefaultPolicyVersion",
+        "iam:DeletePolicy",
+        "iam:DeletePolicyVersion"
+      ],
+      "Resource": "arn:aws:iam::*:policy/bedoux-iam-scoped"
+    },
+    {
+      "Sid": "EksNodegroupServiceLinkedRoleCheck",
+      "Effect": "Allow",
+      "Action": "iam:GetRole",
+      "Resource": "arn:aws:iam::*:role/aws-service-role/eks-nodegroup.amazonaws.com/AWSServiceRoleForAmazonEKSNodegroup"
+    }
+  ]
+}

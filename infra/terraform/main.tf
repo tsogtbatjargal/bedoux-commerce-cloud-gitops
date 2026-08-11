@@ -11,9 +11,10 @@ module "vpc" {
 module "iam_cluster" {
   source = "./modules/iam-cluster"
 
-  cluster_role_name = "bedoux-eks-cluster-role"
-  node_role_name    = "bedoux-eks-nodegroup-role"
-  tags              = local.tags
+  cluster_role_name        = "bedoux-eks-cluster-role"
+  node_role_name           = "bedoux-eks-nodegroup-role"
+  permissions_boundary_arn = local.project_role_permissions_boundary_arn
+  tags                     = local.tags
 }
 
 module "eks" {
@@ -61,11 +62,12 @@ module "product_images" {
   count  = var.s3_images_enabled ? 1 : 0
   source = "./modules/s3-images"
 
-  bucket_prefix          = "${var.cluster_name}-product-images-"
-  image_source_directory = "${path.root}/../../apps/web/public/static/products"
-  oidc_provider_arn      = module.workload_iam.oidc_provider_arn
-  oidc_issuer_url        = module.eks.oidc_issuer_url
-  tags                   = local.tags
+  bucket_prefix            = "${var.cluster_name}-product-images-"
+  image_source_directory   = "${path.root}/../../apps/web/public/static/products"
+  oidc_provider_arn        = module.workload_iam.oidc_provider_arn
+  oidc_issuer_url          = module.eks.oidc_issuer_url
+  permissions_boundary_arn = local.project_role_permissions_boundary_arn
+  tags                     = local.tags
 }
 
 # P7.3 only: create the temporary database secret and a separate API IRSA role.
@@ -85,24 +87,28 @@ module "database_secrets" {
   oidc_issuer_url           = module.eks.oidc_issuer_url
   service_account_namespace = "bedoux"
   service_account_name      = "bedoux-api-secrets"
+  permissions_boundary_arn  = local.project_role_permissions_boundary_arn
   tags                      = local.tags
 }
 
 module "workload_iam" {
   source = "./modules/iam-workload"
 
-  cluster_name    = var.cluster_name
-  oidc_issuer_url = module.eks.oidc_issuer_url
-  tags            = local.tags
+  cluster_name             = var.cluster_name
+  oidc_issuer_url          = module.eks.oidc_issuer_url
+  permissions_boundary_arn = local.project_role_permissions_boundary_arn
+  tags                     = local.tags
 }
 
 module "addons" {
   source = "./modules/eks-addons"
 
-  cluster_name      = module.eks.cluster_name
-  ebs_role_arn      = module.workload_iam.ebs_csi_role_arn
-  ebs_addon_version = var.ebs_csi_addon_version
-  tags              = local.tags
+  cluster_name          = module.eks.cluster_name
+  ebs_role_arn          = module.workload_iam.ebs_csi_role_arn
+  ebs_addon_version     = var.ebs_csi_addon_version
+  vpc_cni_role_arn      = module.workload_iam.vpc_cni_role_arn
+  vpc_cni_addon_version = var.vpc_cni_addon_version
+  tags                  = local.tags
 }
 
 # P8.2 only: CloudWatch Container Insights, structured application-log metrics,
@@ -120,6 +126,7 @@ module "observability" {
   alarms_enabled           = var.observability_alarms_enabled
   alb_arn_suffix           = var.observability_alb_arn_suffix
   rds_instance_identifier  = try(module.rds[0].identifier, "")
+  permissions_boundary_arn = local.project_role_permissions_boundary_arn
   tags                     = local.tags
 }
 
@@ -133,11 +140,12 @@ module "ecr" {
 module "github_actions_oidc" {
   source = "./modules/github-actions-oidc"
 
-  aws_region          = var.aws_region
-  cluster_name        = var.cluster_name
-  ecr_repository_arns = module.ecr.repository_arns
-  github_oidc_subject = var.github_oidc_subject
-  tags                = local.tags
+  aws_region               = var.aws_region
+  cluster_name             = var.cluster_name
+  ecr_repository_arns      = module.ecr.repository_arns
+  github_oidc_subject      = var.github_oidc_subject
+  permissions_boundary_arn = local.project_role_permissions_boundary_arn
+  tags                     = local.tags
 }
 
 check "no_nat_gateway" {

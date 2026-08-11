@@ -1,6 +1,6 @@
 # ADR 0007: Close a self-escalation hole in bedoux-iam-scoped; add the EKS nodegroup SLR check
 
-- Status: Accepted
+- Status: Superseded in part by 0015
 - Date: 2026-07-28
 
 ## Context

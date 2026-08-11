@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P10 — Security hardening |
-| Active task | P10.3 complete; P10.4 (read-only IAM re-review) not yet started. |
-| Last verified | 2026-08-10T08:54:55-06:00 — P10.3/T-1003: green CI signed and verified both image digests; uploaded API/web SPDX 2.3 SBOMs validated. |
+| Active task | P10.4 IN PROGRESS — IAM re-review complete; accepted ADR 0015 remediation staged offline, awaiting review/merge and later live proof. |
+| Last verified | 2026-08-10T17:55:38-06:00 — draft PR #42 run 31444052466 passed API, web, Terraform/Helm, and signed container/SBOM checks; no AWS mutation. |
 | AWS resources currently live | **None temporary.** Persistent allowlist only: encrypted state bucket, two ECR repositories, five persistent IAM roles, GitHub OIDC provider — all confirmed present. |
 | Month-to-date estimated AWS spend | USD 3.727 actual at last check; no AWS session opened since (billing data lags — recheck before any future session). |
-| Next operator action | Owner directs P10.4: read-only IAM re-review of every project role/policy created since P5. No AWS mutation or session is required. |
+| Next operator action | Review and merge draft PR #42. Separately approve the later P10.5 AWS session for live remediation and T-1004/T-1005 proof. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -616,7 +616,7 @@ ADR 0004's "flip public before P9" clause is superseded by
       the main deployment workflow keylessly signs ECR digests, re-verifies the exact workflow
       identity inside the Helm step, and deploys the verified digests. Evidence: T-1003, CI run
       `31400205491`, session log 2026-08-10.
-- [ ] P10.4 NOT STARTED — IAM re-review of every role/policy created since P5.
+- [ ] P10.4 IN PROGRESS — IAM re-review of every role/policy created since P5.
 - [ ] P10.5 NOT STARTED — live AWS NetworkPolicy drill + clean teardown.
 
 Gate: T-1001..T-1005.
@@ -669,6 +669,84 @@ before P10.1 begins, same gate discipline as P0–P9.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-10T17:55:38-06:00 — P10.4 declaration PR green — Codex
+
+- **Publish:** commit `99fdac1` was pushed on `p10-4-iam-review`; draft PR #42 is open against
+  `main`, mergeable, and contains only the reviewed P10.4 inventory/remediation scope.
+- **CI evidence:** GitHub Actions run `31444052466` passed all four jobs: API tests; web
+  lint/test/build; Terraform/Helm validation; and container build/scan plus SBOM and cosign proof.
+  Existing Node-action deprecation and React fast-refresh annotations remain non-blocking and are
+  unrelated to this IAM change.
+- **AWS:** no resources created, modified, or deleted. P10.4/T-1004 remain **IN PROGRESS** until
+  the merged declarations are applied inside an explicitly approved AWS session and the live v4
+  read-back plus denied unbounded-role test pass.
+
+### 2026-08-10T16:47:19-06:00 — ADR 0015 accepted; bounded IAM remediation staged — Codex
+
+- **Decision:** owner explicitly accepted ADR 0015. ADR 0007 remains authoritative for its
+  direct self-policy deny but is superseded in part by ADR 0015's second-hop finding.
+- **Offline implementation:** every one of the nine Terraform-managed project roles now declares
+  AWS-managed `PowerUserAccess` as a permissions boundary. The node moves to ECR pull-only; a new
+  exact `kube-system/aws-node` VPC CNI IRSA role/add-on owns CNI permissions; EBS CSI moves to the
+  tag-scoped v2 policy. Current EKS 1.34 defaults were pinned for VPC CNI and EBS CSI.
+- **Owner-controlled policy:** `infra/iam/bedoux-iam-scoped-v4.json` preserves the original
+  self-policy deny, conditions delegated role management on the exact immutable boundary, and
+  explicitly denies creating an unbounded role or removing/replacing the boundary. AWS Access
+  Analyzer returned zero findings after one redundant-action suggestion was removed.
+- **Safe execution path:** `docs/runbooks/p10-iam-remediation.md` fixes the order as boundaries
+  first under v3, replacement identity proof, legacy attachment removal, owner-console v4, exact
+  read-back, then a bounded denied API test. `scripts/verify-iam-boundary.sh` is dry-run by default
+  and sanitizes its evidence; local dry run and shell syntax checks pass.
+- **Validation:** credential-free Terraform validation passed in the pinned project toolbox; no
+  AWS resources were created, modified, or deleted. Only read-only IAM/STS and Access Analyzer
+  queries were made; estimated incremental cost USD 0.
+- **State:** P10.4/T-1004 remain **IN PROGRESS**. Declarations must be reviewed and merged before
+  the owner separately approves the P10.5 live session that applies this remediation and proves
+  the negative test.
+- **Publish checkpoint (2026-08-10T16:52:16-06:00):** local validation is complete, but publishing
+  stopped before staging or commit because `gh auth status` reports the active credential invalid.
+  The SSH remote remained configured. The owner re-authenticated, and an unrestricted network
+  check confirmed the collaborator account and SSH protocol before publishing resumed.
+
+### 2026-08-10T16:03:20-06:00 — P10.4 started: read-only IAM re-review — Codex
+
+- **Phase/task:** P10.4 is **IN PROGRESS** on feature branch `p10-4-iam-review`; P10.1–P10.3
+  remain complete and later tasks have not started.
+- **Checkpoint verification:** local `main` was clean at merge commit `b3ffce0`; final P10.3
+  GitHub Actions run `31400927718` was independently re-read and all four jobs were successful.
+- **Scope:** inventory every project IAM role and customer-managed policy created since P5,
+  compare committed trust/permissions with read-only live state, and test for wildcard or
+  self-escalation risks. No IAM or other AWS mutation is authorized by this task.
+- **AWS:** no mutation and no billable session. Read-only IAM/STS queries are permitted for
+  T-1004; estimated incremental cost USD 0.
+- **Next action:** derive the expected IAM inventory from Terraform/ADR evidence, then inspect
+  each exact known live name and policy version without broad account enumeration.
+- **Read-only inventory result:** all five persistent roles match their declared trust and
+  attachments, have standard tags/no inline policies, and have no permissions boundary. All three
+  session-only roles and both session-only customer policies are correctly absent. The two live
+  customer policies match their expected lifecycle; GitHub's policy has only the already-recorded
+  unapplied P10.3 layer-read delta. GitHub OIDC is present with only the STS audience; the torn-down
+  cluster OIDC provider is absent. IAM Access Analyzer returned zero findings for all four
+  customer-policy declarations. `bedoux-admin` was correctly denied broad group/AWS-managed-policy
+  reads, so exact Bedoux reads and official AWS references were used instead of widening access.
+- **High-severity finding F-1004-1:** ADR 0007 protects `bedoux-iam-scoped` from direct rewrite,
+  but v3 still permits both trust/attachment changes on `bedoux-*` roles and content changes on
+  other `bedoux-*` policies. Combined with STS allowed by `PowerUserAccess` and no role permissions
+  boundaries, this leaves a second-hop self-escalation path. No exploit or IAM mutation was
+  attempted. Full reasoning and inventory: `docs/iam-review-p10.md`.
+- **Other findings:** move `AmazonEKS_CNI_Policy` from the node to an exact `aws-node` IRSA role;
+  replace node ECR read-only with pull-only; migrate EBS CSI to AWS's narrower v2 managed policy.
+- **Decision:** owner accepted ADR 0015 on 2026-08-10. It caps every project role
+  with AWS-managed `PowerUserAccess` as a permissions boundary, then require the owner to apply a
+  v4 `bedoux-iam-scoped` that mandates and protects that boundary. This supersedes ADR 0007's
+  completeness claim. Live application still requires an explicitly opened AWS session.
+- **AWS:** read-only IAM/STS/EKS/Access Analyzer queries only. No AWS resources were created,
+  modified, or deleted; no billable session was opened; estimated incremental cost USD 0.
+- **Next action:** implement the boundary and three managed-policy declaration fixes locally, then
+  review/merge them before P10.5 opens the
+  live remediation and NetworkPolicy-drill session. P10.4/T-1004 remain **IN PROGRESS** until live
+  remediation and negative verification exist.
 
 ### 2026-08-10T08:54:55-06:00 — P10.3 complete: signed images + SPDX SBOMs — Codex
 

@@ -30,6 +30,11 @@ variable "service_account_name" {
   default     = "bedoux-api"
 }
 
+variable "permissions_boundary_arn" {
+  description = "Immutable maximum-permissions boundary required on every delegated project role."
+  type        = string
+}
+
 variable "tags" {
   type = map(string)
 }

@@ -37,6 +37,7 @@ resource "aws_iam_role" "this" {
   name                 = "bedoux-github-actions-role"
   assume_role_policy   = data.aws_iam_policy_document.assume_role.json
   max_session_duration = 3600
+  permissions_boundary = var.permissions_boundary_arn
   tags                 = var.tags
 }
 

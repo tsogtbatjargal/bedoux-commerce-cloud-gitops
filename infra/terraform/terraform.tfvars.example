@@ -10,7 +10,8 @@ node_desired_size       = 1
 node_min_size           = 1
 node_max_size           = 1
 node_disk_size_gib      = 20
-ebs_csi_addon_version = "v1.63.0-eksbuild.1"
+ebs_csi_addon_version = "v1.63.1-eksbuild.1"
+vpc_cni_addon_version = "v1.22.4-eksbuild.3"
 
 # P7.1 only: keep this false for P6-only sessions. For an approved, time-bounded
 # RDS exercise set rds_enabled=true and supply TF_VAR_rds_master_password outside

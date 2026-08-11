@@ -21,9 +21,10 @@ data "aws_iam_policy_document" "node_assume_role" {
 }
 
 resource "aws_iam_role" "cluster" {
-  name               = var.cluster_role_name
-  assume_role_policy = data.aws_iam_policy_document.cluster_assume_role.json
-  tags               = var.tags
+  name                 = var.cluster_role_name
+  assume_role_policy   = data.aws_iam_policy_document.cluster_assume_role.json
+  permissions_boundary = var.permissions_boundary_arn
+  tags                 = var.tags
 }
 
 resource "aws_iam_role_policy_attachment" "cluster" {
@@ -32,9 +33,10 @@ resource "aws_iam_role_policy_attachment" "cluster" {
 }
 
 resource "aws_iam_role" "node" {
-  name               = var.node_role_name
-  assume_role_policy = data.aws_iam_policy_document.node_assume_role.json
-  tags               = var.tags
+  name                 = var.node_role_name
+  assume_role_policy   = data.aws_iam_policy_document.node_assume_role.json
+  permissions_boundary = var.permissions_boundary_arn
+  tags                 = var.tags
 }
 
 resource "aws_iam_role_policy_attachment" "node_worker" {
@@ -42,12 +44,7 @@ resource "aws_iam_role_policy_attachment" "node_worker" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
 }
 
-resource "aws_iam_role_policy_attachment" "node_cni" {
-  role       = aws_iam_role.node.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
-}
-
 resource "aws_iam_role_policy_attachment" "node_ecr" {
   role       = aws_iam_role.node.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPullOnly"
 }
