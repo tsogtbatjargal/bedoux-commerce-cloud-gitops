@@ -45,7 +45,8 @@ The reviewed plan must keep NAT absent and show:
 - `AmazonEC2ContainerRegistryPullOnly` added to the node role;
 - `AmazonEBSCSIDriverPolicyV2` added to the EBS CSI role;
 - `AmazonEKS_CNI_Policy` attached to the new VPC CNI role;
-- pinned `vpc-cni` `v1.22.4-eksbuild.3` using that role;
+- pinned `vpc-cni` `v1.22.4-eksbuild.3` using that role with
+  `enableNetworkPolicy = "true"` in its managed add-on configuration;
 - no removal of `bedoux-iam-scoped`, no broad admin policy, and no unexpected service.
 
 The three old attachments are persistent but not tracked after prior state detachment, so their
@@ -60,7 +61,7 @@ terraform -chdir=infra/terraform apply /tmp/bedoux-p10.tfplan
 
 aws eks describe-addon --profile bedoux-admin --region ca-central-1 \
   --cluster-name bedoux --addon-name vpc-cni \
-  --query 'addon.{status:status,version:addonVersion,role:serviceAccountRoleArn}' --output json
+  --query 'addon.{status:status,version:addonVersion,role:serviceAccountRoleArn,configuration:configurationValues}' --output json
 aws eks describe-addon --profile bedoux-admin --region ca-central-1 \
   --cluster-name bedoux --addon-name aws-ebs-csi-driver \
   --query 'addon.{status:status,version:addonVersion,role:serviceAccountRoleArn}' --output json
@@ -69,8 +70,10 @@ kubectl -n kube-system get pods -l k8s-app=aws-node
 kubectl get nodes
 ```
 
-Both add-ons and every `aws-node` pod must be healthy, and the node must be `Ready`. Do not retain
-full role ARNs in committed evidence; record role names and the expected exact ServiceAccounts.
+Both add-ons and every `aws-node` pod must be healthy, the VPC CNI configuration must report
+`enableNetworkPolicy` as `true`, the `aws-node` pod must contain the network-policy agent sidecar,
+and the node must be `Ready`. Do not retain full role ARNs in committed evidence; record role
+names and the expected exact ServiceAccounts.
 
 ## 3. Remove only the superseded attachments
 

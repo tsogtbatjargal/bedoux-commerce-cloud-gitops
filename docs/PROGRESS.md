@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P10 — Security hardening |
-| Active task | P10.4 IN PROGRESS — IAM re-review complete; accepted ADR 0015 remediation staged offline, awaiting review/merge and later live proof. |
-| Last verified | 2026-08-10T17:55:38-06:00 — draft PR #42 run 31444052466 passed API, web, Terraform/Helm, and signed container/SBOM checks; no AWS mutation. |
-| AWS resources currently live | **None temporary.** Persistent allowlist only: encrypted state bucket, two ECR repositories, five persistent IAM roles, GitHub OIDC provider — all confirmed present. |
-| Month-to-date estimated AWS spend | USD 3.727 actual at last check; no AWS session opened since (billing data lags — recheck before any future session). |
-| Next operator action | Review and merge draft PR #42. Separately approve the later P10.5 AWS session for live remediation and T-1004/T-1005 proof. |
+| Active task | P10 gate awaiting owner approval — P10.5 is complete; start P11 only after the owner approves the gate. |
+| Last verified | 2026-08-11T11:33:53-06:00 — live NetworkPolicy proof passed both ways (rogue pod denied to postgres, `app=api` pod accepted), then the guarded teardown and inventory sweep returned the temporary cluster/VPC as gone. |
+| AWS resources currently live | Temporary session resources are gone. Persistent allowlist resources still exist in AWS but are detached from Terraform state after the session teardown prep: state bucket, two ECR repositories, five persistent IAM roles, GitHub OIDC provider. |
+| Month-to-date estimated AWS spend | Still below the USD 20 cap; recheck before the next AWS session. |
+| Next operator action | Wait for owner approval of the P10 gate; after that, start P11.1. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -616,8 +616,8 @@ ADR 0004's "flip public before P9" clause is superseded by
       the main deployment workflow keylessly signs ECR digests, re-verifies the exact workflow
       identity inside the Helm step, and deploys the verified digests. Evidence: T-1003, CI run
       `31400205491`, session log 2026-08-10.
-- [ ] P10.4 IN PROGRESS — IAM re-review of every role/policy created since P5.
-- [ ] P10.5 NOT STARTED — live AWS NetworkPolicy drill + clean teardown.
+- [x] P10.4 COMPLETE — IAM re-review of every role/policy created since P5. Evidence: live cluster/nodegroup/VPC/add-ons recreated, replacement identities proven, superseded attachments removed, owner-console `bedoux-iam-scoped` v4 applied, exact read-back passed, and the bounded negative create was denied; see session log 2026-08-11T10:40:19-06:00.
+- [x] P10.5 COMPLETE — live AWS NetworkPolicy drill + clean teardown. Evidence: a rogue pod without the allowed labels got `pg_isready` `no response` against the postgres ClusterIP, a pod with `app=api` got `accepting connections`, and the session teardown swept the temporary EKS cluster, nodegroup, VPC, IGW, subnets, access entries/policy associations, and add-ons to zero; see session log 2026-08-11T11:33:53-06:00.
 
 Gate: T-1001..T-1005.
 
@@ -669,6 +669,87 @@ before P10.1 begins, same gate discipline as P0–P9.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-10T19:46:07-06:00 — P10.4/P10.5 AWS session opened; pre-apply gap caught — Codex
+
+- **Authorization/deadline:** owner approved the P10.5 session and set an independent alarm for
+  23:00 MDT. New evidence work stops by 22:15 so teardown retains a 45-minute reserve.
+- **Preflight:** confirmed `bedoux-admin`, pinned `ca-central-1`, USD 3.939 actual against the
+  USD 20 budget (AWS returned no forecast), and a USD 1–2 planned session increment. No EKS,
+  NAT Gateway, ALB, RDS, unattached EBS volume, EIP, or active CloudFormation stack exists. The
+  three tagged resources are exactly the state bucket and two ECR repositories; five persistent
+  project roles exist before the planned sixth VPC CNI role.
+- **Checkpoint:** PR #42 merged as `e0e8e9a`; final run `31444313804` passed all four CI jobs.
+- **Finding:** before Terraform state import or apply, review found that the managed VPC CNI
+  add-on had no `enableNetworkPolicy` configuration, so Kubernetes NetworkPolicy objects would
+  not be enforced on EKS. AWS's live schema for pinned `v1.22.4-eksbuild.3` confirms the supported
+  string-valued boolean. Terraform and the remediation runbook are being corrected before plan.
+- **AWS:** read-only preflight/schema calls only; no resource or Terraform state mutation yet.
+  P10.4/T-1004 remains **IN PROGRESS** and P10.5 remains **NOT STARTED**.
+
+### 2026-08-10T21:18:57-06:00 — P10.4 apply interrupted; temporary EKS session torn down cleanly — Codex
+
+- **What happened:** the approved saved Terraform plan was applied until the cluster, nodegroup,
+  VPC, IGW, access entries, and add-ons had started creating. The apply was then interrupted,
+  and the session was moved to teardown cleanup only.
+- **Cleanup:** ran `scripts/terraform-session-destroy.sh prepare --execute`, then the saved
+  temporary-only destroy plan. The temporary EKS cluster, one Spot nodegroup, VPC, IGW, public
+  subnets, route table, route associations, EKS access entries/policy associations, and the VPC
+  CNI / EBS CSI add-ons were destroyed. The persistent allowlist resources were left intact.
+- **Verification:** post-teardown live inventory checks returned zero for the temporary EKS,
+  VPC, NAT Gateway, ALB, RDS, EIP, and CloudFormation resources. Terraform state now contains
+  only data sources. The persistent ECR repositories and `bedoux-*` IAM roles remain present.
+- **Outcome:** P10.4/T-1004 remains **IN PROGRESS** because the IAM proof itself was not
+  completed; P10.5 remains **NOT STARTED**. Estimated incremental AWS cost for the interrupted
+  create/destroy was only a small amount, still well below the monthly cap.
+
+### 2026-08-11T10:40:19-06:00 — P10.4 live proof resumed; replacement identities proven — Codex
+
+- **Apply:** a fresh approved Terraform apply recreated the temporary live session state:
+  EKS cluster `bedoux`, one Spot nodegroup, public-only VPC/subnets/IGW/route table, GitHub OIDC
+  provider/role/policy, the cluster and GitHub EKS access entries/policy associations, and the
+  VPC CNI and EBS CSI add-ons. The VPC CNI add-on now reports `enableNetworkPolicy=true`.
+- **Verification:** `kubectl get nodes` reports the sole node `Ready`; `aws-node` is running with
+  the expected two containers (`aws-node` and `aws-eks-nodeagent`); the VPC CNI and EBS CSI
+  add-ons are `ACTIVE` with the expected versions; the temporary session resources are live.
+- **Replacement identities:** detached the superseded `AmazonEKS_CNI_Policy`,
+  `AmazonEC2ContainerRegistryReadOnly`, and `service-role/AmazonEBSCSIDriverPolicy` attachments.
+  Post-detach read-back confirms the node role now retains only `AmazonEKSWorkerNodePolicy` and
+  `AmazonEC2ContainerRegistryPullOnly`, the EBS CSI role retains only `AmazonEBSCSIDriverPolicyV2`,
+  and the VPC CNI role retains `AmazonEKS_CNI_Policy`.
+- **Blocker:** the remaining P10.4 proof step is the owner-console application of
+  `bedoux-iam-scoped` v4, which `bedoux-admin` cannot perform. P10.4/T-1004 remains **IN PROGRESS**.
+- **AWS:** one temporary EKS cluster, one Spot nodegroup, public VPC/subnets/IGW/route table,
+  the EKS access entries/policy associations, and the VPC CNI/EBS CSI add-ons are live again.
+  Estimated incremental cost remains comfortably below the USD 20 cap.
+
+### 2026-08-11T10:44:56-06:00 — P10.4 closed out; P10.5 started — Codex
+
+- **Read-back:** the repository verifier passed all checks. All six persistent roles have the
+  required `PowerUserAccess` permissions boundary; the live `bedoux-iam-scoped` default version
+  matches committed v4; and creating the unbounded `bedoux-boundary-negative-test` role was
+  rejected by an explicit deny with no test role left behind.
+- **State:** marked P10.4 complete in `docs/PROGRESS.md` and moved the active task to P10.5.
+  The current live EKS session remains up for the NetworkPolicy drill and teardown that follow.
+- **AWS:** no new resources created or deleted during the verifier itself. The temporary EKS
+  session resources from the P10.4 proof are still live and ready for P10.5.
+
+### 2026-08-11T11:33:53-06:00 — P10.5 live NetworkPolicy drill and clean teardown — Codex
+
+- **Live proof:** created two throwaway pods in the live cluster to isolate selector behavior
+  from the app rollout state. A rogue pod without the allowed labels got `pg_isready` `no response`
+  against the postgres ClusterIP. A second pod with `app=api` got `accepting connections` against
+  the same service IP, proving the explicit allow path for the NetworkPolicy selectors.
+- **App note:** the actual API pod on the stale `p5` image was still blocked in init with
+  `ModuleNotFoundError: app.database_credentials`, so the drill used dedicated allow/deny pods
+  rather than depending on the app rollout itself.
+- **Teardown:** ran `scripts/terraform-session-destroy.sh prepare --execute`, then the saved
+  temporary-only destroy plan and apply. The temporary EKS cluster, one Spot nodegroup, public
+  VPC, IGW, public subnets, route table, access entries/policy associations, and VPC CNI / EBS
+  CSI add-ons were destroyed cleanly. Final read-only inventory checks returned `No cluster found`
+  for `bedoux` and `The vpc ID ... does not exist` for the session VPC ID.
+- **State:** marked P10.5 complete in `docs/PROGRESS.md`; P10 now awaits owner gate approval
+  before P11 starts.
 
 ### 2026-08-10T17:55:38-06:00 — P10.4 declaration PR green — Codex
 
