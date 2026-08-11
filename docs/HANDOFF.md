@@ -189,10 +189,13 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
 - **Local P11 starting point:** the Calico-backed kind cluster `bedoux` is still running and its
   one node plus the `api`, `web`, and `postgres` Deployments are Ready. No HPA or PDB exists yet.
   The default kubeconfig context still points to the deleted EKS cluster; use `--context
-  kind-bedoux` for read-only checks or deliberately switch to `kind-bedoux` before P11.1. GitHub
-  `main` now contains P10.5 through PR #43 and the dedicated P10 gate through PR #44. The stale
-  local `main` ref at `e900669` is a divergent local merge wrapper; do not push it or treat it as
-  the remote checkpoint.
+  kind-bedoux` for read-only checks or deliberately switch to `kind-bedoux` before P11.1.
+  Local `main` is synchronized with GitHub through merged PR #46; P11.1 remains not started.
+- Repository workflows are exposed through exactly three thin skills under `.agents/skills/`:
+  `phase-orchestrator`, `aws-session-guardrail` (including Kubernetes drills), and
+  `github-pr-branch-workflow`. Claude Code discovery wrappers under `.claude/skills/` route to
+  the same canonical bodies. Operating logic remains canonical in `docs/workflows/` and
+  `docs/runbooks/`; do not fork agent-specific procedures.
 - Three real findings surfaced and were fixed during P5, each documented with its own ADR
   or PROGRESS entry:
   1. **ADR 0007** — `bedoux-admin`'s scoped IAM policy (`bedoux-iam-scoped`) had a genuine
@@ -329,10 +332,10 @@ prohibits unbounded autoscaling and routine Multi-AZ RDS (ADR 0014 explains how 
 those limits); a Route 53 hosted zone is deferred to P12 pending an explicit owner decision on
 buying a domain vs. using a subdomain vs. skipping live deployment — do not assume an answer.
 
-There is no `/aws-session-start` for Codex: before touching AWS, manually walk the "Before
-the session" checklist in `docs/runbooks/aws-session.md`, and run its teardown sweep before
-ending any AWS session. Never create AWS resources outside that process. Only after the owner has
-explicitly approved a phase gate, record that approval as its own commit ("Phase N gate approved
-by owner; activate Phase N+1") before starting the next phase's work. The Terraform VPC must keep
-NAT disabled.
+Use `$aws-session-guardrail` when it is available, then manually walk the canonical "Before the
+session" checklist in `docs/runbooks/aws-session.md` and its teardown sweep. The skill grants no
+AWS authority. Never create AWS resources outside that process. Only after the owner has explicitly
+approved a phase gate, record that approval as its own commit ("Phase N gate approved by owner;
+activate Phase N+1") before starting the next phase's work. The Terraform VPC must keep NAT
+disabled.
 ```

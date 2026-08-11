@@ -1,0 +1,4 @@
+interface:
+  display_name: "GitHub PR Branch Workflow"
+  short_description: "Run feature branches through reviewed PRs"
+  default_prompt: "Use $github-pr-branch-workflow to take this change from a feature branch through a reviewed pull request."

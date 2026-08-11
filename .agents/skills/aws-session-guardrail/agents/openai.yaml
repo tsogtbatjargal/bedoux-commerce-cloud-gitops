@@ -1,0 +1,4 @@
+interface:
+  display_name: "AWS Session Guardrail"
+  short_description: "Guard bounded AWS and Kubernetes drills"
+  default_prompt: "Use $aws-session-guardrail to prepare, run, and close out this bounded AWS and Kubernetes session safely."

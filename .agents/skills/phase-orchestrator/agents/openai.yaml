@@ -1,0 +1,4 @@
+interface:
+  display_name: "Phase Orchestrator"
+  short_description: "Orchestrate repository phases and checkpoints"
+  default_prompt: "Use $phase-orchestrator to resume the active repository task from its authoritative checkpoint."

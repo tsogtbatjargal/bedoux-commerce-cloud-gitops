@@ -36,6 +36,41 @@ environment. Slash commands: `/aws-session-start` walks "Before the session",
 - [ ] Capture learning evidence without recording secrets or account IDs.
 - [ ] Investigate unexpected resources before proceeding.
 
+## Kubernetes drill integration
+
+Use this section for both local kind drills and AWS/EKS drills so Kubernetes failure work does
+not need a separate skill or duplicated operating procedure.
+
+Before a drill:
+
+- [ ] Name the owning phase item and test ID, the healthy baseline, the single fault to induce,
+      the tooling-only diagnostic path, the recovery action, and the required evidence.
+- [ ] Use the phase-specific runbook when one exists. For the four already-proven incident
+      shapes, use `docs/runbooks/p8-troubleshooting.md`.
+- [ ] Prefer kind for the first proof. A local-only kind drill does not open an AWS session, but
+      it still follows the active phase, evidence, rollback, and closeout rules.
+- [ ] For EKS drills or any drill that changes AWS resources, complete every **Before the
+      session** item above and obtain the required owner approval before mutation. A standalone
+      read-only AWS check verifies identity/region and sanitizes output but does not claim that a
+      billable session is open.
+- [ ] Reserve teardown margin inside the session deadline. The independent alarm overrides the
+      drill: stop evidence capture and begin teardown when it fires.
+
+During a drill:
+
+- [ ] Prove the baseline healthy before injecting one reversible fault.
+- [ ] Diagnose from `kubectl`, Helm, application, and approved read-only AWS output before using
+      knowledge of the injected cause.
+- [ ] Change only the declared fault surface. Do not stack faults or broaden permissions to make
+      a drill pass.
+- [ ] Recover through the declared rollback path and re-run the same health checks used for the
+      baseline.
+- [ ] Delete debug pods, temporary namespaces, test objects, and other drill-only Kubernetes
+      state before infrastructure teardown.
+
+An AWS/EKS drill is not complete until the **Teardown** checklist below is clean. Record a local
+kind drill as `AWS: none`; never run AWS sweeps merely to decorate local evidence.
+
 ## Teardown
 
 - [ ] Delete Kubernetes Ingress resources and wait for ALB deletion.

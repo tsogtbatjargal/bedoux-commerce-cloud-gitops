@@ -49,6 +49,9 @@ The first release does not process real payments or customer data.
 | [docs/cost-guardrails.md](docs/cost-guardrails.md) | Budget, alerts, prohibited resources, persistent allowlist |
 | [docs/local-tooling.md](docs/local-tooling.md) | Workstation toolchain and pinned versions |
 | [docs/runbooks/aws-session.md](docs/runbooks/aws-session.md) | Before/during/teardown checklists for every AWS session |
+| [docs/workflows/](docs/workflows/) | Canonical phase and GitHub branch/PR operating workflows |
+| [.agents/skills/](.agents/skills/) | Three canonical repo-scoped skills that route agents to canonical docs |
+| [.claude/skills/](.claude/skills/) | Claude Code discovery wrappers for those same three skill bodies |
 | [docs/decisions/](docs/decisions/README.md) | Architecture decision records (ADR index) |
 | [docs/diagrams/](docs/diagrams/) | draw.io sources + exported SVGs |
 
