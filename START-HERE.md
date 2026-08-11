@@ -66,8 +66,9 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   the way, found and fixed (via **ADR 0007**) a real self-escalation hole in
   `bedoux-admin`'s scoped IAM policy (`bedoux-iam-scoped` — it could rewrite its
   own constraining policy) plus the narrow IAM grants `eksctl`/IRSA actually
-  needed; policy is now at v3, all fixes console-applied by the owner and
-  verified live. **P5.2 complete**: ECR repos `bedoux-api`/`bedoux-web` created,
+  needed; that P5 fix was v3, all changes were console-applied by the owner and
+  verified live. P10.4 later superseded the complete-closure claim via ADR 0015
+  and owner-applied v4. **P5.2 complete**: ECR repos `bedoux-api`/`bedoux-web` created,
   `p5` images pushed and confirmed present. **P5.3 complete**: AWS Load Balancer
   Controller live via its own IRSA role; found ALB has no path-rewrite
   annotation (fixed via **ADR 0008** — the AWS profile routes everything
@@ -152,10 +153,16 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   explicit-allow NetworkPolicies were proven on the retained Calico-backed kind cluster.
   **P10.3 is complete:** green PR CI generated and validated API/web SPDX artifacts and signed and
   verified both immutable candidate digests without OIDC or AWS access; the main deployment path
-  keylessly signs, exact-identity verifies before Helm, and deploys the verified digest. No AWS
-  session was opened.
-- Next action: owner directs P10.4's read-only IAM role/policy re-review; P10.5 remains the next
-  AWS-costing task and requires a fresh session preflight.
+  keylessly signs, exact-identity verifies before Helm, and deploys the verified digest.
+  **P10.4 is complete:** ADR 0015's permissions boundary, `bedoux-iam-scoped` v4, replacement
+  workload identities, and bounded deny test were proven live. **P10.5 is complete:** the EKS VPC
+  CNI enforced the NetworkPolicies in a real allow/deny drill, followed by a clean same-session
+  teardown. **P10 gate approved 2026-08-11; P11 is active.** The Calico-backed kind cluster is
+  still running and Ready, but the default kubeconfig context points at the deleted EKS endpoint;
+  use or switch deliberately to `kind-bedoux`.
+- Next action: start P11.1 locally — mark it `IN PROGRESS`, add bounded HPA for api/web plus a
+  pinned metrics-server, and record T-1101 kind scale-out/scale-back evidence. No AWS session is
+  needed for P11.1.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

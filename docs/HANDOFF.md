@@ -20,7 +20,7 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
    phase-start decisions are now recorded: ADR 0006, the kill switch/request bounds, and
    ADR 0011's P7.2 S3 adapter boundary.
 
-## Current state (as of 2026-08-07)
+## Current state (as of 2026-08-11)
 - Phases 0-4 complete, gates approved. Local app (FastAPI + Postgres + React) proven on
   Compose (P2), then on kind with a Helm chart (P3, ADR 0005), with real drills throughout.
   AWS account readiness done in P4: non-root IAM identity `bedoux-admin`, region
@@ -170,17 +170,38 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   to the exact `deploy-learning.yml` identity on `main` plus GitHub's issuer, verifies inside
   the Helm step, and deploys `repository@sha256` references. The rollback drill now keeps the
   signed digest and injects a failing web command instead of bypassing the gate with an unsigned
-  missing tag. No AWS session was opened; the narrowly scoped ECR layer-read declaration remains
-  unapplied until the next reviewed AWS session.
+  missing tag. No AWS session was opened for P10.3; the P10.4 apply later recreated the current
+  GitHub policy declaration containing its narrowly scoped ECR layer-read delta. Re-read the live
+  policy before any future signed AWS workflow dispatch.
+- **P10.4 is complete (2026-08-11), T-1004 satisfied.** The re-review found a real second-hop
+  delegated-role escalation path not covered by ADR 0007. ADR 0015 now requires the AWS-managed
+  `PowerUserAccess` permissions boundary on every project role; owner-applied
+  `bedoux-iam-scoped` v4 requires and protects that boundary. Live read-back passed for all six
+  roles present in the session, VPC CNI moved to an exact-ServiceAccount IRSA role, the node
+  changed to ECR pull-only, EBS CSI moved to its v2 policy, and an attempted unbounded test-role
+  creation was denied with no test role left behind.
+- **P10.5 is complete (2026-08-11), T-1005 satisfied.** The live EKS VPC CNI add-on reported
+  `enableNetworkPolicy=true`; a rogue pod was denied PostgreSQL access while an `app=api` pod
+  reached the same service. The temporary no-NAT EKS/VPC session was destroyed and the final
+  inventory sweep was clean. **P10 gate approved by owner 2026-08-11; P11 is active.** No
+  temporary AWS resources are live. The persistent allowlist is the state bucket, two ECR
+  repositories, six persistent IAM roles, and the GitHub OIDC provider.
+- **Local P11 starting point:** the Calico-backed kind cluster `bedoux` is still running and its
+  one node plus the `api`, `web`, and `postgres` Deployments are Ready. No HPA or PDB exists yet.
+  The default kubeconfig context still points to the deleted EKS cluster; use `--context
+  kind-bedoux` for read-only checks or deliberately switch to `kind-bedoux` before P11.1. GitHub
+  `main` now contains P10.5 through PR #43 and the dedicated P10 gate through PR #44. The stale
+  local `main` ref at `e900669` is a divergent local merge wrapper; do not push it or treat it as
+  the remote checkpoint.
 - Three real findings surfaced and were fixed during P5, each documented with its own ADR
   or PROGRESS entry:
   1. **ADR 0007** — `bedoux-admin`'s scoped IAM policy (`bedoux-iam-scoped`) had a genuine
      self-escalation hole: because the policy's own resource pattern matched its own ARN,
      `bedoux-admin` could rewrite its own constraining policy. Closed with an explicit Deny,
      applied by the owner via console (never via `bedoux-admin`'s own API access, to avoid
-     exercising the escalation path even for the fix itself). Policy is now at v3; also
-     picked up the narrow IAM grants `eksctl`/IRSA genuinely need (an EKS nodegroup
-     service-linked-role check, OIDC provider tag/delete).
+     exercising the escalation path even for the fix itself). ADR 0015 later superseded the
+     claim that this direct deny was a complete closure; `bedoux-iam-scoped` is now v4 and every
+     delegated project role is boundary-capped.
   2. **ADR 0008** — the ALB Ingress Controller has no path-rewrite annotation equivalent to
      nginx's `rewrite-target`, so the AWS profile can't route `/api` straight to the API
      Service the way kind does. Fixed by routing everything through `web` and letting its
@@ -237,20 +258,21 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   P0–P9; bounded autoscaling (hard caps) satisfies the "no unbounded autoscaling" guardrail;
   Multi-AZ RDS only as a single reviewed one-off, never routine; the Route 53 domain decision
   is deferred to P12 pending an explicit owner choice.
+- ADR 0015: every delegated project role must retain the AWS-managed `PowerUserAccess`
+  permissions boundary; `bedoux-iam-scoped` v4 requires and protects that exact boundary.
+  ADR 0007 remains the direct self-policy fix but is superseded where it claimed complete closure.
 
 ## What I want next
 P0–P9 are complete and closed (P9 gate approved 2026-08-07) — do not reopen or re-litigate
 that work, and do not silently revisit ADR 0013's "remain private" decision without a fresh,
 explicit owner decision plus ADR 0004's still-standing full-history secrets sweep prerequisite.
 
-The **active work is the P10-P14 optimization track** (bootstrapped 2026-08-09, see ADR 0014
-and `docs/IMPLEMENTATION-PLAN.md`'s "Phase 10+" section). P10.1, P10.2, and P10.3 are complete.
-**Next task: P10.4** — perform a read-only IAM re-review of every role/policy created since P5;
-record each trust boundary and permission scope, and fix any genuine broad grant before checking
-off T-1004. This is read-only AWS and must not mutate account state. After that: P10.5 (one short
-live AWS session applying the P10.2 NetworkPolicies for real and drilling them, ~$1-2, same-day
-teardown); that session must also apply the reviewed P10.3 ECR layer-read policy delta before the
-signed deployment workflow runs.
+The **active work is P11 — bounded autoscaling and HA**. P10.1–P10.5 are complete and the P10
+gate is owner-approved. **Next task: P11.1** — add HPA resources for `api` and `web`, keep an
+explicit hard `maxReplicas` cap (the plan suggests 3), install/use a pinned `metrics-server`, and
+prove scale-out plus scale-back first on the retained kind cluster with bounded synthetic load.
+Record T-1101 evidence before checking it off. Do not open an AWS session for P11.1; P11.2 owns
+the 2-node/2-AZ declaration and P11.3–P11.5 own the later live AWS proof and teardown.
 
 Mark whichever task you start `IN PROGRESS` in `docs/PROGRESS.md` before changing anything,
 same as every prior phase. Land each task via its own feature branch + PR (not a direct
@@ -265,6 +287,42 @@ recipe and two host-specific fixes). The kind cluster `bedoux` is currently left
 Calico-backed, with `networkPolicy.enabled=true` from the P10.2 drill — check its state before
 assuming a clean starting point.
 
+## Skills and smaller-model subagents
+Repository documents remain canonical; a skill is a thin workflow wrapper, never a replacement
+for `AGENTS.md`, `docs/PROGRESS.md`, an accepted ADR, or a runbook. At the start of each task,
+inspect the skills actually available in that agent host. When a matching skill exists, announce
+it, read its complete `SKILL.md`, and follow it. Do not claim that a proposed repository skill is
+installed merely because it was discussed. Good shared repository-skill candidates for the
+repeated work here are phase/checkpoint orchestration, AWS session + teardown guardrails,
+Kubernetes drill/evidence capture, IAM least-privilege review, CI evidence verification, and
+progress-ledger closeout.
+
+Codex may delegate bounded side work to smaller-model subagents when that reduces wall-clock time.
+Prefer `gpt-5.6-luna` (when available) for isolated, reversible work such as manifest inventory,
+test scaffolding, YAML/static validation, evidence extraction, or documentation comparison; use a
+larger model only when the subtask genuinely needs it. The primary agent keeps the immediate
+critical path and all architecture, IAM interpretation, AWS authorization/mutation, phase-state,
+gate, teardown, and final-evidence decisions.
+
+Subagent rules for this repository:
+
+- Give each subagent one concrete output and a disjoint read/write scope; never duplicate the
+  primary agent's active work.
+- Subagents must not mutate AWS, edit `docs/PROGRESS.md`, create/supersede ADRs, approve gates,
+  merge branches, or make teardown decisions. Owner authorization and the AWS-session runbook
+  remain with the primary agent and cannot be delegated.
+- Require changed file paths, commands/tests run, results, assumptions, and unresolved risks in
+  every subagent return. Narrative confidence is not evidence.
+- Review every subagent patch and rerun relevant verification in the primary workspace before
+  recording evidence or checking off a task. Close completed agents instead of leaving them idle.
+- Skip delegation for a simple serial task or when the result blocks the very next action; the
+  primary agent should keep those tasks on the critical path.
+
+For P11.1, a good split is: the primary agent marks P11.1 `IN PROGRESS`, owns chart design and the
+live kind proof; one Luna subagent can inventory current chart resources/values and test coverage,
+and a separate bounded review subagent can check the finished diff and evidence gaps while the
+primary runs the local drill. Do not let either subagent update the authoritative progress ledger.
+
 Every P10-P14 AWS-costing item stays session-based with same-day teardown per
 `docs/cost-guardrails.md` — nothing runs continuously. `docs/cost-guardrails.md` flatly
 prohibits unbounded autoscaling and routine Multi-AZ RDS (ADR 0014 explains how P10-P14 reads
@@ -273,7 +331,8 @@ buying a domain vs. using a subdomain vs. skipping live deployment — do not as
 
 There is no `/aws-session-start` for Codex: before touching AWS, manually walk the "Before
 the session" checklist in `docs/runbooks/aws-session.md`, and run its teardown sweep before
-ending any AWS session. Never create AWS resources outside that process. If asked to approve
-a phase gate, make that its own commit ("Phase N gate approved by owner; activate Phase
-N+1") before starting the next phase's work. The Terraform VPC must keep NAT disabled.
+ending any AWS session. Never create AWS resources outside that process. Only after the owner has
+explicitly approved a phase gate, record that approval as its own commit ("Phase N gate approved
+by owner; activate Phase N+1") before starting the next phase's work. The Terraform VPC must keep
+NAT disabled.
 ```
