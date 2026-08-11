@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P11 — Bounded autoscaling & HA |
 | Active task | P11.1 NOT STARTED — HPA on api/web with an explicit maxReplicas cap, proven on kind. |
-| Last verified | 2026-08-11T16:36:15-06:00 — three canonical repository workflow skills plus three Claude Code discovery wrappers pass skill validation; independent read-only forward tests and `docs-check` pass. No AWS access. |
+| Last verified | 2026-08-11T16:42:14-06:00 — draft PR #47 publishes the synchronized repository skills; all four required CI checks are green. No AWS access. |
 | AWS resources currently live | Temporary session resources are gone. Persistent allowlist resources still exist in AWS but are detached from Terraform state after the session teardown prep: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | Still below the USD 20 cap; recheck before the next AWS session. |
-| Next operator action | Review the repo-workflow skill consolidation, then start P11.1 when directed. |
+| Next operator action | Review and merge draft PR #47; P11.1 remains NOT STARTED until that maintenance PR lands. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -690,8 +690,12 @@ Append newest entries immediately below this heading. Never include secrets or A
   (18 immutable external actions), `docs-check`, diff checks, and a sensitive-pattern sweep.
 - **AWS:** none. No AWS command, resource, identity, or billing system was accessed; estimated
   incremental cost USD 0.
-- **Next action:** commit this focused maintenance change, push only `repo-workflow-skills`, and
-  open a draft PR for owner review. P11.1 remains **NOT STARTED**.
+- **Publication evidence:** commit `651fbed` was pushed only to `repo-workflow-skills` and draft
+  PR #47 targets `main` at `5b1c7d6`. GitHub Actions run `31543342646` completed all four
+  required checks successfully: API tests; web lint, test, and build; Terraform and Helm
+  validation; and container build and scan. The temporary pre-sync safety stash was dropped only
+  after the branch was committed and published.
+- **Next action:** owner review and merge of draft PR #47. P11.1 remains **NOT STARTED**.
 
 ### 2026-08-11T15:52:14-06:00 — Node 24 GitHub Actions maintenance fix complete — Codex
 
