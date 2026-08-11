@@ -11,8 +11,8 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P11 — Bounded autoscaling & HA |
 | Active task | P11.1 NOT STARTED — HPA on api/web with an explicit maxReplicas cap, proven on kind. |
-| Last verified | 2026-08-11T11:33:53-06:00 — live NetworkPolicy proof passed both ways (rogue pod denied to postgres, `app=api` pod accepted), then the guarded teardown and inventory sweep returned the temporary cluster/VPC as gone. |
-| AWS resources currently live | Temporary session resources are gone. Persistent allowlist resources still exist in AWS but are detached from Terraform state after the session teardown prep: state bucket, two ECR repositories, five persistent IAM roles, GitHub OIDC provider. |
+| Last verified | 2026-08-11T15:42:08-06:00 — P10.5 PR #43 and the dedicated P10 gate PR #44 each passed all four CI jobs and merged to GitHub `main`; the stale local merge wrapper was excluded. No AWS access. |
+| AWS resources currently live | Temporary session resources are gone. Persistent allowlist resources still exist in AWS but are detached from Terraform state after the session teardown prep: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | Still below the USD 20 cap; recheck before the next AWS session. |
 | Next operator action | Start P11.1. |
 
@@ -27,11 +27,11 @@ Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
   identity — never used for routine work (account ID intentionally never recorded
   here). **Working identity is IAM user `bedoux-admin`**, in group `bedoux-admins`
   with `PowerUserAccess` (AWS managed; excludes IAM/Organizations) plus a small custom
-  policy `bedoux-iam-scoped` (**v3** as of 2026-07-28, see ADR 0007) granting IAM
-  role/policy/OIDC-provider actions only on `bedoux-*`-named resources (the minimum
-  `eksctl`/IRSA need), **plus an explicit `Deny` on `bedoux-admin` ever modifying
-  `bedoux-iam-scoped` itself** (closes a self-escalation path found and fixed during
-  P5.1 — full detail in `docs/decisions/0007-bedoux-iam-scoped-self-escalation-fix.md`).
+  policy `bedoux-iam-scoped` (**v4** as of 2026-08-11, see ADRs 0007 and 0015) granting
+  boundary-constrained role/policy/OIDC-provider actions only on `bedoux-*`-named resources,
+  **plus explicit denies against modifying `bedoux-iam-scoped` itself or creating/modifying a
+  delegated role without the required `PowerUserAccess` permissions boundary**. ADR 0007 closed
+  the direct self-policy path; ADR 0015 closes the second-hop delegated-role path found in P10.4.
   MFA (passkey) enabled on
   `bedoux-admin`. CLI access via a named profile, **`--profile bedoux-admin`** —
   `aws sts get-caller-identity --profile bedoux-admin` confirmed
@@ -75,16 +75,16 @@ check can't miss them:
   support for a real `gp3` StorageClass (`ebs.csi.aws.com`) landed in
   `charts/bedoux/templates/storageclass.yaml` + `values-aws.yaml`
   (`storageClass.create: true`, `postgres.storageClassName: gp3`). Full evidence in
-  this file's P5-pre-work entry below; live proof against a real EBS CSI add-on is
-  P5.1's job once the cluster exists.
+  this file's P5-pre-work entry below; P5.1 later proved the real EBS CSI add-on and
+  gp3 dynamic volume lifecycle live.
 - ~~**P5 — kill switch**~~ — **DONE 2026-07-23.** `BEDOUX_ORDERS_ENABLED` (off by
   default in `values-aws.yaml`, on by default everywhere else), 20-line order cap,
   the existing 100-qty-per-line cap, a 64KB request-body-size middleware, and a
   frontend "ordering disabled" state — all live-verified against the kind cluster
   (503 not a crash, `/health` reflects state, real browser shows the disabled banner
-  and re-enables cleanly). ALB inbound CIDR restriction is deferred to P5.3 (needs a
-  real ALB to attach a security group to). Full evidence in this file's P5-pre-work
-  entry below.
+  and re-enables cleanly). An ALB inbound CIDR restriction was not implemented in P5.3;
+  it remains an explicit non-blocking limitation of the temporary public learning endpoint,
+  and no ALB is currently live. Full evidence in this file's P5-pre-work entry below.
 
 ## Known open issues (not blockers, revisit when fixable)
 
@@ -669,6 +669,47 @@ before P10.1 begins, same gate discipline as P0–P9.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-11T15:42:08-06:00 — P10.5 and gate publication history repaired — Codex
+
+- **Publication:** owner authorized the existing local P10.5, gate, and handoff changes to be
+  published in their required order. P10.5 commit `e94a71f` was published alone as PR #43; all
+  four jobs in run `31536346102` passed and GitHub merged it as `191fd51`. The gate change was
+  then replayed onto that merged base as dedicated commit `a1fc482`, published as PR #44; all
+  four jobs in run `31538812433` passed and GitHub merged it as `327a8bf`.
+- **History reconciliation:** local merge `e900669` was deliberately excluded because its tree
+  merely wrapped the P10.5 and gate commits. The P11 handoff change was replayed by itself onto
+  merged GitHub `main`; P11.1 remains **NOT STARTED**.
+- **Validation:** both PRs passed API tests, web lint/test/build, Terraform/Helm validation, and
+  container build/scan/sign/SBOM checks. The restacked handoff passes `docs-check` and
+  `git diff --check` before publication.
+- **AWS:** none. No AWS command, resource, identity, or billing system was accessed. The last
+  recorded teardown remains clean; persistent allowlist resources are unchanged.
+
+### 2026-08-11T14:35:08-06:00 — P11 handoff refreshed for skills and bounded delegation — Codex
+
+- **State:** P11.1 remains **NOT STARTED**. Refreshed `docs/HANDOFF.md` from its stale P10.4
+  checkpoint to the completed P10 gate and active P11.1 starting point; added ADR 0015 and
+  explicit skill/smaller-model subagent boundaries. Corrected this file's older v3 IAM summary
+  to the live-proven `bedoux-iam-scoped` v4 state.
+- **Verification:** the Calico-backed kind cluster `bedoux` exists, its single node is Ready, the
+  `api`, `web`, and `postgres` Deployments are Ready, and no HPA/PDB exists. The default
+  kubeconfig context still targets the deleted EKS endpoint, so P11.1 must use or switch to
+  `kind-bedoux` deliberately. The transient local/remote history mismatch discovered here was
+  reconciled in the publication entry above.
+- **Current IAM clarification:** the accepted remediation runbook and successful verifier define
+  six persistent bounded roles, including `bedoux-vpc-cni-role`; the previous five-role summary
+  was stale. The P10.4 apply entry records recreation of the current GitHub policy declaration,
+  which contains the P10.3 layer-read delta. The older P10.3 "not applied" statement is historical
+  to that no-AWS task; live policy read-back is still required before a future signed AWS dispatch.
+- **Delegation:** a read-only `gpt-5.6-luna` subagent compared the handoff with this authoritative
+  ledger and P11's implementation plan; the primary agent reviewed and applied the resulting
+  factual corrections. Subagents are prohibited from AWS mutation, phase/gate decisions,
+  teardown authority, and authoritative progress edits; those responsibilities remain with the
+  primary agent under the owner's approvals and repository runbooks.
+- **AWS:** none created, modified, or deleted. The last recorded teardown remains clean; persistent
+  allowlist resources are unchanged. Next action remains: start P11.1 locally and mark it
+  `IN PROGRESS` before implementation.
 
 ### 2026-08-10T19:46:07-06:00 — P10.4/P10.5 AWS session opened; pre-apply gap caught — Codex
 
