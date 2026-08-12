@@ -20,7 +20,7 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
    phase-start decisions are now recorded: ADR 0006, the kill switch/request bounds, and
    ADR 0011's P7.2 S3 adapter boundary.
 
-## Current state (as of 2026-08-11)
+## Current state (as of 2026-08-12)
 - Phases 0-4 complete, gates approved. Local app (FastAPI + Postgres + React) proven on
   Compose (P2), then on kind with a Helm chart (P3, ADR 0005), with real drills throughout.
   AWS account readiness done in P4: non-root IAM identity `bedoux-admin`, region
@@ -187,10 +187,12 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   temporary AWS resources are live. The persistent allowlist is the state bucket, two ECR
   repositories, six persistent IAM roles, and the GitHub OIDC provider.
 - **Local P11 starting point:** the Calico-backed kind cluster `bedoux` is still running and its
-  one node plus the `api`, `web`, and `postgres` Deployments are Ready. No HPA or PDB exists yet.
+  one node plus the `api`, `web`, and `postgres` Deployments are Ready. P11.1's pinned Metrics
+  Server and opt-in capped HPA overlay are present; no PDB exists yet.
   The default kubeconfig context still points to the deleted EKS cluster; use `--context
-  kind-bedoux` for read-only checks or deliberately switch to `kind-bedoux` before P11.1.
-  Local `main` is synchronized with GitHub through merged PR #46; P11.1 remains not started.
+  kind-bedoux` for read-only checks or deliberately switch to `kind-bedoux` before P11.2.
+  Local `main` is synchronized with GitHub through merged PR #47 (`874305c`); P11.1 is now
+  complete in the authoritative progress ledger with T-1101 evidence.
 - Repository workflows are exposed through exactly three thin skills under `.agents/skills/`:
   `phase-orchestrator`, `aws-session-guardrail` (including Kubernetes drills), and
   `github-pr-branch-workflow`. Claude Code discovery wrappers under `.claude/skills/` route to
@@ -271,10 +273,9 @@ that work, and do not silently revisit ADR 0013's "remain private" decision with
 explicit owner decision plus ADR 0004's still-standing full-history secrets sweep prerequisite.
 
 The **active work is P11 — bounded autoscaling and HA**. P10.1–P10.5 are complete and the P10
-gate is owner-approved. **Next task: P11.1** — add HPA resources for `api` and `web`, keep an
-explicit hard `maxReplicas` cap (the plan suggests 3), install/use a pinned `metrics-server`, and
-prove scale-out plus scale-back first on the retained kind cluster with bounded synthetic load.
-Record T-1101 evidence before checking it off. Do not open an AWS session for P11.1; P11.2 owns
+gate is owner-approved. **P11.1 is complete** — its HPA resources for `api` and `web`, explicit
+hard `maxReplicas: 3` cap, pinned Metrics Server, and bounded kind scale-out/scale-back proof
+are recorded as T-1101. Owner activation is required before P11.2 starts; P11.2 owns
 the 2-node/2-AZ declaration and P11.3–P11.5 own the later live AWS proof and teardown.
 
 Mark whichever task you start `IN PROGRESS` in `docs/PROGRESS.md` before changing anything,

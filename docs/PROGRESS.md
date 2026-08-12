@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P11 — Bounded autoscaling & HA |
-| Active task | P11.1 NOT STARTED — HPA on api/web with an explicit maxReplicas cap, proven on kind. |
-| Last verified | 2026-08-11T16:42:14-06:00 — draft PR #47 publishes the synchronized repository skills; all four required CI checks are green. No AWS access. |
+| Active task | P11.1 COMPLETE — HPA on api/web with an explicit maxReplicas cap, proven on kind; P11.2 awaits owner activation. |
+| Last verified | 2026-08-12T11:23:51-06:00 — T-1101 passed on `kind-bedoux`: Metrics Server served CPU metrics; api scaled 1→3 and web 1→2 under bounded load, neither exceeded max 3, and both returned to 1/1 after load removal. No AWS access. |
 | AWS resources currently live | Temporary session resources are gone. Persistent allowlist resources still exist in AWS but are detached from Terraform state after the session teardown prep: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | Still below the USD 20 cap; recheck before the next AWS session. |
-| Next operator action | Review and merge draft PR #47; P11.1 remains NOT STARTED until that maintenance PR lands. |
+| Next operator action | Owner activates P11.2 before any further checklist work; P11.1's local HPA/metrics-server proof is complete and no AWS session was opened. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -623,7 +623,7 @@ Gate: T-1001..T-1005.
 
 ### P11 — Bounded autoscaling & HA
 
-- [ ] P11.1 NOT STARTED — HPA on api/web with an explicit maxReplicas cap, proven on kind.
+- [x] P11.1 COMPLETE — HPA on api/web with an explicit maxReplicas cap, proven on kind. Evidence: T-1101 session log 2026-08-12T11:23:51-06:00.
 - [ ] P11.2 NOT STARTED — PodDisruptionBudget + topology spread on a 2-node/2-AZ nodegroup.
 - [ ] P11.3 NOT STARTED — live load test proving real scale-out.
 - [ ] P11.4 NOT STARTED — node-loss drill across AZs.
@@ -658,8 +658,8 @@ Gate: T-1301..T-1302.
 
 Gate: T-1401..T-1404.
 
-**P10–P14 track bootstrapped 2026-08-09; no phase work started. Owner approval required
-before P10.1 begins, same gate discipline as P0–P9.**
+**P10–P14 track bootstrapped 2026-08-09; P10 is gate-approved and P11.1 is complete. Owner
+activation is required before P11.2 begins, same gate discipline as P0–P9.**
 
 ## Blockers
 
@@ -669,6 +669,73 @@ before P10.1 begins, same gate discipline as P0–P9.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-12T11:23:51-06:00 — P11.1 complete: bounded HPA proof — Codex
+
+- **Phase/task:** P11.1 complete; T-1101 evidence is recorded. No later P11 item was started.
+- **Changed:** `charts/bedoux/templates/{api-hpa,web-hpa}.yaml` add opt-in
+  `autoscaling/v2` CPU HPAs; `charts/bedoux/values.yaml` defines finite defaults; new
+  `charts/bedoux/values-kind-hpa.yaml` opts both workloads into `minReplicas: 1`,
+  `maxReplicas: 3`, and a 60% CPU target. New `scripts/install-metrics-server.sh` supports
+  `--help`, `--dry-run`, and checksum-verified `--apply`; `docs/local-tooling.md` records the
+  v0.9.0 pin and official manifest checksum.
+- **Local infrastructure:** installed the official Metrics Server v0.9.0 manifest on the
+  retained Calico-backed `kind-bedoux`, applied the kind-only `--kubelet-insecure-tls` patch,
+  confirmed `v1beta1.metrics.k8s.io` `Available=True`, and confirmed `kubectl top nodes`.
+  Helm revision 3 deployed the HPA overlay while preserving the existing P10.2 values and
+  images; the API catalog smoke through ingress-nginx → web → api returned seeded product JSON.
+- **T-1101 active-load proof:** one temporary load pod in the existing `ingress-nginx`
+  namespace drove 90 bounded waves of 100 concurrent GETs to `/api/products`. API CPU reached
+  458% of its 60% target and scaled 1→2→3/3 Ready; web reached 80% and scaled 1→2/2 Ready.
+  Both HPAs reported `maxReplicas: 3` throughout and never exceeded the cap. The load pod was
+  deleted after capture; no load process remained.
+- **T-1101 scale-back proof:** after load removal and the declared 60-second scale-down
+  stabilization window, both HPAs returned to `CURRENT=1`, `DESIRED=1` with API CPU 6% and web
+  CPU 4%; `api`, `web`, and `postgres` were all 1/1 Ready and the temporary pod was absent.
+- **Validation:** `helm lint charts/bedoux`; base, AWS, and kind-HPA render checks (HPAs are
+  absent from base/AWS and exactly two appear in the kind overlay); installer `bash -n`, help,
+  and dry-run; `./scripts/check-github-actions.sh` (18 immutable references); XML/export
+  checks; `git diff --check` — all passed. The `make` executable remains unavailable in this
+  shell, so the underlying docs-check commands were run directly.
+- **AWS:** none. No AWS resources, identity, or billing system touched; estimated cost USD 0.
+- **Next action:** stop at the safe checkpoint. Owner activates P11.2 before any PDB/topology or
+  AWS work; the local Metrics Server and HPA overlay remain available for the next task.
+
+### 2026-08-12T10:58:17-06:00 — P11.1 started — Codex
+
+- **Phase/task:** P11.1 is now the single active checklist item and is `IN PROGRESS`.
+- **Intended outcome:** add a pinned metrics-server and capped HPA resources for `api` and
+  `web`, then prove bounded scale-out and scale-back on the retained Calico-backed kind
+  cluster as T-1101. The HPA cap must remain explicit and finite; no AWS session is needed.
+- **Baseline:** the last recorded checkpoint says to use `kind-bedoux`; the default kubeconfig
+  context points at the deleted EKS endpoint. Baseline live checks will be recorded before any
+  local Kubernetes mutation.
+- **AWS:** none. No AWS resources, identity, or billing system touched; estimated cost USD 0.
+- **Next action:** create the feature branch from merged `main`, verify the kind baseline, then
+  make the smallest chart/manifests change needed for metrics and capped autoscaling.
+
+
+### 2026-08-12T10:56:14-06:00 — checkpoint reconciliation after PR #47 merge — Codex
+
+- **Resume review:** read `AGENTS.md`, `START-HERE.md`, the phase-orchestration workflow,
+  `docs/IMPLEMENTATION-PLAN.md`, `docs/PROGRESS.md`, `docs/HANDOFF.md`, the P10–P14 scope
+  decision, and the P11 test-plan references. The authoritative next item remains P11.1;
+  it was not started.
+- **Discrepancy found and reconciled:** the previous checkpoint described PR #47 as a draft
+  awaiting owner review, but local `HEAD`, `main`, `origin/main`, and the user worktree's
+  `main` all point to merge commit `874305c` (`Merge pull request #47 ...`). Updated this
+  checkpoint and the handoff documents to reflect the observed merge; no phase item was
+  marked complete or started.
+- **Verification:** `./scripts/check-github-actions.sh` → 18 immutable references;
+  equivalent `docs-check` loop → OK; `git diff --check` → clean. The `make` executable
+  recorded by the prior session is not present in this shell, so the equivalent checks were
+  run directly. Worktree has no tracked or untracked changes before this reconciliation.
+- **AWS:** none. No AWS command, resource, identity, or billing system was accessed; estimated
+  incremental cost USD 0.
+- **Next action:** mark P11.1 `IN PROGRESS` before changing chart or kind resources, then
+  implement the capped HPA/metrics-server slice and prove T-1101 locally. Use `kind-bedoux`
+  deliberately; do not open an AWS session for P11.1.
+
 
 ### 2026-08-11T16:36:15-06:00 — repository workflow skills synchronized and validated — Codex
 

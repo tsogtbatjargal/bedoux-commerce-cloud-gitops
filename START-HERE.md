@@ -160,11 +160,11 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   teardown. **P10 gate approved 2026-08-11; P11 is active.** The Calico-backed kind cluster is
   still running and Ready, but the default kubeconfig context points at the deleted EKS endpoint;
   use or switch deliberately to `kind-bedoux`.
-- Repository workflow skills are validated on `repo-workflow-skills`; P11.1 remains not started
-  while that focused maintenance change moves through owner review.
-- Next action: review and merge the repository workflow skills, then start P11.1 locally by
-  marking it `IN PROGRESS`, adding bounded HPA for api/web plus a pinned metrics-server, and
-  recording T-1101 kind scale-out/scale-back evidence. No AWS session is needed for P11.1.
+- Repository workflow skills are validated and published on `main` through merged PR #47
+  (`874305c`); P11.1 is complete with T-1101 evidence.
+- Next action: owner activates P11.2 before any further checklist work. P11.1 left the retained
+  kind cluster with the pinned Metrics Server and opt-in capped HPA overlay available; no AWS
+  session was needed.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

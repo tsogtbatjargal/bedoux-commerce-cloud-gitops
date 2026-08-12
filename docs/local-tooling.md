@@ -57,6 +57,7 @@ only a presence check.
 | terraform | v1.15.8 | `~/.local/bin/terraform` | official HashiCorp release zip |
 | trivy | 0.72.0 | `~/.local/bin/trivy` | official GitHub release tarball (added P2.5, for image scanning) |
 | Calico | v3.32.1 | in-cluster manifest, not a host binary | official manifest (added P10.2, NetworkPolicy enforcement on kind — see below) |
+| Metrics Server | v0.9.0 | installed by `scripts/install-metrics-server.sh` | official release manifest, SHA-256 pinned (added P11.1 for HPA metrics; compatible with Kubernetes 1.31+) |
 
 P10.3's supply-chain tools run only on GitHub-hosted runners; they are not workstation
 prerequisites. The workflow pins `cosign-installer` v4.1.2 by immutable commit and explicitly

@@ -10,6 +10,13 @@ api:
     digest: ""
     pullPolicy: IfNotPresent
   replicas: 1
+  autoscaling:
+    # P11.1 opts this in through values-kind-hpa.yaml. Keep the base chart
+    # profile unchanged until a profile explicitly enables bounded scaling.
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 60
   # On everywhere by default (kind/local demos need working checkout); the AWS
   # session profile overrides this to "false" via values-aws.yaml — see
   # docs/IMPLEMENTATION-PLAN.md's pending decision #4.
@@ -46,6 +53,12 @@ web:
   # Test-only rollback drills may override this while retaining a signed image digest.
   command: []
   replicas: 1
+  autoscaling:
+    # P11.1 opts this in through values-kind-hpa.yaml.
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 60
   resources:
     requests:
       cpu: 25m
