@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P11 — Bounded autoscaling & HA |
 | Active task | P11.3 IN PROGRESS — live AWS scale-out proof (T-1102); AWS session preflight is required before mutation. |
-| Last verified | 2026-08-17T14:28:10-06:00 — P11.3 activation and read-only AWS preflight passed; no AWS session is open. |
+| Last verified | 2026-08-17T14:33:57-06:00 — P11.3 session opened; Terraform backend initialized, but allowlist import stopped on a scoped IAM read permission. |
 | AWS resources currently live | Temporary session resources are gone. Persistent allowlist resources still exist in AWS but are detached from Terraform state after the session teardown prep: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | USD 4.144 actual in the current Cost Explorer period; below the USD 20 cap; recheck at session start. |
-| Next operator action | Complete the AWS-session preflight, review the bounded Terraform plan, and run only the live T-1102 scale-out proof before same-day teardown. |
+| Next operator action | Before the 18:00 Edmonton alarm, owner resolves the narrow IAM read permission, then rerun allowlist import and review the bounded plan; do not mutate infrastructure until it passes. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -698,8 +698,44 @@ Append newest entries immediately below this heading. Never include secrets or A
   the session if the plan contains NAT, unplanned services, persistent-resource changes, or a
   projected monthly cost above USD 16.
 - **Blockers:** the AWS session boundary is not yet open because its end time and independent
-  alarm have not been recorded. No infrastructure mutation is authorized until that preflight
-  item is satisfied.
+  alarm have not been recorded. No infrastructure mutation was authorized until that preflight
+  item was satisfied.
+
+### 2026-08-17T14:30:00-06:00 — P11.3 AWS session opened — Codex
+
+- **Phase/task:** P11.3 / T-1102; owner confirmed the independent alarm is set for 18:00 Edmonton
+  time. The session deadline overrides all remaining evidence work.
+- **Session boundary:** owner-approved AWS session is open in pinned region `ca-central-1` using
+  the non-root `bedoux-admin` profile. Planned temporary resources are the bounded P11.2 profile:
+  one EKS control plane, exactly two Spot `t3.medium` workers across the two configured AZs, and
+  only the required ALB/application resources. RDS, S3 images, Secrets Manager, observability,
+  NAT, and unbounded autoscaling remain disabled.
+- **Required evidence:** saved Terraform plan contains no NAT, unplanned service, or persistent
+  resource changes; T-1102 captures healthy before/after replica counts and latency under bounded
+  load; same-day teardown and the full T-1104 sweep complete before 18:00.
+- **Next action:** initialize the persistent backend, import the persistent allowlist into state,
+  and review the saved plan before applying anything.
+
+### 2026-08-17T14:33:57-06:00 — P11.3 Terraform import blocked by IAM read scope — Codex
+
+- **Phase/task:** P11.3 / T-1102 remains `IN PROGRESS`; the owner-approved session deadline is
+  18:00 Edmonton time.
+- **Completed:** Terraform root backend initialized against the existing persistent state bucket.
+  The state initially contained only data lookups. The two persistent ECR repositories imported
+  successfully into state.
+- **Blocker:** importing the first persistent IAM role stopped with `AccessDenied` for
+  `iam:ListRolePolicies`. The live `bedoux-iam-scoped` v4 role-management statement conditions
+  all `iam:*Role*` actions on the required permissions boundary, which also blocks Terraform's
+  read-only role introspection. No broader permission or bypass was used.
+- **AWS:** no infrastructure resources were created, modified, or deleted; only backend state
+  initialization and allowlist state import were attempted. The two ECR imports are persistent
+  state reconciliation, not resource creation. Estimated infrastructure cost remains USD 0.
+- **Next action:** owner must apply a narrow, reviewed read-only IAM role-introspection allowance
+  (without weakening the v4 boundary/deny controls), then rerun the allowlist import and review a
+  saved plan. If the live policy differs from the committed declaration, reconcile it with a new
+  decision record before proceeding. The 18:00 alarm remains authoritative.
+- **Rollback:** no AWS infrastructure rollback is required; the partial state contains only the
+  intended persistent ECR imports and can be reconciled after the permission correction.
 
 ### 2026-08-17T12:42:56-06:00 — P11.2 complete: local PDB/topology proof — Codex
 

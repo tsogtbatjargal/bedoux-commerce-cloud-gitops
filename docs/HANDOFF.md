@@ -275,9 +275,11 @@ hard `maxReplicas: 3` cap, pinned Metrics Server, and bounded kind scale-out/sca
 are recorded as T-1101. **P11.2 is complete** — the pinned three-node kind proof placed one API
 and one web replica on each worker, honored `minAvailable: 1` during a worker drain, showed
 topology-constrained replacements Pending, recovered after uncordoning, and tore down cleanly.
-P11.3 is active for the live T-1102 proof. The next action is to record the session end time and
-independent alarm, initialize/import the persistent Terraform state, review the bounded plan, and
-only then decide whether the owner-approved AWS mutation window can begin.
+P11.3 is active for the live T-1102 proof, with an owner-approved 18:00 Edmonton alarm. The
+Terraform backend initialized and ECR state reconciliation began, but IAM role import is blocked
+because the scoped v4 role-management condition denies Terraform's read-only `ListRolePolicies`.
+Resolve that narrowly under owner control, rerun the allowlist import, review the bounded plan, and
+only then decide whether the AWS mutation window can begin. No infrastructure resources are live.
 
 Mark whichever task you start `IN PROGRESS` in `docs/PROGRESS.md` before changing anything,
 same as every prior phase. Land each task via its own feature branch + PR (not a direct
