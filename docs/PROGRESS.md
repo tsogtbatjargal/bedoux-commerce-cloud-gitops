@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P11 — Bounded autoscaling & HA |
 | Active task | P11.3 IN PROGRESS — live AWS scale-out proof (T-1102); AWS session preflight is required before mutation. |
-| Last verified | 2026-08-17T14:33:57-06:00 — P11.3 session opened; Terraform backend initialized, but allowlist import stopped on a scoped IAM read permission. |
+| Last verified | 2026-08-17T16:17:00-06:00 — P11.3 plan applied only through the VPC; EKS creation stopped safely on a narrow `iam:PassRole` denial. |
 | AWS resources currently live | Temporary session resources are gone. Persistent allowlist resources still exist in AWS but are detached from Terraform state after the session teardown prep: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | USD 4.144 actual in the current Cost Explorer period; below the USD 20 cap; recheck at session start. |
-| Next operator action | Before the 18:00 Edmonton alarm, owner resolves the narrow IAM read permission, then rerun allowlist import and review the bounded plan; do not mutate infrastructure until it passes. |
+| Next operator action | Before the 18:00 Edmonton alarm, owner adds the narrow Bedoux execution-role `iam:PassRole` allowance, then generate/apply a fresh plan and verify the cluster; tear down before the deadline. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -736,6 +736,28 @@ Append newest entries immediately below this heading. Never include secrets or A
   decision record before proceeding. The 18:00 alarm remains authoritative.
 - **Rollback:** no AWS infrastructure rollback is required; the partial state contains only the
   intended persistent ECR imports and can be reconciled after the permission correction.
+
+### 2026-08-17T16:17:00-06:00 — P11.3 apply blocked by IAM PassRole scope — Codex
+
+- **Phase/task:** P11.3 / T-1102 remains `IN PROGRESS`; the owner-approved session alarm remains
+  18:00 Edmonton time.
+- **Plan/apply evidence:** the refresh-enabled plan contained 9 remaining creates, 3 expected
+  trust updates, and 0 destroys. Applying it created no EKS cluster: `aws eks list-clusters`
+  returned empty. The already-created VPC remains the only temporary infrastructure footprint,
+  with its resources tracked in Terraform state.
+- **Blocker:** EKS `CreateCluster` was denied because `bedoux-admin` lacks `iam:PassRole` on
+  `bedoux-eks-cluster-role`. The v4 role-management condition also blocks this execution action.
+  No workaround or broad permission was used.
+- **AWS:** the no-NAT VPC, two public subnets, route table, and internet gateway were created by
+  the approved plan; no EKS cluster, node group, ALB, RDS, or other application resource exists.
+  Persistent ECR lifecycle/tag updates and IAM metadata/trust reconciliation also completed.
+- **Next action:** owner adds a separate, exact-resource `iam:PassRole` allow for the Bedoux EKS
+  cluster/node and add-on execution roles, without weakening the v4 boundary or deny controls.
+  Then generate a fresh plan, apply it, verify EKS/add-ons/nodes, and continue T-1102 only if the
+  18:00 alarm still leaves teardown margin.
+- **Rollback:** if the deadline approaches or the next apply fails, destroy the VPC and any
+  successfully-created temporary resources through the guarded Terraform teardown path; do not
+  leave the VPC running past the alarm.
 
 ### 2026-08-17T12:42:56-06:00 — P11.2 complete: local PDB/topology proof — Codex
 

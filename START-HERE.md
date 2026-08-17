@@ -164,9 +164,9 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   (`874305c`); P11.1 is complete with T-1101 evidence and P11.2 is complete with local
   PDB/topology evidence.
 - Next action: P11.3 is active on `p11-3-live-scaleout`; the owner-approved alarm is 18:00
-  Edmonton time. A Terraform IAM state import is blocked by the scoped role-read permission;
-  resolve that narrowly, rerun the import, and review the bounded plan before any infrastructure
-  mutation. P11.3 owns the live T-1102 scale-out proof.
+  Edmonton time. The bounded plan created only the VPC before EKS was denied on `iam:PassRole`.
+  Add the exact execution-role allowance, generate a fresh plan, and continue only with enough
+  time for T-1102 evidence and teardown. P11.3 owns the live scale-out proof.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

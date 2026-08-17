@@ -275,11 +275,11 @@ hard `maxReplicas: 3` cap, pinned Metrics Server, and bounded kind scale-out/sca
 are recorded as T-1101. **P11.2 is complete** — the pinned three-node kind proof placed one API
 and one web replica on each worker, honored `minAvailable: 1` during a worker drain, showed
 topology-constrained replacements Pending, recovered after uncordoning, and tore down cleanly.
-P11.3 is active for the live T-1102 proof, with an owner-approved 18:00 Edmonton alarm. The
-Terraform backend initialized and ECR state reconciliation began, but IAM role import is blocked
-because the scoped v4 role-management condition denies Terraform's read-only `ListRolePolicies`.
-Resolve that narrowly under owner control, rerun the allowlist import, review the bounded plan, and
-only then decide whether the AWS mutation window can begin. No infrastructure resources are live.
+P11.3 is active for the live T-1102 proof, with an owner-approved 18:00 Edmonton alarm. State
+reconciliation and the bounded plan passed; the plan created only the no-NAT VPC before EKS
+`CreateCluster` was denied on `iam:PassRole` for the cluster role. Add the exact execution-role
+allowance under owner control, generate a fresh plan, and continue only with enough time for proof
+and teardown. No EKS cluster or node group is live; the temporary VPC must not survive the alarm.
 
 Mark whichever task you start `IN PROGRESS` in `docs/PROGRESS.md` before changing anything,
 same as every prior phase. Land each task via its own feature branch + PR (not a direct
