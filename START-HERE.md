@@ -163,8 +163,9 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
 - Repository workflow skills are validated and published on `main` through merged PR #47
   (`874305c`); P11.1 is complete with T-1101 evidence and P11.2 is complete with local
   PDB/topology evidence.
-- Next action: owner activates P11.3, then open the bounded AWS session and run the required
-  Terraform plan review before any AWS mutation; P11.3 owns the live T-1102 scale-out proof.
+- Next action: P11.3 is activated on `p11-3-live-scaleout`; record the AWS session end time and
+  independent alarm, then initialize the persistent backend and review the bounded Terraform
+  plan before any AWS mutation. P11.3 owns the live T-1102 scale-out proof.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

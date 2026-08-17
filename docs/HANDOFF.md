@@ -20,7 +20,7 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
    phase-start decisions are now recorded: ADR 0006, the kill switch/request bounds, and
    ADR 0011's P7.2 S3 adapter boundary.
 
-## Current state (as of 2026-08-12)
+## Current state (as of 2026-08-17)
 - Phases 0-4 complete, gates approved. Local app (FastAPI + Postgres + React) proven on
   Compose (P2), then on kind with a Helm chart (P3, ADR 0005), with real drills throughout.
   AWS account readiness done in P4: non-root IAM identity `bedoux-admin`, region
@@ -186,13 +186,10 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   inventory sweep was clean. **P10 gate approved by owner 2026-08-11; P11 is active.** No
   temporary AWS resources are live. The persistent allowlist is the state bucket, two ECR
   repositories, six persistent IAM roles, and the GitHub OIDC provider.
-- **Local P11 starting point:** the Calico-backed kind cluster `bedoux` is still running and its
-  one node plus the `api`, `web`, and `postgres` Deployments are Ready. P11.1's pinned Metrics
-  Server and opt-in capped HPA overlay are present; no PDB exists yet.
-  The default kubeconfig context still points to the deleted EKS cluster; use `--context
-  kind-bedoux` for read-only checks or deliberately switch to `kind-bedoux` before P11.2.
-  Local `main` is synchronized with GitHub through merged PR #47 (`874305c`); P11.1 is now
-  complete in the authoritative progress ledger with T-1101 evidence; P11.2 is now in progress.
+- **Local P11 starting point:** P11.1 and P11.2 are complete. P11.2's temporary three-node kind
+  cluster was deleted cleanly; the default kubeconfig still points to its deleted endpoint.
+  P11.3 is active on `p11-3-live-scaleout`. Read-only AWS preflight found no temporary EKS,
+  VPC, ALB, RDS, NAT, target-group, instance, or volume resources; no AWS session is open.
 - Repository workflows are exposed through exactly three thin skills under `.agents/skills/`:
   `phase-orchestrator`, `aws-session-guardrail` (including Kubernetes drills), and
   `github-pr-branch-workflow`. Claude Code discovery wrappers under `.claude/skills/` route to
@@ -278,8 +275,9 @@ hard `maxReplicas: 3` cap, pinned Metrics Server, and bounded kind scale-out/sca
 are recorded as T-1101. **P11.2 is complete** — the pinned three-node kind proof placed one API
 and one web replica on each worker, honored `minAvailable: 1` during a worker drain, showed
 topology-constrained replacements Pending, recovered after uncordoning, and tore down cleanly.
-P11.3 is not started; owner activation and the AWS-session runbook are required for the later
-live T-1102 proof.
+P11.3 is active for the live T-1102 proof. The next action is to record the session end time and
+independent alarm, initialize/import the persistent Terraform state, review the bounded plan, and
+only then decide whether the owner-approved AWS mutation window can begin.
 
 Mark whichever task you start `IN PROGRESS` in `docs/PROGRESS.md` before changing anything,
 same as every prior phase. Land each task via its own feature branch + PR (not a direct

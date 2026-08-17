@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P11 — Bounded autoscaling & HA |
-| Active task | P11.3 NOT STARTED — live AWS scale-out proof (requires owner activation and an AWS session). |
-| Last verified | 2026-08-17T12:42:56-06:00 — P11.2 local PDB/topology proof and clean temporary-cluster teardown passed; no AWS session is open. |
+| Active task | P11.3 IN PROGRESS — live AWS scale-out proof (T-1102); AWS session preflight is required before mutation. |
+| Last verified | 2026-08-17T14:28:10-06:00 — P11.3 activation and read-only AWS preflight passed; no AWS session is open. |
 | AWS resources currently live | Temporary session resources are gone. Persistent allowlist resources still exist in AWS but are detached from Terraform state after the session teardown prep: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider. |
-| Month-to-date estimated AWS spend | Still below the USD 20 cap; recheck before the next AWS session. |
-| Next operator action | Owner activates P11.3; then complete AWS-session preflight, review the bounded Terraform plan, and run only the live T-1102 scale-out proof before same-day teardown. |
+| Month-to-date estimated AWS spend | USD 4.144 actual in the current Cost Explorer period; below the USD 20 cap; recheck at session start. |
+| Next operator action | Complete the AWS-session preflight, review the bounded Terraform plan, and run only the live T-1102 scale-out proof before same-day teardown. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -627,7 +627,7 @@ Gate: T-1001..T-1005.
 - [x] P11.2 COMPLETE — PodDisruptionBudget + topology spread on a bounded 2-node/2-AZ nodegroup.
       Evidence: local three-node kind proof, scheduler/PDB eviction drill, static Terraform validation,
       and clean temporary-cluster teardown in session log 2026-08-17T12:42:56-06:00.
-- [ ] P11.3 NOT STARTED — live load test proving real scale-out.
+- [ ] P11.3 IN PROGRESS — live load test proving real scale-out; activation recorded 2026-08-17.
 - [ ] P11.4 NOT STARTED — node-loss drill across AZs.
 - [ ] P11.5 NOT STARTED — teardown + sweep.
 
@@ -661,9 +661,8 @@ Gate: T-1301..T-1302.
 Gate: T-1401..T-1404.
 
 **P10–P14 track bootstrapped 2026-08-09; P10 is gate-approved and P11.1/P11.2 are complete.
-Owner activation for P11.2 was recorded 2026-08-17; P11.3 remains inactive until the owner opens
-the bounded AWS session. Local-first proof and the AWS session boundary still apply, same gate
-discipline as P0–P9.**
+Owner activated P11.3 on 2026-08-17; the bounded AWS session is not yet open. Local-first proof
+and the AWS session boundary still apply, with the same gate discipline as P0–P9.**
 
 ## Blockers
 
@@ -674,10 +673,38 @@ discipline as P0–P9.**
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
 
+### 2026-08-17T14:28:10-06:00 — P11.3 activated: AWS preflight — Codex
+
+- **Phase/task:** P11.3 is the single active checklist item; T-1102 live scale-out proof is
+  activated on branch `p11-3-live-scaleout`. P11.2 remains complete.
+- **Intended outcome:** review the bounded Terraform plan, then in one owner-approved AWS
+  session deploy the two-node HA profile and capture before/after replica counts and latency
+  while bounded load drives real HPA scale-out. Same-day teardown remains mandatory.
+- **Read-only preflight:** `aws sts get-caller-identity` confirmed the expected non-root
+  `bedoux-admin` identity; the pinned region is `ca-central-1`. EKS cluster list, tagged Bedoux
+  VPC list, instances, volumes, NAT Gateways, target groups, RDS instances, ALBs, and active
+  CloudFormation stacks are all empty. The monthly budget is USD 20 with USD 4.144 actual spend;
+  Cost Explorer returned an estimated current-month result and no forecast value.
+- **Terraform state:** local validation is initialized, but the live root backend is deliberately
+  uninitialized in this worktree. The required next step is backend initialization against the
+  persistent state bucket, then allowlist import and a saved plan review; no plan/apply has run.
+- **Validation:** `git diff --check`, immutable GitHub Action pin validation, XML/export checks,
+  and documentation-spine checks passed. The `make` wrapper is unavailable in this shell, so the
+  underlying `docs-check` commands were run directly and passed.
+- **AWS:** no resources were created, modified, or deleted; read-only identity, billing, and
+  inventory checks only. Estimated session cost USD 0.
+- **Next action:** owner records the session end time and independent alarm, then initialize the
+  persistent backend, import only the allowlisted state, and review the saved P11.3 plan. Refuse
+  the session if the plan contains NAT, unplanned services, persistent-resource changes, or a
+  projected monthly cost above USD 16.
+- **Blockers:** the AWS session boundary is not yet open because its end time and independent
+  alarm have not been recorded. No infrastructure mutation is authorized until that preflight
+  item is satisfied.
+
 ### 2026-08-17T12:42:56-06:00 — P11.2 complete: local PDB/topology proof — Codex
 
-- **Phase/task:** P11.2 complete; P11.3 remains `NOT STARTED` pending owner activation and an
-  AWS-session runbook preflight.
+- **Phase/task:** P11.2 complete; P11.3 was not yet active at this checkpoint and required owner
+  activation plus an AWS-session runbook preflight.
 - **Changed:** retained the opt-in PDB/topology chart implementation, kind/AWS overlays, bounded
   two-Spot-node Terraform profile, pinned kind proof configuration, and CI HA render assertions.
 - **Local proof:** created the pinned `kindest/node:v1.34.0` `bedoux-p11-ha` cluster with one
