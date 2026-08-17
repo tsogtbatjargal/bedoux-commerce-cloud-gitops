@@ -1,0 +1,25 @@
+# P11.2 bounded HA session profile. Copy to an ignored .tfvars file only after
+# the owner opens the AWS session and completes docs/runbooks/aws-session.md.
+aws_region         = "ca-central-1"
+aws_profile        = "bedoux-admin"
+cluster_name       = "bedoux"
+kubernetes_version = "1.34"
+
+# The VPC module already creates exactly these two public subnets. The EKS
+# managed node group receives both subnet IDs and is fixed at two Spot nodes;
+# verify the live placement is one node per AZ before T-1102/T-1103.
+availability_zones      = ["ca-central-1a", "ca-central-1b"]
+public_subnet_cidrs     = ["10.42.0.0/20", "10.42.16.0/20"]
+node_instance_types     = ["t3.medium"]
+node_capacity_type      = "SPOT"
+node_desired_size       = 2
+node_min_size           = 2
+node_max_size           = 2
+node_disk_size_gib      = 20
+ebs_csi_addon_version   = "v1.63.1-eksbuild.1"
+vpc_cni_addon_version   = "v1.22.4-eksbuild.3"
+
+rds_enabled             = false
+s3_images_enabled       = false
+secrets_manager_enabled = false
+observability_enabled   = false

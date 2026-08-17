@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P11 — Bounded autoscaling & HA |
-| Active task | P11.1 COMPLETE — HPA on api/web with an explicit maxReplicas cap, proven on kind; P11.2 awaits owner activation. |
-| Last verified | 2026-08-12T11:23:51-06:00 — T-1101 passed on `kind-bedoux`: Metrics Server served CPU metrics; api scaled 1→3 and web 1→2 under bounded load, neither exceeded max 3, and both returned to 1/1 after load removal. No AWS access. |
+| Active task | P11.2 IN PROGRESS — PodDisruptionBudget + topology spread on a bounded 2-node/2-AZ nodegroup. |
+| Last verified | 2026-08-17T11:31:15-06:00 — P11.2 chart/profile validation passed; local two-worker kind proof is blocked by rootless-Podman cgroup delegation, and no AWS session is open. |
 | AWS resources currently live | Temporary session resources are gone. Persistent allowlist resources still exist in AWS but are detached from Terraform state after the session teardown prep: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | Still below the USD 20 cap; recheck before the next AWS session. |
-| Next operator action | Owner activates P11.2 before any further checklist work; P11.1's local HPA/metrics-server proof is complete and no AWS session was opened. |
+| Next operator action | Resolve the rootless-Podman cgroup prerequisite, prove PDB/topology behavior on the pinned two-worker kind profile, review the bounded Terraform nodegroup plan, then stop for explicit AWS-session authorization before any AWS mutation. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -624,7 +624,7 @@ Gate: T-1001..T-1005.
 ### P11 — Bounded autoscaling & HA
 
 - [x] P11.1 COMPLETE — HPA on api/web with an explicit maxReplicas cap, proven on kind. Evidence: T-1101 session log 2026-08-12T11:23:51-06:00.
-- [ ] P11.2 NOT STARTED — PodDisruptionBudget + topology spread on a 2-node/2-AZ nodegroup.
+- [ ] P11.2 IN PROGRESS — PodDisruptionBudget + topology spread on a 2-node/2-AZ nodegroup.
 - [ ] P11.3 NOT STARTED — live load test proving real scale-out.
 - [ ] P11.4 NOT STARTED — node-loss drill across AZs.
 - [ ] P11.5 NOT STARTED — teardown + sweep.
@@ -659,7 +659,8 @@ Gate: T-1301..T-1302.
 Gate: T-1401..T-1404.
 
 **P10–P14 track bootstrapped 2026-08-09; P10 is gate-approved and P11.1 is complete. Owner
-activation is required before P11.2 begins, same gate discipline as P0–P9.**
+activation for P11.2 was recorded 2026-08-17; local-first proof and the AWS session boundary still
+apply, same gate discipline as P0–P9.**
 
 ## Blockers
 
@@ -669,6 +670,54 @@ activation is required before P11.2 begins, same gate discipline as P0–P9.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-17T11:31:15-06:00 — P11.2 implementation and validation — Codex
+
+- **Phase/task:** P11.2 remains `IN PROGRESS`; implementation is present but the required live
+  two-worker kind proof is not complete.
+- **Changed:** added opt-in `policy/v1` PDB templates and topology-spread constraints for both
+  workloads; added `values-kind-ha.yaml` and `values-aws-ha.yaml`; added the bounded two-Spot-node
+  Terraform review profile `infra/terraform/terraform.tfvars.p11-ha.example`; documented the
+  profile in `infra/terraform/README.md`; added the pinned local proof shape
+  `k8s/kind-config-p11-ha.yaml`; and extended PR validation with both HA render assertions.
+- **Validation:** `helm lint charts/bedoux` passed; base, kind-HA, AWS, and AWS-HA Helm renders
+  passed, including exactly two PDBs and two topology constraints in each HA profile; pinned
+  Terraform providers initialized with `terraform -chdir=infra/terraform init -input=false
+  -backend=false`; `terraform -chdir=infra/terraform validate
+  -var=skip_aws_credentials_validation=true` passed; GitHub Actions pin check, XML/export checks,
+  workflow YAML parse, and `git diff --check` passed.
+- **Local proof attempt:** the retained `kind-bedoux` API was unavailable. Two attempts to create
+  the explicitly named `bedoux-p11-ha` cluster (including the pinned `kindest/node:v1.34.0` image)
+  failed during rootless-Podman node preparation with `could not find a log line that matches
+  "Reached target .*Multi-User System.*|detected cgroup v1"`. The host reports `Delegate=no` on
+  the user slice; the reversible per-command delegated scope did not resolve it, and attempts to
+  set the unavailable user service/slice property were rejected. Failed temporary node containers
+  were removed by kind; no cluster remains from these attempts.
+- **AWS:** none. No AWS command, identity, resource, or billing system was touched; estimated cost
+  USD 0.
+- **Decisions:** none new; the AWS overlay remains opt-in and the two-AZ/Terraform nodegroup change
+  remains un-applied pending the owner-approved runbook session.
+- **Next action:** resolve the local rootless-Podman cgroup prerequisite or use an equivalent
+  approved two-worker kind environment, complete the live PDB/topology proof, then review a bounded
+  Terraform plan. Keep P11.2 `IN PROGRESS`; do not open or mutate AWS from this checkpoint.
+- **Blockers:** local kind cluster creation is blocked by host cgroup delegation, not by the chart
+  or Terraform validation.
+
+### 2026-08-17T11:16:53-06:00 — P11.2 activated — Codex
+
+- **Phase/task:** owner activated P11.2 by requesting continuation after P11.1; P11.2 is now the
+  single active checklist item. P11.1/T-1101 remains complete.
+- **Intended outcome:** add a bounded PodDisruptionBudget and topology-spread declarations for
+  `api` and `web`, prove the local scheduling/PDB behavior first, and validate a Terraform plan
+  for a small two-node, two-AZ Spot nodegroup without applying AWS changes.
+- **Boundary:** no AWS session is open. Any EKS/VPC/nodegroup mutation requires the full
+  `docs/runbooks/aws-session.md` preflight, owner awareness, independent deadline alarm, and
+  same-day teardown.
+- **Branch:** created `p11-2-pdb-topology` from completed commit `48b63bb`.
+- **Next action:** inspect the current Helm chart and Terraform EKS module, then implement the
+  smallest local-first PDB/topology slice before reviewing any AWS plan.
+- **AWS:** none. Estimated cost USD 0.
+
 
 ### 2026-08-12T11:23:51-06:00 — P11.1 complete: bounded HPA proof — Codex
 

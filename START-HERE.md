@@ -161,10 +161,10 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   still running and Ready, but the default kubeconfig context points at the deleted EKS endpoint;
   use or switch deliberately to `kind-bedoux`.
 - Repository workflow skills are validated and published on `main` through merged PR #47
-  (`874305c`); P11.1 is complete with T-1101 evidence.
-- Next action: owner activates P11.2 before any further checklist work. P11.1 left the retained
-  kind cluster with the pinned Metrics Server and opt-in capped HPA overlay available; no AWS
-  session was needed.
+  (`874305c`); P11.1 is complete with T-1101 evidence and P11.2 is now `IN PROGRESS`.
+- Next action: resolve the rootless-Podman cgroup prerequisite and prove PDB/topology behavior on
+  the pinned two-worker kind profile, then review the bounded Terraform plan and stop for explicit
+  AWS-session authorization before any AWS mutation.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

@@ -88,7 +88,15 @@ jobs:
           helm lint charts/bedoux
           helm template bedoux charts/bedoux >/dev/null
           helm template bedoux charts/bedoux -f charts/bedoux/values-aws.yaml >/dev/null
+          helm template bedoux charts/bedoux -f charts/bedoux/values-kind-ha.yaml >/dev/null
+          helm template bedoux charts/bedoux -f charts/bedoux/values-aws.yaml -f charts/bedoux/values-aws-ha.yaml >/dev/null
           helm template bedoux charts/bedoux -f charts/bedoux/values-aws.yaml -f charts/bedoux/values-aws-rds.yaml >/dev/null
+          kind_ha_rendered="$(helm template bedoux charts/bedoux -f charts/bedoux/values-kind-ha.yaml)"
+          test "$(grep -c '^kind: PodDisruptionBudget$' <<< "$kind_ha_rendered")" -eq 2
+          test "$(grep -c '^      topologySpreadConstraints:$' <<< "$kind_ha_rendered")" -eq 2
+          aws_ha_rendered="$(helm template bedoux charts/bedoux -f charts/bedoux/values-aws.yaml -f charts/bedoux/values-aws-ha.yaml)"
+          test "$(grep -c '^kind: PodDisruptionBudget$' <<< "$aws_ha_rendered")" -eq 2
+          test "$(grep -c '^      topologySpreadConstraints:$' <<< "$aws_ha_rendered")" -eq 2
           digest="sha256:$(printf 'a%.0s' {1..64})"
           rendered="$(helm template bedoux charts/bedoux \
             --set-string "api.image.digest=$digest" \

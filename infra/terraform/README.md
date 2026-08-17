@@ -90,6 +90,14 @@ The plan is a review artifact only. Do not run `terraform apply` until P6.2
 opens an AWS session and the plan has been reviewed against the manual checklist
 in `docs/runbooks/aws-session.md`.
 
+## P11.2 bounded HA profile
+
+`terraform.tfvars.p11-ha.example` is an opt-in review profile for the P11.2/P11.3
+AWS session. It keeps the existing public, no-NAT VPC shape, uses both configured
+AZ subnets, and fixes the Spot node group at exactly two nodes (`desired = min =
+max = 2`). Copy it to an ignored local `.tfvars` file only after the owner opens
+the AWS session; never apply it as part of ordinary P6 validation.
+
 ## P6.2 state migration
 
 After `bootstrap/` has created its bucket, retrieve the bucket name from the

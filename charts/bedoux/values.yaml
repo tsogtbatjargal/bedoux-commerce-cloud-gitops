@@ -17,6 +17,15 @@ api:
     minReplicas: 1
     maxReplicas: 3
     targetCPUUtilizationPercentage: 60
+  podDisruptionBudget:
+    enabled: false
+    minAvailable: 1
+  topologySpread:
+    enabled: false
+    maxSkew: 1
+    minDomains: 2
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: DoNotSchedule
   # On everywhere by default (kind/local demos need working checkout); the AWS
   # session profile overrides this to "false" via values-aws.yaml — see
   # docs/IMPLEMENTATION-PLAN.md's pending decision #4.
@@ -59,6 +68,15 @@ web:
     minReplicas: 1
     maxReplicas: 3
     targetCPUUtilizationPercentage: 60
+  podDisruptionBudget:
+    enabled: false
+    minAvailable: 1
+  topologySpread:
+    enabled: false
+    maxSkew: 1
+    minDomains: 2
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: DoNotSchedule
   resources:
     requests:
       cpu: 25m

@@ -24,6 +24,16 @@ spec:
       labels:
         app: web
     spec:
+      {{- if .Values.web.topologySpread.enabled }}
+      topologySpreadConstraints:
+        - maxSkew: {{ .Values.web.topologySpread.maxSkew }}
+          minDomains: {{ .Values.web.topologySpread.minDomains }}
+          topologyKey: {{ .Values.web.topologySpread.topologyKey | quote }}
+          whenUnsatisfiable: {{ .Values.web.topologySpread.whenUnsatisfiable }}
+          labelSelector:
+            matchLabels:
+              app: web
+      {{- end }}
       containers:
         - name: web
           image: {{ include "bedoux.imageReference" .Values.web.image | quote }}

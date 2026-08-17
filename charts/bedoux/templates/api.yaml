@@ -15,6 +15,16 @@ spec:
         app: api
     spec:
       serviceAccountName: {{ .Values.api.serviceAccount.name }}
+      {{- if .Values.api.topologySpread.enabled }}
+      topologySpreadConstraints:
+        - maxSkew: {{ .Values.api.topologySpread.maxSkew }}
+          minDomains: {{ .Values.api.topologySpread.minDomains }}
+          topologyKey: {{ .Values.api.topologySpread.topologyKey | quote }}
+          whenUnsatisfiable: {{ .Values.api.topologySpread.whenUnsatisfiable }}
+          labelSelector:
+            matchLabels:
+              app: api
+      {{- end }}
       # Blocks startup until the configured database credential boundary resolves
       # and the database accepts the URL consumed by the API.
       initContainers:
