@@ -275,10 +275,11 @@ explicit owner decision plus ADR 0004's still-standing full-history secrets swee
 The **active work is P11 — bounded autoscaling and HA**. P10.1–P10.5 are complete and the P10
 gate is owner-approved. **P11.1 is complete** — its HPA resources for `api` and `web`, explicit
 hard `maxReplicas: 3` cap, pinned Metrics Server, and bounded kind scale-out/scale-back proof
-are recorded as T-1101. **P11.2 is in progress** — Helm and Terraform validation pass; complete
-the local PDB/topology proof on the pinned two-worker kind profile, which is currently blocked by
-rootless-Podman cgroup delegation, then validate the bounded Terraform nodegroup plan. P11.3–P11.5
-own the later live AWS proof.
+are recorded as T-1101. **P11.2 is complete** — the pinned three-node kind proof placed one API
+and one web replica on each worker, honored `minAvailable: 1` during a worker drain, showed
+topology-constrained replacements Pending, recovered after uncordoning, and tore down cleanly.
+P11.3 is not started; owner activation and the AWS-session runbook are required for the later
+live T-1102 proof.
 
 Mark whichever task you start `IN PROGRESS` in `docs/PROGRESS.md` before changing anything,
 same as every prior phase. Land each task via its own feature branch + PR (not a direct

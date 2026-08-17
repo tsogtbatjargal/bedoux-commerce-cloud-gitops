@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P11 — Bounded autoscaling & HA |
-| Active task | P11.2 IN PROGRESS — PodDisruptionBudget + topology spread on a bounded 2-node/2-AZ nodegroup. |
-| Last verified | 2026-08-17T11:31:15-06:00 — P11.2 chart/profile validation passed; local two-worker kind proof is blocked by rootless-Podman cgroup delegation, and no AWS session is open. |
+| Active task | P11.3 NOT STARTED — live AWS scale-out proof (requires owner activation and an AWS session). |
+| Last verified | 2026-08-17T12:42:56-06:00 — P11.2 local PDB/topology proof and clean temporary-cluster teardown passed; no AWS session is open. |
 | AWS resources currently live | Temporary session resources are gone. Persistent allowlist resources still exist in AWS but are detached from Terraform state after the session teardown prep: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | Still below the USD 20 cap; recheck before the next AWS session. |
-| Next operator action | Resolve the rootless-Podman cgroup prerequisite, prove PDB/topology behavior on the pinned two-worker kind profile, review the bounded Terraform nodegroup plan, then stop for explicit AWS-session authorization before any AWS mutation. |
+| Next operator action | Owner activates P11.3; then complete AWS-session preflight, review the bounded Terraform plan, and run only the live T-1102 scale-out proof before same-day teardown. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -624,7 +624,9 @@ Gate: T-1001..T-1005.
 ### P11 — Bounded autoscaling & HA
 
 - [x] P11.1 COMPLETE — HPA on api/web with an explicit maxReplicas cap, proven on kind. Evidence: T-1101 session log 2026-08-12T11:23:51-06:00.
-- [ ] P11.2 IN PROGRESS — PodDisruptionBudget + topology spread on a 2-node/2-AZ nodegroup.
+- [x] P11.2 COMPLETE — PodDisruptionBudget + topology spread on a bounded 2-node/2-AZ nodegroup.
+      Evidence: local three-node kind proof, scheduler/PDB eviction drill, static Terraform validation,
+      and clean temporary-cluster teardown in session log 2026-08-17T12:42:56-06:00.
 - [ ] P11.3 NOT STARTED — live load test proving real scale-out.
 - [ ] P11.4 NOT STARTED — node-loss drill across AZs.
 - [ ] P11.5 NOT STARTED — teardown + sweep.
@@ -658,9 +660,10 @@ Gate: T-1301..T-1302.
 
 Gate: T-1401..T-1404.
 
-**P10–P14 track bootstrapped 2026-08-09; P10 is gate-approved and P11.1 is complete. Owner
-activation for P11.2 was recorded 2026-08-17; local-first proof and the AWS session boundary still
-apply, same gate discipline as P0–P9.**
+**P10–P14 track bootstrapped 2026-08-09; P10 is gate-approved and P11.1/P11.2 are complete.
+Owner activation for P11.2 was recorded 2026-08-17; P11.3 remains inactive until the owner opens
+the bounded AWS session. Local-first proof and the AWS session boundary still apply, same gate
+discipline as P0–P9.**
 
 ## Blockers
 
@@ -670,6 +673,36 @@ apply, same gate discipline as P0–P9.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-17T12:42:56-06:00 — P11.2 complete: local PDB/topology proof — Codex
+
+- **Phase/task:** P11.2 complete; P11.3 remains `NOT STARTED` pending owner activation and an
+  AWS-session runbook preflight.
+- **Changed:** retained the opt-in PDB/topology chart implementation, kind/AWS overlays, bounded
+  two-Spot-node Terraform profile, pinned kind proof configuration, and CI HA render assertions.
+- **Local proof:** created the pinned `kindest/node:v1.34.0` `bedoux-p11-ha` cluster with one
+  control plane and two workers under rootful Podman. Installed the chart in isolated namespace
+  `bedoux-ha-proof` using `values-kind-ha.yaml` and local `p10-2` API/web images. API and web each
+  reached `2/2 Ready`, with one replica on each worker. Both PDBs reported `minAvailable=1` and
+  `allowed disruptions=1`; both HPAs were bounded at `min=2/max=3`.
+- **Disruption/topology drill:** drained `bedoux-p11-ha-worker` with an API/web-only eviction.
+  Exactly one API and one web pod were evicted; both PDBs then reported `allowed disruptions=0`.
+  Replacement pods remained Pending with scheduler events explicitly reporting that the remaining
+  worker did not match the topology spread constraint. After uncordoning, both deployments
+  recovered with one Ready replica on each worker. Final constraints were
+  `topology.kubernetes.io/hostname`, `maxSkew=1`, `minDomains=2`, `DoNotSchedule`.
+- **Validation:** Helm lint and base/kind-HA/AWS/AWS-HA renders passed; Terraform init, format,
+  and credential-free validate passed; PR action pin/YAML/docs checks and `git diff --check`
+  passed. No AWS plan/apply was run; the bounded plan review belongs inside the owner-approved
+  P11.3 AWS session.
+- **Teardown:** Helm release and namespace were removed. The user-confirmed rootful kind delete
+  removed all three nodes; its only warning was inability to rewrite the user-owned temporary
+  kubeconfig, and the subsequent API connection refusal confirmed the cluster was gone.
+- **AWS:** none. No AWS command, identity, resource, or billing system was touched; estimated cost
+  USD 0.
+- **Next action:** owner activates P11.3, then run the AWS session preflight and bounded Terraform
+  plan review before the live T-1102 scale-out test. Do not start P11.3 early.
+- **Blockers:** none for P11.2; P11.3 requires explicit owner activation and the AWS runbook.
 
 ### 2026-08-17T11:31:15-06:00 — P11.2 implementation and validation — Codex
 
