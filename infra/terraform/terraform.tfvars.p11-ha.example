@@ -5,13 +5,14 @@ aws_profile        = "bedoux-admin"
 cluster_name       = "bedoux"
 kubernetes_version = "1.34"
 
-# The VPC module already creates exactly these two public subnets. The EKS
-# managed node group receives both subnet IDs and is fixed at two Spot nodes;
-# verify the live placement is one node per AZ before T-1102/T-1103.
+# The VPC module creates exactly these two public subnets. P11.4 opts into one
+# fixed one-node managed group per subnet so the healthy baseline is guaranteed
+# to have one Spot node per AZ while the aggregate node ceiling stays at two.
 availability_zones      = ["ca-central-1a", "ca-central-1b"]
 public_subnet_cidrs     = ["10.42.0.0/20", "10.42.16.0/20"]
 node_instance_types     = ["t3.medium"]
 node_capacity_type      = "SPOT"
+node_groups_per_az      = true
 node_desired_size       = 2
 node_min_size           = 2
 node_max_size           = 2

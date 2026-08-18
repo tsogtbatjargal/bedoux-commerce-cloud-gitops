@@ -92,11 +92,13 @@ in `docs/runbooks/aws-session.md`.
 
 ## P11.2 bounded HA profile
 
-`terraform.tfvars.p11-ha.example` is an opt-in review profile for the P11.2/P11.3
-AWS session. It keeps the existing public, no-NAT VPC shape, uses both configured
-AZ subnets, and fixes the Spot node group at exactly two nodes (`desired = min =
-max = 2`). Copy it to an ignored local `.tfvars` file only after the owner opens
-the AWS session; never apply it as part of ordinary P6 validation.
+`terraform.tfvars.p11-ha.example` is the opt-in review profile for bounded P11 HA
+sessions. It keeps the existing public, no-NAT VPC shape and fixes the aggregate
+Spot capacity at exactly two nodes (`desired = min = max = 2`). For P11.4 it sets
+`node_groups_per_az = true`, creating two one-node managed groups, each pinned to
+one configured subnet. This corrects P11.3's observed same-AZ placement without
+raising the node ceiling. Copy it to an ignored local `.tfvars` file only after
+the owner opens the AWS session; never apply it as part of ordinary validation.
 
 ## P6.2 state migration
 

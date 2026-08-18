@@ -45,7 +45,7 @@ variable "kubernetes_version" {
 }
 
 variable "availability_zones" {
-  description = "Two public-subnet AZs for the EKS control plane and node group."
+  description = "Two public-subnet AZs for the EKS control plane and managed node groups."
   type        = list(string)
   default     = ["ca-central-1a", "ca-central-1b"]
 
@@ -87,6 +87,12 @@ variable "node_capacity_type" {
     condition     = contains(["SPOT", "ON_DEMAND"], var.node_capacity_type)
     error_message = "node_capacity_type must be SPOT or ON_DEMAND."
   }
+}
+
+variable "node_groups_per_az" {
+  description = "Opt in to two one-node managed node groups, each pinned to one configured AZ; reserved for the bounded P11 HA profile."
+  type        = bool
+  default     = false
 }
 
 variable "node_desired_size" {

@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P11 — Bounded autoscaling & HA |
-| Active task | P11.3 COMPLETE — live AWS scale-out proof (T-1102); P11.4 remains NOT STARTED. |
-| Last verified | 2026-08-17T18:04:32-06:00 — P11.3 EKS load test passed and guarded teardown swept all temporary resources clean. |
+| Active task | P11.4 IN PROGRESS — prepare the bounded cross-AZ node-loss drill (T-1103); no AWS session is open. |
+| Last verified | 2026-08-18T11:34:05-06:00 — P11.4 local topology correction, guarded drill helper, k6 workload, and runbook validated; AWS not contacted. |
 | AWS resources currently live | Temporary session resources are gone. Persistent allowlist resources still exist in AWS but are detached from Terraform state after the session teardown prep: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | USD 4.144 actual in the current Cost Explorer period; below the USD 20 cap; recheck at session start. |
-| Next operator action | Owner activates P11.4 before any node-loss drill; do not create AWS resources until a new bounded session and alarm are recorded. |
+| Next operator action | Owner reviews and accepts or rejects proposed ADR 0017; only after acceptance, open a fresh bounded P11.4 session, record its alarm, and review the exact Terraform plan before apply. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -628,7 +628,7 @@ Gate: T-1001..T-1005.
       Evidence: local three-node kind proof, scheduler/PDB eviction drill, static Terraform validation,
       and clean temporary-cluster teardown in session log 2026-08-17T12:42:56-06:00.
 - [x] P11.3 COMPLETE — live AWS load test proved capped scale-out and recovered to the 2-replica minimum; T-1102 and T-1104 evidence recorded in the 2026-08-17 session log.
-- [ ] P11.4 NOT STARTED — node-loss drill across AZs.
+- [ ] P11.4 IN PROGRESS — node-loss drill across AZs; local preparation active, live T-1103 proof pending.
 - [x] P11.5 COMPLETE — guarded Terraform teardown destroyed 15 temporary resources and the final AWS sweep found no temporary EKS, ALB, VPC, NAT, instance, volume, RDS, or CloudFormation resources.
 
 Gate: T-1101..T-1104.
@@ -672,6 +672,46 @@ boundary still apply, with the same gate discipline as P0–P9.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-18T09:39:36-06:00 — P11.4 activated for local preparation — Codex
+
+- **Phase/task:** P11.4 is the single active checklist item on branch `p11-4-node-loss`.
+  The intended outcome is a bounded T-1103 drill that drains one AZ's node under load,
+  preserves request success, proves workload recovery in the surviving AZ, and then completes
+  the already-proven same-session teardown path.
+- **Verified checkpoint:** P11.3 completion commit `235f815` is the clean branch base. Its live
+  evidence and final sweep show no temporary AWS resources remain. The carried-forward finding
+  is that one multi-AZ managed node group did not guarantee one initial Spot node per AZ, while
+  the hard `minDomains: 2` topology rule blocked failover when only one domain was schedulable.
+- **Prepared:** added the opt-in `node_groups_per_az` Terraform shape: one fixed one-node group
+  per configured subnet with aggregate desired/min/max still exactly two. The AWS HA Helm overlay
+  now prefers cross-AZ placement but uses `ScheduleAnyway` so stateless replicas may recover in
+  one surviving AZ. The default one-node learning profile and the P11.2 kind overlay remain
+  unchanged. Proposed ADR 0017 records the availability-vs-skew decision and explicitly limits
+  T-1103 to the node that does not host single-AZ PostgreSQL.
+- **Drill controls:** added `scripts/p11-node-loss-drill.sh` with an explicit-context read-only
+  baseline, dry-run-by-default drain/recovery paths, two-node/two-AZ/PDB checks, PostgreSQL-node
+  refusal, failed-drain uncordon, stateless recovery assertion, and post-recovery spread check.
+  Added pinned k6 0.52.0 input `scripts/p11-node-loss-load.js` (20 VUs, five minutes, exact-zero
+  failure threshold, p95 below two seconds) and `docs/runbooks/p11-4-node-loss.md` with the full
+  baseline → single fault → recovery → teardown sequence.
+- **Validation:** Terraform formatting passed; credential-free Terraform validation passed for
+  both defaults and the exact P11 HA example; Helm lint and AWS HA rendering passed with exactly
+  two PDBs, two topology constraints, and two `ScheduleAnyway` rules; shell syntax, helper help,
+  drain/recovery dry-runs, k6 `inspect`, immutable-action checks, workflow YAML parsing, exact
+  underlying documentation checks, and `git diff --check` passed. The `make docs-check` wrapper
+  was unavailable in this shell (`make: command not found`), so its Makefile commands were run
+  directly and passed. Terraform provider subprocess validation needed execution outside the
+  filesystem sandbox, but offline credentials and metadata access remained disabled. One earlier
+  validation attempt tried a read-only STS lookup and was blocked at local DNS; no request reached
+  AWS.
+- **AWS:** none. No AWS API request reached AWS, no Kubernetes endpoint was contacted, and no
+  cloud resource was created, modified, or deleted. Estimated session cost: USD 0.
+- **Next action:** owner reviews and explicitly accepts or rejects proposed ADR 0017. Acceptance
+  does not itself open AWS: the live drill still requires a fresh identity, billing, inventory,
+  Terraform-plan, deadline, independent-alarm, and teardown-command preflight.
+- **Blocker:** live T-1103 evidence is intentionally blocked on owner acceptance of ADR 0017 and
+  a separately recorded AWS session boundary. P11.4 remains `IN PROGRESS`.
 
 ### 2026-08-17T14:28:10-06:00 — P11.3 activated: AWS preflight — Codex
 

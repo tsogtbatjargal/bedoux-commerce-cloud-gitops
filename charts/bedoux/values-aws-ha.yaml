@@ -1,6 +1,6 @@
 # P11.2 EKS session overlay. Apply only with values-aws.yaml during the
-# owner-approved, same-day AWS session; the nodegroup profile fixes two Spot
-# nodes across the two configured AZ subnets.
+# owner-approved, same-day AWS session; the profile fixes two Spot nodes across
+# two AZ-pinned managed node groups.
 api:
   replicas: 2
   autoscaling:
@@ -16,7 +16,9 @@ api:
     maxSkew: 1
     minDomains: 2
     topologyKey: topology.kubernetes.io/zone
-    whenUnsatisfiable: DoNotSchedule
+    # Prefer cross-AZ placement while both domains are healthy, but allow the
+    # PDB-protected replicas to recover into one surviving AZ during P11.4.
+    whenUnsatisfiable: ScheduleAnyway
 
 web:
   replicas: 2
@@ -33,4 +35,4 @@ web:
     maxSkew: 1
     minDomains: 2
     topologyKey: topology.kubernetes.io/zone
-    whenUnsatisfiable: DoNotSchedule
+    whenUnsatisfiable: ScheduleAnyway

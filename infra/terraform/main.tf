@@ -28,6 +28,7 @@ module "eks" {
   github_actions_role_arn = module.github_actions_oidc.role_arn
   instance_types          = var.node_instance_types
   capacity_type           = var.node_capacity_type
+  node_groups_per_az      = var.node_groups_per_az
   desired_size            = var.node_desired_size
   min_size                = var.node_min_size
   max_size                = var.node_max_size

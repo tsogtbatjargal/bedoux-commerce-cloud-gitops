@@ -82,6 +82,7 @@ jobs:
           terraform -chdir=infra/terraform fmt -check -recursive
           terraform -chdir=infra/terraform init -backend=false
           terraform -chdir=infra/terraform validate -var=skip_aws_credentials_validation=true
+          terraform -chdir=infra/terraform validate -var=skip_aws_credentials_validation=true -var-file=terraform.tfvars.p11-ha.example
       - name: Lint and render all Helm profiles
         run: |
           set -euo pipefail
@@ -97,6 +98,7 @@ jobs:
           aws_ha_rendered="$(helm template bedoux charts/bedoux -f charts/bedoux/values-aws.yaml -f charts/bedoux/values-aws-ha.yaml)"
           test "$(grep -c '^kind: PodDisruptionBudget$' <<< "$aws_ha_rendered")" -eq 2
           test "$(grep -c '^      topologySpreadConstraints:$' <<< "$aws_ha_rendered")" -eq 2
+          test "$(grep -c '^          whenUnsatisfiable: ScheduleAnyway$' <<< "$aws_ha_rendered")" -eq 2
           digest="sha256:$(printf 'a%.0s' {1..64})"
           rendered="$(helm template bedoux charts/bedoux \
             --set-string "api.image.digest=$digest" \
