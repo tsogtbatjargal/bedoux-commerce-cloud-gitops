@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P11 — Bounded autoscaling & HA |
-| Active task | P11.4 IN PROGRESS — prepare the bounded cross-AZ node-loss drill (T-1103); no AWS session is open. |
-| Last verified | 2026-08-18T11:34:05-06:00 — P11.4 local topology correction, guarded drill helper, k6 workload, and runbook validated; AWS not contacted. |
+| Active task | P11.4 IN PROGRESS — ADR 0017 design accepted; bounded plan review and live T-1103 drill pending; no AWS session is open. |
+| Last verified | 2026-08-18T13:24:46-06:00 — owner accepted ADR 0017's design; exact-one-Running-PostgreSQL guard and approval sequencing validated offline. |
 | AWS resources currently live | Temporary session resources are gone. Persistent allowlist resources still exist in AWS but are detached from Terraform state after the session teardown prep: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | USD 4.144 actual in the current Cost Explorer period; below the USD 20 cap; recheck at session start. |
-| Next operator action | Owner reviews and accepts or rejects proposed ADR 0017; only after acceptance, open a fresh bounded P11.4 session, record its alarm, and review the exact Terraform plan before apply. |
+| Next operator action | Owner records a fresh P11.4 session deadline and independent alarm; then run identity/billing/inventory preflight and review the exact saved plan. Do not apply until that plan passes and the owner separately authorizes it. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -672,6 +672,31 @@ boundary still apply, with the same gate discipline as P0–P9.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-18T13:24:46-06:00 — P11.4 design accepted; pre-drain guard hardened — Codex
+
+- **Phase/task:** P11.4 remains the single active item. The owner independently reviewed the
+  prepared design, found no blocking architecture issue, and accepted ADR 0017 from a technical-
+  design standpoint.
+- **Approval sequence:** ADR 0017 is now `Accepted`. That acceptance permits opening a fresh,
+  bounded, alarmed session and generating/reviewing the exact Terraform plan. It does not
+  authorize apply. Apply remains blocked until the saved plan passes the cost, scope,
+  persistence, and no-NAT checks and the owner explicitly authorizes that exact plan inside the
+  active session.
+- **Hardening:** `scripts/p11-node-loss-drill.sh` now enumerates Running `app=postgres` pods and
+  refuses unless the count is exactly one before selecting its node. The P11.4 runbook now states
+  the same baseline requirement.
+- **Validation:** the owner's independent shell syntax/help/dry-run, Terraform formatting, Helm
+  lint, and diff checks passed. Codex re-ran shell syntax/help/drain/recovery dry-runs and a
+  mocked kubectl fixture: two Running PostgreSQL pods were refused with the expected count, while
+  exactly one passed the baseline. Documentation/action/Helm gates and `git diff --check` passed.
+- **AWS:** none. No AWS API or Kubernetes endpoint was contacted, and no cloud resource was
+  created, modified, or deleted. Estimated session cost: USD 0.
+- **Next action:** owner records the P11.4 end time and independent alarm. Then perform only the
+  runbook's read-only identity/billing/inventory preflight and exact saved-plan review. Return to
+  the owner for separate apply authorization if and only if the plan passes every guardrail.
+- **Blocker:** no AWS session deadline/alarm is recorded yet, and no Terraform apply is
+  authorized. The live T-1103 drill remains pending.
 
 ### 2026-08-18T09:39:36-06:00 — P11.4 activated for local preparation — Codex
 

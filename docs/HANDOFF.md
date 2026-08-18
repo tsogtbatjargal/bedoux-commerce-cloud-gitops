@@ -193,11 +193,12 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   temporary Terraform resources and the final AWS sweep was clean. The initial same-AZ Spot
   placement exposed a real `minDomains: 2` scheduling limitation; P11.4 owns the node-loss and
   topology follow-up. The default kubeconfig still points to the deleted EKS endpoint.
-- **P11.4 local preparation is active:** branch `p11-4-node-loss` contains proposed ADR 0017,
-  an opt-in one-node group per AZ without increasing the two-node ceiling, soft AWS topology
-  failover, a guarded drain/recovery helper, a pinned five-minute k6 workload, and the bounded
-  node-loss runbook. Offline Terraform/Helm/shell/k6 validation passed. No AWS session is open;
-  the owner must accept or reject ADR 0017 before any live plan can be applied.
+- **P11.4 local preparation is active:** the owner accepted ADR 0017's technical design on branch
+  `p11-4-node-loss`. The branch contains an opt-in one-node group per AZ without increasing the
+  two-node ceiling, soft AWS topology failover, a guarded drain/recovery helper that requires
+  exactly one Running PostgreSQL pod, a pinned five-minute k6 workload, and the bounded node-loss
+  runbook. Offline Terraform/Helm/shell/k6 validation passed. No AWS session is open, and design
+  acceptance does not authorize apply.
 - Owner-applied `bedoux-iam-scoped` policy v6 is the current live declaration; ADR 0016 and
   `infra/iam/bedoux-iam-scoped-v6.json` record its exact read-only introspection and EKS
   execution-role PassRole additions.
@@ -287,11 +288,12 @@ are recorded as T-1101. **P11.2 is complete** — the pinned three-node kind pro
 and one web replica on each worker, honored `minAvailable: 1` during a worker drain, showed
 topology-constrained replacements Pending, recovered after uncordoning, and tore down cleanly.
 P11.3 and its required teardown are complete. P11.4 local preparation is `IN PROGRESS` on
-`p11-4-node-loss`; its proposed ADR, opt-in AZ-pinned node groups, soft failover spread, guarded
-helper, pinned k6 workload, and runbook have passed offline checks. Before any live node-loss
-drill, the owner must accept or reject proposed ADR 0017 and then activate a new bounded AWS
-session with an independent alarm. No temporary AWS resources are live; only the persistent
-allowlist remains.
+`p11-4-node-loss`; ADR 0017 is design-accepted, and the opt-in AZ-pinned node groups, soft
+failover spread, exact-one-PostgreSQL guard, pinned k6 workload, and runbook have passed offline
+checks. Before any live work, the owner must record a new bounded AWS session deadline and
+independent alarm. Then run the read-only preflight and exact saved-plan review. Do not apply
+until the plan passes every guardrail and the owner separately authorizes that exact plan. No
+temporary AWS resources are live; only the persistent allowlist remains.
 
 Mark whichever task you start `IN PROGRESS` in `docs/PROGRESS.md` before changing anything,
 same as every prior phase. Land each task via its own feature branch + PR (not a direct

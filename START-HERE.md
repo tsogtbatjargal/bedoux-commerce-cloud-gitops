@@ -168,12 +168,14 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   resources clean. ADR 0016 records the owner-applied policy v6 PassRole reconciliation. The
   initial Spot placement exposed a real same-AZ/minDomains finding; P11.4 owns the node-loss
   drill and follow-up topology decision.
-- P11.4 local preparation is active on `p11-4-node-loss`. Proposed ADR 0017, an opt-in pair of
-  AZ-pinned one-node groups, the AWS HA `ScheduleAnyway` fallback, guarded drain/recovery helper,
-  pinned k6 workload, and complete drill runbook are validated locally. No AWS session is open.
-- Next action: owner accepts or rejects proposed ADR 0017. After acceptance only, open a new
-  bounded AWS session, set the independent alarm, and review the exact Terraform plan before
-  any apply.
+- P11.4 local preparation is active on `p11-4-node-loss`. The owner accepted ADR 0017's technical
+  design. Its opt-in pair of AZ-pinned one-node groups, AWS HA `ScheduleAnyway` fallback, guarded
+  drain/recovery helper (including an exact-one-Running-PostgreSQL refusal), pinned k6 workload,
+  and drill runbook are validated locally. No AWS session is open.
+- Next action: owner records a new bounded session deadline and independent alarm; then run the
+  identity/billing/inventory preflight and review the exact saved Terraform plan. Design
+  acceptance does not authorize apply; return for separate owner authorization after the plan
+  passes every guardrail.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

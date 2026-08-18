@@ -141,11 +141,17 @@ if ((${#zones[@]} != 2)); then
   exit 1
 fi
 
-postgres_node="$(kubectl --context "$context" --namespace "$namespace" get pods \
+mapfile -t postgres_rows < <(kubectl --context "$context" --namespace "$namespace" get pods \
   --selector app=postgres --field-selector status.phase=Running \
-  --output jsonpath='{.items[0].spec.nodeName}')"
+  --output jsonpath='{range .items[*]}{.metadata.name}{"|"}{.spec.nodeName}{"\n"}{end}')
+if ((${#postgres_rows[@]} != 1)); then
+  printf 'REFUSING: expected exactly one Running postgres pod; found %d.\n' \
+    "${#postgres_rows[@]}" >&2
+  exit 1
+fi
+IFS='|' read -r _ postgres_node <<<"${postgres_rows[0]}"
 if [[ -z "$postgres_node" ]]; then
-  printf '%s\n' 'REFUSING: no running postgres pod has a node assignment.' >&2
+  printf '%s\n' 'REFUSING: the Running postgres pod has no node assignment.' >&2
   exit 1
 fi
 if [[ -z "${node_zone[$postgres_node]:-}" ]]; then

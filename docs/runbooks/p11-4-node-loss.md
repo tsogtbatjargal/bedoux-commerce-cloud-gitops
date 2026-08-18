@@ -5,8 +5,9 @@ test is running, prove zero failed requests and API/web recovery in the survivin
 normal cross-AZ placement, and tear the whole session down the same day. It does not claim
 PostgreSQL high availability.
 
-ADR 0017 is Proposed. The owner must accept its two tradeoffs before apply: two one-node,
-AZ-pinned managed node groups and `ScheduleAnyway` topology spread in the AWS HA overlay.
+ADR 0017 is Accepted from a technical-design standpoint: two one-node, AZ-pinned managed node
+groups and `ScheduleAnyway` topology spread in the AWS HA overlay. That acceptance permits the
+alarmed session and plan review; it does not authorize apply.
 
 ## Session boundary
 
@@ -21,8 +22,9 @@ AZ-pinned managed node groups and `ScheduleAnyway` topology spread in the AWS HA
    persistent-resource deletes, exactly two one-node Spot `t3.medium` node groups, and the
    already-reviewed EKS/add-on/VPC resources. Record the current regional cost estimate.
 
-No command below opens the AWS session by itself. Do not apply until the owner explicitly
-accepts ADR 0017 and the reviewed plan inside the recorded session boundary.
+No command below opens the AWS session by itself. After the saved plan passes every check above,
+present that exact plan to the owner. Do not apply until the owner explicitly authorizes it
+inside the recorded session boundary.
 
 ## Healthy baseline
 
@@ -38,9 +40,9 @@ accepts ADR 0017 and the reviewed plan inside the recorded session boundary.
    scripts/p11-node-loss-drill.sh inspect --context <explicit-eks-context>
    ```
 
-   It must report exactly two Ready nodes in two `ca-central-1` AZs, at least two available API
-   and web replicas, one permitted disruption in each PDB, and a safe fault candidate that does
-   not host PostgreSQL. Stop if any condition differs.
+   It must report exactly two Ready nodes in two `ca-central-1` AZs, exactly one Running
+   PostgreSQL pod, at least two available API and web replicas, one permitted disruption in each
+   PDB, and a safe fault candidate that does not host PostgreSQL. Stop if any condition differs.
 5. Capture sanitized `kubectl get nodes -L topology.kubernetes.io/zone` and
    `kubectl -n bedoux get pods -o wide` output. Confirm API and web each occupy both AZs.
 

@@ -1,7 +1,8 @@
 # ADR 0017: Pin the P11 HA node groups by AZ and permit one-AZ failover
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-08-18
+- Accepted by owner: 2026-08-18 (technical design; apply remains separately gated)
 
 ## Context
 
@@ -40,6 +41,10 @@ There are two managed node-group resources to create and destroy instead of one.
 loss, topology skew is temporarily accepted so application availability wins; normal scheduling
 still prefers balanced placement once both AZs are available.
 
-This ADR remains Proposed until the owner reviews the Terraform plan and explicitly accepts the
-tradeoff before the live P11.4 apply. Rollback is to disable the opt-in variable and restore the
-AWS HA overlay's hard constraint; all session resources are temporary and torn down the same day.
+The owner's technical-design acceptance permits opening a fresh bounded, alarmed P11.4 session
+and generating the exact Terraform plan. It does not authorize `terraform apply`. Apply remains
+blocked until that saved plan passes the runbook's cost, scope, persistence, and no-NAT checks
+and the owner explicitly authorizes applying that exact plan inside the active session.
+
+Rollback is to disable the opt-in variable and restore the AWS HA overlay's hard constraint; all
+session resources are temporary and torn down the same day.
