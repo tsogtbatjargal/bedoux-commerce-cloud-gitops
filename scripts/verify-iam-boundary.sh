@@ -6,10 +6,10 @@ usage() {
   cat <<'EOF'
 Usage: scripts/verify-iam-boundary.sh [--execute]
 
-Verifies ADR 0015 after the owner has applied bedoux-iam-scoped v4:
+Verifies ADR 0016 after the owner has applied bedoux-iam-scoped v6:
 
   - every persistent Bedoux role has the required PowerUserAccess boundary;
-  - the live bedoux-iam-scoped default document exactly matches the committed v4;
+  - the live bedoux-iam-scoped default document exactly matches the committed v6;
   - creating an unbounded Bedoux role is rejected by an explicit deny.
 
 The default is a no-write preview. --execute performs read-only checks and one
@@ -35,7 +35,7 @@ if [[ "${1:-}" == "--execute" ]]; then
 fi
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-expected_policy="$repo_root/infra/iam/bedoux-iam-scoped-v4.json"
+expected_policy="$repo_root/infra/iam/bedoux-iam-scoped-v6.json"
 negative_trust="$repo_root/infra/iam/negative-test-trust-policy.json"
 required_boundary="arn:aws:iam::aws:policy/PowerUserAccess"
 negative_role="bedoux-boundary-negative-test"
@@ -52,7 +52,7 @@ roles=(
 
 if ! "$execute"; then
   printf 'DRY RUN: verify boundary %s on %d exact roles.\n' "$required_boundary" "${#roles[@]}"
-  printf '%s\n' 'DRY RUN: compare the live bedoux-iam-scoped default version with infra/iam/bedoux-iam-scoped-v4.json.'
+  printf '%s\n' 'DRY RUN: compare the live bedoux-iam-scoped default version with infra/iam/bedoux-iam-scoped-v6.json.'
   printf 'DRY RUN: require an explicit AccessDenied for creating %s without a boundary.\n' "$negative_role"
   exit 0
 fi
@@ -88,10 +88,10 @@ aws iam get-policy-version --profile "$profile" --policy-arn "$scoped_policy_arn
   --version-id "$default_version" --query 'PolicyVersion.Document' --output json > "$task_policy_path"
 
 if ! diff -u <(jq -S . "$expected_policy") <(jq -S . "$task_policy_path") >/dev/null; then
-  printf '%s\n' 'FAIL: live bedoux-iam-scoped default version does not match committed v4.' >&2
+  printf '%s\n' 'FAIL: live bedoux-iam-scoped default version does not match committed v6.' >&2
   exit 1
 fi
-printf '%s\n' 'PASS: live bedoux-iam-scoped default version matches committed v4.'
+printf '%s\n' 'PASS: live bedoux-iam-scoped default version matches committed v6.'
 
 if aws iam get-role --profile "$profile" --role-name "$negative_role" >/dev/null 2>&1; then
   printf 'REFUSING: negative-test role %s already exists.\n' "$negative_role" >&2
@@ -101,7 +101,7 @@ fi
 if aws iam create-role --profile "$profile" --role-name "$negative_role" \
   --assume-role-policy-document "file://$negative_trust" > /dev/null 2> "$task_error_path"; then
   printf '%s\n' 'FAIL: unbounded role creation unexpectedly succeeded.' >&2
-  printf 'OWNER ACTION REQUIRED: delete exact role %s in the admin console; v4 intentionally prevents the project operator from managing an unbounded role.\n' "$negative_role" >&2
+  printf 'OWNER ACTION REQUIRED: delete exact role %s in the admin console; v6 intentionally prevents the project operator from managing an unbounded role.\n' "$negative_role" >&2
   exit 1
 fi
 

@@ -163,10 +163,12 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
 - Repository workflow skills are validated and published on `main` through merged PR #47
   (`874305c`); P11.1 is complete with T-1101 evidence and P11.2 is complete with local
   PDB/topology evidence.
-- Next action: P11.3 is active on `p11-3-live-scaleout`; the owner-approved alarm is 18:00
-  Edmonton time. The bounded plan created only the VPC before EKS was denied on `iam:PassRole`.
-  Add the exact execution-role allowance, generate a fresh plan, and continue only with enough
-  time for T-1102 evidence and teardown. P11.3 owns the live scale-out proof.
+- P11.3 is complete on `p11-3-live-scaleout`: the live k6 proof reached the hard 3-replica HPA
+  cap with 0% request failures, and the guarded same-session teardown swept all temporary AWS
+  resources clean. ADR 0016 records the owner-applied policy v6 PassRole reconciliation. The
+  initial Spot placement exposed a real same-AZ/minDomains finding; P11.4 owns the node-loss
+  drill and follow-up topology decision.
+- Next action: owner activates P11.4 with a new AWS session boundary and independent alarm.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

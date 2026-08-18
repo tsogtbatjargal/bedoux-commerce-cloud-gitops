@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P11 — Bounded autoscaling & HA |
-| Active task | P11.3 IN PROGRESS — live AWS scale-out proof (T-1102); AWS session preflight is required before mutation. |
-| Last verified | 2026-08-17T16:17:00-06:00 — P11.3 plan applied only through the VPC; EKS creation stopped safely on a narrow `iam:PassRole` denial. |
+| Active task | P11.3 COMPLETE — live AWS scale-out proof (T-1102); P11.4 remains NOT STARTED. |
+| Last verified | 2026-08-17T18:04:32-06:00 — P11.3 EKS load test passed and guarded teardown swept all temporary resources clean. |
 | AWS resources currently live | Temporary session resources are gone. Persistent allowlist resources still exist in AWS but are detached from Terraform state after the session teardown prep: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | USD 4.144 actual in the current Cost Explorer period; below the USD 20 cap; recheck at session start. |
-| Next operator action | Before the 18:00 Edmonton alarm, owner adds the narrow Bedoux execution-role `iam:PassRole` allowance, then generate/apply a fresh plan and verify the cluster; tear down before the deadline. |
+| Next operator action | Owner activates P11.4 before any node-loss drill; do not create AWS resources until a new bounded session and alarm are recorded. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -27,7 +27,7 @@ Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
   identity — never used for routine work (account ID intentionally never recorded
   here). **Working identity is IAM user `bedoux-admin`**, in group `bedoux-admins`
   with `PowerUserAccess` (AWS managed; excludes IAM/Organizations) plus a small custom
-  policy `bedoux-iam-scoped` (**v4** as of 2026-08-11, see ADRs 0007 and 0015) granting
+  policy `bedoux-iam-scoped` (**v6** as of 2026-08-17, see ADRs 0007, 0015, and 0016) granting
   boundary-constrained role/policy/OIDC-provider actions only on `bedoux-*`-named resources,
   **plus explicit denies against modifying `bedoux-iam-scoped` itself or creating/modifying a
   delegated role without the required `PowerUserAccess` permissions boundary**. ADR 0007 closed
@@ -627,9 +627,9 @@ Gate: T-1001..T-1005.
 - [x] P11.2 COMPLETE — PodDisruptionBudget + topology spread on a bounded 2-node/2-AZ nodegroup.
       Evidence: local three-node kind proof, scheduler/PDB eviction drill, static Terraform validation,
       and clean temporary-cluster teardown in session log 2026-08-17T12:42:56-06:00.
-- [ ] P11.3 IN PROGRESS — live load test proving real scale-out; activation recorded 2026-08-17.
+- [x] P11.3 COMPLETE — live AWS load test proved capped scale-out and recovered to the 2-replica minimum; T-1102 and T-1104 evidence recorded in the 2026-08-17 session log.
 - [ ] P11.4 NOT STARTED — node-loss drill across AZs.
-- [ ] P11.5 NOT STARTED — teardown + sweep.
+- [x] P11.5 COMPLETE — guarded Terraform teardown destroyed 15 temporary resources and the final AWS sweep found no temporary EKS, ALB, VPC, NAT, instance, volume, RDS, or CloudFormation resources.
 
 Gate: T-1101..T-1104.
 
@@ -660,9 +660,9 @@ Gate: T-1301..T-1302.
 
 Gate: T-1401..T-1404.
 
-**P10–P14 track bootstrapped 2026-08-09; P10 is gate-approved and P11.1/P11.2 are complete.
-Owner activated P11.3 on 2026-08-17; the bounded AWS session is not yet open. Local-first proof
-and the AWS session boundary still apply, with the same gate discipline as P0–P9.**
+**P10–P14 track bootstrapped 2026-08-09; P10 is gate-approved and P11.1/P11.2/P11.3/P11.5 are
+complete. P11.4 remains the next owner-activated item. Local-first proof and the AWS session
+boundary still apply, with the same gate discipline as P0–P9.**
 
 ## Blockers
 
@@ -736,6 +736,40 @@ Append newest entries immediately below this heading. Never include secrets or A
   decision record before proceeding. The 18:00 alarm remains authoritative.
 - **Rollback:** no AWS infrastructure rollback is required; the partial state contains only the
   intended persistent ECR imports and can be reconciled after the permission correction.
+
+### 2026-08-17T18:04:32-06:00 — P11.3 complete: live scale-out and clean teardown — Codex
+
+- **Phase/task:** P11.3 / T-1102 is complete. P11.5 / T-1104 teardown evidence is also
+  complete; P11.4 remains not started and needs a fresh owner-approved session.
+- **Policy reconciliation:** the owner applied the narrow read-only role-introspection grant and
+  exact EKS execution-role `iam:PassRole` grant in policy v6 through the AWS console. Live read-back
+  matched `infra/iam/bedoux-iam-scoped-v6.json`; ADR 0016 records the superseding decision.
+- **Infrastructure:** the fresh Terraform plan contained 9 creates, 3 expected trust updates,
+  and 0 destroys. Apply completed with EKS 1.34 ACTIVE, exactly two `t3.medium` Spot nodes,
+  `vpc-cni` `v1.22.4-eksbuild.3` ACTIVE, and EBS CSI `v1.63.1-eksbuild.1` ACTIVE with no
+  health issues. Metrics Server v0.9.0 and AWS Load Balancer Controller chart 3.4.3 were
+  installed for the proof.
+- **Topology finding:** both initial Spot nodes landed in `ca-central-1b`, so the configured
+  `minDomains: 2` constraint correctly left the second API/web replicas Pending. The failed
+  pending release was removed. A redeploy used an explicit one-domain session fallback while
+  retaining the 2–3 HPA cap; later node replacement placed workloads successfully and the
+  cross-AZ constraint finding remains for P11.4/design follow-up.
+- **Workload baseline:** the immutable existing ECR pair deployed successfully. Migration and
+  seed Jobs completed, the ALB `/api/health` check returned `status=ok`, and API/web started at
+  2/2 Ready with HPAs min 2, max 3, target CPU 60%.
+- **T-1102 load evidence:** pinned k6 0.52.0, 40 VUs for 120 seconds against `/api/products`,
+  14,382 requests, 100% checks/HTTP success, 0% failures, average latency 283.57 ms, p95
+  741.5 ms, and p99 909.44 ms. API reached 3/3 Ready first; web then reached 3/3 Ready;
+  both HPAs enforced the max of 3. After load stopped, valid metrics showed both HPAs back at
+  their 2-replica minimum with all pods Ready.
+- **T-1104 teardown:** Ingress/ALB, Helm release, controller, namespace, metrics-server,
+  StorageClass, EKS add-ons/access entries, node group, cluster, IGW, subnets, and VPC were
+  removed. The guarded destroy plan contained exactly 15 temporary destroys and no persistent
+  ECR/IAM/state resources. Final read-only sweep returned empty for EKS, Bedoux ALBs, tagged
+  VPCs, NAT gateways, instances, volumes, RDS, and active CloudFormation stacks. Direct lookup
+  of the temporary EKS OIDC provider returned `NoSuchEntity`; Terraform state contains only
+  data sources. The persistent allowlist remains detached and intact.
+- **Next action:** owner activates P11.4 with a new AWS session boundary and independent alarm.
 
 ### 2026-08-17T16:17:00-06:00 — P11.3 apply blocked by IAM PassRole scope — Codex
 

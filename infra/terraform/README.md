@@ -23,7 +23,7 @@ separate persistent state bucket before migrating this root state to S3.
   the learning EKS cluster. EKS grants it edit access only in the `bedoux`
   namespace.
 - `bedoux-iam-scoped` and the EKS node-group service-linked role are account
-  foundations from P4/P5 and are deliberately not managed here. The owner-controlled v4 policy
+  foundations from P4/P5 and are deliberately not managed here. The owner-controlled v6 policy
   source and exact application order live in
   [`docs/runbooks/p10-iam-remediation.md`](../../docs/runbooks/p10-iam-remediation.md).
 - P6.2/P6.4 must import the persistent P5 ECR repositories and IAM roles before an

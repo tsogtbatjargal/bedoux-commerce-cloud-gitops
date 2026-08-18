@@ -94,7 +94,7 @@ aws iam detach-role-policy --profile bedoux-admin \
 Read back the three affected roles with exact-name `list-attached-role-policies`. The node must
 retain only worker-node plus ECR pull-only; VPC CNI must retain CNI; EBS CSI must retain v2.
 
-## 4. Owner console: install `bedoux-iam-scoped` v4
+## 4. Owner console: install `bedoux-iam-scoped` v4 (superseded by v6)
 
 The owner performs these steps using the root/admin console identity, never `bedoux-admin`:
 
@@ -110,6 +110,11 @@ The owner performs these steps using the root/admin console identity, never `bed
 
 Stop and investigate if the console summary differs from the committed document.
 
+For all sessions after 2026-08-17, use the owner-applied v6 declaration in
+`infra/iam/bedoux-iam-scoped-v6.json`. v6 preserves the v4 controls, adds the narrow role
+introspection needed by Terraform, and allows `iam:PassRole` only for the four Bedoux EKS
+execution roles when passed to `eks.amazonaws.com`; ADR 0016 records the change.
+
 ## 5. Exact read-back and bounded negative test
 
 Preview, then execute the repository verifier:
@@ -119,10 +124,10 @@ scripts/verify-iam-boundary.sh
 scripts/verify-iam-boundary.sh --execute
 ```
 
-Success requires all six exact persistent roles to have the boundary, live v4 to match the
+Success requires all six exact persistent roles to have the boundary, live v6 to match the
 committed JSON semantically, and the unbounded `bedoux-boundary-negative-test` create call to fail
 with an explicit deny. The verifier refuses to run the negative test if that role already exists.
-If creation unexpectedly succeeds, stop: v4 intentionally prevents `bedoux-admin` from cleaning
+If creation unexpectedly succeeds, stop: v6 intentionally prevents `bedoux-admin` from cleaning
 up an unbounded role, so the owner must delete that exact powerless test role in the admin console
 before any other work continues.
 

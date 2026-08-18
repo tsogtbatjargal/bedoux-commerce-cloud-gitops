@@ -262,7 +262,7 @@ account) in the `bedoux-admins` group, which has two policies attached:
 - **`PowerUserAccess`** (AWS managed) — covers every service this project touches
   (EC2/VPC, EKS, ECR, ELB, CloudFormation, S3, CloudWatch, Budgets) but **excludes
   IAM/Organizations management**, so this identity cannot grant itself more power.
-- **A small custom policy** (`bedoux-iam-scoped`) granting IAM role/policy/OIDC-provider
+- **A small custom policy** (`bedoux-iam-scoped`, owner-applied v6) granting IAM role/policy/OIDC-provider
   actions **only on resources named `bedoux-*`** — the minimum needed for `eksctl` and
   IRSA (EKS pods assuming IAM roles) to create the roles they need, without general IAM
   management. Every IAM role/policy this project creates must keep the `bedoux-` prefix

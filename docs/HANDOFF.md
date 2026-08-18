@@ -186,10 +186,16 @@ drills, rollback, IAM — outranks commerce-app features whenever the two compet
   inventory sweep was clean. **P10 gate approved by owner 2026-08-11; P11 is active.** No
   temporary AWS resources are live. The persistent allowlist is the state bucket, two ECR
   repositories, six persistent IAM roles, and the GitHub OIDC provider.
-- **Local P11 starting point:** P11.1 and P11.2 are complete. P11.2's temporary three-node kind
-  cluster was deleted cleanly; the default kubeconfig still points to its deleted endpoint.
-  P11.3 is active on `p11-3-live-scaleout`. Read-only AWS preflight found no temporary EKS,
-  VPC, ALB, RDS, NAT, target-group, instance, or volume resources; no AWS session is open.
+- **P11.3 is complete:** on `p11-3-live-scaleout`, EKS 1.34 with two Spot `t3.medium` nodes
+  served the chart, and pinned k6 0.52.0 drove 14,382 successful requests with 283.57 ms
+  average / 741.5 ms p95 / 909.44 ms p99 latency. API and web both scaled from 2 to the hard
+  HPA maximum of 3 and recovered to 2 after load. The guarded teardown destroyed all 15
+  temporary Terraform resources and the final AWS sweep was clean. The initial same-AZ Spot
+  placement exposed a real `minDomains: 2` scheduling limitation; P11.4 owns the node-loss and
+  topology follow-up. The default kubeconfig still points to the deleted EKS endpoint.
+- Owner-applied `bedoux-iam-scoped` policy v6 is the current live declaration; ADR 0016 and
+  `infra/iam/bedoux-iam-scoped-v6.json` record its exact read-only introspection and EKS
+  execution-role PassRole additions.
 - Repository workflows are exposed through exactly three thin skills under `.agents/skills/`:
   `phase-orchestrator`, `aws-session-guardrail` (including Kubernetes drills), and
   `github-pr-branch-workflow`. Claude Code discovery wrappers under `.claude/skills/` route to
@@ -275,11 +281,9 @@ hard `maxReplicas: 3` cap, pinned Metrics Server, and bounded kind scale-out/sca
 are recorded as T-1101. **P11.2 is complete** — the pinned three-node kind proof placed one API
 and one web replica on each worker, honored `minAvailable: 1` during a worker drain, showed
 topology-constrained replacements Pending, recovered after uncordoning, and tore down cleanly.
-P11.3 is active for the live T-1102 proof, with an owner-approved 18:00 Edmonton alarm. State
-reconciliation and the bounded plan passed; the plan created only the no-NAT VPC before EKS
-`CreateCluster` was denied on `iam:PassRole` for the cluster role. Add the exact execution-role
-allowance under owner control, generate a fresh plan, and continue only with enough time for proof
-and teardown. No EKS cluster or node group is live; the temporary VPC must not survive the alarm.
+P11.3 and its required teardown are complete. P11.4 is not started. Before any node-loss drill,
+the owner must activate a new bounded AWS session with an independent alarm. No temporary AWS
+resources are live; only the persistent allowlist remains.
 
 Mark whichever task you start `IN PROGRESS` in `docs/PROGRESS.md` before changing anything,
 same as every prior phase. Land each task via its own feature branch + PR (not a direct
