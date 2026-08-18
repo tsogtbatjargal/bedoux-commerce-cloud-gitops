@@ -168,14 +168,14 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   resources clean. ADR 0016 records the owner-applied policy v6 PassRole reconciliation. The
   initial Spot placement exposed a real same-AZ/minDomains finding; P11.4 owns the node-loss
   drill and follow-up topology decision.
-- P11.4 local preparation is active on `p11-4-node-loss`. The owner accepted ADR 0017's technical
-  design. Its opt-in pair of AZ-pinned one-node groups, AWS HA `ScheduleAnyway` fallback, guarded
-  drain/recovery helper (including an exact-one-Running-PostgreSQL refusal), pinned k6 workload,
-  and drill runbook are validated locally. No AWS session is open.
-- Next action: owner records a new bounded session deadline and independent alarm; then run the
-  identity/billing/inventory preflight and review the exact saved Terraform plan. Design
-  acceptance does not authorize apply; return for separate owner authorization after the plan
-  passes every guardrail.
+- P11.4 remains active on `p11-4-node-loss`. The first live T-1103 attempt on 2026-08-18 proved
+  two AZ-pinned nodes, safe non-PostgreSQL drain, one-AZ stateless recovery, and restored cross-AZ
+  placement, but failed the hard traffic gate: 115 of 30,265 requests failed. ADR 0018 records
+  the live Kubernetes 1.34 finding that `minDomains` is invalid with `ScheduleAnyway`. Today's
+  EKS/ALB/VPC resources and temporary OIDC provider are gone. The owner also approved deletion
+  of an older unattached gp3 PVC exposed by the sweep; the post-delete inventory is clean.
+- Next action: T-1103 remains incomplete. Diagnose the 115-request transition gap and validate
+  the correction locally before opening a new bounded, separately planned and approved retry.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

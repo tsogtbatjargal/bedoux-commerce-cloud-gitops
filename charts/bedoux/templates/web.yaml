@@ -27,7 +27,9 @@ spec:
       {{- if .Values.web.topologySpread.enabled }}
       topologySpreadConstraints:
         - maxSkew: {{ .Values.web.topologySpread.maxSkew }}
+          {{- if eq .Values.web.topologySpread.whenUnsatisfiable "DoNotSchedule" }}
           minDomains: {{ .Values.web.topologySpread.minDomains }}
+          {{- end }}
           topologyKey: {{ .Values.web.topologySpread.topologyKey | quote }}
           whenUnsatisfiable: {{ .Values.web.topologySpread.whenUnsatisfiable }}
           labelSelector:

@@ -14,10 +14,9 @@ api:
   topologySpread:
     enabled: true
     maxSkew: 1
-    minDomains: 2
     topologyKey: topology.kubernetes.io/zone
-    # Prefer cross-AZ placement while both domains are healthy, but allow the
-    # PDB-protected replicas to recover into one surviving AZ during P11.4.
+    # Kubernetes permits minDomains only with DoNotSchedule. Soft spread still
+    # prefers both available AZs and permits one-AZ recovery during P11.4.
     whenUnsatisfiable: ScheduleAnyway
 
 web:
@@ -33,6 +32,5 @@ web:
   topologySpread:
     enabled: true
     maxSkew: 1
-    minDomains: 2
     topologyKey: topology.kubernetes.io/zone
     whenUnsatisfiable: ScheduleAnyway
