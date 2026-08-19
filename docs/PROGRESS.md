@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P11 — Bounded autoscaling & HA |
 | Active task | P11.4 IN PROGRESS — live T-1103 attempt failed its zero-request-failure threshold; recovery and the full AWS teardown sweep passed. |
-| Last verified | 2026-08-18T21:05:37-06:00 — the temporary kind cluster and archives are absent after a late pre-fault teardown; host inotify restoration to 128 awaits owner confirmation. |
+| Last verified | 2026-08-18T21:55:59-06:00 — owner restored the transient host inotify limit to 128; temporary kind cluster, archives, context, and processes remain absent. |
 | AWS resources currently live | No temporary or unattached billable resources. Persistent allowlist only: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | USD 4.428 budget actual at session start; below the USD 20 cap. Today's short session is estimated below USD 0.20; recheck Billing after delayed usage posts. |
-| Next operator action | Owner restores `fs.inotify.max_user_instances=128`; keep P11.4 incomplete and schedule any new local proof in a fresh independently alarmed window. |
+| Next operator action | Keep P11.4 incomplete; schedule any new local termination proof in a fresh independently alarmed window with an enforced command timeout before teardown margin. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -673,6 +673,18 @@ boundary still apply, with the same gate discipline as P0–P9.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-18T21:55:59-06:00 — Local host setting restored; closeout complete — Codex
+
+- **Owner confirmation:** the owner ran the documented rollback and the host now reports
+  `fs.inotify.max_user_instances=128`, matching the original pre-drill value.
+- **Final local state:** the exact temporary cluster, its three containers, four image archives,
+  kubeconfig context, and kind/image-load processes were already confirmed absent. No Kubernetes
+  fault ran and no local pass is claimed.
+- **AWS:** none. No AWS endpoint was contacted and estimated cost remains USD 0.
+- **Checkpoint:** local closeout is now complete. P11.4/T-1103 remain `IN PROGRESS`; any retry
+  requires a fresh independent alarm and a process-level timeout that ends commands before the
+  reserved teardown margin.
 
 ### 2026-08-18T21:05:37-06:00 — Local baseline reached; alarm missed; pre-fault teardown clean — Codex
 

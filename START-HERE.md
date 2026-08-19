@@ -179,9 +179,10 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   deterministic AWS target-health readiness gates. Static renders, fail-closed guard mocks, and
   pinned k6 p99/failure diagnostics pass. A temporary three-node local baseline reached Ready,
   but no fault/load proof ran because the 20:45 alarm was missed; teardown completed cleanly but
-  about 20 minutes late. This is not pass evidence.
-- Next action: restore the transient host inotify limit to 128, then keep T-1103 incomplete. Any
-  new local proof needs a fresh alarm plus enforced command timeout. A later AWS retry still needs
+  about 20 minutes late. This is not pass evidence. The owner restored the transient host inotify
+  limit to its original 128, so local teardown is fully closed.
+- Next action: keep T-1103 incomplete. Any new local proof needs a fresh alarm plus an enforced
+  command timeout. A later AWS retry still needs
   its own current preflight, exact plan review, separate apply approval, recovery, and teardown.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.

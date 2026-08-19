@@ -38,14 +38,13 @@ Current state as of 2026-08-18:
 - Helm profile assertions, mocked guard success/refusal paths, and pinned k6 0.52.0 p99/failure
   diagnostics pass. A fresh three-node kind baseline later reached Ready, with API/web split across
   both workers, but no load/fault ran: blocked tool calls overran the 20:45 alarm. The exact cluster
-  and archives were deleted by 21:05. This is not pass evidence; host inotify restoration to 128
-  still awaits owner confirmation.
+  and archives were deleted by 21:05. This is not pass evidence. The owner restored the host
+  inotify limit to its original 128; local closeout is complete.
 
 Next action:
-1. Owner restores `fs.inotify.max_user_instances=128` and confirms it.
-2. In a fresh independently alarmed window with enforced command timeouts, prove the 45-second
+1. In a fresh independently alarmed window with enforced command timeouts, prove the 45-second
    termination hold, request continuity, recovery, and clean local teardown.
-3. Keep P11.4 IN PROGRESS. Any T-1103 retry requires a fresh aws-session runbook boundary,
+2. Keep P11.4 IN PROGRESS. Any T-1103 retry requires a fresh aws-session runbook boundary,
    independent alarm, current billing/inventory, exact Terraform plan review, separate apply
    authorization, recovery, and same-session teardown.
 
