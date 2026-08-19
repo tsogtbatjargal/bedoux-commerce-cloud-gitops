@@ -174,13 +174,15 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   the live Kubernetes 1.34 finding that `minDomains` is invalid with `ScheduleAnyway`. Today's
   EKS/ALB/VPC resources and temporary OIDC provider are gone. The owner also approved deletion
   of an older unattached gp3 PVC exposed by the sweep; the post-delete inventory is clean.
-- Proposed ADR 0019 addresses the evidence-supported ALB/pod termination gap with an AWS-HA-only
+- Accepted ADR 0019 addresses the evidence-supported ALB/pod termination gap with an AWS-HA-only
   30-second target deregistration bound, 45-second preStop hold, 60-second grace period, and
   deterministic AWS target-health readiness gates. Static renders, fail-closed guard mocks, and
-  pinned k6 p99/failure diagnostics pass; the stopped retained kind endpoint was not reused.
-- Next action: T-1103 remains incomplete. The owner reviews ADR 0019 and sets a fresh independent
-  alarm for a temporary three-node kind termination drill. A later AWS retry still needs its own
-  current preflight, exact plan review, separate apply approval, recovery, and clean teardown.
+  pinned k6 p99/failure diagnostics pass. A temporary three-node local baseline reached Ready,
+  but no fault/load proof ran because the 20:45 alarm was missed; teardown completed cleanly but
+  about 20 minutes late. This is not pass evidence.
+- Next action: restore the transient host inotify limit to 128, then keep T-1103 incomplete. Any
+  new local proof needs a fresh alarm plus enforced command timeout. A later AWS retry still needs
+  its own current preflight, exact plan review, separate apply approval, recovery, and teardown.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

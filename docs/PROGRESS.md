@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P11 — Bounded autoscaling & HA |
 | Active task | P11.4 IN PROGRESS — live T-1103 attempt failed its zero-request-failure threshold; recovery and the full AWS teardown sweep passed. |
-| Last verified | 2026-08-18T19:34:02-06:00 — both pre-fault kind attempts cleaned themselves up; rootless containerd hit the host's 128 inotify-instance ceiling before Kubernetes initialized. |
+| Last verified | 2026-08-18T21:05:37-06:00 — the temporary kind cluster and archives are absent after a late pre-fault teardown; host inotify restoration to 128 awaits owner confirmation. |
 | AWS resources currently live | No temporary or unattached billable resources. Persistent allowlist only: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | USD 4.428 budget actual at session start; below the USD 20 cap. Today's short session is estimated below USD 0.20; recheck Billing after delayed usage posts. |
-| Next operator action | Owner transiently raises `fs.inotify.max_user_instances` from 128 to 1024; retry the rootless temporary-kind proof, then restore 128 after clean teardown. |
+| Next operator action | Owner restores `fs.inotify.max_user_instances=128`; keep P11.4 incomplete and schedule any new local proof in a fresh independently alarmed window. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -673,6 +673,38 @@ boundary still apply, with the same gate discipline as P0–P9.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-18T21:05:37-06:00 — Local baseline reached; alarm missed; pre-fault teardown clean — Codex
+
+- **Phase/task/result:** P11.4 remains `IN PROGRESS`. ADR 0019 is accepted, but this local attempt
+  did not run the declared fault or k6 and is not pass evidence for the correction or T-1103.
+- **Host/runtime recovery:** after the owner transiently raised
+  `fs.inotify.max_user_instances` from 128 to 1024, the rootless Podman cluster initialized with
+  Kubernetes 1.34 and all three nodes Ready. This confirmed the earlier CRI failure was the host
+  inotify ceiling rather than an application or chart defect.
+- **Image-loading finding:** kind v0.32.0's `load image-archive` passed `--all-platforms` to the
+  node's containerd 2.1.3 importer and failed with `no unpack platforms defined`. Direct imports
+  with explicit `--platform linux/amd64 --local` and the `fuse-overlayfs` snapshotter succeeded
+  for the cached API, web, PostgreSQL, and pinned k6 images; no registry download occurred.
+- **Healthy pre-fault baseline:** the Helm release eventually reached `deployed`; migration and
+  seed Jobs completed, PostgreSQL was Ready on worker2, and API/web each had two Ready replicas
+  split one per worker with the configured PDB/soft-spread/45-second preStop/60-second grace
+  manifests. No traffic generator or drain started.
+- **Deadline failure:** the 20:45 independent alarm was missed. A long-running image/Helm tool
+  call did not return control with a clock check; when status surfaced at 21:04, the release had
+  only deployed at 20:58, already after the alarm. Evidence work stopped immediately, but this
+  still violated the declared deadline discipline. Teardown completed at 21:05, about 20 minutes
+  late. Future commands near a deadline must run behind a separately enforced process timeout;
+  an external alarm alone cannot interrupt a blocked tool call.
+- **Teardown evidence:** deleted exact cluster `bedoux-p11-ha` and its three nodes, removed all
+  four `/tmp/bedoux-p11-*.tar` archives, and confirmed no matching Podman container, kubeconfig
+  context, kind process, or image-load process remains. Provider inventory lists only the
+  pre-existing stopped `bedoux` cluster entry. The owner still needs to restore the transient
+  host inotify value from 1024 to its original 128.
+- **AWS:** none. No AWS endpoint was contacted; no cloud resource changed; estimated cost USD 0.
+- **Next action:** owner runs `sudo sysctl -w fs.inotify.max_user_instances=128` and confirms the
+  output. Keep P11.4/T-1103 incomplete. Any retry needs a fresh alarm and should use the now-known
+  direct containerd import path plus a hard command timeout that stops work before teardown margin.
 
 ### 2026-08-18T19:34:02-06:00 — Local baseline blocked cleanly by host inotify ceiling — Codex
 

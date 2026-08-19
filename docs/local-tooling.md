@@ -154,6 +154,29 @@ Confirm it landed with `podman exec <cluster>-control-plane crictl images | grep
 (faster than waiting for a pod to fail scheduling). Remember `kind load` also needs the
 `app.slice` delegated-scope wrapper from the section above, same as `kind create cluster`.
 
+### Kubernetes 1.34 / containerd 2.1 rootless import finding
+
+P11.4 found two additional limits on the pinned kind v0.32.0 / node v1.34.0 combination. First,
+the workstation's original `fs.inotify.max_user_instances=128` can be exhausted by existing
+rootless containers, causing containerd's CRI plugin to fail while creating its CNI watcher. Any
+owner-approved transient increase must be restored after the drill; do not persist a sysctl change
+silently.
+
+Second, with `KIND_EXPERIMENTAL_CONTAINERD_SNAPSHOTTER=fuse-overlayfs`, kind's archive loader
+invokes containerd 2.1.3 with `--all-platforms`, which failed locally with `no unpack platforms
+defined`. The validated local-only fallback is to copy the archive into each required node and
+specify the host platform and local importer explicitly:
+
+```bash
+podman cp /tmp/<image>.tar <node>:/tmp/<image>.tar
+podman exec <node> ctr --namespace=k8s.io images import \
+  --platform linux/amd64 --local --digests --snapshotter=fuse-overlayfs \
+  /tmp/<image>.tar
+```
+
+Delete the in-node and host archives during teardown. This workaround changes only the temporary
+node image store; it does not justify floating kind, Kubernetes, or application image versions.
+
 ## NetworkPolicy-enforcing kind cluster (added P10.2)
 
 kind's default CNI, **kindnet, does not enforce `NetworkPolicy` at all** — the objects
