@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P11 — Bounded autoscaling & HA |
 | Active task | P11.4 IN PROGRESS — live T-1103 attempt failed its zero-request-failure threshold; recovery and the full AWS teardown sweep passed. |
-| Last verified | 2026-08-18T18:58:51-06:00 — ADR 0019's proposed ALB/pod draining correction renders and lints cleanly; guard mocks and pinned k6 diagnostics pass. |
+| Last verified | 2026-08-18T19:03:49-06:00 — owner accepted ADR 0019 and set the independent local-drill alarm for 20:45 Edmonton. |
 | AWS resources currently live | No temporary or unattached billable resources. Persistent allowlist only: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | USD 4.428 budget actual at session start; below the USD 20 cap. Today's short session is estimated below USD 0.20; recheck Billing after delayed usage posts. |
-| Next operator action | Owner reviews proposed ADR 0019 and sets a fresh independent local-drill alarm; then prove its pod-termination behavior on a fresh temporary kind cluster before any separately bounded T-1103 retry. |
+| Next operator action | Run the bounded temporary-kind termination proof, stop evidence by 20:25, recover, and delete the cluster before the 20:45 alarm. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -673,6 +673,30 @@ boundary still apply, with the same gate discipline as P0–P9.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-18T19:03:49-06:00 — ADR 0019 accepted; bounded local drill opened — Codex
+
+- **Phase/task:** P11.4 remains the only active item. The owner accepted ADR 0019's technical
+  design and confirmed an independent operator alarm for 20:45 Edmonton. Evidence work stops by
+  20:25 to reserve at least 20 minutes for local recovery and teardown; the alarm overrides the
+  drill regardless of evidence state.
+- **Declared local proof:** create one temporary three-node kind cluster (one control plane and
+  two workers), establish two Ready API/web replicas with PDBs and soft hostname spread, and run
+  the pinned k6 catalog workload from the retained control-plane side of the fault boundary.
+  The single fault is cordon/drain of the worker that does not host PostgreSQL. Diagnostics are
+  limited to kind, kubectl, Helm, Podman, and application/k6 output.
+- **Required evidence:** the affected API/web pods remain alive for the configured 45-second
+  preStop interval within their 60-second grace period, traffic records zero failed requests,
+  both stateless Deployments recover on the surviving worker, PostgreSQL remains untouched, and
+  uncordon/restart restores two-worker placement. The temporary cluster and drill-only files must
+  then be deleted and independently confirmed absent.
+- **Boundary:** this is local-only validation of Kubernetes termination behavior; kind cannot
+  emulate the AWS controller's target-health readiness condition or ALB target state. Those parts
+  remain static/runtime-guard validated until a separately opened and approved AWS retry.
+- **AWS:** none. No AWS session is open and no AWS call is authorized. Estimated cost: USD 0.
+- **Rollback:** stop k6, uncordon the fault worker, remove the Helm release/namespace, and delete
+  the exact temporary kind cluster. If cluster creation or baseline fails, inject no fault and
+  proceed directly to teardown.
 
 ### 2026-08-18T18:58:51-06:00 — P11.4 drain-transition correction prepared locally — Codex
 

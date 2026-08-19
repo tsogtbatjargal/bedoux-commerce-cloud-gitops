@@ -1,7 +1,8 @@
 # ADR 0019: Bound ALB draining and require target-health readiness gates
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-08-18
+- Accepted by owner: 2026-08-18 (technical design; live AWS retry remains separately gated)
 
 ## Context
 
