@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P11 — Bounded autoscaling & HA |
 | Active task | P11.4 IN PROGRESS — live T-1103 attempt failed its zero-request-failure threshold; recovery and the full AWS teardown sweep passed. |
-| Last verified | 2026-08-18T19:03:49-06:00 — owner accepted ADR 0019 and set the independent local-drill alarm for 20:45 Edmonton. |
+| Last verified | 2026-08-18T19:34:02-06:00 — both pre-fault kind attempts cleaned themselves up; rootless containerd hit the host's 128 inotify-instance ceiling before Kubernetes initialized. |
 | AWS resources currently live | No temporary or unattached billable resources. Persistent allowlist only: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | USD 4.428 budget actual at session start; below the USD 20 cap. Today's short session is estimated below USD 0.20; recheck Billing after delayed usage posts. |
-| Next operator action | Run the bounded temporary-kind termination proof, stop evidence by 20:25, recover, and delete the cluster before the 20:45 alarm. |
+| Next operator action | Owner transiently raises `fs.inotify.max_user_instances` from 128 to 1024; retry the rootless temporary-kind proof, then restore 128 after clean teardown. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -673,6 +673,30 @@ boundary still apply, with the same gate discipline as P0–P9.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-18T19:34:02-06:00 — Local baseline blocked cleanly by host inotify ceiling — Codex
+
+- **Phase/task:** P11.4 remains `IN PROGRESS`; ADR 0019 is owner-accepted and the 20:45 Edmonton
+  independent alarm remains authoritative. No fault was injected.
+- **Attempt:** rootless Podman used systemd cgroup delegation and the cached pinned Kubernetes
+  1.34 node image to create the declared one-control-plane/two-worker cluster. The first attempt
+  was stopped and explicitly deleted when CRI was unavailable. One bounded retry used kind's
+  recommended `fuse-overlayfs` snapshotter for SELinux/user namespaces.
+- **Environmental finding:** the retry's containerd journal showed its CRI plugin failed before
+  `kubeadm init` because it could not create the CNI fsnotify watcher: `too many open files`.
+  The process open-file limit was not implicated; the host's per-user
+  `fs.inotify.max_user_instances` value is 128 and is shared by the workstation's existing
+  rootless containers. No unrelated container was stopped or changed to force the test through.
+- **Clean stop:** kind timed out before Kubernetes/API initialization and automatically removed
+  all three `bedoux-p11-ha` containers. `pgrep` found no initializer, provider cluster inventory
+  lists only the pre-existing stopped `bedoux` entry, and an exact Podman label query returns no
+  `bedoux-p11-ha` container. No workload, namespace, Helm release, load, or fault existed.
+- **AWS:** none. No AWS endpoint was contacted and estimated cost remains USD 0.
+- **Next action / rollback:** owner may transiently run
+  `sudo sysctl -w fs.inotify.max_user_instances=1024`; then retry rootless creation and the
+  bounded drill. After the exact temporary cluster is deleted, restore the original value with
+  `sudo sysctl -w fs.inotify.max_user_instances=128`. If this cannot be completed with teardown
+  margin before 20:45, close the local session without a drill result.
 
 ### 2026-08-18T19:03:49-06:00 — ADR 0019 accepted; bounded local drill opened — Codex
 
