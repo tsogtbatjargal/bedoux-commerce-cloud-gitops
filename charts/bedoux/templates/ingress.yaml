@@ -15,6 +15,9 @@ metadata:
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/group.name: bedoux
+    {{- with .Values.ingress.targetGroupDeregistrationDelaySeconds }}
+    alb.ingress.kubernetes.io/target-group-attributes: {{ printf "deregistration_delay.timeout_seconds=%v" . | quote }}
+    {{- end }}
 spec:
   ingressClassName: {{ .Values.ingress.className }}
   rules:

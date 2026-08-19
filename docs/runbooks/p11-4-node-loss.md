@@ -30,11 +30,34 @@ inside the recorded session boundary.
 
 1. Apply only the reviewed plan. Record cluster/node-group creation timestamps.
 2. Install the pinned Metrics Server and AWS Load Balancer Controller versions already recorded
-   by P11.3, create `gp3`, and deploy the immutable API/web digests with both
-   `values-aws.yaml` and `values-aws-ha.yaml`.
-3. Use an explicit kubeconfig/context; the workstation default may still reference a deleted
+   by P11.3 and create `gp3`. Apply `k8s/00-namespace.yaml`, then label the namespace before any
+   application pod is created:
+
+   ```text
+   kubectl --context <explicit-eks-context> label namespace bedoux \
+     elbv2.k8s.aws/pod-readiness-gate-inject=enabled --overwrite
+   ```
+
+3. Bootstrap the Helm release with the reviewed immutable digests, both `values-aws.yaml` and
+   `values-aws-ha.yaml`, zero API/web replicas, and both HPAs disabled. This creates the Services
+   and Ingress before application pods, as required for deterministic AWS target-health readiness
+   gate injection:
+
+   ```text
+   # Add these four overrides to the normal immutable-digest helm upgrade --install command.
+   --set api.replicas=0 \
+   --set web.replicas=0 \
+   --set api.autoscaling.enabled=false \
+   --set web.autoscaling.enabled=false
+   ```
+
+   Wait until the controller creates exactly one `TargetGroupBinding` for the `web` Service.
+   Then repeat the same Helm upgrade without those four bootstrap overrides. Refuse to continue
+   unless every Running web pod has a `target-health.elbv2.k8s.aws/...` readiness gate and reaches
+   `Ready`. PostgreSQL and API are not direct ALB targets and do not receive that gate.
+4. Use an explicit kubeconfig/context; the workstation default may still reference a deleted
    EKS endpoint. Wait for the ALB health endpoint and catalog endpoint to return HTTP 200.
-4. Run the read-only guard:
+5. Run the read-only guard:
 
    ```text
    scripts/p11-node-loss-drill.sh inspect --context <explicit-eks-context>
@@ -42,8 +65,10 @@ inside the recorded session boundary.
 
    It must report exactly two Ready nodes in two `ca-central-1` AZs, exactly one Running
    PostgreSQL pod, at least two available API and web replicas, one permitted disruption in each
-   PDB, and a safe fault candidate that does not host PostgreSQL. Stop if any condition differs.
-5. Capture sanitized `kubectl get nodes -L topology.kubernetes.io/zone` and
+   PDB, the 30-second ALB deregistration / 45-second preStop / 60-second grace contract, an AWS
+   target-health readiness gate on every Running web pod, and a safe fault candidate that does
+   not host PostgreSQL. Stop if any condition differs.
+6. Capture sanitized `kubectl get nodes -L topology.kubernetes.io/zone` and
    `kubectl -n bedoux get pods -o wide` output. Confirm API and web each occupy both AZs.
 
 ## Load and single fault
@@ -82,7 +107,9 @@ inside the recorded session boundary.
    the surviving node, and k6 must continue until its fixed duration ends.
 5. T-1103 passes only when k6 reports 0% failed requests, 100% successful checks, and p95 below
    two seconds. Record request count, average, p95, p99, pod/node placement, and the drain timing.
-   Any failed request means the test did not pass; record it truthfully and recover.
+   The workload emits one timestamped JSON diagnostic for each failed catalog request; preserve
+   those lines if any occur. Any failed request means the test did not pass; record it truthfully
+   and recover.
 
 ## Recovery and teardown
 

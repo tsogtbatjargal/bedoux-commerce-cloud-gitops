@@ -26,6 +26,11 @@ api:
     minDomains: 2
     topologyKey: topology.kubernetes.io/zone
     whenUnsatisfiable: DoNotSchedule
+  termination:
+    # Disabled by default. The bounded AWS HA profile opts into an explicit
+    # target/endpoint-draining window for the P11.4 node-loss drill.
+    preStopSleepSeconds: 0
+    gracePeriodSeconds: 30
   # On everywhere by default (kind/local demos need working checkout); the AWS
   # session profile overrides this to "false" via values-aws.yaml — see
   # docs/IMPLEMENTATION-PLAN.md's pending decision #4.
@@ -77,6 +82,9 @@ web:
     minDomains: 2
     topologyKey: topology.kubernetes.io/zone
     whenUnsatisfiable: DoNotSchedule
+  termination:
+    preStopSleepSeconds: 0
+    gracePeriodSeconds: 30
   resources:
     requests:
       cpu: 25m
@@ -143,6 +151,9 @@ ingress:
   # proxy (apps/web/nginx.conf.template's dormant-in-kind /api/ location block)
   # instead. See ADR 0008.
   controller: nginx
+  # Empty keeps the cloud-provider default. The AWS HA overlay bounds this so
+  # its pod preStop hold can outlive target deregistration.
+  targetGroupDeregistrationDelaySeconds: ""
 
 # Per ADR 0006: only the AWS session profile creates this (values-aws.yaml).
 # kind has no ebs.csi.aws.com provisioner to satisfy it.

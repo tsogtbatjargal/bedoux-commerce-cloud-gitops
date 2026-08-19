@@ -23,7 +23,8 @@ Options:
 Safety boundaries:
   - Run only inside an owner-approved P11.4 AWS session with an independent alarm.
   - inspect requires exactly two Ready nodes in two ca-central-1 AZs, healthy api/web
-    deployments, usable PDBs, and one running postgres pod.
+    deployments, usable PDBs, one running postgres pod, the bounded termination
+    contract, and an ALB readiness gate on every running web pod.
   - drain refuses the node hosting postgres. P11.4 proves stateless failover only.
   - If drain fails, the script uncordons the selected node before returning failure.
 EOF
@@ -160,7 +161,7 @@ if [[ -z "${node_zone[$postgres_node]:-}" ]]; then
 fi
 
 assert_app_baseline() {
-  local app available disruptions
+  local app available disruptions grace prestop
   for app in api web; do
     available="$(kubectl --context "$context" --namespace "$namespace" get deployment "$app" \
       --output jsonpath='{.status.availableReplicas}')"
@@ -172,6 +173,40 @@ assert_app_baseline() {
     fi
     if [[ -z "$disruptions" || "$disruptions" -lt 1 ]]; then
       printf 'REFUSING: poddisruptionbudget/%s allows no voluntary disruption.\n' "$app" >&2
+      exit 1
+    fi
+    grace="$(kubectl --context "$context" --namespace "$namespace" get deployment "$app" \
+      --output jsonpath='{.spec.template.spec.terminationGracePeriodSeconds}')"
+    prestop="$(kubectl --context "$context" --namespace "$namespace" get deployment "$app" \
+      --output jsonpath='{.spec.template.spec.containers[0].lifecycle.preStop.exec.command[2]}')"
+    if [[ "$grace" != 60 || "$prestop" != 'sleep 45' ]]; then
+      printf 'REFUSING: deployment/%s lacks the P11.4 60s grace / 45s preStop contract.\n' \
+        "$app" >&2
+      exit 1
+    fi
+  done
+
+  local target_group_attributes
+  target_group_attributes="$(kubectl --context "$context" --namespace "$namespace" get ingress bedoux \
+    --output jsonpath='{.metadata.annotations.alb\.ingress\.kubernetes\.io/target-group-attributes}')"
+  if [[ "$target_group_attributes" != 'deregistration_delay.timeout_seconds=30' ]]; then
+    printf '%s\n' 'REFUSING: ingress/bedoux lacks the 30s ALB target deregistration contract.' >&2
+    exit 1
+  fi
+
+  local pod_name readiness_gates
+  local -a web_gate_rows=()
+  mapfile -t web_gate_rows < <(kubectl --context "$context" --namespace "$namespace" get pods \
+    --selector app=web --field-selector status.phase=Running \
+    --output jsonpath='{range .items[*]}{.metadata.name}{"|"}{range .spec.readinessGates[*]}{.conditionType}{","}{end}{"\n"}{end}')
+  if ((${#web_gate_rows[@]} < 2)); then
+    printf '%s\n' 'REFUSING: fewer than two Running web pods are available for readiness-gate checks.' >&2
+    exit 1
+  fi
+  for row in "${web_gate_rows[@]}"; do
+    IFS='|' read -r pod_name readiness_gates <<<"$row"
+    if [[ "$readiness_gates" != *target-health.elbv2.k8s.aws/* ]]; then
+      printf 'REFUSING: web pod %s lacks an AWS target-health readiness gate.\n' "$pod_name" >&2
       exit 1
     fi
   done

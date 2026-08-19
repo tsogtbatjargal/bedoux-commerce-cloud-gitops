@@ -26,6 +26,7 @@ and flip the old one's status to `Superseded by NNNN`.
 | [0016](0016-owner-applied-eks-passrole-v6.md) | Add exact EKS execution-role PassRole to the owner-managed policy | Accepted | 2026-08-17 |
 | [0017](0017-az-pinned-nodegroups-soft-failover-spread.md) | Pin the P11 HA node groups by AZ and permit one-AZ failover | Superseded in part by 0018 | 2026-08-18 |
 | [0018](0018-omit-mindomains-for-soft-topology-spread.md) | Omit minDomains from the soft AWS topology-spread profile | Accepted | 2026-08-18 |
+| [0019](0019-bound-alb-draining-and-readiness-gates.md) | Bound ALB draining and require target-health readiness gates | Proposed | 2026-08-18 |
 
 ## Template
 

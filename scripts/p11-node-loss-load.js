@@ -6,6 +6,7 @@ const baseUrl = (__ENV.BASE_URL || '').replace(/\/$/, '');
 export const options = {
   vus: Number(__ENV.VUS || 20),
   duration: __ENV.DURATION || '5m',
+  summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(90)', 'p(95)', 'p(99)'],
   thresholds: {
     checks: ['rate==1'],
     http_req_failed: ['rate==0'],
@@ -26,5 +27,15 @@ export default function () {
   check(response, {
     'catalog returns HTTP 200': (result) => result.status === 200,
   });
+  if (response.status !== 200) {
+    console.error(JSON.stringify({
+      event: 'catalog-request-failed',
+      timestamp: new Date().toISOString(),
+      status: response.status,
+      errorCode: response.error_code || '',
+      error: response.error || '',
+      durationMs: response.timings.duration,
+    }));
+  }
   sleep(0.1);
 }

@@ -18,6 +18,9 @@ api:
     # Kubernetes permits minDomains only with DoNotSchedule. Soft spread still
     # prefers both available AZs and permits one-AZ recovery during P11.4.
     whenUnsatisfiable: ScheduleAnyway
+  termination:
+    preStopSleepSeconds: 45
+    gracePeriodSeconds: 60
 
 web:
   replicas: 2
@@ -34,3 +37,11 @@ web:
     maxSkew: 1
     topologyKey: topology.kubernetes.io/zone
     whenUnsatisfiable: ScheduleAnyway
+  termination:
+    preStopSleepSeconds: 45
+    gracePeriodSeconds: 60
+
+ingress:
+  # Keep the target's bounded connection-draining interval shorter than the
+  # pod hold so ALB can stop routing before the container exits.
+  targetGroupDeregistrationDelaySeconds: 30

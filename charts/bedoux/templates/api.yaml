@@ -15,6 +15,7 @@ spec:
         app: api
     spec:
       serviceAccountName: {{ .Values.api.serviceAccount.name }}
+      terminationGracePeriodSeconds: {{ .Values.api.termination.gracePeriodSeconds }}
       {{- if .Values.api.topologySpread.enabled }}
       topologySpreadConstraints:
         - maxSkew: {{ .Values.api.topologySpread.maxSkew }}
@@ -53,6 +54,15 @@ spec:
         - name: api
           image: {{ include "bedoux.imageReference" .Values.api.image | quote }}
           imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+          {{- if gt (int .Values.api.termination.preStopSleepSeconds) 0 }}
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - {{ printf "sleep %d" (int .Values.api.termination.preStopSleepSeconds) | quote }}
+          {{- end }}
           ports:
             - containerPort: 8000
           env:

@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P11 — Bounded autoscaling & HA |
 | Active task | P11.4 IN PROGRESS — live T-1103 attempt failed its zero-request-failure threshold; recovery and the full AWS teardown sweep passed. |
-| Last verified | 2026-08-18T17:14:18-06:00 — owner-approved deletion removed the older unattached gp3 orphan; the complete post-delete inventory sweep is clean. |
+| Last verified | 2026-08-18T18:58:51-06:00 — ADR 0019's proposed ALB/pod draining correction renders and lints cleanly; guard mocks and pinned k6 diagnostics pass. |
 | AWS resources currently live | No temporary or unattached billable resources. Persistent allowlist only: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | USD 4.428 budget actual at session start; below the USD 20 cap. Today's short session is estimated below USD 0.20; recheck Billing after delayed usage posts. |
-| Next operator action | Diagnose the 115-request drain-transition gap from the recorded evidence, prepare a locally validated correction, and require a fresh bounded session/plan approval before retrying T-1103. |
+| Next operator action | Owner reviews proposed ADR 0019 and sets a fresh independent local-drill alarm; then prove its pod-termination behavior on a fresh temporary kind cluster before any separately bounded T-1103 retry. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -673,6 +673,40 @@ boundary still apply, with the same gate discipline as P0–P9.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-18T18:58:51-06:00 — P11.4 drain-transition correction prepared locally — Codex
+
+- **Phase/task:** P11.4 / T-1103 remains `IN PROGRESS`. No later phase or live retry started.
+- **Evidence-based diagnosis:** the failed drill's roughly 30-second request stall occurred while
+  Kubernetes was terminating direct ALB-backed web pod IPs. The AWS HA chart had no preStop hold,
+  explicit termination-grace contract, target-group deregistration bound, or AWS target-health
+  readiness gates. Kubernetes documents that preStop execution and EndpointSlice withdrawal begin
+  concurrently; AWS documents that a target ending connections before deregistration completes can
+  return 500-level errors. This is a supported correction hypothesis, not a proven root cause.
+- **Proposed ADR 0019:** AWS HA only now renders a 30-second ALB target deregistration delay,
+  45-second API/web preStop holds, and 60-second termination grace. The runbook uses a zero-replica,
+  HPA-disabled bootstrap so the web Service/Ingress/TargetGroupBinding exist before real web pods;
+  the AWS controller can then inject target-health readiness gates deterministically. Base/kind
+  behavior remains no preStop and 30-second grace.
+- **Fail-closed drill guard:** `inspect` now refuses unless both Deployments have the exact
+  termination contract, Ingress has the exact target-group attribute, and at least two Running web
+  pods each have a `target-health.elbv2.k8s.aws/...` readiness gate. Mocked healthy and missing-gate
+  paths passed. Existing PostgreSQL, two-node/two-AZ, Deployment, and PDB guards remain intact.
+- **Load evidence:** pinned k6 0.52.0 now reports p99 and emits timestamped JSON status/error data
+  for every failed request without relaxing exact-zero thresholds. A one-second localhost refusal
+  test proved status 0/error-code diagnostics, p99 output, and expected threshold failure.
+- **Validation:** Bash syntax/help/drain dry-run/recover dry-run, Node parse, Helm lint, all base,
+  AWS, kind-HA, and AWS-HA renders, explicit base/AWS-HA assertions, CI render assertions, guard
+  success/refusal mocks, and `git diff --check` passed. The retained `kind-bedoux` kubeconfig points
+  to a stopped API endpoint, so no Kubernetes fault was injected and no replacement cluster was
+  created after the prior independent alarm expired.
+- **AWS:** none. No AWS endpoint was contacted and no AWS or Kubernetes resource was created,
+  modified, or deleted. Estimated cost: USD 0.
+- **Decision/next action:** ADR 0019 remains `Proposed`; P11.4 and T-1103 remain incomplete. The
+  owner accepts or rejects the design and sets a new independent deadline/alarm for a temporary
+  three-node kind termination drill. Only after local recovery and clean teardown may a fresh AWS
+  session perform current billing/inventory checks, exact plan review, separate apply approval,
+  the live retry, and same-session teardown.
 
 ### 2026-08-18T14:43:57-06:00 — P11.4 AWS session opened for exact plan review — Codex
 

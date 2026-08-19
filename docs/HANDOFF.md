@@ -21,6 +21,10 @@ Current state as of 2026-08-18:
 - ADR 0017 chose two fixed one-node Spot groups and soft one-AZ stateless failover. ADR 0018
   supersedes only its invalid minDomains clause: Kubernetes 1.34 permits minDomains only with
   DoNotSchedule, so the AWS ScheduleAnyway overlay omits minDomains.
+- ADR 0019 is Proposed after the failed live transition: AWS-HA-only 30-second ALB target
+  deregistration, 45-second API/web preStop, 60-second grace, and deterministic web target-health
+  readiness-gate injection through a zero-replica bootstrap. The runtime guard fails closed if any
+  part is missing. Base/kind behavior remains unchanged.
 - The first live T-1103 attempt established a healthy two-AZ baseline, safely drained only the
   non-PostgreSQL node, recovered API/web in the surviving AZ, and restored cross-AZ placement.
   It did not pass: k6 recorded 115 failed requests out of 30,265 (0.37%), although p95 was
@@ -31,13 +35,17 @@ Current state as of 2026-08-18:
 - Persistent allowlist only: Terraform state bucket/history, two ECR repositories, six IAM
   roles/policies, and the GitHub OIDC provider. Terraform state contains data sources only.
 - Budget actual was USD 4.428 at session start; the short session was estimated below USD 0.20.
+- Helm profile assertions, mocked guard success/refusal paths, and pinned k6 0.52.0 p99/failure
+  diagnostics pass. The retained kind kubeconfig endpoint is stopped; no replacement local cluster
+  was created after the previous independent alarm expired.
 
 Next action:
-1. Diagnose the 115-request drain-transition gap from the recorded timeline and current ALB/
-   pod-termination configuration. Do not claim a root cause without evidence.
-2. Prepare the smallest correction and prove everything possible locally/static-first.
+1. Owner accepts or rejects proposed ADR 0019 and sets a fresh independent alarm/deadline for a
+   temporary three-node kind termination drill.
+2. Prove the 45-second termination hold, request continuity, recovery, and clean local teardown.
 3. Keep P11.4 IN PROGRESS. Any T-1103 retry requires a fresh aws-session runbook boundary,
-   independent alarm, exact Terraform plan review, and separate owner authorization.
+   independent alarm, current billing/inventory, exact Terraform plan review, separate apply
+   authorization, recovery, and same-session teardown.
 
 Hard boundaries: USD 20/month; ca-central-1; bedoux-admin only; no NAT Gateway; same-day teardown;
 never record account IDs, secrets, or personal email addresses. Do not start P12 before P11's

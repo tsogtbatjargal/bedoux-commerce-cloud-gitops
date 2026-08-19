@@ -24,6 +24,7 @@ spec:
       labels:
         app: web
     spec:
+      terminationGracePeriodSeconds: {{ .Values.web.termination.gracePeriodSeconds }}
       {{- if .Values.web.topologySpread.enabled }}
       topologySpreadConstraints:
         - maxSkew: {{ .Values.web.topologySpread.maxSkew }}
@@ -40,6 +41,15 @@ spec:
         - name: web
           image: {{ include "bedoux.imageReference" .Values.web.image | quote }}
           imagePullPolicy: {{ .Values.web.image.pullPolicy }}
+          {{- if gt (int .Values.web.termination.preStopSleepSeconds) 0 }}
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - {{ printf "sleep %d" (int .Values.web.termination.preStopSleepSeconds) | quote }}
+          {{- end }}
           {{- with .Values.web.command }}
           command:
             {{- toYaml . | nindent 12 }}
