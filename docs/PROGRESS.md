@@ -11,7 +11,7 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P12 — TLS & custom domain |
 | Active task | None — P12 is active, but the required owner domain decision must be recorded before P12.1 starts. |
-| Last verified | 2026-08-20T13:31:16-06:00 — PR #48 scan blocker fixed locally; current pinned Trivy reports zero fixable HIGH/CRITICAL findings. |
+| Last verified | 2026-08-20T13:36:50-06:00 — PR #48 merged to main; completed P11 local/remote branches and temporary scan artifacts removed. |
 | AWS resources currently live | No temporary or unattached billable resources. Persistent allowlist only: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | USD 4.552 budget actual at session close; no forecast returned. This short P11.4 session is estimated below USD 0.30, with billing data expected to lag. |
 | Next operator action | Owner chooses: buy a new domain, use an already-owned subdomain, or keep P12 documented-only. Record that choice before P12.1 starts. |
@@ -677,6 +677,25 @@ its required owner domain decision pending before P12.1 may start.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-20T13:36:50-06:00 — PR #48 merged; P11 branches cleaned — Codex
+
+- **Merge evidence:** PR #48 left draft only after all four checks passed. GitHub Actions run
+  `32409199438` completed successfully: API tests; web lint/test/build; Terraform/Helm validation;
+  and container build, zero-fixable-vulnerability scans, SPDX SBOM generation/upload, and
+  candidate-image signing/verification. GitHub merged the PR as `b13bd6d`.
+- **Main reconciliation:** the clean primary `main` worktree fast-forwarded to `b13bd6d` and
+  matches `origin/main`.
+- **Branch cleanup:** after verifying every P11 branch was merged, local branches `p11-1-hpa`,
+  `p11-2-pdb-topology`, `p11-3-live-scaleout`, and `p11-4-node-loss` were deleted. The merged
+  remote `p11-4-node-loss` branch was deleted; the remote now contains only `main` and its HEAD
+  alias.
+- **Local artifact cleanup:** the exact temporary API scan image and its `/tmp` archive were
+  removed after the successful local and CI evidence. They are reproducible from the committed
+  Dockerfile and are not retained state.
+- **Phase state:** P11 remains complete and gate-approved. P12 is active with no checklist item
+  started; the owner domain decision required by ADR 0014 remains the next action.
+- **AWS:** none. No AWS or Kubernetes endpoint was contacted and no infrastructure changed.
 
 ### 2026-08-20T13:31:16-06:00 — PR #48 API base-package scan blocker fixed — Codex
 
