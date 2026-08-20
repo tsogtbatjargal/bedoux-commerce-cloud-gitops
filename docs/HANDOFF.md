@@ -14,11 +14,11 @@ Start with START-HERE.md, AGENTS.md, and docs/PROGRESS.md. The progress file is 
 Use the active worktree/branch recorded by Git; preserve unrelated changes.
 
 Current state as of 2026-08-20:
-- P0-P10 are complete and gate-approved. P11 is active.
-- P11.1-P11.5 and T-1101-T-1104 are complete. No P11 checklist item remains active; the phase
-  gate awaits explicit owner approval in its own commit. P12 is not active.
-- Branch p11-4-node-loss contains the two AZ-pinned one-node-group design, PDB/topology overlay,
-  bounded drain/recovery helper, pinned k6 workload, and P11.4 runbook.
+- P0-P11 are complete and gate-approved. P12 is active.
+- P11.1-P11.5 and T-1101-T-1104 are complete. The owner approved the P11 gate on 2026-08-20 in
+  the required standalone phase-transition commit.
+- The completed P11 implementation contains the two AZ-pinned one-node-group design,
+  PDB/topology overlay, bounded drain/recovery helper, pinned k6 workload, and P11.4 runbook.
 - ADR 0017 chose two fixed one-node Spot groups and soft one-AZ stateless failover. ADR 0018
   supersedes only its invalid minDomains clause: Kubernetes 1.34 permits minDomains only with
   DoNotSchedule, so the AWS ScheduleAnyway overlay omits minDomains.
@@ -54,11 +54,12 @@ Current state as of 2026-08-20:
   its original 128; local closeout is complete.
 
 Next action:
-1. Owner explicitly approves or rejects the P11 phase gate. If approved, record the required
-   standalone commit `Phase 11 gate approved by owner; activate Phase 12` before activating P12.
-2. Do not start P12 or make its pending domain decision until that gate commit exists.
+1. Owner chooses one P12 path required by ADR 0014: buy a new domain, use a subdomain of an
+   already-owned domain, or keep the live work documented-only.
+2. Record that choice in a dedicated ADR before starting P12.1. Do not infer a domain choice from
+   the P11 gate approval.
 
 Hard boundaries: USD 20/month; ca-central-1; bedoux-admin only; no NAT Gateway; same-day teardown;
-never record account IDs, secrets, or personal email addresses. Do not start P12 before P11's
-gate evidence is complete and the owner explicitly approves the phase gate.
+never record account IDs, secrets, or personal email addresses. Do not start P12.1 before the
+owner's domain choice is recorded.
 ```

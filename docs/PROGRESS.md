@@ -9,12 +9,12 @@ checked here and its evidence is recorded in the session log.
 | Field | Value |
 |---|---|
 | State | IN PROGRESS |
-| Active phase | P11 — Bounded autoscaling & HA |
-| Active task | None — P11.1–P11.5 and T-1101–T-1104 are complete; P11 phase gate awaits explicit owner approval. |
-| Last verified | 2026-08-20T12:56:52-06:00 — P11 gate documentation aligned and all local validation checks passed; no AWS endpoint contacted. |
+| Active phase | P12 — TLS & custom domain |
+| Active task | None — P12 is active, but the required owner domain decision must be recorded before P12.1 starts. |
+| Last verified | 2026-08-20T13:22:44-06:00 — owner approved the complete P11 gate evidence; P12 activated without starting P12.1. |
 | AWS resources currently live | No temporary or unattached billable resources. Persistent allowlist only: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | USD 4.552 budget actual at session close; no forecast returned. This short P11.4 session is estimated below USD 0.30, with billing data expected to lag. |
-| Next operator action | Owner approves or rejects the P11 phase gate in its own commit. Do not activate P12 or make its domain decision before that approval. |
+| Next operator action | Owner chooses: buy a new domain, use an already-owned subdomain, or keep P12 documented-only. Record that choice before P12.1 starts. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -639,6 +639,8 @@ Gate: T-1001..T-1005.
 
 Gate: T-1101..T-1104.
 
+**P11 gate approved by owner 2026-08-20; P12 activated.**
+
 ### P12 — TLS & custom domain
 
 - [ ] **Owner decision pending** (per ADR 0014): buy a domain / use an owned subdomain / skip
@@ -666,9 +668,8 @@ Gate: T-1301..T-1302.
 
 Gate: T-1401..T-1404.
 
-**P10–P14 track bootstrapped 2026-08-09; P10 is gate-approved. P11.1–P11.5 and
-T-1101–T-1104 are complete. P11's phase gate awaits explicit owner approval in its own commit;
-P12 is not active.**
+**P10–P14 track bootstrapped 2026-08-09; P10 and P11 are gate-approved. P12 is active, with
+its required owner domain decision pending before P12.1 may start.**
 
 ## Blockers
 
@@ -678,6 +679,21 @@ P12 is not active.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-20T13:22:44-06:00 — P11 gate approved; P12 activated — Codex
+
+- **Owner approval:** the owner explicitly approved P11 after reviewing its aligned completion
+  record. This satisfies the required owner-controlled phase gate.
+- **Gate evidence:** P11.1–P11.5 and T-1101–T-1104 remain complete, including capped HPA
+  scale-out/scale-in, two-AZ PDB/topology behavior, live AWS scale-out, the zero-failure node-loss
+  retry, same-session recovery, and clean guarded teardown sweeps.
+- **Transition:** P11 is gate-approved and P12 is now active. No P12 checklist item has started;
+  ADR 0014 still requires the owner to choose a new domain, an already-owned subdomain, or a
+  documented-only path before P12.1.
+- **Boundary:** this phase transition is recorded in its required standalone gate commit. No AWS
+  or Kubernetes endpoint was contacted and no infrastructure resource changed.
+- **Next action:** publish and merge the completed P11 history through the repository PR workflow,
+  then record the owner's P12 domain choice before activating P12.1.
 
 ### 2026-08-20T12:54:34-06:00 — P11 gate documentation alignment — Codex
 
