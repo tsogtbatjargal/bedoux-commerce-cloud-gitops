@@ -11,7 +11,7 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P12 — TLS & custom domain |
 | Active task | None — P12 is active, but the required owner domain decision must be recorded before P12.1 starts. |
-| Last verified | 2026-08-20T13:22:44-06:00 — owner approved the complete P11 gate evidence; P12 activated without starting P12.1. |
+| Last verified | 2026-08-20T13:31:16-06:00 — PR #48 scan blocker fixed locally; current pinned Trivy reports zero fixable HIGH/CRITICAL findings. |
 | AWS resources currently live | No temporary or unattached billable resources. Persistent allowlist only: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | USD 4.552 budget actual at session close; no forecast returned. This short P11.4 session is estimated below USD 0.30, with billing data expected to lag. |
 | Next operator action | Owner chooses: buy a new domain, use an already-owned subdomain, or keep P12 documented-only. Record that choice before P12.1 starts. |
@@ -88,16 +88,14 @@ check can't miss them:
 
 ## Known open issues (not blockers, revisit when fixable)
 
-- **23 unfixed OS-level CVEs on the API image's `python:3.12-slim` (Debian 13) base**,
-  re-scanned 2026-08-09 (P10.1) — up from 22 at the P2.5 baseline (2026-07-18). Still no
-  upstream fix for any of them: every finding's `Fixed Version` column is empty and each
-  Debian package status is `affected` or `fix_deferred`, confirmed with
-  `trivy image --severity HIGH,CRITICAL --input /tmp/image.tar` (recipe in
-  `docs/local-tooling.md`) against a freshly built image, not the stale P2.5 result. This is
-  not something the app can fix on its own. The web image (`nginx-unprivileged` on Alpine)
-  re-scanned clean at 0 HIGH/CRITICAL, same as P2.5. Re-scan again opportunistically
-  (P14 capstone at the latest, or sooner if the base image tag is bumped) — fix the moment a
-  patched Debian package lands upstream.
+- **17 unfixed OS-level CVEs on the API image's `python:3.12-slim` (Debian 13) base**,
+  re-scanned 2026-08-20 after applying current runtime package updates — 13 HIGH and 4 CRITICAL,
+  all with empty `FixedVersion`; the required `--ignore-unfixed` blocking scan reports zero.
+  PR #48 initially exposed 36 newly fixable HIGH findings across nine `util-linux` packages;
+  the runtime `apt-get upgrade` installed Debian's fixed `2.41.5-0+deb13u1` packages and removed
+  all 36. The web image (`nginx-unprivileged` on Alpine) remains clean. Re-scan opportunistically
+  (P14 capstone at the latest, or sooner if the base image tag changes) and fix remaining findings
+  when upstream packages become available.
 - **ECR tagged-image lifecycle prefix mismatch (identified 2026-07-31):** the ECR rule matches
   `sha-` tags, while P6.4's deployment workflow emits bare commit-SHA tags. This is a bounded
   storage/cost-hygiene gap, not a runtime or security issue; defer the one-line alignment to a
@@ -679,6 +677,26 @@ its required owner domain decision pending before P12.1 may start.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-20T13:31:16-06:00 — PR #48 API base-package scan blocker fixed — Codex
+
+- **Publication state:** draft PR #48 runs the cumulative P11 implementation and standalone P11
+  gate commit against `main`. API tests, web lint/test/build, and Terraform/Helm validation passed;
+  the first container job failed at its fixable-vulnerability gate before SBOM/signing steps.
+- **Finding:** the current Trivy database identified 36 newly fixable HIGH findings in nine
+  Debian `util-linux` runtime packages. The base image contained `2.41-5`; Debian now provides
+  fixed `2.41.5-0+deb13u1` packages. This supersedes the prior no-fix-available assumption for
+  those findings.
+- **Fix:** the API runtime stage now refreshes package indexes, upgrades available packages, and
+  removes apt lists before creating the non-root user. A fresh `--pull=always` local build upgraded
+  exactly the nine affected packages and still executes as uid/gid 10001 `bedoux`.
+- **Verification:** pinned Trivy 0.72.0 with a freshly downloaded database reports zero fixable
+  HIGH/CRITICAL findings. The full scan reports 17 remaining unfixed findings: 13 HIGH and 4
+  CRITICAL, each without a fixed version. The next PR run must pass the complete container/SBOM/
+  signature job before merge.
+- **Phase boundary:** this is publication-blocking security maintenance, not P12.1 work. P12
+  remains active with no checklist item started and its owner domain decision still pending.
+- **AWS:** none. No AWS or Kubernetes endpoint was contacted and no infrastructure changed.
 
 ### 2026-08-20T13:22:44-06:00 — P11 gate approved; P12 activated — Codex
 

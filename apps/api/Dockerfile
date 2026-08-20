@@ -9,7 +9,10 @@ RUN pip install --no-cache-dir --prefix=/install .
 
 FROM docker.io/library/python:3.12-slim AS runtime
 
-RUN groupadd --gid 10001 bedoux && \
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    rm -rf /var/lib/apt/lists/* && \
+    groupadd --gid 10001 bedoux && \
     useradd --uid 10001 --gid bedoux --no-create-home --shell /usr/sbin/nologin bedoux
 
 COPY --from=builder /install /usr/local
