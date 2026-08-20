@@ -177,13 +177,16 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
 - Accepted ADR 0019 addresses the evidence-supported ALB/pod termination gap with an AWS-HA-only
   30-second target deregistration bound, 45-second preStop hold, 60-second grace period, and
   deterministic AWS target-health readiness gates. Static renders, fail-closed guard mocks, and
-  pinned k6 p99/failure diagnostics pass. A temporary three-node local baseline reached Ready,
-  but no fault/load proof ran because the 20:45 alarm was missed; teardown completed cleanly but
-  about 20 minutes late. This is not pass evidence. The owner restored the transient host inotify
-  limit to its original 128, so local teardown is fully closed.
-- Next action: keep T-1103 incomplete. Any new local proof needs a fresh alarm plus an enforced
-  command timeout. A later AWS retry still needs
-  its own current preflight, exact plan review, separate apply approval, recovery, and teardown.
+  pinned k6 p99/failure diagnostics pass. The fresh 2026-08-20 local drill also passed: the
+  non-PostgreSQL worker drained in 48.39 seconds under five minutes of pinned traffic, with
+  19,011/19,011 successful requests, p95 670.56 ms, p99 807.89 ms, stateless one-worker recovery,
+  PostgreSQL untouched, and restored two-worker placement. The recovery helper was hardened after
+  the drill showed that terminating pods can create a transient false spread result. The exact
+  cluster and temporary files are gone, and the owner restored the transient host inotify limit
+  to its original 128. Local closeout is clean.
+- Next action: keep T-1103 incomplete. A fresh AWS retry still needs its own current preflight,
+  new independent alarm, exact plan review, separate apply approval, live zero-failure evidence,
+  recovery, and teardown.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

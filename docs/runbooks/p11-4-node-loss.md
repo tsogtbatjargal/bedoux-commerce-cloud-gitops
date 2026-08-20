@@ -122,8 +122,11 @@ inside the recorded session boundary.
      --execute
    ```
 
-   The command uncordons the node, uses each Deployment's rolling-update controls to restart
-   API/web, and refuses success unless each application returns to two-AZ placement.
+   The command uncordons the node and uses each Deployment's rolling-update controls to restart
+   API/web. It waits until terminating pods have disappeared before evaluating placement, so a
+   pod in its preStop hold cannot create a false two-AZ result. If stable Ready pods still occupy
+   only one AZ, it replaces at most one pod per stateless Deployment, waits for that bounded
+   rebalance, and refuses success unless each application then occupies both AZs.
 2. Re-run the same ALB health/catalog checks used for the baseline. Delete drill-only files or
    pods if any were created.
 3. Delete Ingress first and wait for ALB deletion. Uninstall the app/controller and temporary

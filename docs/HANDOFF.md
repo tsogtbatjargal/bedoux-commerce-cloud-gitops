@@ -13,7 +13,7 @@ Continue bedoux-commerce-cloud from
 Start with START-HERE.md, AGENTS.md, and docs/PROGRESS.md. The progress file is authoritative.
 Use the active worktree/branch recorded by Git; preserve unrelated changes.
 
-Current state as of 2026-08-18:
+Current state as of 2026-08-20:
 - P0-P10 are complete and gate-approved. P11 is active.
 - P11.1, P11.2, P11.3, and P11.5 are complete. P11.4 is the only active item.
 - Branch p11-4-node-loss contains the two AZ-pinned one-node-group design, PDB/topology overlay,
@@ -36,17 +36,18 @@ Current state as of 2026-08-18:
   roles/policies, and the GitHub OIDC provider. Terraform state contains data sources only.
 - Budget actual was USD 4.428 at session start; the short session was estimated below USD 0.20.
 - Helm profile assertions, mocked guard success/refusal paths, and pinned k6 0.52.0 p99/failure
-  diagnostics pass. A fresh three-node kind baseline later reached Ready, with API/web split across
-  both workers, but no load/fault ran: blocked tool calls overran the 20:45 alarm. The exact cluster
-  and archives were deleted by 21:05. This is not pass evidence. The owner restored the host
-  inotify limit to its original 128; local closeout is complete.
+  diagnostics pass. A fresh three-node kind drill then proved the Kubernetes termination contract:
+  19,011/19,011 requests succeeded under a 48.39-second drain, with p95 670.56 ms, p99 807.89 ms,
+  stateless recovery on one worker, PostgreSQL untouched, restored two-worker placement, and clean
+  cluster/file teardown. The drill exposed and fixed a recovery-helper false-positive: terminating
+  pods are now excluded before placement is evaluated, with at most one bounded stateless
+  replacement per Deployment. The owner restored the transient host inotify limit from 1024 to
+  its original 128; local closeout is complete.
 
 Next action:
-1. In a fresh independently alarmed window with enforced command timeouts, prove the 45-second
-   termination hold, request continuity, recovery, and clean local teardown.
-2. Keep P11.4 IN PROGRESS. Any T-1103 retry requires a fresh aws-session runbook boundary,
-   independent alarm, current billing/inventory, exact Terraform plan review, separate apply
-   authorization, recovery, and same-session teardown.
+1. Keep P11.4 IN PROGRESS. The successful local proof is not T-1103; any live retry requires a
+   fresh aws-session runbook boundary, new independent alarm, current billing/inventory, exact
+   Terraform plan review, separate apply authorization, recovery, and same-session teardown.
 
 Hard boundaries: USD 20/month; ca-central-1; bedoux-admin only; no NAT Gateway; same-day teardown;
 never record account IDs, secrets, or personal email addresses. Do not start P12 before P11's

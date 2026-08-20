@@ -11,7 +11,9 @@ Prepare and execute the bounded P11.4 stateless node-loss drill.
   inspect                 Read-only baseline check; prints the safe fault-node candidate.
   drain --node NAME       Dry-run by default; add --execute to cordon/drain NAME.
   recover --node NAME     Dry-run by default; add --execute to uncordon NAME and
-                          restart api/web so normal cross-AZ placement is restored.
+                          restart api/web, wait out terminating pods, and perform at
+                          most one bounded stateless rebalance per Deployment so
+                          normal cross-AZ placement is restored.
 
 Options:
   --context NAME          Required explicit EKS kubectl context.
@@ -110,7 +112,8 @@ if [[ "$action" != "inspect" && "$execute" == false ]]; then
     printf '%s\n' 'DRY RUN: wait for api/web recovery and assert no running app pod remains on the fault node'
   else
     printf 'DRY RUN: kubectl uncordon %q\n' "$node"
-    printf '%s\n' 'DRY RUN: rollout restart api/web, wait for readiness, and assert cross-AZ placement'
+    printf '%s\n' 'DRY RUN: rollout restart api/web and wait for terminating pods to disappear'
+    printf '%s\n' 'DRY RUN: if needed, replace at most one pod per Deployment before asserting cross-AZ placement'
   fi
   exit 0
 fi
@@ -223,6 +226,66 @@ if [[ -z "$safe_fault_node" ]]; then
   exit 1
 fi
 
+stable_app_pods=()
+stable_app_nodes=()
+stable_app_terminating_count=0
+
+capture_stable_app_pods() {
+  local app="$1" row pod_name app_node phase deleting ready
+  local -a rows=()
+
+  stable_app_pods=()
+  stable_app_nodes=()
+  stable_app_terminating_count=0
+  mapfile -t rows < <(kubectl --context "$context" --namespace "$namespace" get pods \
+    --selector "app=$app" \
+    --output jsonpath='{range .items[*]}{.metadata.name}{"|"}{.spec.nodeName}{"|"}{.status.phase}{"|"}{.metadata.deletionTimestamp}{"|"}{range .status.conditions[?(@.type=="Ready")]}{.status}{end}{"\n"}{end}')
+
+  for row in "${rows[@]}"; do
+    IFS='|' read -r pod_name app_node phase deleting ready <<<"$row"
+    if [[ -n "$deleting" ]]; then
+      stable_app_terminating_count=$((stable_app_terminating_count + 1))
+      continue
+    fi
+    if [[ "$phase" == Running && "$ready" == True && -n "$app_node" ]]; then
+      stable_app_pods+=("$pod_name")
+      stable_app_nodes+=("$app_node")
+    fi
+  done
+}
+
+wait_for_stable_app_pods() {
+  local app="$1" timeout_seconds="${2:-120}"
+  local deadline=$((SECONDS + timeout_seconds))
+
+  while true; do
+    capture_stable_app_pods "$app"
+    if ((stable_app_terminating_count == 0 && ${#stable_app_nodes[@]} >= 2)); then
+      return 0
+    fi
+    if ((SECONDS >= deadline)); then
+      printf 'FAIL: %s did not settle to at least two non-terminating Ready pods within %ss.\n' \
+        "$app" "$timeout_seconds" >&2
+      return 1
+    fi
+    sleep 2
+  done
+}
+
+stable_app_has_two_zones() {
+  local app="$1" app_node
+  local -A stable_zones=()
+
+  for app_node in "${stable_app_nodes[@]}"; do
+    if [[ -z "${node_zone[$app_node]:-}" ]]; then
+      printf 'FAIL: %s has a stable pod on unverified node %s.\n' "$app" "$app_node" >&2
+      return 1
+    fi
+    stable_zones["${node_zone[$app_node]}"]=1
+  done
+  ((${#stable_zones[@]} == 2))
+}
+
 if [[ "$action" == "inspect" ]]; then
   assert_app_baseline
   printf 'Baseline OK: two Ready nodes across two AZs; api/web and both PDBs are healthy.\n'
@@ -279,18 +342,23 @@ kubectl --context "$context" --namespace "$namespace" rollout restart deployment
 for app in api web; do
   kubectl --context "$context" --namespace "$namespace" rollout status \
     "deployment/$app" --timeout=5m
-  declare -A app_zones=()
-  mapfile -t app_nodes < <(kubectl --context "$context" --namespace "$namespace" get pods \
-    --selector "app=$app" --field-selector status.phase=Running \
-    --output jsonpath='{range .items[*]}{.spec.nodeName}{"\n"}{end}')
-  for app_node in "${app_nodes[@]}"; do
-    app_zones["${node_zone[$app_node]}"]=1
-  done
-  if ((${#app_zones[@]} != 2)); then
+  wait_for_stable_app_pods "$app"
+  if ! stable_app_has_two_zones "$app"; then
+    rebalance_pod="${stable_app_pods[0]}"
+    printf 'Recovery rebalance: replacing one %s pod (%s) after terminating pods settled.\n' \
+      "$app" "$rebalance_pod"
+    kubectl --context "$context" --namespace "$namespace" delete pod "$rebalance_pod" \
+      --wait=false
+    kubectl --context "$context" --namespace "$namespace" wait --for=delete \
+      "pod/$rebalance_pod" --timeout=2m
+    kubectl --context "$context" --namespace "$namespace" rollout status \
+      "deployment/$app" --timeout=5m
+    wait_for_stable_app_pods "$app"
+  fi
+  if ! stable_app_has_two_zones "$app"; then
     printf 'FAIL: %s did not return to two-AZ placement after recovery.\n' "$app" >&2
     exit 1
   fi
-  unset app_zones
 done
 
 printf 'Recovery OK: fault node is schedulable and api/web are Ready across both AZs.\n'

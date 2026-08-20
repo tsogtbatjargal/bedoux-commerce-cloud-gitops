@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P11 — Bounded autoscaling & HA |
-| Active task | P11.4 IN PROGRESS — live T-1103 attempt failed its zero-request-failure threshold; recovery and the full AWS teardown sweep passed. |
-| Last verified | 2026-08-18T21:55:59-06:00 — owner restored the transient host inotify limit to 128; temporary kind cluster, archives, context, and processes remain absent. |
+| Active task | P11.4 IN PROGRESS — ADR 0019's Kubernetes termination contract passed locally; a fresh live T-1103 retry remains required. |
+| Last verified | 2026-08-20T09:59:44-06:00 — local proof and teardown complete; host inotify restored to 128 and no drill processes/files remain. |
 | AWS resources currently live | No temporary or unattached billable resources. Persistent allowlist only: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | USD 4.428 budget actual at session start; below the USD 20 cap. Today's short session is estimated below USD 0.20; recheck Billing after delayed usage posts. |
-| Next operator action | Keep P11.4 incomplete; schedule any new local termination proof in a fresh independently alarmed window with an enforced command timeout before teardown margin. |
+| Next operator action | Open a fresh AWS session only after a new independent alarm, current preflight, exact plan review, and separate apply authorization. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -673,6 +673,63 @@ boundary still apply, with the same gate discipline as P0–P9.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-20T08:14:30-06:00 — Local termination proof passed; clean closeout — Codex
+
+- **Phase/task:** P11.4 remains the only active item. This local-only drill tests ADR 0019's
+  Kubernetes termination contract before any separately gated AWS retry.
+- **Deadline:** the owner set an independent alarm for 11:05 Edmonton time. Evidence work stops
+  by 10:35 to reserve 30 minutes for recovery, cluster deletion, temporary-file cleanup, and
+  restoration of the host inotify setting. Potentially blocking commands run behind explicit
+  process-level timeouts that expire before the evidence cutoff.
+- **Declared baseline/fault/recovery:** create one temporary three-node kind cluster; require two
+  Ready API and web replicas split across both workers, healthy PDBs, and exactly one Running
+  PostgreSQL pod. Run pinned k6 0.52.0, then cordon/drain only the worker that does not host
+  PostgreSQL. Require zero request failures, 45-second preStop behavior within 60-second grace,
+  stateless recovery on the surviving worker, PostgreSQL untouched, and restored two-worker
+  placement after uncordon/restart.
+- **Owner host action:** `fs.inotify.max_user_instances` was transiently raised from its recorded
+  baseline of 128 to 1024, then restored to 128 after the exact temporary cluster was deleted.
+- **AWS:** none. No AWS session is open and no AWS endpoint or cloud mutation is authorized;
+  estimated cost USD 0.
+- **Rollback:** stop load, uncordon the fault worker if needed, delete the exact
+  `bedoux-p11-ha` cluster and drill-only files, confirm matching containers/processes/context are
+  absent, then have the owner restore `fs.inotify.max_user_instances=128`.
+- **Pinned runtime and baseline:** kind v0.32.0 created one Kubernetes 1.34.0 control plane and
+  two workers under rootless Podman with the `fuse-overlayfs` containerd snapshotter. Cached
+  API/web/PostgreSQL/k6 images were imported with the documented explicit-platform workaround;
+  no registry was contacted. Migration and seed Jobs completed. API and web were each 2/2 Ready
+  with one pod per worker, both PDBs allowed one disruption, PostgreSQL was Ready only on
+  `worker2`, both application Deployments rendered `sleep 45` with 60-second grace and
+  `ScheduleAnyway`, and the in-cluster catalog returned all six seeded products.
+- **Load and single fault — local PASS:** pinned k6 0.52.0 ran 20 VUs for five minutes from the
+  retained control-plane node. After more than 60 clean seconds, only the non-PostgreSQL
+  `worker` was cordoned/drained. Its API/web pods remained container-ready while terminating;
+  replacements became Ready on `worker2`, and the original PostgreSQL pod was untouched. The
+  drain completed in 48.39 seconds, consistent with the 45-second preStop hold. Final k6 result:
+  19,011 requests and checks, 100% successful checks, 0 failed requests, average 214.75 ms,
+  p95 670.56 ms, p99 807.89 ms, and maximum 1.26 seconds. All exact-zero and latency thresholds
+  passed with no `catalog-request-failed` diagnostic.
+- **Recovery finding and hardening:** uncordon plus rolling restart initially scheduled both new
+  API replicas and both new web replicas on the newly available worker while old `worker2` pods
+  were still terminating. A naive zone check can therefore pass transiently by counting
+  terminating pods, then collapse to one-zone placement after they disappear. After those pods
+  finished their preStop holds, replacing exactly one API and one web pod restored one Ready
+  replica per worker; both nodes were Ready/schedulable and the catalog smoke passed. The live
+  recovery helper now ignores/waits out terminating pods, performs at most one bounded stateless
+  replacement per Deployment when stable placement remains in one AZ, and fails if that
+  replacement does not restore two AZs. A mocked transient-terminating path proved both
+  rebalances and success; a mocked persistent-one-AZ path was refused after the single allowed
+  replacement.
+- **Teardown:** Helm release and drill namespace deleted, exact cluster and all three node
+  containers deleted, and the four archives, kubeconfig, and temporary pod manifest removed.
+  Exact Podman and `/tmp` checks are empty; no kind, kubectl, Helm, or k6 drill process remains.
+  The owner restored the transient host inotify value from 1024 to its original 128 at
+  2026-08-20T09:59:44-06:00. Closeout finished before the 10:35 evidence cutoff and 11:05 alarm.
+- **Result boundary:** this is successful local Kubernetes evidence for ADR 0019, not T-1103.
+  kind cannot prove ALB target deregistration or AWS target-health readiness gates. P11.4 remains
+  `IN PROGRESS`; a fresh AWS session still requires current preflight, exact plan review,
+  separate apply authorization, live zero-failure evidence, recovery, and clean teardown.
 
 ### 2026-08-18T21:55:59-06:00 — Local host setting restored; closeout complete — Codex
 
