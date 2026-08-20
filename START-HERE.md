@@ -157,14 +157,45 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   **P10.4 is complete:** ADR 0015's permissions boundary, `bedoux-iam-scoped` v4, replacement
   workload identities, and bounded deny test were proven live. **P10.5 is complete:** the EKS VPC
   CNI enforced the NetworkPolicies in a real allow/deny drill, followed by a clean same-session
-  teardown. **P10 gate approved 2026-08-11; P11 is active.** The Calico-backed kind cluster is
+  teardown. **P10 gate approved 2026-08-11; P11 gate approved 2026-08-20; P12 is active pending
+  the required owner domain choice.** The Calico-backed kind cluster is
   still running and Ready, but the default kubeconfig context points at the deleted EKS endpoint;
   use or switch deliberately to `kind-bedoux`.
-- Repository workflow skills are validated on `repo-workflow-skills`; P11.1 remains not started
-  while that focused maintenance change moves through owner review.
-- Next action: review and merge the repository workflow skills, then start P11.1 locally by
-  marking it `IN PROGRESS`, adding bounded HPA for api/web plus a pinned metrics-server, and
-  recording T-1101 kind scale-out/scale-back evidence. No AWS session is needed for P11.1.
+- Repository workflow skills are validated and published on `main` through merged PR #47
+  (`874305c`); P11.1 is complete with T-1101 evidence and P11.2 is complete with local
+  PDB/topology evidence.
+- P11.3 is complete on `p11-3-live-scaleout`: the live k6 proof reached the hard 3-replica HPA
+  cap with 0% request failures, and the guarded same-session teardown swept all temporary AWS
+  resources clean. ADR 0016 records the owner-applied policy v6 PassRole reconciliation. The
+  initial Spot placement exposed a real same-AZ/minDomains finding; P11.4 was assigned the
+  node-loss drill and follow-up topology decision.
+- The first P11.4 live T-1103 attempt on 2026-08-18 proved two AZ-pinned nodes, safe
+  non-PostgreSQL drain, one-AZ stateless recovery, and restored cross-AZ placement, but failed
+  the hard traffic gate: 115 of 30,265 requests failed. ADR 0018 records the live Kubernetes
+  1.34 finding that `minDomains` is invalid with `ScheduleAnyway`. That session and its later
+  owner-approved orphan-volume cleanup both closed with a clean inventory.
+- Accepted ADR 0019 addresses the evidence-supported ALB/pod termination gap with an AWS-HA-only
+  30-second target deregistration bound, 45-second preStop hold, 60-second grace period, and
+  deterministic AWS target-health readiness gates. Static renders, fail-closed guard mocks, and
+  pinned k6 p99/failure diagnostics pass. The fresh 2026-08-20 local drill also passed: the
+  non-PostgreSQL worker drained in 48.39 seconds under five minutes of pinned traffic, with
+  19,011/19,011 successful requests, p95 670.56 ms, p99 807.89 ms, stateless one-worker recovery,
+  PostgreSQL untouched, and restored two-worker placement. The recovery helper was hardened after
+  the drill showed that terminating pods can create a transient false spread result. The exact
+  cluster and temporary files are gone, and the owner restored the transient host inotify limit
+  to its original 128. Local closeout is clean.
+- **P11.4 and T-1103 are complete as of 2026-08-20.** The fresh reviewed AWS retry drained the
+  safe stateless AZ node in 73.72 seconds during pinned five-minute k6 traffic. All
+  33,507/33,507 requests succeeded with 0 failures; average latency was 78.24 ms, p95 155.35 ms,
+  p99 453.29 ms, and maximum 1.25 s. PostgreSQL remained untouched, stateless workloads recovered
+  in the surviving AZ, and the helper restored Ready cross-AZ placement. Public health/catalog
+  and both target-health checks passed after recovery. The Ingress/ALB, Kubernetes prerequisites,
+  16 Terraform-managed temporary resources, and exact cluster OIDC provider were removed; the
+  final AWS sweep and local temporary-file/process sweep were clean. Budget actual remained
+  USD 4.552 of USD 20; estimated session cost is below USD 0.30 pending billing ingestion.
+- **All P11.1–P11.5 tasks and T-1101–T-1104 tests are complete, and the owner approved the P11
+  gate on 2026-08-20. P12 is active, but P12.1 cannot start until the owner chooses a new domain,
+  an already-owned subdomain, or the documented-only path required by ADR 0014.**
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

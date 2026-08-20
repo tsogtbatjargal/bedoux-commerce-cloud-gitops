@@ -9,12 +9,12 @@ checked here and its evidence is recorded in the session log.
 | Field | Value |
 |---|---|
 | State | IN PROGRESS |
-| Active phase | P11 — Bounded autoscaling & HA |
-| Active task | P11.1 NOT STARTED — HPA on api/web with an explicit maxReplicas cap, proven on kind. |
-| Last verified | 2026-08-11T16:42:14-06:00 — draft PR #47 publishes the synchronized repository skills; all four required CI checks are green. No AWS access. |
-| AWS resources currently live | Temporary session resources are gone. Persistent allowlist resources still exist in AWS but are detached from Terraform state after the session teardown prep: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider. |
-| Month-to-date estimated AWS spend | Still below the USD 20 cap; recheck before the next AWS session. |
-| Next operator action | Review and merge draft PR #47; P11.1 remains NOT STARTED until that maintenance PR lands. |
+| Active phase | P12 — TLS & custom domain |
+| Active task | None — P12 is active, but the required owner domain decision must be recorded before P12.1 starts. |
+| Last verified | 2026-08-20T13:31:16-06:00 — PR #48 scan blocker fixed locally; current pinned Trivy reports zero fixable HIGH/CRITICAL findings. |
+| AWS resources currently live | No temporary or unattached billable resources. Persistent allowlist only: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider. |
+| Month-to-date estimated AWS spend | USD 4.552 budget actual at session close; no forecast returned. This short P11.4 session is estimated below USD 0.30, with billing data expected to lag. |
+| Next operator action | Owner chooses: buy a new domain, use an already-owned subdomain, or keep P12 documented-only. Record that choice before P12.1 starts. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -27,7 +27,7 @@ Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
   identity — never used for routine work (account ID intentionally never recorded
   here). **Working identity is IAM user `bedoux-admin`**, in group `bedoux-admins`
   with `PowerUserAccess` (AWS managed; excludes IAM/Organizations) plus a small custom
-  policy `bedoux-iam-scoped` (**v4** as of 2026-08-11, see ADRs 0007 and 0015) granting
+  policy `bedoux-iam-scoped` (**v6** as of 2026-08-17, see ADRs 0007, 0015, and 0016) granting
   boundary-constrained role/policy/OIDC-provider actions only on `bedoux-*`-named resources,
   **plus explicit denies against modifying `bedoux-iam-scoped` itself or creating/modifying a
   delegated role without the required `PowerUserAccess` permissions boundary**. ADR 0007 closed
@@ -88,16 +88,14 @@ check can't miss them:
 
 ## Known open issues (not blockers, revisit when fixable)
 
-- **23 unfixed OS-level CVEs on the API image's `python:3.12-slim` (Debian 13) base**,
-  re-scanned 2026-08-09 (P10.1) — up from 22 at the P2.5 baseline (2026-07-18). Still no
-  upstream fix for any of them: every finding's `Fixed Version` column is empty and each
-  Debian package status is `affected` or `fix_deferred`, confirmed with
-  `trivy image --severity HIGH,CRITICAL --input /tmp/image.tar` (recipe in
-  `docs/local-tooling.md`) against a freshly built image, not the stale P2.5 result. This is
-  not something the app can fix on its own. The web image (`nginx-unprivileged` on Alpine)
-  re-scanned clean at 0 HIGH/CRITICAL, same as P2.5. Re-scan again opportunistically
-  (P14 capstone at the latest, or sooner if the base image tag is bumped) — fix the moment a
-  patched Debian package lands upstream.
+- **17 unfixed OS-level CVEs on the API image's `python:3.12-slim` (Debian 13) base**,
+  re-scanned 2026-08-20 after applying current runtime package updates — 13 HIGH and 4 CRITICAL,
+  all with empty `FixedVersion`; the required `--ignore-unfixed` blocking scan reports zero.
+  PR #48 initially exposed 36 newly fixable HIGH findings across nine `util-linux` packages;
+  the runtime `apt-get upgrade` installed Debian's fixed `2.41.5-0+deb13u1` packages and removed
+  all 36. The web image (`nginx-unprivileged` on Alpine) remains clean. Re-scan opportunistically
+  (P14 capstone at the latest, or sooner if the base image tag changes) and fix remaining findings
+  when upstream packages become available.
 - **ECR tagged-image lifecycle prefix mismatch (identified 2026-07-31):** the ECR rule matches
   `sha-` tags, while P6.4's deployment workflow emits bare commit-SHA tags. This is a bounded
   storage/cost-hygiene gap, not a runtime or security issue; defer the one-line alignment to a
@@ -623,13 +621,23 @@ Gate: T-1001..T-1005.
 
 ### P11 — Bounded autoscaling & HA
 
-- [ ] P11.1 NOT STARTED — HPA on api/web with an explicit maxReplicas cap, proven on kind.
-- [ ] P11.2 NOT STARTED — PodDisruptionBudget + topology spread on a 2-node/2-AZ nodegroup.
-- [ ] P11.3 NOT STARTED — live load test proving real scale-out.
-- [ ] P11.4 NOT STARTED — node-loss drill across AZs.
-- [ ] P11.5 NOT STARTED — teardown + sweep.
+- [x] P11.1 COMPLETE — HPA on api/web with an explicit maxReplicas cap, proven on kind. Evidence: T-1101 session log 2026-08-12T11:23:51-06:00.
+- [x] P11.2 COMPLETE — PodDisruptionBudget + topology spread on a bounded 2-node/2-AZ nodegroup.
+      Evidence: local three-node kind proof, scheduler/PDB eviction drill, static Terraform validation,
+      and clean temporary-cluster teardown in session log 2026-08-17T12:42:56-06:00.
+- [x] P11.3 COMPLETE — live AWS load test proved capped scale-out and recovered to the 2-replica minimum; T-1102 and T-1104 evidence recorded in the 2026-08-17 session log.
+- [x] P11.4 COMPLETE — T-1103 passed on the reviewed live retry: one safe AZ node drained in
+      73.72 seconds during five minutes of pinned k6 traffic; all 33,507 requests succeeded,
+      PostgreSQL was untouched, one-AZ stateless recovery held, cross-AZ placement was restored,
+      and the same-session teardown sweep was clean. Evidence: session log
+      2026-08-20T10:33:44-06:00.
+- [x] P11.5 COMPLETE — the earlier P11.3 guarded teardown destroyed 15 temporary resources;
+      the final P11.4 guarded teardown destroyed 16. Each final AWS sweep found no temporary EKS,
+      ALB, VPC, NAT, instance, volume, RDS, or CloudFormation resources.
 
 Gate: T-1101..T-1104.
+
+**P11 gate approved by owner 2026-08-20; P12 activated.**
 
 ### P12 — TLS & custom domain
 
@@ -658,17 +666,790 @@ Gate: T-1301..T-1302.
 
 Gate: T-1401..T-1404.
 
-**P10–P14 track bootstrapped 2026-08-09; no phase work started. Owner approval required
-before P10.1 begins, same gate discipline as P0–P9.**
+**P10–P14 track bootstrapped 2026-08-09; P10 and P11 are gate-approved. P12 is active, with
+its required owner domain decision pending before P12.1 may start.**
 
 ## Blockers
 
-- None. GitHub server-side branch protection remains unavailable while the repository is private
+- GitHub server-side branch protection remains unavailable while the repository is private
   on its current plan; ADR 0010 documents the accepted local compensating control and its limits.
 
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-20T13:31:16-06:00 — PR #48 API base-package scan blocker fixed — Codex
+
+- **Publication state:** draft PR #48 runs the cumulative P11 implementation and standalone P11
+  gate commit against `main`. API tests, web lint/test/build, and Terraform/Helm validation passed;
+  the first container job failed at its fixable-vulnerability gate before SBOM/signing steps.
+- **Finding:** the current Trivy database identified 36 newly fixable HIGH findings in nine
+  Debian `util-linux` runtime packages. The base image contained `2.41-5`; Debian now provides
+  fixed `2.41.5-0+deb13u1` packages. This supersedes the prior no-fix-available assumption for
+  those findings.
+- **Fix:** the API runtime stage now refreshes package indexes, upgrades available packages, and
+  removes apt lists before creating the non-root user. A fresh `--pull=always` local build upgraded
+  exactly the nine affected packages and still executes as uid/gid 10001 `bedoux`.
+- **Verification:** pinned Trivy 0.72.0 with a freshly downloaded database reports zero fixable
+  HIGH/CRITICAL findings. The full scan reports 17 remaining unfixed findings: 13 HIGH and 4
+  CRITICAL, each without a fixed version. The next PR run must pass the complete container/SBOM/
+  signature job before merge.
+- **Phase boundary:** this is publication-blocking security maintenance, not P12.1 work. P12
+  remains active with no checklist item started and its owner domain decision still pending.
+- **AWS:** none. No AWS or Kubernetes endpoint was contacted and no infrastructure changed.
+
+### 2026-08-20T13:22:44-06:00 — P11 gate approved; P12 activated — Codex
+
+- **Owner approval:** the owner explicitly approved P11 after reviewing its aligned completion
+  record. This satisfies the required owner-controlled phase gate.
+- **Gate evidence:** P11.1–P11.5 and T-1101–T-1104 remain complete, including capped HPA
+  scale-out/scale-in, two-AZ PDB/topology behavior, live AWS scale-out, the zero-failure node-loss
+  retry, same-session recovery, and clean guarded teardown sweeps.
+- **Transition:** P11 is gate-approved and P12 is now active. No P12 checklist item has started;
+  ADR 0014 still requires the owner to choose a new domain, an already-owned subdomain, or a
+  documented-only path before P12.1.
+- **Boundary:** this phase transition is recorded in its required standalone gate commit. No AWS
+  or Kubernetes endpoint was contacted and no infrastructure resource changed.
+- **Next action:** publish and merge the completed P11 history through the repository PR workflow,
+  then record the owner's P12 domain choice before activating P12.1.
+
+### 2026-08-20T12:54:34-06:00 — P11 gate documentation alignment — Codex
+
+- **Phase/task:** the owner requested correction of the P11 documentation audit findings. P11.1–
+  P11.5 and T-1101–T-1104 remain complete; the P11 phase gate still awaits explicit owner
+  approval, and P12 remains inactive.
+- **Alignment:** current guidance now distinguishes the one-node/one-replica default learning
+  baseline from P11's opt-in two-AZ HA profile; P11 rollback uses the guarded destroy helper and
+  preserves the persistent allowlist; T-1103 states its full checks, zero-failure, and p95 gates;
+  stale P11.2/current-state labels were corrected.
+- **Decision/evidence integrity:** ADR 0017's status now matches ADR 0018's partial supersession.
+  ADR 0019 retains its decision-time hypothesis text and adds the factual 2026-08-20 validation.
+  The node-loss runbook now identifies ADRs 0017–0019 and the completed live proof. Historical
+  session entries were not rewritten.
+- **Scope:** no architecture decision changed, no AWS or Kubernetes endpoint was contacted, and
+  no resource was created, modified, or deleted. P14.5 still owns the interview walkthrough and
+  diagram refresh, so those artifacts were deliberately not updated early.
+- **Verification:** `git diff --check`, recursive Terraform format checking, Helm lint with the
+  default/AWS/AWS-HA values, shell syntax checks, the GitHub Actions pin check, draw.io XML/SVG
+  pairing and canonical-spine checks, stale-guidance searches, and the added-line sensitive-data
+  scan all passed.
+- **Next action:** owner approves or rejects the P11 phase gate in its own commit. Do not activate
+  P12 or make its domain decision before that approval.
+
+### 2026-08-20T10:33:44-06:00 — P11.4 live retry session opened for plan review — Codex
+
+- **Phase/task:** P11.4 / T-1103 remains the only active item. The owner set an independent
+  alarm for 14:30 Edmonton. Evidence work stops by 13:45 so at least 45 minutes remains for
+  recovery and same-session teardown. The alarm overrides any incomplete command or test.
+- **Approval boundary:** ADR 0019 and the successful local termination proof permit this fresh
+  alarmed session and exact Terraform-plan review. No apply, Kubernetes fault, or AWS mutation is
+  authorized until the fresh saved plan passes every guardrail and the owner separately approves
+  its exact hash.
+- **Read-only preflight:** the caller is the expected non-root `bedoux-admin` user and the
+  configured region is the pinned `ca-central-1`. EKS clusters, load balancers, target groups,
+  RDS instances/manual snapshots, active NAT Gateways, EIPs, running/pending instances, available
+  EBS volumes, self-owned snapshots, and active CloudFormation stacks are all empty.
+- **Persistent allowlist:** the project-tag sweep contains exactly the state bucket and two ECR
+  repositories. All six expected persistent roles and the GitHub OIDC provider are present.
+- **Billing/cost:** the USD 20 budget reports USD 4.552 actual and no forecast value. Cost
+  Explorer's current-month result is estimated and approximately zero after credits, so the
+  budget actual remains the conservative control. Current `t3.medium` Spot observations are
+  USD 0.0177–0.0182 per node-hour; P11's reviewed USD 3–5 session envelope keeps projected
+  month-to-date spend below USD 10 and the USD 16 stop threshold.
+- **Teardown readiness:** the guarded state and destroy helpers pass their usage checks; AWS,
+  Terraform, jq, Helm, kubectl, Podman, and SHA-256 tooling are available. Planned persistent
+  exceptions are only the state bucket/history, two ECR repositories, six IAM roles/policies,
+  and GitHub OIDC provider.
+- **State reconciliation:** the Terraform root was reconnected to the existing encrypted S3
+  backend. The import helper dry-run was reviewed, then its explicit state-only execution attached
+  exactly the two ECR repositories, two EKS execution roles, GitHub OIDC provider/role/policy,
+  three workload roles, and ALB controller policy. State contains 11 managed persistent objects
+  plus six data/policy-document entries; no temporary resource exists.
+- **Fresh exact plan:** `/tmp/bedoux-p11-4-20260820-1038.tfplan`, SHA-256
+  `1ba748a573acea72950cc411042f63255065ff03140e186fd99bf0bcde9f7239`, is 26 creates,
+  11 in-place updates, five reads, and zero destroys/replacements. Seventeen creates are temporary:
+  the public no-NAT VPC resources, EKS 1.34, two access entries/associations, two pinned add-ons,
+  two AZ-pinned node groups, and temporary cluster OIDC provider. Each node group is one Spot
+  `t3.medium` with 20 GiB and desired/min/max 1; aggregate desired/min/max remains exactly 2.
+  The other nine creates adopt two already-live ECR lifecycle policies and seven already-live
+  IAM policy attachments; all nine were independently confirmed through read-only APIs.
+- **Structured plan review:** no NAT/EIP, RDS, S3-images, Secrets Manager, CloudWatch,
+  Route 53, or ACM create; no delete/replace action; no taggable create missing the standard
+  tags; and no node-cap violation. RDS, S3-image, Secrets Manager, and observability flags are
+  false. Policy updates change tags only; role updates add standard tags and, where applicable,
+  rotate trust to the exact new cluster OIDC subjects. No permission-policy expansion is planned.
+- **AWS:** sanitized read-only identity, billing, inventory, IAM allowlist, Spot-price, refresh,
+  and plan calls plus persistent Terraform state reconciliation. No AWS infrastructure resource
+  was created, modified, or deleted; incremental resource cost remains USD 0.
+- **Apply gate:** the plan passes technical review but remains unauthorized. The owner must
+  separately approve the exact SHA-256 above while the 13:45 evidence cutoff and 14:30 alarm
+  still leave sufficient recovery/teardown margin.
+- **Apply authorization:** at 10:42 Edmonton the owner supplied the exact reviewed SHA-256. The
+  saved binary was rehashed unchanged immediately before apply; authorization is limited to that
+  file and does not permit plan regeneration or any additional resource.
+- **Apply and healthy baseline:** Terraform applied only the authorized saved plan: 26 added,
+  11 changed in place, and 0 destroyed. EKS 1.34 became Active with the pinned VPC CNI and EBS
+  CSI add-ons and exactly two Ready Spot `t3.medium` nodes, one in each of `ca-central-1a` and
+  `ca-central-1b`. The deterministic zero-replica Helm bootstrap created the namespace label,
+  PostgreSQL, migration/seed jobs, Ingress, and target binding before stateless pods. The normal
+  upgrade reached two Ready API and two Ready web replicas split across both AZs; each web pod
+  reported its AWS target-health readiness gate, both ALB targets were healthy, PDBs allowed one
+  disruption each, public health/catalog returned HTTP 200, and the catalog contained six items.
+  Exactly one PostgreSQL pod ran in `ca-central-1a`; the guard selected the stateless-only
+  `ca-central-1b` node and passed its dry-run immediately before the live fault.
+- **T-1103 — PASSED:** pinned k6 0.52.0 ran 20 VUs for five minutes. The guarded drain began
+  after 3m03s of successful baseline traffic, cordoned/drained only the declared safe node, and
+  completed in 73.72 seconds. API/web became Ready in the surviving AZ while the single
+  PostgreSQL pod remained Running and untouched. Final traffic evidence was 33,507/33,507
+  successful checks and requests, 0 interrupted iterations, and `0.00%` request failures;
+  request latency was 78.24 ms average, 155.35 ms p95, 453.29 ms p99, and 1.25 s maximum.
+  This satisfies the hard zero-failure and p95-under-two-seconds gates.
+- **Recovery:** the declared helper uncordoned the fault node, rolled API/web through their
+  normal update controls, bounded replacement to at most one settled pod per Deployment, and
+  verified both Deployments Ready across both AZs. The original PostgreSQL pod was still Running
+  in its original AZ. Both nodes were Ready, both ALB targets were healthy, and the repeated
+  public health/catalog checks returned HTTP 200 with six products.
+- **Kubernetes and Terraform teardown:** the Ingress was deleted first and the ALB was confirmed
+  absent before uninstalling the app, namespace, AWS Load Balancer Controller, Metrics Server,
+  and temporary gp3 StorageClass. Guarded state preparation detached only the persistent
+  allowlist. The reviewed saved destroy plan was 0 add, 0 change, 16 destroy; apply removed both
+  node groups, both add-ons, access entries/associations, EKS cluster, IGW, route resources,
+  subnets, and VPC. The helper then deleted the exact captured temporary cluster OIDC provider.
+- **Final sweep and local cleanup:** at 12:43 MDT the account contained zero EKS clusters,
+  load balancers, target groups, active NAT Gateways, EIPs, non-terminated instances, EBS
+  volumes/snapshots, RDS instances/snapshots/subnet groups, or active CloudFormation stacks.
+  The project-tag count was exactly three: the allowlisted state bucket and two ECR repositories.
+  All six persistent roles and the GitHub OIDC provider remain; exact lookup of the temporary
+  cluster OIDC provider returned `NoSuchEntity`. Terraform state contains five data/policy-
+  document entries and no managed resources. Exact temporary plans, variables, kubeconfig,
+  smoke files, helper captures, workload container, and related processes are gone.
+- **Cost/deadline:** the closeout budget recheck remained USD 4.552 of USD 20 with no forecast;
+  this approximately two-hour EKS/ALB/two-Spot-node session is estimated below USD 0.30 pending
+  billing ingestion. Recovery and teardown completed well before the independent 14:30 Edmonton
+  alarm; its proposed extension was not treated as effective because no replacement alarm time
+  was reported.
+- **Result/next action:** P11.4 and T-1103 are complete. Together with the already-complete
+  T-1101, T-1102, and T-1104 evidence, every P11 checklist item and test is complete. P11 remains
+  the active phase only until the owner explicitly approves its phase gate in a separate commit;
+  do not begin P12 early.
+
+### 2026-08-20T08:14:30-06:00 — Local termination proof passed; clean closeout — Codex
+
+- **Phase/task:** P11.4 remains the only active item. This local-only drill tests ADR 0019's
+  Kubernetes termination contract before any separately gated AWS retry.
+- **Deadline:** the owner set an independent alarm for 11:05 Edmonton time. Evidence work stops
+  by 10:35 to reserve 30 minutes for recovery, cluster deletion, temporary-file cleanup, and
+  restoration of the host inotify setting. Potentially blocking commands run behind explicit
+  process-level timeouts that expire before the evidence cutoff.
+- **Declared baseline/fault/recovery:** create one temporary three-node kind cluster; require two
+  Ready API and web replicas split across both workers, healthy PDBs, and exactly one Running
+  PostgreSQL pod. Run pinned k6 0.52.0, then cordon/drain only the worker that does not host
+  PostgreSQL. Require zero request failures, 45-second preStop behavior within 60-second grace,
+  stateless recovery on the surviving worker, PostgreSQL untouched, and restored two-worker
+  placement after uncordon/restart.
+- **Owner host action:** `fs.inotify.max_user_instances` was transiently raised from its recorded
+  baseline of 128 to 1024, then restored to 128 after the exact temporary cluster was deleted.
+- **AWS:** none. No AWS session is open and no AWS endpoint or cloud mutation is authorized;
+  estimated cost USD 0.
+- **Rollback:** stop load, uncordon the fault worker if needed, delete the exact
+  `bedoux-p11-ha` cluster and drill-only files, confirm matching containers/processes/context are
+  absent, then have the owner restore `fs.inotify.max_user_instances=128`.
+- **Pinned runtime and baseline:** kind v0.32.0 created one Kubernetes 1.34.0 control plane and
+  two workers under rootless Podman with the `fuse-overlayfs` containerd snapshotter. Cached
+  API/web/PostgreSQL/k6 images were imported with the documented explicit-platform workaround;
+  no registry was contacted. Migration and seed Jobs completed. API and web were each 2/2 Ready
+  with one pod per worker, both PDBs allowed one disruption, PostgreSQL was Ready only on
+  `worker2`, both application Deployments rendered `sleep 45` with 60-second grace and
+  `ScheduleAnyway`, and the in-cluster catalog returned all six seeded products.
+- **Load and single fault — local PASS:** pinned k6 0.52.0 ran 20 VUs for five minutes from the
+  retained control-plane node. After more than 60 clean seconds, only the non-PostgreSQL
+  `worker` was cordoned/drained. Its API/web pods remained container-ready while terminating;
+  replacements became Ready on `worker2`, and the original PostgreSQL pod was untouched. The
+  drain completed in 48.39 seconds, consistent with the 45-second preStop hold. Final k6 result:
+  19,011 requests and checks, 100% successful checks, 0 failed requests, average 214.75 ms,
+  p95 670.56 ms, p99 807.89 ms, and maximum 1.26 seconds. All exact-zero and latency thresholds
+  passed with no `catalog-request-failed` diagnostic.
+- **Recovery finding and hardening:** uncordon plus rolling restart initially scheduled both new
+  API replicas and both new web replicas on the newly available worker while old `worker2` pods
+  were still terminating. A naive zone check can therefore pass transiently by counting
+  terminating pods, then collapse to one-zone placement after they disappear. After those pods
+  finished their preStop holds, replacing exactly one API and one web pod restored one Ready
+  replica per worker; both nodes were Ready/schedulable and the catalog smoke passed. The live
+  recovery helper now ignores/waits out terminating pods, performs at most one bounded stateless
+  replacement per Deployment when stable placement remains in one AZ, and fails if that
+  replacement does not restore two AZs. A mocked transient-terminating path proved both
+  rebalances and success; a mocked persistent-one-AZ path was refused after the single allowed
+  replacement.
+- **Teardown:** Helm release and drill namespace deleted, exact cluster and all three node
+  containers deleted, and the four archives, kubeconfig, and temporary pod manifest removed.
+  Exact Podman and `/tmp` checks are empty; no kind, kubectl, Helm, or k6 drill process remains.
+  The owner restored the transient host inotify value from 1024 to its original 128 at
+  2026-08-20T09:59:44-06:00. Closeout finished before the 10:35 evidence cutoff and 11:05 alarm.
+- **Result boundary:** this is successful local Kubernetes evidence for ADR 0019, not T-1103.
+  kind cannot prove ALB target deregistration or AWS target-health readiness gates. P11.4 remains
+  `IN PROGRESS`; a fresh AWS session still requires current preflight, exact plan review,
+  separate apply authorization, live zero-failure evidence, recovery, and clean teardown.
+
+### 2026-08-18T21:55:59-06:00 — Local host setting restored; closeout complete — Codex
+
+- **Owner confirmation:** the owner ran the documented rollback and the host now reports
+  `fs.inotify.max_user_instances=128`, matching the original pre-drill value.
+- **Final local state:** the exact temporary cluster, its three containers, four image archives,
+  kubeconfig context, and kind/image-load processes were already confirmed absent. No Kubernetes
+  fault ran and no local pass is claimed.
+- **AWS:** none. No AWS endpoint was contacted and estimated cost remains USD 0.
+- **Checkpoint:** local closeout is now complete. P11.4/T-1103 remain `IN PROGRESS`; any retry
+  requires a fresh independent alarm and a process-level timeout that ends commands before the
+  reserved teardown margin.
+
+### 2026-08-18T21:05:37-06:00 — Local baseline reached; alarm missed; pre-fault teardown clean — Codex
+
+- **Phase/task/result:** P11.4 remains `IN PROGRESS`. ADR 0019 is accepted, but this local attempt
+  did not run the declared fault or k6 and is not pass evidence for the correction or T-1103.
+- **Host/runtime recovery:** after the owner transiently raised
+  `fs.inotify.max_user_instances` from 128 to 1024, the rootless Podman cluster initialized with
+  Kubernetes 1.34 and all three nodes Ready. This confirmed the earlier CRI failure was the host
+  inotify ceiling rather than an application or chart defect.
+- **Image-loading finding:** kind v0.32.0's `load image-archive` passed `--all-platforms` to the
+  node's containerd 2.1.3 importer and failed with `no unpack platforms defined`. Direct imports
+  with explicit `--platform linux/amd64 --local` and the `fuse-overlayfs` snapshotter succeeded
+  for the cached API, web, PostgreSQL, and pinned k6 images; no registry download occurred.
+- **Healthy pre-fault baseline:** the Helm release eventually reached `deployed`; migration and
+  seed Jobs completed, PostgreSQL was Ready on worker2, and API/web each had two Ready replicas
+  split one per worker with the configured PDB/soft-spread/45-second preStop/60-second grace
+  manifests. No traffic generator or drain started.
+- **Deadline failure:** the 20:45 independent alarm was missed. A long-running image/Helm tool
+  call did not return control with a clock check; when status surfaced at 21:04, the release had
+  only deployed at 20:58, already after the alarm. Evidence work stopped immediately, but this
+  still violated the declared deadline discipline. Teardown completed at 21:05, about 20 minutes
+  late. Future commands near a deadline must run behind a separately enforced process timeout;
+  an external alarm alone cannot interrupt a blocked tool call.
+- **Teardown evidence:** deleted exact cluster `bedoux-p11-ha` and its three nodes, removed all
+  four `/tmp/bedoux-p11-*.tar` archives, and confirmed no matching Podman container, kubeconfig
+  context, kind process, or image-load process remains. Provider inventory lists only the
+  pre-existing stopped `bedoux` cluster entry. The owner still needs to restore the transient
+  host inotify value from 1024 to its original 128.
+- **AWS:** none. No AWS endpoint was contacted; no cloud resource changed; estimated cost USD 0.
+- **Next action:** owner runs `sudo sysctl -w fs.inotify.max_user_instances=128` and confirms the
+  output. Keep P11.4/T-1103 incomplete. Any retry needs a fresh alarm and should use the now-known
+  direct containerd import path plus a hard command timeout that stops work before teardown margin.
+
+### 2026-08-18T19:34:02-06:00 — Local baseline blocked cleanly by host inotify ceiling — Codex
+
+- **Phase/task:** P11.4 remains `IN PROGRESS`; ADR 0019 is owner-accepted and the 20:45 Edmonton
+  independent alarm remains authoritative. No fault was injected.
+- **Attempt:** rootless Podman used systemd cgroup delegation and the cached pinned Kubernetes
+  1.34 node image to create the declared one-control-plane/two-worker cluster. The first attempt
+  was stopped and explicitly deleted when CRI was unavailable. One bounded retry used kind's
+  recommended `fuse-overlayfs` snapshotter for SELinux/user namespaces.
+- **Environmental finding:** the retry's containerd journal showed its CRI plugin failed before
+  `kubeadm init` because it could not create the CNI fsnotify watcher: `too many open files`.
+  The process open-file limit was not implicated; the host's per-user
+  `fs.inotify.max_user_instances` value is 128 and is shared by the workstation's existing
+  rootless containers. No unrelated container was stopped or changed to force the test through.
+- **Clean stop:** kind timed out before Kubernetes/API initialization and automatically removed
+  all three `bedoux-p11-ha` containers. `pgrep` found no initializer, provider cluster inventory
+  lists only the pre-existing stopped `bedoux` entry, and an exact Podman label query returns no
+  `bedoux-p11-ha` container. No workload, namespace, Helm release, load, or fault existed.
+- **AWS:** none. No AWS endpoint was contacted and estimated cost remains USD 0.
+- **Next action / rollback:** owner may transiently run
+  `sudo sysctl -w fs.inotify.max_user_instances=1024`; then retry rootless creation and the
+  bounded drill. After the exact temporary cluster is deleted, restore the original value with
+  `sudo sysctl -w fs.inotify.max_user_instances=128`. If this cannot be completed with teardown
+  margin before 20:45, close the local session without a drill result.
+
+### 2026-08-18T19:03:49-06:00 — ADR 0019 accepted; bounded local drill opened — Codex
+
+- **Phase/task:** P11.4 remains the only active item. The owner accepted ADR 0019's technical
+  design and confirmed an independent operator alarm for 20:45 Edmonton. Evidence work stops by
+  20:25 to reserve at least 20 minutes for local recovery and teardown; the alarm overrides the
+  drill regardless of evidence state.
+- **Declared local proof:** create one temporary three-node kind cluster (one control plane and
+  two workers), establish two Ready API/web replicas with PDBs and soft hostname spread, and run
+  the pinned k6 catalog workload from the retained control-plane side of the fault boundary.
+  The single fault is cordon/drain of the worker that does not host PostgreSQL. Diagnostics are
+  limited to kind, kubectl, Helm, Podman, and application/k6 output.
+- **Required evidence:** the affected API/web pods remain alive for the configured 45-second
+  preStop interval within their 60-second grace period, traffic records zero failed requests,
+  both stateless Deployments recover on the surviving worker, PostgreSQL remains untouched, and
+  uncordon/restart restores two-worker placement. The temporary cluster and drill-only files must
+  then be deleted and independently confirmed absent.
+- **Boundary:** this is local-only validation of Kubernetes termination behavior; kind cannot
+  emulate the AWS controller's target-health readiness condition or ALB target state. Those parts
+  remain static/runtime-guard validated until a separately opened and approved AWS retry.
+- **AWS:** none. No AWS session is open and no AWS call is authorized. Estimated cost: USD 0.
+- **Rollback:** stop k6, uncordon the fault worker, remove the Helm release/namespace, and delete
+  the exact temporary kind cluster. If cluster creation or baseline fails, inject no fault and
+  proceed directly to teardown.
+
+### 2026-08-18T18:58:51-06:00 — P11.4 drain-transition correction prepared locally — Codex
+
+- **Phase/task:** P11.4 / T-1103 remains `IN PROGRESS`. No later phase or live retry started.
+- **Evidence-based diagnosis:** the failed drill's roughly 30-second request stall occurred while
+  Kubernetes was terminating direct ALB-backed web pod IPs. The AWS HA chart had no preStop hold,
+  explicit termination-grace contract, target-group deregistration bound, or AWS target-health
+  readiness gates. Kubernetes documents that preStop execution and EndpointSlice withdrawal begin
+  concurrently; AWS documents that a target ending connections before deregistration completes can
+  return 500-level errors. This is a supported correction hypothesis, not a proven root cause.
+- **Proposed ADR 0019:** AWS HA only now renders a 30-second ALB target deregistration delay,
+  45-second API/web preStop holds, and 60-second termination grace. The runbook uses a zero-replica,
+  HPA-disabled bootstrap so the web Service/Ingress/TargetGroupBinding exist before real web pods;
+  the AWS controller can then inject target-health readiness gates deterministically. Base/kind
+  behavior remains no preStop and 30-second grace.
+- **Fail-closed drill guard:** `inspect` now refuses unless both Deployments have the exact
+  termination contract, Ingress has the exact target-group attribute, and at least two Running web
+  pods each have a `target-health.elbv2.k8s.aws/...` readiness gate. Mocked healthy and missing-gate
+  paths passed. Existing PostgreSQL, two-node/two-AZ, Deployment, and PDB guards remain intact.
+- **Load evidence:** pinned k6 0.52.0 now reports p99 and emits timestamped JSON status/error data
+  for every failed request without relaxing exact-zero thresholds. A one-second localhost refusal
+  test proved status 0/error-code diagnostics, p99 output, and expected threshold failure.
+- **Validation:** Bash syntax/help/drain dry-run/recover dry-run, Node parse, Helm lint, all base,
+  AWS, kind-HA, and AWS-HA renders, explicit base/AWS-HA assertions, CI render assertions, guard
+  success/refusal mocks, and `git diff --check` passed. The retained `kind-bedoux` kubeconfig points
+  to a stopped API endpoint, so no Kubernetes fault was injected and no replacement cluster was
+  created after the prior independent alarm expired.
+- **AWS:** none. No AWS endpoint was contacted and no AWS or Kubernetes resource was created,
+  modified, or deleted. Estimated cost: USD 0.
+- **Decision/next action:** ADR 0019 remains `Proposed`; P11.4 and T-1103 remain incomplete. The
+  owner accepts or rejects the design and sets a new independent deadline/alarm for a temporary
+  three-node kind termination drill. Only after local recovery and clean teardown may a fresh AWS
+  session perform current billing/inventory checks, exact plan review, separate apply approval,
+  the live retry, and same-session teardown.
+
+### 2026-08-18T14:43:57-06:00 — P11.4 AWS session opened for exact plan review — Codex
+
+- **Phase/task:** P11.4 / T-1103 remains `IN PROGRESS`. The owner confirmed an independent
+  operator alarm is set for 18:00 Edmonton. The alarm ends evidence work and starts teardown;
+  at least 45 minutes remains reserved for teardown.
+- **Approval boundary:** ADR 0017's design is accepted. This session is authorized for preflight,
+  persistent-state reconciliation, and exact saved-plan generation/review. No Terraform apply is
+  authorized until the generated plan passes every guardrail and the owner separately approves
+  that exact plan.
+- **Read-only preflight:** the CLI identity is the expected non-root `bedoux-admin` user and the
+  configured/pinned region is `ca-central-1`. EKS clusters, tagged Bedoux VPCs, active tagged
+  instances and volumes, NAT Gateways, Bedoux ALBs/target groups, RDS instances, and active
+  CloudFormation stacks are all empty.
+- **Billing/cost:** the USD 20 budget reports USD 4.428 actual and no forecast value. Cost
+  Explorer's current-month result is estimated and approximately zero after credits, so the
+  budget actual remains the conservative control. Current `t3.medium` Spot observations in the
+  two selected AZs are USD 0.0173–0.0178 per node-hour; standard-support EKS remains USD 0.10 per
+  cluster-hour. The reviewed P11 USD 3–5 session envelope would keep projected month-to-date
+  spend below the USD 16 stop threshold.
+- **Teardown readiness:** AWS, Terraform, jq, Helm, kubectl, and Podman are available; the guarded
+  persistent-state and session-destroy helpers are executable and the destroy usage path is
+  present. Planned persistent exceptions remain only the state bucket/history, two ECR
+  repositories, six IAM roles, and GitHub OIDC provider.
+- **AWS:** read-only identity, billing, pricing, and inventory calls only. No cloud resource was
+  created, modified, or deleted; temporary-resource cost remains USD 0.
+- **Next action:** initialize the root against the persistent backend, import only the allowlist,
+  generate the exact P11.4 saved plan from `terraform.tfvars.p11-ha.example`, and refuse it for
+  any NAT, unplanned service, delete/replace, persistent-resource delete, or cost-cap violation.
+- **State reconciliation:** the persistent helper dry-run was reviewed, then its explicit import
+  attached only the two ECR repositories, two EKS execution roles, GitHub OIDC provider/role/
+  policy, three workload roles, and ALB controller policy to Terraform state. No AWS resource was
+  changed by import.
+- **Exact saved plan:** `/tmp/bedoux-p11-4.tfplan`, SHA-256
+  `08a182217dd8ff30e9c6cecde39a3b031baa4aa5021ec8daba8a746c0d028ded`, contains 26 creates,
+  11 in-place updates, and 0 destroys/replacements. Seventeen creates are temporary: no-NAT VPC
+  resources, EKS 1.34, two access entries/associations, two pinned add-ons, two AZ-pinned node
+  groups, and the temporary cluster OIDC provider. Each node group is Spot `t3.medium`, 20 GiB,
+  and fixed at desired/min/max 1. The other nine creates adopt already-live ECR lifecycle policies
+  and IAM policy attachments into state; read-only AWS checks confirmed all nine already exist.
+- **Structured refusal checks:** zero forbidden NAT/EIP/RDS/S3/Secrets Manager/CloudWatch/Route
+  53/ACM resources; zero delete/replace actions; zero node-cap violations; zero taggable creates
+  missing `project=bedoux-commerce-cloud` or `environment=learning`. The 11 in-place updates add
+  standard tags and rotate the GitHub/workload role trust documents to their exact OIDC provider
+  and ServiceAccount subjects; no policy permission expansion is planned.
+- **Apply gate:** the plan passed technical review but is not authorized merely by the earlier
+  design approval. The owner must approve this exact saved-plan hash. At 16:19 Edmonton, the
+  18:00 alarm remains authoritative and 45 minutes is reserved for teardown; delay can make the
+  apply unsafe even if approval arrives later.
+- **Authorization and apply:** the owner supplied the exact reviewed SHA-256 above. The hash was
+  reverified unchanged at 16:23, and Terraform applied only that saved binary: 26 added, 11
+  changed in place, 0 destroyed. EKS 1.34, both pinned add-ons, and exactly two Ready Spot nodes
+  came up; the nodes occupied `ca-central-1a` and `ca-central-1b` as required.
+- **Live API-validation finding:** the first Helm install failed atomically before application
+  workloads were created because Kubernetes 1.34 permits `minDomains` only with
+  `DoNotSchedule`; ADR 0017's `minDomains: 2` plus `ScheduleAnyway` combination was invalid.
+  ADR 0018 supersedes only that clause: the AWS soft-spread overlay omits `minDomains`, while the
+  chart retains it for the hard local profile. Helm lint and live server-side dry-run passed,
+  then the immutable-digest release deployed successfully.
+- **Healthy baseline:** at 16:45 the guard found exactly two Ready nodes in two AZs, exactly one
+  Running PostgreSQL pod in `ca-central-1a`, two available API and web replicas split across
+  both AZs, healthy PDBs, and the `ca-central-1b` node as the safe stateless fault candidate.
+  The public ALB health and catalog endpoints both returned HTTP 200.
+- **T-1103 result — FAILED:** pinned k6 0.52.0 ran 20 VUs for five minutes. After 67 seconds and
+  more than 6,100 successful baseline iterations, the guarded drain cordoned and drained only
+  the safe stateless node. API and web recovered to three Ready replicas each in the surviving
+  AZ and PostgreSQL was untouched. Final k6 result: 30,265 requests; 30,150 successful checks;
+  115 failed checks/requests (`0.37%` failure, `99.62%` checks); average 97.44 ms; p95 157.99 ms;
+  maximum 10.17 s. The default summary did not emit p99, so p99 evidence is unavailable. The
+  latency threshold passed, but any failed request fails T-1103; no retry was attempted.
+- **Recovery:** at 16:51 the helper uncordoned the fault node, restarted API/web through their
+  rolling-update controls, and verified both Deployments Ready across both AZs. The ALB was
+  deleted first, then the app namespace, controller, storage class, and Metrics Server were
+  removed.
+- **Terraform teardown:** the guarded state-only preparation preserved the persistent allowlist.
+  The reviewed destroy plan was 0 add, 0 change, 16 destroy; apply removed both node groups,
+  add-ons, access entries/associations, EKS cluster, IGW, route resources, subnets, and VPC. Exact
+  ARN lookup returned `NoSuchEntity` for the captured temporary cluster OIDC provider. Terraform
+  state contains data sources only.
+- **Final sweep / billing incident:** EKS clusters, ALBs, target groups, NAT Gateways, EIPs,
+  running/pending instances, EBS snapshots, RDS instances/snapshots/subnet groups, and active
+  CloudFormation stacks are empty. The only tagged resources are the allowlisted state bucket
+  and two ECR repositories. The sweep exposed one unattached 1 GiB gp3 volume created
+  2026-08-11 for `bedoux/postgres-data`; it is not today's PVC and lacks the standard project
+  tags, explaining why prior tag-filtered preflights missed it. Per the runbook it remains
+  pending explicit owner deletion approval. Today's session is estimated below USD 0.20; Billing
+  must be rechecked after usage data posts.
+- **Next action:** owner approves or rejects deleting exact orphan
+  `vol-0bd296dbf5517b7ab`; rerun the final sweep. Keep P11.4/T-1103 incomplete and diagnose the
+  115-request transition gap before any separately reviewed retry.
+- **Owner-approved orphan cleanup / clean closeout:** the owner explicitly approved deleting
+  only the exact unattached volume above. AWS confirmed its deletion. The complete post-delete
+  sweep returned empty EKS clusters, load balancers, target groups, NAT Gateways, EIPs,
+  running/pending instances, EBS volumes/snapshots, RDS resources, and active CloudFormation
+  stacks. The only S3/tagged resources are the allowlisted state bucket and two ECR repositories;
+  the exact temporary cluster OIDC provider remains absent, and Terraform state contains data
+  sources only. The AWS session closed cleanly before the 18:00 independent alarm.
+- **Closeout verification:** both hard-kind and soft-AWS Helm profiles lint clean; rendered kind
+  manifests contain exactly two `minDomains: 2` constraints, while rendered AWS manifests omit
+  `minDomains` and contain exactly two `ScheduleAnyway` constraints. The GitHub Actions pin
+  check, Draw.io XML/export checks, spine-file checks, `git diff --check`, and a 12-digit-value
+  diff scan all pass. `make` is unavailable in this host shell, so the documented `docs-check`
+  recipe was run directly and passed.
+- **Next action after closeout:** keep P11.4/T-1103 `IN PROGRESS`; diagnose and locally validate
+  a correction for the 115-request drain-transition gap before proposing any fresh AWS retry.
+
+### 2026-08-18T13:24:46-06:00 — P11.4 design accepted; pre-drain guard hardened — Codex
+
+- **Phase/task:** P11.4 remains the single active item. The owner independently reviewed the
+  prepared design, found no blocking architecture issue, and accepted ADR 0017 from a technical-
+  design standpoint.
+- **Approval sequence:** ADR 0017 is now `Accepted`. That acceptance permits opening a fresh,
+  bounded, alarmed session and generating/reviewing the exact Terraform plan. It does not
+  authorize apply. Apply remains blocked until the saved plan passes the cost, scope,
+  persistence, and no-NAT checks and the owner explicitly authorizes that exact plan inside the
+  active session.
+- **Hardening:** `scripts/p11-node-loss-drill.sh` now enumerates Running `app=postgres` pods and
+  refuses unless the count is exactly one before selecting its node. The P11.4 runbook now states
+  the same baseline requirement.
+- **Validation:** the owner's independent shell syntax/help/dry-run, Terraform formatting, Helm
+  lint, and diff checks passed. Codex re-ran shell syntax/help/drain/recovery dry-runs and a
+  mocked kubectl fixture: two Running PostgreSQL pods were refused with the expected count, while
+  exactly one passed the baseline. Documentation/action/Helm gates and `git diff --check` passed.
+- **AWS:** none. No AWS API or Kubernetes endpoint was contacted, and no cloud resource was
+  created, modified, or deleted. Estimated session cost: USD 0.
+- **Next action:** owner records the P11.4 end time and independent alarm. Then perform only the
+  runbook's read-only identity/billing/inventory preflight and exact saved-plan review. Return to
+  the owner for separate apply authorization if and only if the plan passes every guardrail.
+- **Blocker:** no AWS session deadline/alarm is recorded yet, and no Terraform apply is
+  authorized. The live T-1103 drill remains pending.
+
+### 2026-08-18T09:39:36-06:00 — P11.4 activated for local preparation — Codex
+
+- **Phase/task:** P11.4 is the single active checklist item on branch `p11-4-node-loss`.
+  The intended outcome is a bounded T-1103 drill that drains one AZ's node under load,
+  preserves request success, proves workload recovery in the surviving AZ, and then completes
+  the already-proven same-session teardown path.
+- **Verified checkpoint:** P11.3 completion commit `235f815` is the clean branch base. Its live
+  evidence and final sweep show no temporary AWS resources remain. The carried-forward finding
+  is that one multi-AZ managed node group did not guarantee one initial Spot node per AZ, while
+  the hard `minDomains: 2` topology rule blocked failover when only one domain was schedulable.
+- **Prepared:** added the opt-in `node_groups_per_az` Terraform shape: one fixed one-node group
+  per configured subnet with aggregate desired/min/max still exactly two. The AWS HA Helm overlay
+  now prefers cross-AZ placement but uses `ScheduleAnyway` so stateless replicas may recover in
+  one surviving AZ. The default one-node learning profile and the P11.2 kind overlay remain
+  unchanged. Proposed ADR 0017 records the availability-vs-skew decision and explicitly limits
+  T-1103 to the node that does not host single-AZ PostgreSQL.
+- **Drill controls:** added `scripts/p11-node-loss-drill.sh` with an explicit-context read-only
+  baseline, dry-run-by-default drain/recovery paths, two-node/two-AZ/PDB checks, PostgreSQL-node
+  refusal, failed-drain uncordon, stateless recovery assertion, and post-recovery spread check.
+  Added pinned k6 0.52.0 input `scripts/p11-node-loss-load.js` (20 VUs, five minutes, exact-zero
+  failure threshold, p95 below two seconds) and `docs/runbooks/p11-4-node-loss.md` with the full
+  baseline → single fault → recovery → teardown sequence.
+- **Validation:** Terraform formatting passed; credential-free Terraform validation passed for
+  both defaults and the exact P11 HA example; Helm lint and AWS HA rendering passed with exactly
+  two PDBs, two topology constraints, and two `ScheduleAnyway` rules; shell syntax, helper help,
+  drain/recovery dry-runs, k6 `inspect`, immutable-action checks, workflow YAML parsing, exact
+  underlying documentation checks, and `git diff --check` passed. The `make docs-check` wrapper
+  was unavailable in this shell (`make: command not found`), so its Makefile commands were run
+  directly and passed. Terraform provider subprocess validation needed execution outside the
+  filesystem sandbox, but offline credentials and metadata access remained disabled. One earlier
+  validation attempt tried a read-only STS lookup and was blocked at local DNS; no request reached
+  AWS.
+- **AWS:** none. No AWS API request reached AWS, no Kubernetes endpoint was contacted, and no
+  cloud resource was created, modified, or deleted. Estimated session cost: USD 0.
+- **Next action:** owner reviews and explicitly accepts or rejects proposed ADR 0017. Acceptance
+  does not itself open AWS: the live drill still requires a fresh identity, billing, inventory,
+  Terraform-plan, deadline, independent-alarm, and teardown-command preflight.
+- **Blocker:** live T-1103 evidence is intentionally blocked on owner acceptance of ADR 0017 and
+  a separately recorded AWS session boundary. P11.4 remains `IN PROGRESS`.
+
+### 2026-08-17T14:28:10-06:00 — P11.3 activated: AWS preflight — Codex
+
+- **Phase/task:** P11.3 is the single active checklist item; T-1102 live scale-out proof is
+  activated on branch `p11-3-live-scaleout`. P11.2 remains complete.
+- **Intended outcome:** review the bounded Terraform plan, then in one owner-approved AWS
+  session deploy the two-node HA profile and capture before/after replica counts and latency
+  while bounded load drives real HPA scale-out. Same-day teardown remains mandatory.
+- **Read-only preflight:** `aws sts get-caller-identity` confirmed the expected non-root
+  `bedoux-admin` identity; the pinned region is `ca-central-1`. EKS cluster list, tagged Bedoux
+  VPC list, instances, volumes, NAT Gateways, target groups, RDS instances, ALBs, and active
+  CloudFormation stacks are all empty. The monthly budget is USD 20 with USD 4.144 actual spend;
+  Cost Explorer returned an estimated current-month result and no forecast value.
+- **Terraform state:** local validation is initialized, but the live root backend is deliberately
+  uninitialized in this worktree. The required next step is backend initialization against the
+  persistent state bucket, then allowlist import and a saved plan review; no plan/apply has run.
+- **Validation:** `git diff --check`, immutable GitHub Action pin validation, XML/export checks,
+  and documentation-spine checks passed. The `make` wrapper is unavailable in this shell, so the
+  underlying `docs-check` commands were run directly and passed.
+- **AWS:** no resources were created, modified, or deleted; read-only identity, billing, and
+  inventory checks only. Estimated session cost USD 0.
+- **Next action:** owner records the session end time and independent alarm, then initialize the
+  persistent backend, import only the allowlisted state, and review the saved P11.3 plan. Refuse
+  the session if the plan contains NAT, unplanned services, persistent-resource changes, or a
+  projected monthly cost above USD 16.
+- **Blockers:** the AWS session boundary is not yet open because its end time and independent
+  alarm have not been recorded. No infrastructure mutation was authorized until that preflight
+  item was satisfied.
+
+### 2026-08-17T14:30:00-06:00 — P11.3 AWS session opened — Codex
+
+- **Phase/task:** P11.3 / T-1102; owner confirmed the independent alarm is set for 18:00 Edmonton
+  time. The session deadline overrides all remaining evidence work.
+- **Session boundary:** owner-approved AWS session is open in pinned region `ca-central-1` using
+  the non-root `bedoux-admin` profile. Planned temporary resources are the bounded P11.2 profile:
+  one EKS control plane, exactly two Spot `t3.medium` workers across the two configured AZs, and
+  only the required ALB/application resources. RDS, S3 images, Secrets Manager, observability,
+  NAT, and unbounded autoscaling remain disabled.
+- **Required evidence:** saved Terraform plan contains no NAT, unplanned service, or persistent
+  resource changes; T-1102 captures healthy before/after replica counts and latency under bounded
+  load; same-day teardown and the full T-1104 sweep complete before 18:00.
+- **Next action:** initialize the persistent backend, import the persistent allowlist into state,
+  and review the saved plan before applying anything.
+
+### 2026-08-17T14:33:57-06:00 — P11.3 Terraform import blocked by IAM read scope — Codex
+
+- **Phase/task:** P11.3 / T-1102 remains `IN PROGRESS`; the owner-approved session deadline is
+  18:00 Edmonton time.
+- **Completed:** Terraform root backend initialized against the existing persistent state bucket.
+  The state initially contained only data lookups. The two persistent ECR repositories imported
+  successfully into state.
+- **Blocker:** importing the first persistent IAM role stopped with `AccessDenied` for
+  `iam:ListRolePolicies`. The live `bedoux-iam-scoped` v4 role-management statement conditions
+  all `iam:*Role*` actions on the required permissions boundary, which also blocks Terraform's
+  read-only role introspection. No broader permission or bypass was used.
+- **AWS:** no infrastructure resources were created, modified, or deleted; only backend state
+  initialization and allowlist state import were attempted. The two ECR imports are persistent
+  state reconciliation, not resource creation. Estimated infrastructure cost remains USD 0.
+- **Next action:** owner must apply a narrow, reviewed read-only IAM role-introspection allowance
+  (without weakening the v4 boundary/deny controls), then rerun the allowlist import and review a
+  saved plan. If the live policy differs from the committed declaration, reconcile it with a new
+  decision record before proceeding. The 18:00 alarm remains authoritative.
+- **Rollback:** no AWS infrastructure rollback is required; the partial state contains only the
+  intended persistent ECR imports and can be reconciled after the permission correction.
+
+### 2026-08-17T18:04:32-06:00 — P11.3 complete: live scale-out and clean teardown — Codex
+
+- **Phase/task:** P11.3 / T-1102 is complete. P11.5 / T-1104 teardown evidence is also
+  complete; P11.4 remains not started and needs a fresh owner-approved session.
+- **Policy reconciliation:** the owner applied the narrow read-only role-introspection grant and
+  exact EKS execution-role `iam:PassRole` grant in policy v6 through the AWS console. Live read-back
+  matched `infra/iam/bedoux-iam-scoped-v6.json`; ADR 0016 records the superseding decision.
+- **Infrastructure:** the fresh Terraform plan contained 9 creates, 3 expected trust updates,
+  and 0 destroys. Apply completed with EKS 1.34 ACTIVE, exactly two `t3.medium` Spot nodes,
+  `vpc-cni` `v1.22.4-eksbuild.3` ACTIVE, and EBS CSI `v1.63.1-eksbuild.1` ACTIVE with no
+  health issues. Metrics Server v0.9.0 and AWS Load Balancer Controller chart 3.4.3 were
+  installed for the proof.
+- **Topology finding:** both initial Spot nodes landed in `ca-central-1b`, so the configured
+  `minDomains: 2` constraint correctly left the second API/web replicas Pending. The failed
+  pending release was removed. A redeploy used an explicit one-domain session fallback while
+  retaining the 2–3 HPA cap; later node replacement placed workloads successfully and the
+  cross-AZ constraint finding remains for P11.4/design follow-up.
+- **Workload baseline:** the immutable existing ECR pair deployed successfully. Migration and
+  seed Jobs completed, the ALB `/api/health` check returned `status=ok`, and API/web started at
+  2/2 Ready with HPAs min 2, max 3, target CPU 60%.
+- **T-1102 load evidence:** pinned k6 0.52.0, 40 VUs for 120 seconds against `/api/products`,
+  14,382 requests, 100% checks/HTTP success, 0% failures, average latency 283.57 ms, p95
+  741.5 ms, and p99 909.44 ms. API reached 3/3 Ready first; web then reached 3/3 Ready;
+  both HPAs enforced the max of 3. After load stopped, valid metrics showed both HPAs back at
+  their 2-replica minimum with all pods Ready.
+- **T-1104 teardown:** Ingress/ALB, Helm release, controller, namespace, metrics-server,
+  StorageClass, EKS add-ons/access entries, node group, cluster, IGW, subnets, and VPC were
+  removed. The guarded destroy plan contained exactly 15 temporary destroys and no persistent
+  ECR/IAM/state resources. Final read-only sweep returned empty for EKS, Bedoux ALBs, tagged
+  VPCs, NAT gateways, instances, volumes, RDS, and active CloudFormation stacks. Direct lookup
+  of the temporary EKS OIDC provider returned `NoSuchEntity`; Terraform state contains only
+  data sources. The persistent allowlist remains detached and intact.
+- **Next action:** owner activates P11.4 with a new AWS session boundary and independent alarm.
+
+### 2026-08-17T16:17:00-06:00 — P11.3 apply blocked by IAM PassRole scope — Codex
+
+- **Phase/task:** P11.3 / T-1102 remains `IN PROGRESS`; the owner-approved session alarm remains
+  18:00 Edmonton time.
+- **Plan/apply evidence:** the refresh-enabled plan contained 9 remaining creates, 3 expected
+  trust updates, and 0 destroys. Applying it created no EKS cluster: `aws eks list-clusters`
+  returned empty. The already-created VPC remains the only temporary infrastructure footprint,
+  with its resources tracked in Terraform state.
+- **Blocker:** EKS `CreateCluster` was denied because `bedoux-admin` lacks `iam:PassRole` on
+  `bedoux-eks-cluster-role`. The v4 role-management condition also blocks this execution action.
+  No workaround or broad permission was used.
+- **AWS:** the no-NAT VPC, two public subnets, route table, and internet gateway were created by
+  the approved plan; no EKS cluster, node group, ALB, RDS, or other application resource exists.
+  Persistent ECR lifecycle/tag updates and IAM metadata/trust reconciliation also completed.
+- **Next action:** owner adds a separate, exact-resource `iam:PassRole` allow for the Bedoux EKS
+  cluster/node and add-on execution roles, without weakening the v4 boundary or deny controls.
+  Then generate a fresh plan, apply it, verify EKS/add-ons/nodes, and continue T-1102 only if the
+  18:00 alarm still leaves teardown margin.
+- **Rollback:** if the deadline approaches or the next apply fails, destroy the VPC and any
+  successfully-created temporary resources through the guarded Terraform teardown path; do not
+  leave the VPC running past the alarm.
+
+### 2026-08-17T12:42:56-06:00 — P11.2 complete: local PDB/topology proof — Codex
+
+- **Phase/task:** P11.2 complete; P11.3 was not yet active at this checkpoint and required owner
+  activation plus an AWS-session runbook preflight.
+- **Changed:** retained the opt-in PDB/topology chart implementation, kind/AWS overlays, bounded
+  two-Spot-node Terraform profile, pinned kind proof configuration, and CI HA render assertions.
+- **Local proof:** created the pinned `kindest/node:v1.34.0` `bedoux-p11-ha` cluster with one
+  control plane and two workers under rootful Podman. Installed the chart in isolated namespace
+  `bedoux-ha-proof` using `values-kind-ha.yaml` and local `p10-2` API/web images. API and web each
+  reached `2/2 Ready`, with one replica on each worker. Both PDBs reported `minAvailable=1` and
+  `allowed disruptions=1`; both HPAs were bounded at `min=2/max=3`.
+- **Disruption/topology drill:** drained `bedoux-p11-ha-worker` with an API/web-only eviction.
+  Exactly one API and one web pod were evicted; both PDBs then reported `allowed disruptions=0`.
+  Replacement pods remained Pending with scheduler events explicitly reporting that the remaining
+  worker did not match the topology spread constraint. After uncordoning, both deployments
+  recovered with one Ready replica on each worker. Final constraints were
+  `topology.kubernetes.io/hostname`, `maxSkew=1`, `minDomains=2`, `DoNotSchedule`.
+- **Validation:** Helm lint and base/kind-HA/AWS/AWS-HA renders passed; Terraform init, format,
+  and credential-free validate passed; PR action pin/YAML/docs checks and `git diff --check`
+  passed. No AWS plan/apply was run; the bounded plan review belongs inside the owner-approved
+  P11.3 AWS session.
+- **Teardown:** Helm release and namespace were removed. The user-confirmed rootful kind delete
+  removed all three nodes; its only warning was inability to rewrite the user-owned temporary
+  kubeconfig, and the subsequent API connection refusal confirmed the cluster was gone.
+- **AWS:** none. No AWS command, identity, resource, or billing system was touched; estimated cost
+  USD 0.
+- **Next action:** owner activates P11.3, then run the AWS session preflight and bounded Terraform
+  plan review before the live T-1102 scale-out test. Do not start P11.3 early.
+- **Blockers:** none for P11.2; P11.3 requires explicit owner activation and the AWS runbook.
+
+### 2026-08-17T11:31:15-06:00 — P11.2 implementation and validation — Codex
+
+- **Phase/task:** P11.2 remains `IN PROGRESS`; implementation is present but the required live
+  two-worker kind proof is not complete.
+- **Changed:** added opt-in `policy/v1` PDB templates and topology-spread constraints for both
+  workloads; added `values-kind-ha.yaml` and `values-aws-ha.yaml`; added the bounded two-Spot-node
+  Terraform review profile `infra/terraform/terraform.tfvars.p11-ha.example`; documented the
+  profile in `infra/terraform/README.md`; added the pinned local proof shape
+  `k8s/kind-config-p11-ha.yaml`; and extended PR validation with both HA render assertions.
+- **Validation:** `helm lint charts/bedoux` passed; base, kind-HA, AWS, and AWS-HA Helm renders
+  passed, including exactly two PDBs and two topology constraints in each HA profile; pinned
+  Terraform providers initialized with `terraform -chdir=infra/terraform init -input=false
+  -backend=false`; `terraform -chdir=infra/terraform validate
+  -var=skip_aws_credentials_validation=true` passed; GitHub Actions pin check, XML/export checks,
+  workflow YAML parse, and `git diff --check` passed.
+- **Local proof attempt:** the retained `kind-bedoux` API was unavailable. Two attempts to create
+  the explicitly named `bedoux-p11-ha` cluster (including the pinned `kindest/node:v1.34.0` image)
+  failed during rootless-Podman node preparation with `could not find a log line that matches
+  "Reached target .*Multi-User System.*|detected cgroup v1"`. The host reports `Delegate=no` on
+  the user slice; the reversible per-command delegated scope did not resolve it, and attempts to
+  set the unavailable user service/slice property were rejected. Failed temporary node containers
+  were removed by kind; no cluster remains from these attempts.
+- **AWS:** none. No AWS command, identity, resource, or billing system was touched; estimated cost
+  USD 0.
+- **Decisions:** none new; the AWS overlay remains opt-in and the two-AZ/Terraform nodegroup change
+  remains un-applied pending the owner-approved runbook session.
+- **Next action:** resolve the local rootless-Podman cgroup prerequisite or use an equivalent
+  approved two-worker kind environment, complete the live PDB/topology proof, then review a bounded
+  Terraform plan. Keep P11.2 `IN PROGRESS`; do not open or mutate AWS from this checkpoint.
+- **Blockers:** local kind cluster creation is blocked by host cgroup delegation, not by the chart
+  or Terraform validation.
+
+### 2026-08-17T11:16:53-06:00 — P11.2 activated — Codex
+
+- **Phase/task:** owner activated P11.2 by requesting continuation after P11.1; P11.2 is now the
+  single active checklist item. P11.1/T-1101 remains complete.
+- **Intended outcome:** add a bounded PodDisruptionBudget and topology-spread declarations for
+  `api` and `web`, prove the local scheduling/PDB behavior first, and validate a Terraform plan
+  for a small two-node, two-AZ Spot nodegroup without applying AWS changes.
+- **Boundary:** no AWS session is open. Any EKS/VPC/nodegroup mutation requires the full
+  `docs/runbooks/aws-session.md` preflight, owner awareness, independent deadline alarm, and
+  same-day teardown.
+- **Branch:** created `p11-2-pdb-topology` from completed commit `48b63bb`.
+- **Next action:** inspect the current Helm chart and Terraform EKS module, then implement the
+  smallest local-first PDB/topology slice before reviewing any AWS plan.
+- **AWS:** none. Estimated cost USD 0.
+
+
+### 2026-08-12T11:23:51-06:00 — P11.1 complete: bounded HPA proof — Codex
+
+- **Phase/task:** P11.1 complete; T-1101 evidence is recorded. No later P11 item was started.
+- **Changed:** `charts/bedoux/templates/{api-hpa,web-hpa}.yaml` add opt-in
+  `autoscaling/v2` CPU HPAs; `charts/bedoux/values.yaml` defines finite defaults; new
+  `charts/bedoux/values-kind-hpa.yaml` opts both workloads into `minReplicas: 1`,
+  `maxReplicas: 3`, and a 60% CPU target. New `scripts/install-metrics-server.sh` supports
+  `--help`, `--dry-run`, and checksum-verified `--apply`; `docs/local-tooling.md` records the
+  v0.9.0 pin and official manifest checksum.
+- **Local infrastructure:** installed the official Metrics Server v0.9.0 manifest on the
+  retained Calico-backed `kind-bedoux`, applied the kind-only `--kubelet-insecure-tls` patch,
+  confirmed `v1beta1.metrics.k8s.io` `Available=True`, and confirmed `kubectl top nodes`.
+  Helm revision 3 deployed the HPA overlay while preserving the existing P10.2 values and
+  images; the API catalog smoke through ingress-nginx → web → api returned seeded product JSON.
+- **T-1101 active-load proof:** one temporary load pod in the existing `ingress-nginx`
+  namespace drove 90 bounded waves of 100 concurrent GETs to `/api/products`. API CPU reached
+  458% of its 60% target and scaled 1→2→3/3 Ready; web reached 80% and scaled 1→2/2 Ready.
+  Both HPAs reported `maxReplicas: 3` throughout and never exceeded the cap. The load pod was
+  deleted after capture; no load process remained.
+- **T-1101 scale-back proof:** after load removal and the declared 60-second scale-down
+  stabilization window, both HPAs returned to `CURRENT=1`, `DESIRED=1` with API CPU 6% and web
+  CPU 4%; `api`, `web`, and `postgres` were all 1/1 Ready and the temporary pod was absent.
+- **Validation:** `helm lint charts/bedoux`; base, AWS, and kind-HPA render checks (HPAs are
+  absent from base/AWS and exactly two appear in the kind overlay); installer `bash -n`, help,
+  and dry-run; `./scripts/check-github-actions.sh` (18 immutable references); XML/export
+  checks; `git diff --check` — all passed. The `make` executable remains unavailable in this
+  shell, so the underlying docs-check commands were run directly.
+- **AWS:** none. No AWS resources, identity, or billing system touched; estimated cost USD 0.
+- **Next action:** stop at the safe checkpoint. Owner activates P11.2 before any PDB/topology or
+  AWS work; the local Metrics Server and HPA overlay remain available for the next task.
+
+### 2026-08-12T10:58:17-06:00 — P11.1 started — Codex
+
+- **Phase/task:** P11.1 is now the single active checklist item and is `IN PROGRESS`.
+- **Intended outcome:** add a pinned metrics-server and capped HPA resources for `api` and
+  `web`, then prove bounded scale-out and scale-back on the retained Calico-backed kind
+  cluster as T-1101. The HPA cap must remain explicit and finite; no AWS session is needed.
+- **Baseline:** the last recorded checkpoint says to use `kind-bedoux`; the default kubeconfig
+  context points at the deleted EKS endpoint. Baseline live checks will be recorded before any
+  local Kubernetes mutation.
+- **AWS:** none. No AWS resources, identity, or billing system touched; estimated cost USD 0.
+- **Next action:** create the feature branch from merged `main`, verify the kind baseline, then
+  make the smallest chart/manifests change needed for metrics and capped autoscaling.
+
+
+### 2026-08-12T10:56:14-06:00 — checkpoint reconciliation after PR #47 merge — Codex
+
+- **Resume review:** read `AGENTS.md`, `START-HERE.md`, the phase-orchestration workflow,
+  `docs/IMPLEMENTATION-PLAN.md`, `docs/PROGRESS.md`, `docs/HANDOFF.md`, the P10–P14 scope
+  decision, and the P11 test-plan references. The authoritative next item remains P11.1;
+  it was not started.
+- **Discrepancy found and reconciled:** the previous checkpoint described PR #47 as a draft
+  awaiting owner review, but local `HEAD`, `main`, `origin/main`, and the user worktree's
+  `main` all point to merge commit `874305c` (`Merge pull request #47 ...`). Updated this
+  checkpoint and the handoff documents to reflect the observed merge; no phase item was
+  marked complete or started.
+- **Verification:** `./scripts/check-github-actions.sh` → 18 immutable references;
+  equivalent `docs-check` loop → OK; `git diff --check` → clean. The `make` executable
+  recorded by the prior session is not present in this shell, so the equivalent checks were
+  run directly. Worktree has no tracked or untracked changes before this reconciliation.
+- **AWS:** none. No AWS command, resource, identity, or billing system was accessed; estimated
+  incremental cost USD 0.
+- **Next action:** mark P11.1 `IN PROGRESS` before changing chart or kind resources, then
+  implement the capped HPA/metrics-server slice and prove T-1101 locally. Use `kind-bedoux`
+  deliberately; do not open an AWS session for P11.1.
+
 
 ### 2026-08-11T16:36:15-06:00 — repository workflow skills synchronized and validated — Codex
 

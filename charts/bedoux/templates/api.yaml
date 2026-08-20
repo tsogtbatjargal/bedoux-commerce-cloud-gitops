@@ -15,6 +15,19 @@ spec:
         app: api
     spec:
       serviceAccountName: {{ .Values.api.serviceAccount.name }}
+      terminationGracePeriodSeconds: {{ .Values.api.termination.gracePeriodSeconds }}
+      {{- if .Values.api.topologySpread.enabled }}
+      topologySpreadConstraints:
+        - maxSkew: {{ .Values.api.topologySpread.maxSkew }}
+          {{- if eq .Values.api.topologySpread.whenUnsatisfiable "DoNotSchedule" }}
+          minDomains: {{ .Values.api.topologySpread.minDomains }}
+          {{- end }}
+          topologyKey: {{ .Values.api.topologySpread.topologyKey | quote }}
+          whenUnsatisfiable: {{ .Values.api.topologySpread.whenUnsatisfiable }}
+          labelSelector:
+            matchLabels:
+              app: api
+      {{- end }}
       # Blocks startup until the configured database credential boundary resolves
       # and the database accepts the URL consumed by the API.
       initContainers:
@@ -41,6 +54,15 @@ spec:
         - name: api
           image: {{ include "bedoux.imageReference" .Values.api.image | quote }}
           imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+          {{- if gt (int .Values.api.termination.preStopSleepSeconds) 0 }}
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - {{ printf "sleep %d" (int .Values.api.termination.preStopSleepSeconds) | quote }}
+          {{- end }}
           ports:
             - containerPort: 8000
           env:

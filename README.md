@@ -29,7 +29,8 @@ The first release does not process real payments or customer data.
 - FastAPI backend
 - PostgreSQL
 - Docker and local Kubernetes with `kind`
-- Amazon EKS with a managed Spot node group for short-lived learning sessions
+- Amazon EKS with managed Spot node groups for short-lived learning sessions (one by default;
+  two AZ-pinned one-node groups in the opt-in P11 HA profile)
 - Amazon ECR, S3, RDS PostgreSQL, ALB, and CloudWatch
 - Terraform for AWS infrastructure
 - Helm for Kubernetes packaging
@@ -42,7 +43,7 @@ The first release does not process real payments or customer data.
 | [START-HERE.md](START-HERE.md) | Session entry point: checkpoint, boundaries, resume protocol |
 | [AGENTS.md](AGENTS.md) | Canonical tool-agnostic operating rules (Claude Code / Codex / human) |
 | [docs/PROGRESS.md](docs/PROGRESS.md) | **Only authoritative execution state** + session log |
-| [docs/IMPLEMENTATION-PLAN.md](docs/IMPLEMENTATION-PLAN.md) | Phases P0–P9 with gates, rollback, and per-session cost |
+| [docs/IMPLEMENTATION-PLAN.md](docs/IMPLEMENTATION-PLAN.md) | Phases P0–P14 with gates, rollback, and per-session cost |
 | [docs/TEST-PLAN.md](docs/TEST-PLAN.md) | T-NNN test ids referenced by phase gates |
 | [docs/HANDOFF.md](docs/HANDOFF.md) | Copy-paste prompt to continue in a fresh agent session |
 | [docs/architecture.md](docs/architecture.md) | Request/delivery/identity paths; MVP vs production profile |

@@ -57,6 +57,7 @@ only a presence check.
 | terraform | v1.15.8 | `~/.local/bin/terraform` | official HashiCorp release zip |
 | trivy | 0.72.0 | `~/.local/bin/trivy` | official GitHub release tarball (added P2.5, for image scanning) |
 | Calico | v3.32.1 | in-cluster manifest, not a host binary | official manifest (added P10.2, NetworkPolicy enforcement on kind — see below) |
+| Metrics Server | v0.9.0 | installed by `scripts/install-metrics-server.sh` | official release manifest, SHA-256 pinned (added P11.1 for HPA metrics; compatible with Kubernetes 1.31+) |
 
 P10.3's supply-chain tools run only on GitHub-hosted runners; they are not workstation
 prerequisites. The workflow pins `cosign-installer` v4.1.2 by immutable commit and explicitly
@@ -153,6 +154,29 @@ Confirm it landed with `podman exec <cluster>-control-plane crictl images | grep
 (faster than waiting for a pod to fail scheduling). Remember `kind load` also needs the
 `app.slice` delegated-scope wrapper from the section above, same as `kind create cluster`.
 
+### Kubernetes 1.34 / containerd 2.1 rootless import finding
+
+P11.4 found two additional limits on the pinned kind v0.32.0 / node v1.34.0 combination. First,
+the workstation's original `fs.inotify.max_user_instances=128` can be exhausted by existing
+rootless containers, causing containerd's CRI plugin to fail while creating its CNI watcher. Any
+owner-approved transient increase must be restored after the drill; do not persist a sysctl change
+silently.
+
+Second, with `KIND_EXPERIMENTAL_CONTAINERD_SNAPSHOTTER=fuse-overlayfs`, kind's archive loader
+invokes containerd 2.1.3 with `--all-platforms`, which failed locally with `no unpack platforms
+defined`. The validated local-only fallback is to copy the archive into each required node and
+specify the host platform and local importer explicitly:
+
+```bash
+podman cp /tmp/<image>.tar <node>:/tmp/<image>.tar
+podman exec <node> ctr --namespace=k8s.io images import \
+  --platform linux/amd64 --local --digests --snapshotter=fuse-overlayfs \
+  /tmp/<image>.tar
+```
+
+Delete the in-node and host archives during teardown. This workaround changes only the temporary
+node image store; it does not justify floating kind, Kubernetes, or application image versions.
+
 ## NetworkPolicy-enforcing kind cluster (added P10.2)
 
 kind's default CNI, **kindnet, does not enforce `NetworkPolicy` at all** — the objects
@@ -173,7 +197,7 @@ kubectl wait --for=condition=Ready pod -l k8s-app=calico-node -n kube-system --t
 ```
 
 Then install ingress-nginx and load images as usual. **Two real environmental findings
-from doing this on this host, both one-time fixes:**
+from doing this on this host, with bounded mitigations:**
 
 1. **ingress-nginx's hostPort mapping breaks** (`CNI-HOSTPORT-SETMARK` iptables chain
    creation fails with `can't initialize iptables table 'nat'`) once the default CNI is
@@ -191,8 +215,11 @@ from doing this on this host, both one-time fixes:**
    (default 128 on this host) nearly exhausted by kubelet/containerd/Calico plus several
    long-running MCP sidecar containers sharing the same user. Check usage with
    `cat /proc/sys/fs/inotify/max_user_instances` against a count of open `inotify` fds
-   across `/proc/*/fd`; fix (needs sudo, one-time, doesn't disturb anything running):
-   `sudo sysctl -w fs.inotify.max_user_instances=1024`.
+   across `/proc/*/fd`. Before changing it, record the current value and obtain owner approval.
+   For the exact bounded drill only, the validated transient mitigation is
+   `sudo sysctl -w fs.inotify.max_user_instances=1024`; restore the recorded original value
+   immediately after teardown (`128` was the original value on this host). Do not persist this
+   sysctl change.
 
 Both were host-state issues specific to running many long-lived containers on this
 workstation, not a project or Calico bug — recorded here so a future session recognizes
@@ -261,7 +288,7 @@ account) in the `bedoux-admins` group, which has two policies attached:
 - **`PowerUserAccess`** (AWS managed) — covers every service this project touches
   (EC2/VPC, EKS, ECR, ELB, CloudFormation, S3, CloudWatch, Budgets) but **excludes
   IAM/Organizations management**, so this identity cannot grant itself more power.
-- **A small custom policy** (`bedoux-iam-scoped`) granting IAM role/policy/OIDC-provider
+- **A small custom policy** (`bedoux-iam-scoped`, owner-applied v6) granting IAM role/policy/OIDC-provider
   actions **only on resources named `bedoux-*`** — the minimum needed for `eksctl` and
   IRSA (EKS pods assuming IAM roles) to create the roles they need, without general IAM
   management. Every IAM role/policy this project creates must keep the `bedoux-` prefix

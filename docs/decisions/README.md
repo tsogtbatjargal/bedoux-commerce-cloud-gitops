@@ -23,6 +23,10 @@ and flip the old one's status to `Superseded by NNNN`.
 | [0013](0013-remain-private-at-p9.md) | Remain private at P9; ADR 0004's public flip is not exercised | Accepted | 2026-08-07 |
 | [0014](0014-post-p9-optimization-track-scope.md) | Post-P9 optimization track (P10-P14): scope and guardrail interactions | Accepted | 2026-08-09 |
 | [0015](0015-bound-delegated-project-roles.md) | Bound every delegated project role to the operator's non-IAM ceiling | Accepted | 2026-08-10 |
+| [0016](0016-owner-applied-eks-passrole-v6.md) | Add exact EKS execution-role PassRole to the owner-managed policy | Accepted | 2026-08-17 |
+| [0017](0017-az-pinned-nodegroups-soft-failover-spread.md) | Pin the P11 HA node groups by AZ and permit one-AZ failover | Superseded in part by 0018 | 2026-08-18 |
+| [0018](0018-omit-mindomains-for-soft-topology-spread.md) | Omit minDomains from the soft AWS topology-spread profile | Accepted | 2026-08-18 |
+| [0019](0019-bound-alb-draining-and-readiness-gates.md) | Bound ALB draining and require target-health readiness gates | Accepted | 2026-08-18 |
 
 ## Template
 

@@ -1,0 +1,47 @@
+# P11 AWS HA session overlay. Apply only with values-aws.yaml during an
+# owner-approved, same-day AWS session. It carries the P11.2-P11.4 two-node,
+# two-AZ placement, bounded autoscaling, disruption, and termination contract.
+api:
+  replicas: 2
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 60
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+  topologySpread:
+    enabled: true
+    maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    # Kubernetes permits minDomains only with DoNotSchedule. Soft spread still
+    # prefers both available AZs and permits one-AZ recovery during P11.4.
+    whenUnsatisfiable: ScheduleAnyway
+  termination:
+    preStopSleepSeconds: 45
+    gracePeriodSeconds: 60
+
+web:
+  replicas: 2
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 60
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+  topologySpread:
+    enabled: true
+    maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
+  termination:
+    preStopSleepSeconds: 45
+    gracePeriodSeconds: 60
+
+ingress:
+  # Keep the target's bounded connection-draining interval shorter than the
+  # pod hold so ALB can stop routing before the container exits.
+  targetGroupDeregistrationDelaySeconds: 30

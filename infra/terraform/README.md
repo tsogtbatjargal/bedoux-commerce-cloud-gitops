@@ -23,7 +23,7 @@ separate persistent state bucket before migrating this root state to S3.
   the learning EKS cluster. EKS grants it edit access only in the `bedoux`
   namespace.
 - `bedoux-iam-scoped` and the EKS node-group service-linked role are account
-  foundations from P4/P5 and are deliberately not managed here. The owner-controlled v4 policy
+  foundations from P4/P5 and are deliberately not managed here. The owner-controlled v6 policy
   source and exact application order live in
   [`docs/runbooks/p10-iam-remediation.md`](../../docs/runbooks/p10-iam-remediation.md).
 - P6.2/P6.4 must import the persistent P5 ECR repositories and IAM roles before an
@@ -89,6 +89,16 @@ override to a plan or apply against AWS.
 The plan is a review artifact only. Do not run `terraform apply` until P6.2
 opens an AWS session and the plan has been reviewed against the manual checklist
 in `docs/runbooks/aws-session.md`.
+
+## P11 bounded HA profile
+
+`terraform.tfvars.p11-ha.example` is the opt-in review profile for bounded P11 HA
+sessions. It keeps the existing public, no-NAT VPC shape and fixes the aggregate
+Spot capacity at exactly two nodes (`desired = min = max = 2`). For P11.4 it sets
+`node_groups_per_az = true`, creating two one-node managed groups, each pinned to
+one configured subnet. This corrects P11.3's observed same-AZ placement without
+raising the node ceiling. Copy it to an ignored local `.tfvars` file only after
+the owner opens the AWS session; never apply it as part of ordinary validation.
 
 ## P6.2 state migration
 

@@ -73,9 +73,11 @@ several services per [ADR 0002](decisions/0002-mvp-aws-service-deferrals.md):
 
 ## Reliability design
 
-The learning deployment uses one node and one replica to control cost. The
-production target uses multiple nodes and application replicas across
-Availability Zones, disruption budgets, topology spreading, autoscaling,
+The default learning deployment uses one node and one replica to control cost. P11's opt-in,
+same-day HA profile temporarily used two AZ-pinned one-node Spot groups and two stateless
+replicas to prove bounded node-loss recovery. That profile did not claim PostgreSQL HA and did
+not replace the default baseline. The production target uses multiple nodes and application
+replicas across Availability Zones, disruption budgets, topology spreading, autoscaling,
 Multi-AZ RDS, tested backups, and controlled deployments.
 
 The difference is deliberate and documented as a cost-versus-availability

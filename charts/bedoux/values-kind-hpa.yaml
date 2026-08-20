@@ -1,0 +1,15 @@
+# P11.1 local kind overlay. Autoscaling is deliberately opt-in so the base
+# chart and the AWS learning profile do not change until their owning tasks.
+api:
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 60
+
+web:
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 60

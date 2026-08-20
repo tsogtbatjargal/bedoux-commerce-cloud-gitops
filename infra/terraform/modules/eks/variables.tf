@@ -30,6 +30,10 @@ variable "capacity_type" {
   type = string
 }
 
+variable "node_groups_per_az" {
+  type = bool
+}
+
 variable "desired_size" {
   type = number
 }
