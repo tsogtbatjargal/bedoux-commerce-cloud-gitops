@@ -168,12 +168,11 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   resources clean. ADR 0016 records the owner-applied policy v6 PassRole reconciliation. The
   initial Spot placement exposed a real same-AZ/minDomains finding; P11.4 owns the node-loss
   drill and follow-up topology decision.
-- P11.4 remains active on `p11-4-node-loss`. The first live T-1103 attempt on 2026-08-18 proved
-  two AZ-pinned nodes, safe non-PostgreSQL drain, one-AZ stateless recovery, and restored cross-AZ
-  placement, but failed the hard traffic gate: 115 of 30,265 requests failed. ADR 0018 records
-  the live Kubernetes 1.34 finding that `minDomains` is invalid with `ScheduleAnyway`. Today's
-  EKS/ALB/VPC resources and temporary OIDC provider are gone. The owner also approved deletion
-  of an older unattached gp3 PVC exposed by the sweep; the post-delete inventory is clean.
+- The first P11.4 live T-1103 attempt on 2026-08-18 proved two AZ-pinned nodes, safe
+  non-PostgreSQL drain, one-AZ stateless recovery, and restored cross-AZ placement, but failed
+  the hard traffic gate: 115 of 30,265 requests failed. ADR 0018 records the live Kubernetes
+  1.34 finding that `minDomains` is invalid with `ScheduleAnyway`. That session and its later
+  owner-approved orphan-volume cleanup both closed with a clean inventory.
 - Accepted ADR 0019 addresses the evidence-supported ALB/pod termination gap with an AWS-HA-only
   30-second target deregistration bound, 45-second preStop hold, 60-second grace period, and
   deterministic AWS target-health readiness gates. Static renders, fail-closed guard mocks, and
@@ -184,9 +183,17 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   the drill showed that terminating pods can create a transient false spread result. The exact
   cluster and temporary files are gone, and the owner restored the transient host inotify limit
   to its original 128. Local closeout is clean.
-- Next action: keep T-1103 incomplete. A fresh AWS retry still needs its own current preflight,
-  new independent alarm, exact plan review, separate apply approval, live zero-failure evidence,
-  recovery, and teardown.
+- **P11.4 and T-1103 are complete as of 2026-08-20.** The fresh reviewed AWS retry drained the
+  safe stateless AZ node in 73.72 seconds during pinned five-minute k6 traffic. All
+  33,507/33,507 requests succeeded with 0 failures; average latency was 78.24 ms, p95 155.35 ms,
+  p99 453.29 ms, and maximum 1.25 s. PostgreSQL remained untouched, stateless workloads recovered
+  in the surviving AZ, and the helper restored Ready cross-AZ placement. Public health/catalog
+  and both target-health checks passed after recovery. The Ingress/ALB, Kubernetes prerequisites,
+  16 Terraform-managed temporary resources, and exact cluster OIDC provider were removed; the
+  final AWS sweep and local temporary-file/process sweep were clean. Budget actual remained
+  USD 4.552 of USD 20; estimated session cost is below USD 0.30 pending billing ingestion.
+- **All P11.1–P11.5 tasks and T-1101–T-1104 tests are complete. Next action: owner explicitly
+  approves or rejects the P11 phase gate in its own commit. P12 is not active.**
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 
