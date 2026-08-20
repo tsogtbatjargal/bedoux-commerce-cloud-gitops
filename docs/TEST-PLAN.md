@@ -108,7 +108,8 @@ test lands in `docs/PROGRESS.md` (checklist line + session log), never in this f
 - **T-1102** — live AWS session: real load test (k6/Locust) evidence — before/after replica
   counts and latency numbers.
 - **T-1103** — node-loss drill: one AZ's node cordoned/drained mid-load, pods reschedule to
-  the other AZ, zero request failures recorded.
+  the other AZ, all request checks pass, zero request failures are recorded, and request latency
+  remains below the p95 2-second threshold.
 - **T-1104** — `/aws-teardown-verify` sweep clean after the session.
 
 ## T-12xx — P12 TLS & custom domain

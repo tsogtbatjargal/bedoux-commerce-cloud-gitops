@@ -1,13 +1,15 @@
 # P11.4 bounded EKS node-loss drill
 
-This runbook prepares T-1103: drain the stateless node in one AZ while a public catalog load
-test is running, prove zero failed requests and API/web recovery in the surviving AZ, restore
-normal cross-AZ placement, and tear the whole session down the same day. It does not claim
-PostgreSQL high availability.
+This runbook was used to prove T-1103 and remains replayable: drain the stateless node in one AZ
+while a public catalog load test is running, prove zero failed requests and API/web recovery in
+the surviving AZ, restore normal cross-AZ placement, and tear the whole session down the same
+day. It does not claim PostgreSQL high availability.
 
-ADR 0017 is Accepted from a technical-design standpoint: two one-node, AZ-pinned managed node
-groups and `ScheduleAnyway` topology spread in the AWS HA overlay. That acceptance permits the
-alarmed session and plan review; it does not authorize apply.
+ADR 0017 established two one-node, AZ-pinned managed node groups and soft topology spread; its
+invalid `minDomains` plus `ScheduleAnyway` clause is superseded by ADR 0018. ADR 0019 adds the
+bounded termination and AWS target-health readiness contract. Their acceptance permits an
+alarmed session and plan review; it does not authorize apply. The successful 2026-08-20 live
+proof and clean recovery/teardown are recorded in `docs/PROGRESS.md`.
 
 ## Session boundary
 

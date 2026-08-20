@@ -166,8 +166,8 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
 - P11.3 is complete on `p11-3-live-scaleout`: the live k6 proof reached the hard 3-replica HPA
   cap with 0% request failures, and the guarded same-session teardown swept all temporary AWS
   resources clean. ADR 0016 records the owner-applied policy v6 PassRole reconciliation. The
-  initial Spot placement exposed a real same-AZ/minDomains finding; P11.4 owns the node-loss
-  drill and follow-up topology decision.
+  initial Spot placement exposed a real same-AZ/minDomains finding; P11.4 was assigned the
+  node-loss drill and follow-up topology decision.
 - The first P11.4 live T-1103 attempt on 2026-08-18 proved two AZ-pinned nodes, safe
   non-PostgreSQL drain, one-AZ stateless recovery, and restored cross-AZ placement, but failed
   the hard traffic gate: 115 of 30,265 requests failed. ADR 0018 records the live Kubernetes

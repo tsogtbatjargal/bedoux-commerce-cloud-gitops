@@ -197,7 +197,7 @@ kubectl wait --for=condition=Ready pod -l k8s-app=calico-node -n kube-system --t
 ```
 
 Then install ingress-nginx and load images as usual. **Two real environmental findings
-from doing this on this host, both one-time fixes:**
+from doing this on this host, with bounded mitigations:**
 
 1. **ingress-nginx's hostPort mapping breaks** (`CNI-HOSTPORT-SETMARK` iptables chain
    creation fails with `can't initialize iptables table 'nat'`) once the default CNI is
@@ -215,8 +215,11 @@ from doing this on this host, both one-time fixes:**
    (default 128 on this host) nearly exhausted by kubelet/containerd/Calico plus several
    long-running MCP sidecar containers sharing the same user. Check usage with
    `cat /proc/sys/fs/inotify/max_user_instances` against a count of open `inotify` fds
-   across `/proc/*/fd`; fix (needs sudo, one-time, doesn't disturb anything running):
-   `sudo sysctl -w fs.inotify.max_user_instances=1024`.
+   across `/proc/*/fd`. Before changing it, record the current value and obtain owner approval.
+   For the exact bounded drill only, the validated transient mitigation is
+   `sudo sysctl -w fs.inotify.max_user_instances=1024`; restore the recorded original value
+   immediately after teardown (`128` was the original value on this host). Do not persist this
+   sysctl change.
 
 Both were host-state issues specific to running many long-lived containers on this
 workstation, not a project or Calico bug — recorded here so a future session recognizes

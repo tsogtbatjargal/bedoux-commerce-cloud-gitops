@@ -51,15 +51,17 @@ multi-region recovery are later enhancements.
 
 - Created only for planned sessions and destroyed the same day.
 - One EKS cluster on a current standard-support Kubernetes version.
-- One small managed Spot worker node where capacity permits.
+- One small managed Spot worker node where capacity permits in the default baseline profile.
 - One shared ALB with path-based routing, reached by its **raw ALB DNS name over HTTP**.
-- One replica per application.
+- One replica per application in the default baseline profile.
 - **In-cluster PostgreSQL** (same chart as kind) until P7; small Single-AZ RDS only during
   P7 database sessions.
 - Three-day CloudWatch log retention.
 - No NAT Gateway.
 
-This profile is not presented as highly available.
+This default profile is not presented as highly available. P11's opt-in, same-day HA test
+profile temporarily uses two AZ-pinned one-node Spot groups and two stateless replicas to prove
+bounded failover; it does not make PostgreSQL highly available or change the default baseline.
 
 ### Production target (documented, not deployed)
 
@@ -315,14 +317,17 @@ issues" — not generic best-practice work invented for its own sake.
   ADR 0014's bounded-vs-unbounded reading).
 - **Steps:** P11.1 HPA on `api`/`web` with an explicit `maxReplicas` cap (e.g. 3) +
   `metrics-server`, proven first on kind with synthetic load; P11.2 `PodDisruptionBudget` +
-  topology spread across a small 2-node, 2-AZ Spot nodegroup (Terraform `eks` module update);
+  topology spread across two AZ-pinned one-node Spot node groups (Terraform `eks` module update);
   P11.3 real AWS session — load test (k6/Locust) drives real scale-out, before/after replica
   counts and latency captured as evidence; P11.4 node-loss drill — cordon/drain one AZ's node
   mid-load, prove pods reschedule to the other AZ with no request failures; P11.5 teardown +
   `/aws-teardown-verify` sweep.
 - **Gate:** T-1101 kind HPA proof; T-1102 live scale-out evidence; T-1103 node-loss drill;
   T-1104 clean teardown sweep.
-- **Rollback:** standard `terraform destroy` + Helm values revert; nothing persists.
+- **Rollback:** revert the opt-in Helm values, then use the guarded
+  `scripts/terraform-session-destroy.sh prepare`, `plan`, and owner-authorized `apply` flow.
+  Temporary session resources are removed; the documented persistent allowlist remains attached
+  to the project and is verified by the final teardown sweep.
 
 ### P12 — TLS & custom domain ($0–1/month if enabled)
 

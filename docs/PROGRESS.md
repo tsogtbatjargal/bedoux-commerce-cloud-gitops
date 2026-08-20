@@ -11,7 +11,7 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P11 — Bounded autoscaling & HA |
 | Active task | None — P11.1–P11.5 and T-1101–T-1104 are complete; P11 phase gate awaits explicit owner approval. |
-| Last verified | 2026-08-20T12:43:27-06:00 — live T-1103 passed, recovery completed, and the post-teardown AWS sweep was clean. |
+| Last verified | 2026-08-20T12:56:52-06:00 — P11 gate documentation aligned and all local validation checks passed; no AWS endpoint contacted. |
 | AWS resources currently live | No temporary or unattached billable resources. Persistent allowlist only: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | USD 4.552 budget actual at session close; no forecast returned. This short P11.4 session is estimated below USD 0.30, with billing data expected to lag. |
 | Next operator action | Owner approves or rejects the P11 phase gate in its own commit. Do not activate P12 or make its domain decision before that approval. |
@@ -633,7 +633,9 @@ Gate: T-1001..T-1005.
       PostgreSQL was untouched, one-AZ stateless recovery held, cross-AZ placement was restored,
       and the same-session teardown sweep was clean. Evidence: session log
       2026-08-20T10:33:44-06:00.
-- [x] P11.5 COMPLETE — guarded Terraform teardown destroyed 15 temporary resources and the final AWS sweep found no temporary EKS, ALB, VPC, NAT, instance, volume, RDS, or CloudFormation resources.
+- [x] P11.5 COMPLETE — the earlier P11.3 guarded teardown destroyed 15 temporary resources;
+      the final P11.4 guarded teardown destroyed 16. Each final AWS sweep found no temporary EKS,
+      ALB, VPC, NAT, instance, volume, RDS, or CloudFormation resources.
 
 Gate: T-1101..T-1104.
 
@@ -676,6 +678,29 @@ P12 is not active.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-20T12:54:34-06:00 — P11 gate documentation alignment — Codex
+
+- **Phase/task:** the owner requested correction of the P11 documentation audit findings. P11.1–
+  P11.5 and T-1101–T-1104 remain complete; the P11 phase gate still awaits explicit owner
+  approval, and P12 remains inactive.
+- **Alignment:** current guidance now distinguishes the one-node/one-replica default learning
+  baseline from P11's opt-in two-AZ HA profile; P11 rollback uses the guarded destroy helper and
+  preserves the persistent allowlist; T-1103 states its full checks, zero-failure, and p95 gates;
+  stale P11.2/current-state labels were corrected.
+- **Decision/evidence integrity:** ADR 0017's status now matches ADR 0018's partial supersession.
+  ADR 0019 retains its decision-time hypothesis text and adds the factual 2026-08-20 validation.
+  The node-loss runbook now identifies ADRs 0017–0019 and the completed live proof. Historical
+  session entries were not rewritten.
+- **Scope:** no architecture decision changed, no AWS or Kubernetes endpoint was contacted, and
+  no resource was created, modified, or deleted. P14.5 still owns the interview walkthrough and
+  diagram refresh, so those artifacts were deliberately not updated early.
+- **Verification:** `git diff --check`, recursive Terraform format checking, Helm lint with the
+  default/AWS/AWS-HA values, shell syntax checks, the GitHub Actions pin check, draw.io XML/SVG
+  pairing and canonical-spine checks, stale-guidance searches, and the added-line sensitive-data
+  scan all passed.
+- **Next action:** owner approves or rejects the P11 phase gate in its own commit. Do not activate
+  P12 or make its domain decision before that approval.
 
 ### 2026-08-20T10:33:44-06:00 — P11.4 live retry session opened for plan review — Codex
 

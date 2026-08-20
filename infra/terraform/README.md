@@ -90,7 +90,7 @@ The plan is a review artifact only. Do not run `terraform apply` until P6.2
 opens an AWS session and the plan has been reviewed against the manual checklist
 in `docs/runbooks/aws-session.md`.
 
-## P11.2 bounded HA profile
+## P11 bounded HA profile
 
 `terraform.tfvars.p11-ha.example` is the opt-in review profile for bounded P11 HA
 sessions. It keeps the existing public, no-NAT VPC shape and fixes the aggregate

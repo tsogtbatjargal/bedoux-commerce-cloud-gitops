@@ -51,6 +51,14 @@ decision is validated only if a later bounded live retry records zero failed req
 recovery/teardown. Rollback removes the AWS HA overrides and namespace label; local profiles are
 unchanged.
 
+## Validation
+
+The bounded live retry on 2026-08-20 validated this decision. During the safe stateless-node
+drain, all 33,507 requests and checks succeeded with zero failures; p95 latency was 155.35 ms,
+the surviving AZ recovered the stateless workloads, PostgreSQL remained untouched, normal
+cross-AZ placement was restored, and the guarded teardown plus final AWS sweep were clean. The
+authoritative evidence is the `2026-08-20T10:33:44-06:00` session entry in `docs/PROGRESS.md`.
+
 ## References
 
 - [AWS Load Balancer Controller pod readiness gates](https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/deploy/pod_readiness_gate/)

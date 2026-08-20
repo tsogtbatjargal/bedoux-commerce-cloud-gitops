@@ -1,6 +1,6 @@
 # ADR 0017: Pin the P11 HA node groups by AZ and permit one-AZ failover
 
-- Status: Accepted
+- Status: Superseded in part by ADR 0018
 - Date: 2026-08-18
 - Accepted by owner: 2026-08-18 (technical design; apply remains separately gated)
 
