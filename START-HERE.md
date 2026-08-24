@@ -200,7 +200,7 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   disabled-by-default Route 53/ACM module and two-stage live runbook first create the apex zone,
   then replace the registrar nameservers before validating a certificate for the apex and `www`.
   The in-house ALB aliases arrive in P12.2, so the Shopify cutover creates an accepted temporary
-  no-site window. Hosted-zone persistence still requires explicit approval. T-1201 has not run.
+  no-site window. The owner approved hosted-zone persistence on 2026-08-24. T-1201 has not run.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P12 — TLS & custom domain |
 | Active task | P12.1 — `route53-acm` Terraform module (local implementation; no AWS session open). |
-| Last verified | 2026-08-24T15:24:46-06:00 — validated `bedoux.ca` apex correction committed locally as `6e514e2`; draft PR #50 is not yet refreshed. |
+| Last verified | 2026-08-24T16:07:59-06:00 — branch head `a2f485b` is published; PR #50 matches the `bedoux.ca` design and all four jobs passed in run `32782508883`. |
 | AWS resources currently live | No temporary or unattached billable resources. Persistent allowlist only: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | USD 4.552 budget actual at session close; no forecast returned. This short P11.4 session is estimated below USD 0.30, with billing data expected to lag. |
-| Next operator action | Publish local commit `6e514e2` to draft PR #50 when directed, update its description, and require fresh green CI before live work. |
+| Next operator action | Review green draft PR #50, mark ready, and merge; then schedule the three-hour alarmed P12.1 Route 53/ACM session. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -643,7 +643,7 @@ Gate: T-1101..T-1104.
 
 - [x] **Owner decision RECORDED 2026-08-24** — ADR 0022 supersedes ADR 0021 and selects the
       `bedoux.ca` apex plus `www.bedoux.ca`; Shopify is intentionally retired and hosted-zone
-      persistence remains pending.
+      persistence is explicitly approved at its understood recurring cost.
 - [ ] P12.1 IN PROGRESS — `route53-acm` Terraform module (local implementation; AWS: none).
 - [ ] P12.2 NOT STARTED — ALB HTTPS listener + redirect, browser TLS check.
 - [ ] P12.3 NOT STARTED — teardown; hosted zone persistence matches the owner's decision.
@@ -678,6 +678,26 @@ P12.1 is the single active item.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-24T16:07:59-06:00 — P12 apex-zone persistence approved; PR refreshed — Codex
+
+- **Owner approval:** the `bedoux.ca` Route 53 public hosted zone may remain as a persistent
+  project resource at its understood recurring cost. This closes the persistence prerequisite
+  anticipated by ADR 0022 and the P12.1 runbook; no ADR change was required.
+- **Publication evidence:** local and remote branch heads match `a2f485b`. Draft PR #50's body
+  was corrected from the superseded `.com`/Shopify-preservation design to the approved
+  `bedoux.ca` apex cutover, `www` certificate name, temporary no-site window, and registrar-first
+  rollback boundary.
+- **CI evidence:** GitHub Actions run `32782508883` passed all four jobs: API tests; web
+  lint/test/build; Terraform and Helm validation; and container build, zero-fixable-vulnerability
+  scans, SPDX SBOM upload, plus candidate signing/verification.
+- **Phase/task:** P12.1 remains `IN PROGRESS`; green CI does not satisfy T-1201. The branch must
+  be reviewed and merged before the live session. T-1201 still requires an ACM certificate in
+  `ISSUED` state for `bedoux.ca` and `www.bedoux.ca`.
+- **Next action:** mark PR #50 ready and merge after review, then schedule the three-hour alarm
+  and complete every P12.1/AWS preflight item before any Route 53 or registrar mutation.
+- **AWS:** none. Git/GitHub metadata only; no AWS, DNS, registrar, Shopify, or Kubernetes resource
+  changed. Estimated session cost: USD 0.
 
 ### 2026-08-24T15:23:39-06:00 — P12 bedoux.ca apex design aligned locally — Codex
 
