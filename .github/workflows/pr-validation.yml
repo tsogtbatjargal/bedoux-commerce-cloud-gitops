@@ -83,6 +83,7 @@ jobs:
           terraform -chdir=infra/terraform init -backend=false
           terraform -chdir=infra/terraform validate -var=skip_aws_credentials_validation=true
           terraform -chdir=infra/terraform validate -var=skip_aws_credentials_validation=true -var-file=terraform.tfvars.p11-ha.example
+          terraform -chdir=infra/terraform validate -var=skip_aws_credentials_validation=true -var-file=terraform.tfvars.p12-tls.example
       - name: Lint and render all Helm profiles
         run: |
           set -euo pipefail

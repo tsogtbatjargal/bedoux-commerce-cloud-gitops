@@ -32,3 +32,10 @@ s3_images_enabled = false
 # held in encrypted state; never put a password or DATABASE_URL in this file.
 secrets_manager_enabled   = false
 secrets_manager_secret_name = "bedoux-rds-credentials"
+
+# P12.1 only: keep false until ADR 0020's domain-control, persistence, session,
+# and exact-plan gates are satisfied. Terraform does not register the domain.
+route53_acm_enabled                   = false
+route53_acm_certificate_enabled       = false
+route53_acm_domain_name               = "bedoux.com"
+route53_acm_subject_alternative_names = ["www.bedoux.com"]

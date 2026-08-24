@@ -27,6 +27,7 @@ and flip the old one's status to `Superseded by NNNN`.
 | [0017](0017-az-pinned-nodegroups-soft-failover-spread.md) | Pin the P11 HA node groups by AZ and permit one-AZ failover | Superseded in part by 0018 | 2026-08-18 |
 | [0018](0018-omit-mindomains-for-soft-topology-spread.md) | Omit minDomains from the soft AWS topology-spread profile | Accepted | 2026-08-18 |
 | [0019](0019-bound-alb-draining-and-readiness-gates.md) | Bound ALB draining and require target-health readiness gates | Accepted | 2026-08-18 |
+| [0020](0020-use-bedoux-com-for-p12.md) | Use bedoux.com as the P12 apex domain | Accepted | 2026-08-23 |
 
 ## Template
 

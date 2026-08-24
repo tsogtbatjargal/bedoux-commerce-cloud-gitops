@@ -67,3 +67,18 @@ output "cloudwatch_application_log_group_name" {
   description = "Temporary P8 application log group; null while observability_enabled is false."
   value       = try(module.observability[0].application_log_group_name, null)
 }
+
+output "route53_hosted_zone_id" {
+  description = "P12 public hosted zone ID; null while route53_acm_enabled is false."
+  value       = try(module.route53_acm[0].hosted_zone_id, null)
+}
+
+output "route53_name_servers" {
+  description = "P12 authoritative nameservers to configure at the registrar; empty while route53_acm_enabled is false."
+  value       = try(module.route53_acm[0].hosted_zone_name_servers, [])
+}
+
+output "acm_certificate_arn" {
+  description = "P12 validated ACM certificate ARN for the ALB; null while route53_acm_enabled is false."
+  value       = try(module.route53_acm[0].certificate_arn, null)
+}

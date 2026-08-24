@@ -233,6 +233,40 @@ variable "observability_alb_arn_suffix" {
   }
 }
 
+variable "route53_acm_enabled" {
+  description = "Create the P12 Route 53 public hosted zone and DNS-validated ACM certificate. Keep false outside an approved P12 session."
+  type        = bool
+  default     = false
+}
+
+variable "route53_acm_domain_name" {
+  description = "Owner-selected P12 apex domain recorded by ADR 0020."
+  type        = string
+  default     = "bedoux.com"
+
+  validation {
+    condition     = var.route53_acm_domain_name == "bedoux.com"
+    error_message = "ADR 0020 fixes the P12 learning domain to bedoux.com."
+  }
+}
+
+variable "route53_acm_certificate_enabled" {
+  description = "Create and validate the P12 ACM certificate after bedoux.com delegates to the managed Route 53 zone."
+  type        = bool
+  default     = false
+}
+
+variable "route53_acm_subject_alternative_names" {
+  description = "Initial P12 website aliases covered by the ACM certificate."
+  type        = list(string)
+  default     = ["www.bedoux.com"]
+
+  validation {
+    condition     = toset(var.route53_acm_subject_alternative_names) == toset(["www.bedoux.com"])
+    error_message = "The initial ADR 0020 certificate must cover exactly www.bedoux.com in addition to bedoux.com."
+  }
+}
+
 check "secrets_manager_requires_rds" {
   assert {
     condition     = !var.secrets_manager_enabled || var.rds_enabled
