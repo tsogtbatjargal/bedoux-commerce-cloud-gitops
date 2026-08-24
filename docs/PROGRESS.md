@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P12 — TLS & custom domain |
 | Active task | P12.1 — `route53-acm` Terraform module (local implementation; no AWS session open). |
-| Last verified | 2026-08-23T19:06:25-06:00 — P12.1 module/runbook pass Terraform validation and `make docs-check`; no AWS session opened. |
+| Last verified | 2026-08-23T19:12:28-06:00 — draft PR #50 opened; all four jobs passed in run `32678920103`; no AWS session opened. |
 | AWS resources currently live | No temporary or unattached billable resources. Persistent allowlist only: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | USD 4.552 budget actual at session close; no forecast returned. This short P11.4 session is estimated below USD 0.30, with billing data expected to lag. |
-| Next operator action | Review/publish the local P12.1 branch. Before live apply, owner confirms control of `bedoux.com`, replacement of its current Shopify-directed DNS, and hosted-zone persistence. |
+| Next operator action | Review green draft PR #50. Before live apply, owner confirms control of `bedoux.com`, replacement of its current Shopify-directed DNS, and hosted-zone persistence. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -697,6 +697,9 @@ Append newest entries immediately below this heading. Never include secrets or A
 - **Verification:** Terraform 1.15.8 formatting passed; credential-free validation passed for
   default, P11 HA, and P12 TLS profiles with pinned AWS provider 5.100.0; `make docs-check` passed
   through the existing `bedoux-aws` toolbox; `git diff --check` passed.
+- **Publication:** commit `b59f408` is published in draft PR #50. GitHub Actions run
+  `32678920103` passed API tests, web lint/test/build, Terraform/Helm validation, container
+  build and zero-fixable-vulnerability scans, SPDX SBOM upload, and candidate signing/verification.
 - **Phase/task:** local implementation is review-ready, but P12.1 and T-1201 remain
   `IN PROGRESS` until the certificate is proven `ISSUED` live. P12.2 has not started.
 - **AWS:** none. Registry/pricing/public-DNS reads only; no AWS or Kubernetes endpoint was
