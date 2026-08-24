@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P12 — TLS & custom domain |
-| Active task | P12.1 — live T-1201 Route 53/ACM proof (reviewed module merged; no AWS session open). |
-| Last verified | 2026-08-24T16:13:45-06:00 — PR #50 passed all four jobs in run `32783233323` and merged to `main` as `b08f197`. |
+| Active task | P12.1 — live T-1201 Route 53/ACM proof (guarded session open; hosted-zone plan awaits exact owner approval). |
+| Last verified | 2026-08-24T16:27:33-06:00 — clean preflight and saved one-create Route 53 plan `760feff1...fcc437`; no AWS resource changed. |
 | AWS resources currently live | No temporary or unattached billable resources. Persistent allowlist only: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider. |
-| Month-to-date estimated AWS spend | USD 4.552 budget actual at session close; no forecast returned. This short P11.4 session is estimated below USD 0.30, with billing data expected to lag. |
-| Next operator action | Schedule a three-hour Edmonton alarm, then complete the P12.1/AWS preflight before creating the `bedoux.ca` hosted zone. |
+| Month-to-date estimated AWS spend | USD 4.857 budget actual at P12.1 preflight; no forecast returned. |
+| Next operator action | Owner reviews and approves or rejects exact saved hosted-zone plan SHA-256 `760feff1f1e22e2a329572f0656101ddf06a7deb5d74c2129897f6f501fcc437`; do not apply a regenerated plan. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -678,6 +678,45 @@ P12.1 is the single active item.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-24T16:27:33-06:00 — P12.1 guarded session opened for hosted-zone plan review — Codex
+
+- **Phase/task and deadline:** P12.1/T-1201 remains the only active item. The owner opened the
+  live session and confirmed an independent alarm for 20:30 Edmonton. That alarm ends active
+  work even if DNS propagation or certificate validation remains incomplete; the approved
+  persistent hosted zone is the only new resource allowed to survive the session.
+- **Approval boundary:** the owner's start instruction authorizes current preflight and exact
+  plan review, not apply. The saved binary may be applied only if the owner supplies its exact
+  SHA-256 while sufficient deadline margin remains. Regeneration invalidates that approval.
+- **Read-only preflight:** the caller is the expected non-root `bedoux-admin` user and the
+  configured region is `ca-central-1`. The USD 20 budget reports USD 4.857 actual and no
+  forecast. EKS clusters, load balancers, target groups, RDS instances/manual snapshots/subnet
+  groups, active NAT Gateways, EIPs, non-terminated instances, available EBS volumes, self-owned
+  snapshots, active CloudFormation stacks, Route 53 zones, and ACM certificates are all empty.
+- **Persistent allowlist:** the account contains the expected state bucket, two ECR repositories,
+  six `bedoux-*` roles, and GitHub OIDC provider. The project-tag sweep remains exactly three
+  resources: state bucket plus two ECR repositories.
+- **DNS and pricing:** public DNS still uses the two prior non-Route 53 nameservers, Shopify's
+  apex address, and Shopify `www` CNAME; apex AAAA, MX, and TXT answers remain empty. Current
+  official pricing remains USD 0.50/month for the first hosted zone, not prorated with the
+  documented 12-hour test grace, and no certificate fee for a non-exportable public ACM
+  certificate used by ALB.
+- **Tooling and rollback readiness:** Terraform 1.15.8 with AWS provider 5.100.0 initialized the
+  encrypted S3 backend and validated the root. The guarded state/destroy helper usage checks,
+  required docs check, and `git diff --check` passed. If delegation later needs rollback, restore
+  the registrar's prior nameservers and verify public NS first, then review/apply a module-scoped
+  destroy plan; never delete a still-delegated apex zone.
+- **Exact hosted-zone plan:** `/tmp/bedoux-p12-zone.tfplan`, SHA-256
+  `760feff1f1e22e2a329572f0656101ddf06a7deb5d74c2129897f6f501fcc437`, is exactly one create,
+  zero changes, and zero destroys: one public Route 53 zone named `bedoux.ca` with the standard
+  project/environment tags. It contains no certificate, registrar, EKS, VPC, ALB, NAT, RDS, or
+  unrelated resource.
+- **AWS:** sanitized read-only identity, billing, inventory, DNS, backend, refresh, and plan
+  calls only. No AWS, registrar, Shopify, DNS, or Kubernetes resource was created, modified, or
+  deleted; incremental resource cost remains USD 0.
+- **Next action:** owner approves or rejects the exact plan hash above. On approval, rehash the
+  unchanged binary immediately before applying it, then report the four Route 53 nameservers only
+  to the operator terminal for the registrar browser step; do not commit them.
 
 ### 2026-08-24T16:13:45-06:00 — PR #50 merged; P12.1 live proof next — Codex
 
