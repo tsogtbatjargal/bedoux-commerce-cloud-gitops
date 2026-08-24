@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P12 — TLS & custom domain |
 | Active task | P12.1 — `route53-acm` Terraform module (local implementation; no AWS session open). |
-| Last verified | 2026-08-23T19:24:35-06:00 — owner confirmed `cloud.bedoux.com`; ADR 0021 and revised Terraform/runbook pass local validation. |
+| Last verified | 2026-08-23T19:30:06-06:00 — corrected PR #50 head passed all four jobs in run `32679733313`; no AWS session opened. |
 | AWS resources currently live | No temporary or unattached billable resources. Persistent allowlist only: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | USD 4.552 budget actual at session close; no forecast returned. This short P11.4 session is estimated below USD 0.30, with billing data expected to lag. |
-| Next operator action | Publish/revalidate draft PR #50 for `cloud.bedoux.com`. Before live apply, owner confirms parent-DNS access and hosted-zone persistence. |
+| Next operator action | Review green draft PR #50. Before live apply, owner confirms parent-DNS access and hosted-zone persistence. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -692,6 +692,9 @@ Append newest entries immediately below this heading. Never include secrets or A
   rollback removes the child NS delegation before deleting the Route 53 zone.
 - **Verification:** Terraform formatting and credential-free validation passed for the default,
   P11 HA, and revised P12 TLS profiles; `make docs-check` and `git diff --check` passed.
+- **Publication:** commit `b9ae37d` updated draft PR #50 and its description. GitHub Actions run
+  `32679733313` passed API tests, web lint/test/build, Terraform/Helm validation, container
+  build and zero-fixable-vulnerability scans, SPDX SBOM upload, and candidate signing/verification.
 - **Phase/task:** P12.1 remains `IN PROGRESS`; T-1201 has not run. Hosted-zone persistence and
   parent-DNS access must still be confirmed before an alarmed live session.
 - **AWS:** none. Public DNS reads only; no AWS or Kubernetes endpoint was contacted and no

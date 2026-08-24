@@ -26,7 +26,8 @@ Current state as of 2026-08-23:
   child hosted zone first, then certificate after public parent-DNS delegation is verified. ACM
   validation is capped at 45 minutes; the runbook reserves a three-hour alarmed session.
 - Terraform formatting and credential-free validation pass for default, P11, and P12 profiles;
-  `make docs-check` and `git diff --check` pass. GitHub run `32678920103` passed all four PR jobs.
+  `make docs-check` and `git diff --check` pass. GitHub run `32679733313` passed all four PR jobs
+  for the corrected child-domain head.
   No AWS or Kubernetes endpoint was contacted.
 - T-1201 is not complete. Public DNS currently has a non-Route 53 parent delegation and
   Shopify-directed apex/`www`; `cloud.bedoux.com` has no existing record. Preserve Shopify and
