@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P12 — TLS & custom domain |
 | Active task | P12.1 — `route53-acm` Terraform module (local implementation; no AWS session open). |
-| Last verified | 2026-08-24T15:23:39-06:00 — ADR 0022 and the `bedoux.ca` apex Terraform/runbook correction passed local validation; draft PR #50 is not yet refreshed. |
+| Last verified | 2026-08-24T15:24:46-06:00 — validated `bedoux.ca` apex correction committed locally as `6e514e2`; draft PR #50 is not yet refreshed. |
 | AWS resources currently live | No temporary or unattached billable resources. Persistent allowlist only: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | USD 4.552 budget actual at session close; no forecast returned. This short P11.4 session is estimated below USD 0.30, with billing data expected to lag. |
-| Next operator action | Commit the reviewed `bedoux.ca` apex correction locally, then obtain publication direction for draft PR #50 and run fresh CI. |
+| Next operator action | Publish local commit `6e514e2` to draft PR #50 when directed, update its description, and require fresh green CI before live work. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -697,8 +697,9 @@ Append newest entries immediately below this heading. Never include secrets or A
   default, P11 HA, and corrected P12 profiles. The first validation exposed a typed-list versus
   tuple equality error in the exact-SAN guard; it was replaced with a one-item membership check
   and all three profiles passed. `make docs-check` and `git diff --check` passed.
-- **Publication boundary:** draft PR #50 still points at the previous `.com` head; no push or PR
-  edit was made in this session, and a fresh PR run is required before any live work.
+- **Publication boundary:** the correction is committed locally as `6e514e2`. Draft PR #50 still
+  points at the previous `.com` head; no push or PR edit was made in this session, and a fresh PR
+  run is required before any live work.
 - **Phase/task:** P12.1 remains `IN PROGRESS`; T-1201 has not run. Hosted-zone persistence still
   requires explicit owner approval before the alarmed live session.
 - **AWS:** none. Public DNS reads and credential-free local Terraform validation only; no AWS,

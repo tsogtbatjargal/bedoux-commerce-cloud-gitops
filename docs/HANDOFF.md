@@ -21,6 +21,8 @@ Current state as of 2026-08-24:
 - The owner corrected the target to the `bedoux.ca` apex and retired Shopify because of its
   recurring cost. Accepted ADR 0022 supersedes ADR 0021 and records the owned-domain path
   required by ADR 0014.
+- The complete local correction is committed as `6e514e2`; it has not been pushed to draft PR
+  #50 yet.
 - The local implementation adds a disabled-by-default `route53-acm` Terraform module, exact
   `bedoux.ca` + `www.bedoux.ca` profile, root outputs, CI profile validation, and
   `docs/runbooks/p12-1-domain-tls-session.md`.
