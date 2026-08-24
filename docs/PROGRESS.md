@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P12 — TLS & custom domain |
-| Active task | None — P12 is active, but the required owner domain decision must be recorded before P12.1 starts. |
-| Last verified | 2026-08-20T13:36:50-06:00 — PR #48 merged to main; completed P11 local/remote branches and temporary scan artifacts removed. |
+| Active task | P12.1 — `route53-acm` Terraform module (local implementation; no AWS session open). |
+| Last verified | 2026-08-24T16:07:59-06:00 — branch head `a2f485b` is published; PR #50 matches the `bedoux.ca` design and all four jobs passed in run `32782508883`. |
 | AWS resources currently live | No temporary or unattached billable resources. Persistent allowlist only: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | USD 4.552 budget actual at session close; no forecast returned. This short P11.4 session is estimated below USD 0.30, with billing data expected to lag. |
-| Next operator action | Owner chooses: buy a new domain, use an already-owned subdomain, or keep P12 documented-only. Record that choice before P12.1 starts. |
+| Next operator action | Review green draft PR #50, mark ready, and merge; then schedule the three-hour alarmed P12.1 Route 53/ACM session. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -641,9 +641,10 @@ Gate: T-1101..T-1104.
 
 ### P12 — TLS & custom domain
 
-- [ ] **Owner decision pending** (per ADR 0014): buy a domain / use an owned subdomain / skip
-      live deployment. Must be answered before P12.1 starts.
-- [ ] P12.1 NOT STARTED — `route53-acm` Terraform module.
+- [x] **Owner decision RECORDED 2026-08-24** — ADR 0022 supersedes ADR 0021 and selects the
+      `bedoux.ca` apex plus `www.bedoux.ca`; Shopify is intentionally retired and hosted-zone
+      persistence is explicitly approved at its understood recurring cost.
+- [ ] P12.1 IN PROGRESS — `route53-acm` Terraform module (local implementation; AWS: none).
 - [ ] P12.2 NOT STARTED — ALB HTTPS listener + redirect, browser TLS check.
 - [ ] P12.3 NOT STARTED — teardown; hosted zone persistence matches the owner's decision.
 
@@ -666,8 +667,8 @@ Gate: T-1301..T-1302.
 
 Gate: T-1401..T-1404.
 
-**P10–P14 track bootstrapped 2026-08-09; P10 and P11 are gate-approved. P12 is active, with
-its required owner domain decision pending before P12.1 may start.**
+**P10–P14 track bootstrapped 2026-08-09; P10 and P11 are gate-approved. P12 is active and
+P12.1 is the single active item.**
 
 ## Blockers
 
@@ -677,6 +678,132 @@ its required owner domain decision pending before P12.1 may start.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-24T16:07:59-06:00 — P12 apex-zone persistence approved; PR refreshed — Codex
+
+- **Owner approval:** the `bedoux.ca` Route 53 public hosted zone may remain as a persistent
+  project resource at its understood recurring cost. This closes the persistence prerequisite
+  anticipated by ADR 0022 and the P12.1 runbook; no ADR change was required.
+- **Publication evidence:** local and remote branch heads match `a2f485b`. Draft PR #50's body
+  was corrected from the superseded `.com`/Shopify-preservation design to the approved
+  `bedoux.ca` apex cutover, `www` certificate name, temporary no-site window, and registrar-first
+  rollback boundary.
+- **CI evidence:** GitHub Actions run `32782508883` passed all four jobs: API tests; web
+  lint/test/build; Terraform and Helm validation; and container build, zero-fixable-vulnerability
+  scans, SPDX SBOM upload, plus candidate signing/verification.
+- **Phase/task:** P12.1 remains `IN PROGRESS`; green CI does not satisfy T-1201. The branch must
+  be reviewed and merged before the live session. T-1201 still requires an ACM certificate in
+  `ISSUED` state for `bedoux.ca` and `www.bedoux.ca`.
+- **Next action:** mark PR #50 ready and merge after review, then schedule the three-hour alarm
+  and complete every P12.1/AWS preflight item before any Route 53 or registrar mutation.
+- **AWS:** none. Git/GitHub metadata only; no AWS, DNS, registrar, Shopify, or Kubernetes resource
+  changed. Estimated session cost: USD 0.
+
+### 2026-08-24T15:23:39-06:00 — P12 bedoux.ca apex design aligned locally — Codex
+
+- **Owner decision:** Shopify is retired because its recurring cost is no longer justified; P12
+  will move the apex `bedoux.ca` domain to the in-house Bedoux deployment.
+- **Architecture:** accepted ADR 0022 supersedes ADR 0021. Terraform now fixes the hosted zone
+  and primary certificate name to `bedoux.ca`, with exactly `www.bedoux.ca` as its additional
+  certificate name. P12.1 creates the zone, the owner replaces registrar nameservers, and ACM
+  validates only after public Route 53 delegation. P12.2 later creates the ALB aliases.
+- **Cutover boundary:** the existing Shopify apex/`www` records are intentionally not copied.
+  The owner accepts a temporary no-site window between registrar delegation and P12.2. Rollback
+  restores the prior registrar nameservers before destroying the Route 53 apex zone. The live
+  preflight must stop on any newly appeared MX, TXT, or unexplained website record.
+- **Changed:** ADR/index, Terraform defaults and P12 profile, module-facing descriptions, P12.1
+  live runbook, implementation-plan rollback, current checkpoint, and handoff documentation.
+- **Verification:** Terraform 1.15.8 formatting and credential-free validation passed for the
+  default, P11 HA, and corrected P12 profiles. The first validation exposed a typed-list versus
+  tuple equality error in the exact-SAN guard; it was replaced with a one-item membership check
+  and all three profiles passed. `make docs-check` and `git diff --check` passed.
+- **Publication boundary:** the correction is committed locally as `6e514e2`. Draft PR #50 still
+  points at the previous `.com` head; no push or PR edit was made in this session, and a fresh PR
+  run is required before any live work.
+- **Phase/task:** P12.1 remains `IN PROGRESS`; T-1201 has not run. Hosted-zone persistence still
+  requires explicit owner approval before the alarmed live session.
+- **AWS:** none. Public DNS reads and credential-free local Terraform validation only; no AWS,
+  registrar, Shopify, or Kubernetes resource changed. Estimated session cost: USD 0.
+
+### 2026-08-24T14:10:02-06:00 — P12 target corrected to bedoux.ca; existing Shopify DNS found — Codex
+
+- **Owner correction:** the intended P12 domain is `bedoux.ca`, not `bedoux.com`. No architecture
+  or Terraform domain replacement has been made yet because the required hostname boundary is
+  not safe to infer.
+- **Read-only DNS finding:** `bedoux.ca` uses existing non-Route 53 authoritative nameservers;
+  its apex resolves to Shopify and `www.bedoux.ca` aliases Shopify. No apex mail or TXT answer was
+  found. This conflicts with treating the domain as unconnected and means an apex nameserver
+  replacement could disrupt the existing storefront.
+- **Phase/task:** P12.1 remains the single `IN PROGRESS` item. The safe recommended correction is
+  `cloud.bedoux.ca`, preserving the existing apex/`www`; using the apex instead requires an
+  explicit owner decision to replace the Shopify connection. ADR 0021 remains accepted until
+  that choice is recorded in a superseding ADR.
+- **Verification:** `dig +short` checked public NS, SOA, apex A/AAAA, `www` CNAME/A, MX, and TXT
+  answers. No repository implementation or AWS resource changed.
+- **AWS:** none. Public DNS reads only; no AWS or Kubernetes endpoint was contacted. Estimated
+  session cost: USD 0.
+
+### 2026-08-23T19:24:35-06:00 — P12 child domain confirmed; Shopify preserved — Codex
+
+- **Owner decision:** the owner confirmed `cloud.bedoux.com`. ADR 0021 supersedes ADR 0020's
+  apex design and selects ADR 0014's owned-subdomain path.
+- **DNS evidence:** a fresh read-only check reconfirmed the existing parent nameservers and
+  Shopify-directed apex/`www` records. `cloud.bedoux.com` had no NS, address, or CNAME answer.
+- **Design correction:** Terraform now creates a public child zone and one certificate for
+  exactly `cloud.bedoux.com`, with no additional names. The parent zone and Shopify records are
+  outside Terraform scope.
+- **Browser/rollback correction:** the owner later adds only a `cloud` NS delegation in the
+  existing DNS provider. The runbook forbids parent nameserver or Shopify-record changes;
+  rollback removes the child NS delegation before deleting the Route 53 zone.
+- **Verification:** Terraform formatting and credential-free validation passed for the default,
+  P11 HA, and revised P12 TLS profiles; `make docs-check` and `git diff --check` passed.
+- **Publication:** commit `b9ae37d` updated draft PR #50 and its description. GitHub Actions run
+  `32679733313` passed API tests, web lint/test/build, Terraform/Helm validation, container
+  build and zero-fixable-vulnerability scans, SPDX SBOM upload, and candidate signing/verification.
+- **Phase/task:** P12.1 remains `IN PROGRESS`; T-1201 has not run. Hosted-zone persistence and
+  parent-DNS access must still be confirmed before an alarmed live session.
+- **AWS:** none. Public DNS reads only; no AWS or Kubernetes endpoint was contacted and no
+  infrastructure changed. Estimated session cost: USD 0.
+
+### 2026-08-23T19:06:25-06:00 — P12.1 local module and live boundary ready — Codex
+
+- **Implementation:** added the disabled-by-default `route53-acm` module, root opt-in wiring,
+  `bedoux.com`/`www.bedoux.com` profile, outputs for registrar delegation and P12.2, and PR
+  validation for the new profile. Terraform manages no registrar resource. Added the missing
+  `*.tfvars`/`*.tfvars.json` ignores so session variable files cannot be accidentally tracked.
+- **Bounded live design:** hosted-zone and certificate toggles support two reviewed plans: create
+  the zone first, verify registrar delegation, then request the regional certificate and create
+  its DNS records. The certificate waiter is capped at 45 minutes.
+- **Runbook:** `docs/runbooks/p12-1-domain-tls-session.md` requires a three-hour independent
+  alarm, current cost/preflight checks, exact module-only plans, owner browser delegation, T-1201
+  `ISSUED` evidence, and explicit rollback. Current reviewed pricing is USD 0.50/month for the
+  hosted zone; the non-exportable ALB-integrated ACM certificate has no additional fee.
+- **Read-only finding:** public DNS currently uses non-Route 53 nameservers and directs the apex
+  and `www` to Shopify. No ownership or replacement permission was inferred. Live P12.1 remains
+  gated on the owner's three confirmations recorded in ADR 0020 and the runbook.
+- **Verification:** Terraform 1.15.8 formatting passed; credential-free validation passed for
+  default, P11 HA, and P12 TLS profiles with pinned AWS provider 5.100.0; `make docs-check` passed
+  through the existing `bedoux-aws` toolbox; `git diff --check` passed.
+- **Publication:** commit `b59f408` is published in draft PR #50. GitHub Actions run
+  `32678920103` passed API tests, web lint/test/build, Terraform/Helm validation, container
+  build and zero-fixable-vulnerability scans, SPDX SBOM upload, and candidate signing/verification.
+- **Phase/task:** local implementation is review-ready, but P12.1 and T-1201 remain
+  `IN PROGRESS` until the certificate is proven `ISSUED` live. P12.2 has not started.
+- **AWS:** none. Registry/pricing/public-DNS reads only; no AWS or Kubernetes endpoint was
+  contacted and no infrastructure changed. Estimated session cost: USD 0.
+
+### 2026-08-23T18:30:34-06:00 — P12 domain selected; P12.1 local work opened — Codex
+
+- **Owner decision:** the owner selected the new apex domain `bedoux.com`; ADR 0020 records the
+  P12 path required by ADR 0014. The website itself has not started.
+- **Registration boundary:** the authoritative `.com` registry endpoint returned a record for
+  `bedoux.com`, so it is already registered. Ownership was not inferred. Live work remains gated
+  on owner confirmation that the domain is controlled and its registrar nameservers can change.
+- **Phase/task:** P12.1 is the single `IN PROGRESS` item on branch `p12-1-route53-acm`. This
+  session is limited to local Terraform and documentation work.
+- **Persistence boundary:** ADR 0020 does not assume permission to retain a hosted zone. The
+  live session plan must obtain and record that decision before apply; P12.3 will verify it.
+- **AWS:** none. No AWS or Kubernetes endpoint was contacted, and no infrastructure changed.
 
 ### 2026-08-20T13:36:50-06:00 — PR #48 merged; P11 branches cleaned — Codex
 

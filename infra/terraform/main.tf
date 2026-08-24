@@ -131,6 +131,19 @@ module "observability" {
   tags                     = local.tags
 }
 
+# P12.1 only: opt in after ADR 0022's apex-cutover and live-session gates are
+# satisfied. The module deliberately manages DNS hosting and certificate
+# validation, not domain registration or renewal.
+module "route53_acm" {
+  count  = var.route53_acm_enabled ? 1 : 0
+  source = "./modules/route53-acm"
+
+  certificate_enabled       = var.route53_acm_certificate_enabled
+  domain_name               = var.route53_acm_domain_name
+  subject_alternative_names = var.route53_acm_subject_alternative_names
+  tags                      = local.tags
+}
+
 module "ecr" {
   source = "./modules/ecr"
 
@@ -174,5 +187,12 @@ check "observability_alarms_require_wiring" {
   assert {
     condition     = !var.observability_alarms_enabled || (var.observability_enabled && var.rds_enabled && var.observability_alb_arn_suffix != "")
     error_message = "P8 alarms require observability_enabled, rds_enabled, and a discovered observability_alb_arn_suffix."
+  }
+}
+
+check "route53_acm_certificate_requires_zone" {
+  assert {
+    condition     = !var.route53_acm_certificate_enabled || var.route53_acm_enabled
+    error_message = "Enable the Route 53 hosted zone before enabling its ACM certificate."
   }
 }
