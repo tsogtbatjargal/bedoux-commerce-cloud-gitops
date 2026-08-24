@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P12 — TLS & custom domain |
-| Active task | P12.1 — live T-1201 Route 53/ACM proof (guarded session open; hosted-zone plan awaits exact owner approval). |
-| Last verified | 2026-08-24T16:27:33-06:00 — clean preflight and saved one-create Route 53 plan `760feff1...fcc437`; no AWS resource changed. |
-| AWS resources currently live | No temporary or unattached billable resources. Persistent allowlist only: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider. |
+| Active task | P12.1 — live T-1201 Route 53/ACM proof (public zone created; owner registrar delegation next). |
+| Last verified | 2026-08-24T16:31:26-06:00 — exact approved plan applied; one tagged public `bedoux.ca` Route 53 zone is live with four nameservers. |
+| AWS resources currently live | No temporary or unattached billable resources. Persistent allowlist only: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider, and the `bedoux.ca` public Route 53 zone. |
 | Month-to-date estimated AWS spend | USD 4.857 budget actual at P12.1 preflight; no forecast returned. |
-| Next operator action | Owner reviews and approves or rejects exact saved hosted-zone plan SHA-256 `760feff1f1e22e2a329572f0656101ddf06a7deb5d74c2129897f6f501fcc437`; do not apply a regenerated plan. |
+| Next operator action | Owner replaces the registrar's prior nameservers with the exact four temporary Terraform outputs, then reports only success and timestamp; do not request ACM until public NS matches. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -717,6 +717,14 @@ Append newest entries immediately below this heading. Never include secrets or A
 - **Next action:** owner approves or rejects the exact plan hash above. On approval, rehash the
   unchanged binary immediately before applying it, then report the four Route 53 nameservers only
   to the operator terminal for the registrar browser step; do not commit them.
+- **Apply authorization and result:** the owner supplied the exact full SHA-256. The saved binary
+  rehashed unchanged immediately before apply. Terraform applied that file at
+  2026-08-24T16:30:01-06:00; the live and state checks confirm exactly one `bedoux.ca` public
+  hosted zone with four nameservers and all three required tags. No plan was regenerated and no
+  other AWS resource was created or changed.
+- **Current operator action:** use the four Terraform-output nameservers in temporary operator
+  notes to replace the registrar's prior authoritative nameservers. Keep the prior pair for
+  rollback, do not copy Shopify records, and report only delegation success plus timestamp.
 
 ### 2026-08-24T16:13:45-06:00 — PR #50 merged; P12.1 live proof next — Codex
 
