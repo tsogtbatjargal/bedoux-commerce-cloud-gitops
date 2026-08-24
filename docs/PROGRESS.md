@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P12 — TLS & custom domain |
 | Active task | P12.1 — `route53-acm` Terraform module (local implementation; no AWS session open). |
-| Last verified | 2026-08-23T19:12:28-06:00 — draft PR #50 opened; all four jobs passed in run `32678920103`; no AWS session opened. |
+| Last verified | 2026-08-23T19:24:35-06:00 — owner confirmed `cloud.bedoux.com`; ADR 0021 and revised Terraform/runbook pass local validation. |
 | AWS resources currently live | No temporary or unattached billable resources. Persistent allowlist only: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | USD 4.552 budget actual at session close; no forecast returned. This short P11.4 session is estimated below USD 0.30, with billing data expected to lag. |
-| Next operator action | Review green draft PR #50. Before live apply, owner confirms control of `bedoux.com`, replacement of its current Shopify-directed DNS, and hosted-zone persistence. |
+| Next operator action | Publish/revalidate draft PR #50 for `cloud.bedoux.com`. Before live apply, owner confirms parent-DNS access and hosted-zone persistence. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -641,8 +641,8 @@ Gate: T-1101..T-1104.
 
 ### P12 — TLS & custom domain
 
-- [x] **Owner decision RECORDED 2026-08-23** — ADR 0020 selects the new apex domain
-      `bedoux.com`; registrar control and hosted-zone persistence must be confirmed before apply.
+- [x] **Owner decision RECORDED 2026-08-23** — ADR 0021 supersedes ADR 0020 and selects the
+      delegated `cloud.bedoux.com` child domain; hosted-zone persistence remains pending.
 - [ ] P12.1 IN PROGRESS — `route53-acm` Terraform module (local implementation; AWS: none).
 - [ ] P12.2 NOT STARTED — ALB HTTPS listener + redirect, browser TLS check.
 - [ ] P12.3 NOT STARTED — teardown; hosted zone persistence matches the owner's decision.
@@ -677,6 +677,25 @@ P12.1 is the single active item.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-23T19:24:35-06:00 — P12 child domain confirmed; Shopify preserved — Codex
+
+- **Owner decision:** the owner confirmed `cloud.bedoux.com`. ADR 0021 supersedes ADR 0020's
+  apex design and selects ADR 0014's owned-subdomain path.
+- **DNS evidence:** a fresh read-only check reconfirmed the existing parent nameservers and
+  Shopify-directed apex/`www` records. `cloud.bedoux.com` had no NS, address, or CNAME answer.
+- **Design correction:** Terraform now creates a public child zone and one certificate for
+  exactly `cloud.bedoux.com`, with no additional names. The parent zone and Shopify records are
+  outside Terraform scope.
+- **Browser/rollback correction:** the owner later adds only a `cloud` NS delegation in the
+  existing DNS provider. The runbook forbids parent nameserver or Shopify-record changes;
+  rollback removes the child NS delegation before deleting the Route 53 zone.
+- **Verification:** Terraform formatting and credential-free validation passed for the default,
+  P11 HA, and revised P12 TLS profiles; `make docs-check` and `git diff --check` passed.
+- **Phase/task:** P12.1 remains `IN PROGRESS`; T-1201 has not run. Hosted-zone persistence and
+  parent-DNS access must still be confirmed before an alarmed live session.
+- **AWS:** none. Public DNS reads only; no AWS or Kubernetes endpoint was contacted and no
+  infrastructure changed. Estimated session cost: USD 0.
 
 ### 2026-08-23T19:06:25-06:00 — P12.1 local module and live boundary ready — Codex
 

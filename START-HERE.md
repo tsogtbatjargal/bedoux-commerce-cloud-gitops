@@ -158,7 +158,7 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   workload identities, and bounded deny test were proven live. **P10.5 is complete:** the EKS VPC
   CNI enforced the NetworkPolicies in a real allow/deny drill, followed by a clean same-session
   teardown. **P10 gate approved 2026-08-11; P11 gate approved 2026-08-20; P12 is active.**
-  ADR 0020 records the owner's `bedoux.com` choice, and P12.1 is in progress on the focused
+  ADR 0021 records the owner's `cloud.bedoux.com` choice, and P12.1 is in progress on the focused
   `p12-1-route53-acm` branch. The Calico-backed kind cluster is
   still running and Ready, but the default kubeconfig context points at the deleted EKS endpoint;
   use or switch deliberately to `kind-bedoux`.
@@ -195,11 +195,11 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   final AWS sweep and local temporary-file/process sweep were clean. Budget actual remained
   USD 4.552 of USD 20; estimated session cost is below USD 0.30 pending billing ingestion.
 - **All P11.1–P11.5 tasks and T-1101–T-1104 tests are complete, and the owner approved the P11
-  gate on 2026-08-20. P12 is active.** The owner selected `bedoux.com`; ADR 0020 satisfies
-  ADR 0014's domain-choice gate. P12.1's disabled-by-default Route 53/ACM module and two-stage
-  live runbook pass local validation. Public DNS currently uses non-Route 53 nameservers and
-  Shopify-directed apex/`www` records, so no live mutation is authorized until the owner confirms
-  domain control, permission to replace that DNS, and hosted-zone persistence. T-1201 has not run.
+  gate on 2026-08-20. P12 is active.** The owner selected `cloud.bedoux.com`; ADR 0021
+  supersedes ADR 0020 and satisfies ADR 0014's owned-subdomain path. P12.1's
+  disabled-by-default Route 53/ACM module and two-stage live runbook preserve the existing
+  Shopify apex/`www`: only the `cloud` child NS delegation is added at the parent DNS provider.
+  Hosted-zone persistence still requires explicit approval. T-1201 has not run.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

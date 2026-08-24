@@ -1,5 +1,5 @@
 variable "domain_name" {
-  description = "Apex domain for the public hosted zone and ACM certificate. Supply it without a trailing dot."
+  description = "Domain for the public hosted zone and ACM certificate. Supply it without a trailing dot."
   type        = string
 
   validation {
@@ -29,7 +29,7 @@ variable "subject_alternative_names" {
 }
 
 variable "certificate_enabled" {
-  description = "Create and DNS-validate the ACM certificate after registrar delegation to the hosted zone is verified."
+  description = "Create and DNS-validate the ACM certificate after parent-DNS delegation to the hosted zone is verified."
   type        = bool
   default     = false
 }

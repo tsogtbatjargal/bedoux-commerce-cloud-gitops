@@ -70,15 +70,18 @@ separate persistent state bucket before migrating this root state to S3.
   agent role, is not on the persistent-resource allowlist and the guarded destroy helper removes
   it with the session. See
   [`docs/runbooks/p8-2-cloudwatch-session.md`](../../docs/runbooks/p8-2-cloudwatch-session.md).
-- P12.1 adds an **opt-in only** Route 53/ACM module for ADR 0020's `bedoux.com` apex domain and
-  `www.bedoux.com` alias. With `route53_acm_enabled=true`, it creates one public hosted zone,
+- P12.1 adds an **opt-in only** Route 53/ACM module for ADR 0021's delegated
+  `cloud.bedoux.com` child domain. With `route53_acm_enabled=true`, it creates one public hosted zone,
   one regional DNS-validated ACM certificate, and the certificate's validation records. It does
-  not register, transfer, or renew the domain. A live apply requires owner-confirmed domain and
-  registrar nameserver control plus an explicit hosted-zone persistence decision. Use
+  not manage the parent domain, its Shopify records, registration, transfer, or renewal. A live
+  apply requires owner-confirmed access to add the child-zone NS delegation in the parent DNS plus
+  an explicit hosted-zone persistence decision. Use
   `terraform.tfvars.p12-tls.example` only inside that bounded P12 session. The live sequence uses
   two normal reviewed plans: first set `route53_acm_enabled=true` while leaving
-  `route53_acm_certificate_enabled=false`, update and verify the registrar delegation from the
-  resulting nameserver output, then enable the certificate and apply its DNS validation records.
+  `route53_acm_certificate_enabled=false`, add and verify only the `cloud.bedoux.com` NS
+  delegation in the parent DNS from the resulting nameserver output, then enable the certificate
+  and apply its DNS validation records. The parent nameservers and Shopify apex/`www` records do
+  not change.
 
 ## P6.1 validation
 

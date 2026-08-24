@@ -1,13 +1,13 @@
 # P12.1 DNS/TLS profile. Copy to an ignored .tfvars file only after the owner
-# confirms control of bedoux.com, registrar nameserver access, hosted-zone
-# persistence, and opens the bounded AWS session.
+# confirms control of bedoux.com's parent DNS, permission to add the cloud
+# child-zone NS delegation, hosted-zone persistence, and opens the bounded AWS session.
 aws_region  = "ca-central-1"
 aws_profile = "bedoux-admin"
 
 route53_acm_enabled                   = true
 route53_acm_certificate_enabled       = true
-route53_acm_domain_name               = "bedoux.com"
-route53_acm_subject_alternative_names = ["www.bedoux.com"]
+route53_acm_domain_name               = "cloud.bedoux.com"
+route53_acm_subject_alternative_names = []
 
 # Keep unrelated optional profiles disabled.
 rds_enabled             = false

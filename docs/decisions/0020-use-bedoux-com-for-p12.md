@@ -1,6 +1,6 @@
 # ADR 0020: Use bedoux.com as the P12 apex domain
 
-- Status: Accepted
+- Status: Superseded by 0021
 - Date: 2026-08-23
 
 ## Context

@@ -4,7 +4,7 @@ output "hosted_zone_id" {
 }
 
 output "hosted_zone_name_servers" {
-  description = "Authoritative Route 53 nameservers to configure at the domain registrar."
+  description = "Authoritative Route 53 nameservers used to delegate this zone from its parent DNS."
   value       = aws_route53_zone.this.name_servers
 }
 
