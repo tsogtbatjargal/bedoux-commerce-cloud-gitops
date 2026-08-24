@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P12 — TLS & custom domain |
 | Active task | P12.1 — live T-1201 Route 53/ACM proof (public zone created; owner registrar delegation next). |
-| Last verified | 2026-08-24T16:31:26-06:00 — exact approved plan applied; one tagged public `bedoux.ca` Route 53 zone is live with four nameservers. |
+| Last verified | 2026-08-24T17:16:28-06:00 — Route 53 zone is live, but public and authoritative DNS still use the prior GoDaddy nameservers after the first registrar attempt. |
 | AWS resources currently live | No temporary or unattached billable resources. Persistent allowlist only: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider, and the `bedoux.ca` public Route 53 zone. |
 | Month-to-date estimated AWS spend | USD 4.857 budget actual at P12.1 preflight; no forecast returned. |
-| Next operator action | Owner replaces the registrar's prior nameservers with the exact four temporary Terraform outputs, then reports only success and timestamp; do not request ACM until public NS matches. |
+| Next operator action | Owner uses GoDaddy's domain-level **Nameservers** control—not the DNS-record editor—to replace the prior pair with the exact four temporary Terraform outputs; do not request ACM until public NS matches. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -725,6 +725,13 @@ Append newest entries immediately below this heading. Never include secrets or A
 - **Current operator action:** use the four Terraform-output nameservers in temporary operator
   notes to replace the registrar's prior authoritative nameservers. Keep the prior pair for
   rollback, do not copy Shopify records, and report only delegation success plus timestamp.
+- **Registrar-attempt finding (17:16 Edmonton):** the public resolver and GoDaddy's current
+  authoritative server still return only the prior GoDaddy nameserver pair, so delegation has
+  not changed. The owner's downloaded, untracked old-zone export confirms the non-editable rows
+  are GoDaddy's apex NS records and also records the retiring Shopify verification, GoDaddy
+  Domain Connect, and a provider-managed DMARC record. Do not import this old zone wholesale or
+  commit the export. If the four AWS servers were added in the ordinary record table, remove
+  only those new rows and use the domain-level **Nameservers** control instead.
 
 ### 2026-08-24T16:13:45-06:00 — PR #50 merged; P12.1 live proof next — Codex
 
