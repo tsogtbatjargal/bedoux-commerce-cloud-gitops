@@ -240,30 +240,33 @@ variable "route53_acm_enabled" {
 }
 
 variable "route53_acm_domain_name" {
-  description = "Owner-selected P12 delegated child domain recorded by ADR 0021."
+  description = "Owner-selected P12 apex domain recorded by ADR 0022."
   type        = string
-  default     = "cloud.bedoux.com"
+  default     = "bedoux.ca"
 
   validation {
-    condition     = var.route53_acm_domain_name == "cloud.bedoux.com"
-    error_message = "ADR 0021 fixes the P12 learning domain to cloud.bedoux.com."
+    condition     = var.route53_acm_domain_name == "bedoux.ca"
+    error_message = "ADR 0022 fixes the P12 learning domain to bedoux.ca."
   }
 }
 
 variable "route53_acm_certificate_enabled" {
-  description = "Create and validate the P12 ACM certificate after cloud.bedoux.com delegates to the managed Route 53 child zone."
+  description = "Create and validate the P12 ACM certificate after bedoux.ca delegates to its managed Route 53 zone."
   type        = bool
   default     = false
 }
 
 variable "route53_acm_subject_alternative_names" {
-  description = "Additional P12 website aliases covered by the ACM certificate; ADR 0021 requires none."
+  description = "Additional P12 website aliases covered by the ACM certificate; ADR 0022 requires www.bedoux.ca."
   type        = list(string)
-  default     = []
+  default     = ["www.bedoux.ca"]
 
   validation {
-    condition     = length(var.route53_acm_subject_alternative_names) == 0
-    error_message = "ADR 0021 requires a certificate for cloud.bedoux.com only, with no additional names."
+    condition = (
+      length(var.route53_acm_subject_alternative_names) == 1 &&
+      contains(var.route53_acm_subject_alternative_names, "www.bedoux.ca")
+    )
+    error_message = "ADR 0022 requires exactly one additional certificate name: www.bedoux.ca."
   }
 }
 

@@ -74,7 +74,7 @@ output "route53_hosted_zone_id" {
 }
 
 output "route53_name_servers" {
-  description = "P12 child-zone nameservers to add to the existing parent DNS; empty while route53_acm_enabled is false."
+  description = "P12 apex-zone nameservers to configure at the registrar; empty while route53_acm_enabled is false."
   value       = try(module.route53_acm[0].hosted_zone_name_servers, [])
 }
 

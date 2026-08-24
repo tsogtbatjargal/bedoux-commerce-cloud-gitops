@@ -341,7 +341,8 @@ issues" — not generic best-practice work invented for its own sake.
   explicitly approved as persistent, as `docs/cost-guardrails.md` already anticipates.
 - **Gate:** T-1201 cert issued and validated; T-1202 HTTPS reachable + redirect proven;
   T-1203 teardown/persistence matches the owner's P12 decision.
-- **Rollback:** `terraform destroy` on the new module; DNS changes are additive.
+- **Rollback:** restore the registrar's previous nameservers before destroying the Route 53
+  module; never delete an apex zone while the domain still delegates to it.
 
 ### P13 — Delivery maturity ($2–4/session)
 

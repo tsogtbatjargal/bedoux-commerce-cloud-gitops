@@ -1,6 +1,6 @@
 # ADR 0021: Delegate cloud.bedoux.com for P12
 
-- Status: Accepted
+- Status: Superseded by 0022
 - Date: 2026-08-23
 
 Supersedes ADR 0020.

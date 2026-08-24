@@ -131,7 +131,7 @@ module "observability" {
   tags                     = local.tags
 }
 
-# P12.1 only: opt in after ADR 0021's child-delegation and live-session gates are
+# P12.1 only: opt in after ADR 0022's apex-cutover and live-session gates are
 # satisfied. The module deliberately manages DNS hosting and certificate
 # validation, not domain registration or renewal.
 module "route53_acm" {
