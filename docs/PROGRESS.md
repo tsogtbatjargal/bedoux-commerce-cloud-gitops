@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P12 — TLS & custom domain |
-| Active task | P12.1 — `route53-acm` Terraform module (local implementation; no AWS session open). |
-| Last verified | 2026-08-24T16:07:59-06:00 — branch head `a2f485b` is published; PR #50 matches the `bedoux.ca` design and all four jobs passed in run `32782508883`. |
+| Active task | P12.1 — live T-1201 Route 53/ACM proof (reviewed module merged; no AWS session open). |
+| Last verified | 2026-08-24T16:13:45-06:00 — PR #50 passed all four jobs in run `32783233323` and merged to `main` as `b08f197`. |
 | AWS resources currently live | No temporary or unattached billable resources. Persistent allowlist only: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider. |
 | Month-to-date estimated AWS spend | USD 4.552 budget actual at session close; no forecast returned. This short P11.4 session is estimated below USD 0.30, with billing data expected to lag. |
-| Next operator action | Review green draft PR #50, mark ready, and merge; then schedule the three-hour alarmed P12.1 Route 53/ACM session. |
+| Next operator action | Schedule a three-hour Edmonton alarm, then complete the P12.1/AWS preflight before creating the `bedoux.ca` hosted zone. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -678,6 +678,23 @@ P12.1 is the single active item.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-24T16:13:45-06:00 — PR #50 merged; P12.1 live proof next — Codex
+
+- **Owner authorization:** the owner explicitly approved and requested merge of PR #50.
+- **Merge evidence:** the exact reviewed head `6f5d7bc` had all four required checks green in
+  GitHub Actions run `32783233323`. PR #50 was marked ready and merged to `main` as `b08f197` at
+  2026-08-24T22:13:07Z; a fresh fetch confirmed `origin/main` at that merge.
+- **Continuation:** local branch `p12-1-live-route53-acm` was created from `origin/main` so the
+  still-active P12.1 live evidence can proceed without adding commits to the merged branch.
+- **Phase/task:** P12.1 remains `IN PROGRESS`; merge and green CI do not satisfy T-1201. P12.2
+  remains unstarted. The next evidence is an `ISSUED` ACM certificate for `bedoux.ca` and
+  `www.bedoux.ca` through the alarmed runbook.
+- **Next action:** set a three-hour independent Edmonton alarm and report its end time, then run
+  the current pricing, identity, budget, inventory, DNS, and exact-plan preflight. No AWS or DNS
+  mutation begins before those checks pass.
+- **AWS:** none. Git/GitHub operations only; no AWS, DNS, registrar, Shopify, or Kubernetes
+  resource changed. Estimated session cost: USD 0.
 
 ### 2026-08-24T16:07:59-06:00 — P12 apex-zone persistence approved; PR refreshed — Codex
 

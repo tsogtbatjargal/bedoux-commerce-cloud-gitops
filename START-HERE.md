@@ -158,8 +158,9 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   workload identities, and bounded deny test were proven live. **P10.5 is complete:** the EKS VPC
   CNI enforced the NetworkPolicies in a real allow/deny drill, followed by a clean same-session
   teardown. **P10 gate approved 2026-08-11; P11 gate approved 2026-08-20; P12 is active.**
-  ADR 0022 records the owner's `bedoux.ca` apex cutover and Shopify-retirement choice, and P12.1
-  is in progress on the focused `p12-1-route53-acm` branch. The Calico-backed kind cluster is
+  ADR 0022 records the owner's `bedoux.ca` apex cutover and Shopify-retirement choice. PR #50
+  merged the reviewed module as `b08f197`; P12.1 live evidence continues on the local
+  `p12-1-live-route53-acm` branch. The Calico-backed kind cluster is
   still running and Ready, but the default kubeconfig context points at the deleted EKS endpoint;
   use or switch deliberately to `kind-bedoux`.
 - Repository workflow skills are validated and published on `main` through merged PR #47
