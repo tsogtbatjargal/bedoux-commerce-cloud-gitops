@@ -14,9 +14,11 @@ Start with START-HERE.md, AGENTS.md, and docs/PROGRESS.md. The progress file is 
 Use the active worktree/branch recorded by Git; preserve unrelated changes.
 
 Current state as of 2026-08-25:
-- P0-P11 are complete and gate-approved. P12 is active; P12.1/T-1201 is complete locally on
-  `p12-1-live-route53-acm`. P12.2 and P12.3 have not started.
+- P0-P11 are complete and gate-approved. P12 is active; P12.1/T-1201 is complete and published
+  on `main` through PR #51. P12.2 is the single active item; P12.3 has not started.
 - PR #50 passed all four checks in final run `32783233323` and merged to `main` as `b08f197`.
+- PR #51 passed all four checks in run `32907691085` and merged the live P12.1/T-1201 evidence
+  to `main` as `452b214`.
 - The owner corrected the target to the `bedoux.ca` apex and retired Shopify because of its
   recurring cost. Accepted ADR 0022 supersedes ADR 0021 and records the owned-domain path
   required by ADR 0014.
@@ -46,8 +48,9 @@ Current state as of 2026-08-25:
   clean; budget actual was USD 4.87 of USD 20. Temporary plan/variables files are removed.
 
 Next action:
-1. Publish and merge the P12.1/T-1201 closeout evidence through review, then activate P12.2 for
-   the ALB HTTPS listener, HTTP-to-HTTPS redirect, Route 53 aliases, and real TLS checks.
+1. Continue P12.2 on its focused branch: review the existing ALB/Ingress/Terraform path, prepare
+   the HTTPS listener, HTTP-to-HTTPS redirect, and Route 53 alias declarations locally, and write
+   the guarded live proof before opening any AWS session.
 
 Hard boundaries: USD 20/month; ca-central-1; bedoux-admin only; no NAT Gateway; same-day teardown;
 never record account IDs, secrets, personal email addresses, or registrar details. No P12.2 AWS

@@ -159,8 +159,9 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   CNI enforced the NetworkPolicies in a real allow/deny drill, followed by a clean same-session
   teardown. **P10 gate approved 2026-08-11; P11 gate approved 2026-08-20; P12 is active.**
   ADR 0022 records the owner's `bedoux.ca` apex cutover and Shopify-retirement choice. PR #50
-  merged the reviewed module as `b08f197`; P12.1 live evidence continues on the local
-  `p12-1-live-route53-acm` branch. The Calico-backed kind cluster is
+  merged the reviewed module as `b08f197`; PR #51 merged the live P12.1/T-1201 evidence as
+  `452b214`. P12.2 is the single active item for local design/review; no AWS session is open.
+  The Calico-backed kind cluster is
   still running and Ready, but the default kubeconfig context points at the deleted EKS endpoint;
   use or switch deliberately to `kind-bedoux`.
 - Repository workflow skills are validated and published on `main` through merged PR #47
@@ -207,7 +208,8 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   two DNS validation records and an Amazon-issued RSA-2048 ACM certificate that is `ISSUED` for
   exactly `bedoux.ca` and `www.bedoux.ca`. The final inventory is clean, budget actual remains
   USD 4.87 of USD 20, and only the approved zone/certificate plus prior persistent allowlist
-  remain. Publish and merge this evidence before activating P12.2.
+  remain. PR #51 passed all four checks in run `32907691085` and merged as `452b214`; P12.2 is
+  now active for local ALB HTTPS/redirect/alias implementation and guarded-session preparation.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 
