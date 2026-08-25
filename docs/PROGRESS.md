@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P12 — TLS & custom domain |
-| Active task | P12.1 — live T-1201 Route 53/ACM proof (Route 53 delegation verified; certificate proof remains). |
-| Last verified | 2026-08-25T15:51:56-06:00 — `.ca` parent plus four independent resolvers return exactly the Route 53 nameservers; closeout inventory is clean. |
+| Active task | P12.1 — live T-1201 Route 53/ACM proof (fresh guarded session; certificate plan awaits exact owner approval). |
+| Last verified | 2026-08-25T16:26:27-06:00 — clean preflight and saved four-create ACM/DNS-validation plan `7b9b69e6...62db5b6`; no AWS resource changed. |
 | AWS resources currently live | No temporary or unattached billable resources. Persistent allowlist only: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider, and the `bedoux.ca` public Route 53 zone. |
 | Month-to-date estimated AWS spend | USD 4.87 budget actual at the 2026-08-25 closeout check; no forecast returned. |
-| Next operator action | Schedule a fresh three-hour Edmonton alarm, then repeat the P12.1 preflight and review the certificate-enabled module-only plan; no ACM mutation is authorized from this checkpoint. |
+| Next operator action | Owner reviews and approves or rejects exact saved certificate plan SHA-256 `7b9b69e6ea322cc5d0e58c21e83327ccef25f829ccfacb0633dd00f0862db5b6`; do not apply a regenerated plan. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -678,6 +678,41 @@ P12.1 is the single active item.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-25T16:26:27-06:00 — P12.1 certificate session opened for plan review — Codex
+
+- **Phase/task and deadline:** P12.1/T-1201 remains the only active item. The owner confirmed a
+  fresh independent alarm for 20:00 Edmonton. The alarm ends active work even if the bounded ACM
+  waiter or evidence capture remains incomplete; no mutation authority carries past it.
+- **Approval boundary:** the start instruction permits current preflight and exact certificate
+  plan review, not apply. Apply requires the owner to supply the full saved-plan SHA-256 while
+  sufficient closeout margin remains; regenerating the plan invalidates that approval.
+- **Fresh preflight:** the caller is the expected non-root `bedoux-admin` user and the configured
+  region is `ca-central-1`. Budget actual remains USD 4.87 of USD 20 with no forecast. EKS,
+  load balancers/target groups, RDS resources, active NAT Gateways, EIPs, non-terminated
+  instances, available volumes, self-owned snapshots, and active CloudFormation stacks remain
+  empty. The expected one state bucket, two ECR repositories, and one Route 53 hosted zone are
+  present; ACM certificates remain zero before apply.
+- **DNS and pricing:** public delegation still returns exactly the four Route 53 nameservers;
+  apex A and `www` CNAME answers remain empty as designed. Current official pricing remains USD
+  0.50/month for the hosted zone, standard query charges at very low volume, and no certificate
+  fee for the non-exportable public ACM certificate intended for ALB.
+- **Tooling/state:** Terraform 1.15.8 with AWS provider 5.100.0 validated successfully outside
+  the filesystem sandbox and refreshed exactly the existing Route 53 zone from the encrypted S3
+  state. The session variables enable only Route 53/ACM for `bedoux.ca` plus
+  `www.bedoux.ca`; RDS, product-image S3, Secrets Manager, and observability remain disabled.
+- **Exact certificate plan:** `/tmp/bedoux-p12-certificate.tfplan`, SHA-256
+  `7b9b69e6ea322cc5d0e58c21e83327ccef25f829ccfacb0633dd00f0862db5b6`, is four creates,
+  zero changes, and zero destroys/replacements. It preserves the public zone and adds one
+  DNS-validated certificate for exactly the apex and `www`, two Route 53 validation records, and
+  one validation waiter capped at 45 minutes. It contains no registrar, EKS, VPC, ALB, NAT, RDS,
+  or unrelated resource.
+- **AWS:** sanitized read-only identity, billing, inventory, DNS, refresh, and plan calls only.
+  No AWS, registrar, DNS, Shopify, or Kubernetes resource changed in this session; incremental
+  cost remains USD 0.
+- **Next action:** owner approves or rejects the exact plan hash above. On approval, rehash the
+  unchanged binary immediately before apply, then verify ACM reports `ISSUED`, primary domain
+  `bedoux.ca`, exactly the two expected names, and Amazon-issued type.
 
 ### 2026-08-25T15:51:56-06:00 — Route 53 delegation propagated; prior session closed — Codex
 
