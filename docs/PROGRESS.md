@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P12 — TLS & custom domain |
-| Active task | P12.1 — live T-1201 Route 53/ACM proof (public zone created; owner registrar delegation next). |
-| Last verified | 2026-08-24T17:16:28-06:00 — Route 53 zone is live, but public and authoritative DNS still use the prior GoDaddy nameservers after the first registrar attempt. |
+| Active task | P12.1 — live T-1201 Route 53/ACM proof (Route 53 delegation verified; certificate proof remains). |
+| Last verified | 2026-08-25T15:51:56-06:00 — `.ca` parent plus four independent resolvers return exactly the Route 53 nameservers; closeout inventory is clean. |
 | AWS resources currently live | No temporary or unattached billable resources. Persistent allowlist only: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider, and the `bedoux.ca` public Route 53 zone. |
-| Month-to-date estimated AWS spend | USD 4.857 budget actual at P12.1 preflight; no forecast returned. |
-| Next operator action | Owner uses GoDaddy's domain-level **Nameservers** control—not the DNS-record editor—to replace the prior pair with the exact four temporary Terraform outputs; do not request ACM until public NS matches. |
+| Month-to-date estimated AWS spend | USD 4.87 budget actual at the 2026-08-25 closeout check; no forecast returned. |
+| Next operator action | Schedule a fresh three-hour Edmonton alarm, then repeat the P12.1 preflight and review the certificate-enabled module-only plan; no ACM mutation is authorized from this checkpoint. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -678,6 +678,33 @@ P12.1 is the single active item.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-25T15:51:56-06:00 — Route 53 delegation propagated; prior session closed — Codex
+
+- **Phase/task:** P12.1/T-1201 remains `IN PROGRESS`. This was a read-only follow-up after the
+  prior session's 20:30 Edmonton alarm, not a continuation of its mutation authority.
+- **Delegation evidence:** the workstation resolver, Cloudflare, Google Public DNS, and Quad9 all
+  return exactly the four Terraform-assigned Route 53 nameservers. A fresh trace confirms the
+  `.ca` parent delegates `bedoux.ca` to the same set, and direct Route 53 authority agrees.
+  GoDaddy's former authority still serves its old zone when queried directly, but it is no longer
+  selected by the parent delegation.
+- **Expected cutover state:** public apex A and `www` CNAME answers are empty. The old Shopify,
+  GoDaddy Domain Connect, Shopify-verification, and provider-managed DMARC records are no longer
+  authoritative. No MX existed before cutover. This is ADR 0022's accepted temporary no-site
+  window until P12.2; the downloaded old-zone export remains untracked and must not be imported
+  wholesale or committed.
+- **Guarded closeout:** the caller remains the expected non-root identity in `ca-central-1`.
+  Budget actual is USD 4.87 of USD 20 with no forecast. The sweep found zero EKS clusters, load
+  balancers, target groups, RDS resources, active NAT Gateways, EIPs, non-terminated instances,
+  EBS volumes/snapshots, active CloudFormation stacks, or ACM certificates. Persistent state is
+  exactly the approved Route 53 zone plus the prior state bucket, two ECR repositories, six
+  `bedoux-*` roles, and GitHub OIDC provider; the zone's required tags were verified separately.
+- **AWS:** read-only DNS, identity, billing, and inventory calls only. No AWS, registrar, DNS,
+  Shopify, or Kubernetes resource changed in this follow-up. The hosted zone remains under its
+  explicit persistence approval at approximately USD 0.50/month.
+- **Next action:** open a fresh three-hour alarmed session, repeat current preflight, enable the
+  certificate in the temporary P12 variables, and review a new saved module-only plan. Apply
+  requires separate approval of that exact plan hash; T-1201 passes only at ACM `ISSUED`.
 
 ### 2026-08-24T16:27:33-06:00 — P12.1 guarded session opened for hosted-zone plan review — Codex
 
