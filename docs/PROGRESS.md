@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P12 — TLS & custom domain |
-| Active task | P12.1 — live T-1201 Route 53/ACM proof (fresh guarded session; certificate plan awaits exact owner approval). |
-| Last verified | 2026-08-25T16:26:27-06:00 — clean preflight and saved four-create ACM/DNS-validation plan `7b9b69e6...62db5b6`; no AWS resource changed. |
-| AWS resources currently live | No temporary or unattached billable resources. Persistent allowlist only: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider, and the `bedoux.ca` public Route 53 zone. |
+| Active task | P12.1 — COMPLETE locally; publish/merge T-1201 evidence before activating P12.2. |
+| Last verified | 2026-08-25T16:39:45-06:00 — T-1201 passed: Amazon-issued ACM certificate is `ISSUED` for exactly `bedoux.ca` and `www.bedoux.ca`; inventory clean. |
+| AWS resources currently live | No temporary or unattached billable resources. Persistent allowlist only: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider, the `bedoux.ca` public Route 53 zone, and its issued ACM certificate/validation records. |
 | Month-to-date estimated AWS spend | USD 4.87 budget actual at the 2026-08-25 closeout check; no forecast returned. |
-| Next operator action | Owner reviews and approves or rejects exact saved certificate plan SHA-256 `7b9b69e6ea322cc5d0e58c21e83327ccef25f829ccfacb0633dd00f0862db5b6`; do not apply a regenerated plan. |
+| Next operator action | Publish and merge the P12.1/T-1201 closeout branch through review; then activate P12.2 for ALB HTTPS/redirect implementation. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -644,7 +644,9 @@ Gate: T-1101..T-1104.
 - [x] **Owner decision RECORDED 2026-08-24** — ADR 0022 supersedes ADR 0021 and selects the
       `bedoux.ca` apex plus `www.bedoux.ca`; Shopify is intentionally retired and hosted-zone
       persistence is explicitly approved at its understood recurring cost.
-- [ ] P12.1 IN PROGRESS — `route53-acm` Terraform module (local implementation; AWS: none).
+- [x] P12.1 COMPLETE — T-1201 passed live: delegated Route 53 apex zone, two DNS validation
+      records, and an Amazon-issued ACM certificate in `ISSUED` state for exactly `bedoux.ca`
+      and `www.bedoux.ca`. Evidence: session logs 2026-08-24 through 2026-08-25.
 - [ ] P12.2 NOT STARTED — ALB HTTPS listener + redirect, browser TLS check.
 - [ ] P12.3 NOT STARTED — teardown; hosted zone persistence matches the owner's decision.
 
@@ -713,6 +715,26 @@ Append newest entries immediately below this heading. Never include secrets or A
 - **Next action:** owner approves or rejects the exact plan hash above. On approval, rehash the
   unchanged binary immediately before apply, then verify ACM reports `ISSUED`, primary domain
   `bedoux.ca`, exactly the two expected names, and Amazon-issued type.
+- **Apply authorization and result:** the owner supplied the exact full SHA-256. The saved plan
+  rehashed unchanged immediately before apply at 2026-08-25T16:29:28-06:00. Terraform created
+  the approved certificate, two validation CNAMEs, and validation waiter. The execution channel
+  ended while streaming the record-creation log, so completion was not inferred: fresh process,
+  Terraform-state, Route 53, and ACM checks independently confirmed all four resources settled.
+- **T-1201 — PASSED:** ACM reports `ISSUED`, primary domain `bedoux.ca`, subject names exactly
+  `bedoux.ca` and `www.bedoux.ca`, type `AMAZON_ISSUED`, and RSA-2048. Route 53 contains exactly
+  two validation CNAMEs and public delegation still contains exactly four assigned nameservers.
+  Both the certificate and zone carry all three required tags.
+- **Final inventory and cost:** zero EKS clusters, load balancers, target groups, RDS resources,
+  active NAT Gateways, EIPs, non-terminated instances, EBS volumes/snapshots, and active
+  CloudFormation stacks. Expected persistent counts are one Route 53 zone, one ACM certificate,
+  two ECR repositories, one state bucket, six roles, and GitHub OIDC provider. The project-tag
+  API count increased from three to four because it includes the new ACM certificate; Route 53
+  tags were verified separately. Budget actual remains USD 4.87 of USD 20 with no forecast.
+- **Closeout:** removed the exact two saved plans and ignored session variables from `/tmp`.
+  No temporary billed resource remains. The zone, certificate, and validation records persist
+  intentionally for P12.2; certificate cost is USD 0 for its planned integrated ALB use.
+- **Next action:** publish and merge this P12.1/T-1201 evidence. P12.2 remains `NOT STARTED` and
+  receives no authority from this exact-plan approval or the 20:00 alarmed session.
 
 ### 2026-08-25T15:51:56-06:00 — Route 53 delegation propagated; prior session closed — Codex
 

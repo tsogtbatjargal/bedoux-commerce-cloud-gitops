@@ -203,8 +203,11 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   The in-house ALB aliases arrive in P12.2, so the Shopify cutover creates an accepted temporary
   no-site window. The owner approved hosted-zone persistence on 2026-08-24. The tagged public
   zone is live and the `.ca` parent plus four independent resolvers now return exactly its four
-  Route 53 nameservers. The prior alarmed session is closed cleanly; T-1201 still requires a
-  fresh alarmed session and an `ISSUED` ACM certificate for the apex and `www`.
+  Route 53 nameservers. **P12.1 and T-1201 are complete:** the exact owner-approved plan created
+  two DNS validation records and an Amazon-issued RSA-2048 ACM certificate that is `ISSUED` for
+  exactly `bedoux.ca` and `www.bedoux.ca`. The final inventory is clean, budget actual remains
+  USD 4.87 of USD 20, and only the approved zone/certificate plus prior persistent allowlist
+  remain. Publish and merge this evidence before activating P12.2.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

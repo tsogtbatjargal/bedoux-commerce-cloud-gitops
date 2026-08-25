@@ -14,7 +14,7 @@ Start with START-HERE.md, AGENTS.md, and docs/PROGRESS.md. The progress file is 
 Use the active worktree/branch recorded by Git; preserve unrelated changes.
 
 Current state as of 2026-08-25:
-- P0-P11 are complete and gate-approved. P12 is active; P12.1 is the single active item on branch
+- P0-P11 are complete and gate-approved. P12 is active; P12.1/T-1201 is complete locally on
   `p12-1-live-route53-acm`. P12.2 and P12.3 have not started.
 - PR #50 passed all four checks in final run `32783233323` and merged to `main` as `b08f197`.
 - The owner corrected the target to the `bedoux.ca` apex and retired Shopify because of its
@@ -36,19 +36,20 @@ Current state as of 2026-08-25:
   The owner replaced the GoDaddy delegation; the `.ca` parent, workstation resolver, Cloudflare,
   Google Public DNS, and Quad9 now return exactly its four Route 53 nameservers. Apex and `www`
   website answers are empty as expected during ADR 0022's accepted temporary no-site window.
-- T-1201 is not complete. No ACM certificate exists yet. The prior alarmed session is closed;
-  certificate planning and apply require a fresh three-hour alarm, repeated preflight, a new
-  saved module-only plan, and separate owner approval of its exact hash.
+- T-1201 passed. The exact owner-approved plan created two validation records and an Amazon-issued
+  RSA-2048 ACM certificate in `ISSUED` state for exactly `bedoux.ca` and `www.bedoux.ca`. The
+  apply channel ended while streaming record creation, so independent process, Terraform-state,
+  Route 53, and ACM checks verified completion rather than inferring it.
 - No temporary AWS resources are live. Persistent allowlist is the state bucket/history, two ECR
   repositories, six IAM roles/policies, GitHub OIDC provider, and the approved `bedoux.ca`
-  hosted zone. The 2026-08-25 closeout sweep was clean; budget actual was USD 4.87 of USD 20.
+  hosted zone plus issued certificate/validation records. The 2026-08-25 closeout sweep was
+  clean; budget actual was USD 4.87 of USD 20. Temporary plan/variables files are removed.
 
 Next action:
-1. Schedule a fresh three-hour independent alarm, repeat the current pricing/budget/inventory
-   preflight, then create and review the certificate-enabled module-only plan from
-   `docs/runbooks/p12-1-domain-tls-session.md`. T-1201 requires ACM status `ISSUED`.
+1. Publish and merge the P12.1/T-1201 closeout evidence through review, then activate P12.2 for
+   the ALB HTTPS listener, HTTP-to-HTTPS redirect, Route 53 aliases, and real TLS checks.
 
 Hard boundaries: USD 20/month; ca-central-1; bedoux-admin only; no NAT Gateway; same-day teardown;
-never record account IDs, secrets, personal email addresses, or registrar details. No ACM
+never record account IDs, secrets, personal email addresses, or registrar details. No P12.2 AWS
 mutation is authorized from this checkpoint.
 ```
