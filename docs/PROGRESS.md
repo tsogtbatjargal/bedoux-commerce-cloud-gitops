@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P12 — TLS & custom domain |
-| Active task | P12.1 — COMPLETE locally; publish/merge T-1201 evidence before activating P12.2. |
-| Last verified | 2026-08-25T16:39:45-06:00 — T-1201 passed: Amazon-issued ACM certificate is `ISSUED` for exactly `bedoux.ca` and `www.bedoux.ca`; inventory clean. |
+| Active task | P12.2 — ALB HTTPS listener, HTTP redirect, aliases, and real TLS proof (local design/review only; no AWS session open). |
+| Last verified | 2026-08-25T16:49:01-06:00 — PR #51 passed all four jobs in run `32907691085` and merged to `main` as `452b214`. |
 | AWS resources currently live | No temporary or unattached billable resources. Persistent allowlist only: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider, the `bedoux.ca` public Route 53 zone, and its issued ACM certificate/validation records. |
 | Month-to-date estimated AWS spend | USD 4.87 budget actual at the 2026-08-25 closeout check; no forecast returned. |
-| Next operator action | Publish and merge the P12.1/T-1201 closeout branch through review; then activate P12.2 for ALB HTTPS/redirect implementation. |
+| Next operator action | Continue P12.2 on a focused branch: review the existing ALB/Ingress/Terraform path, then prepare local declarations and a guarded live-session runbook before any AWS mutation. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -647,7 +647,7 @@ Gate: T-1101..T-1104.
 - [x] P12.1 COMPLETE — T-1201 passed live: delegated Route 53 apex zone, two DNS validation
       records, and an Amazon-issued ACM certificate in `ISSUED` state for exactly `bedoux.ca`
       and `www.bedoux.ca`. Evidence: session logs 2026-08-24 through 2026-08-25.
-- [ ] P12.2 NOT STARTED — ALB HTTPS listener + redirect, browser TLS check.
+- [ ] P12.2 IN PROGRESS — ALB HTTPS listener + redirect, browser TLS check. No AWS session open.
 - [ ] P12.3 NOT STARTED — teardown; hosted zone persistence matches the owner's decision.
 
 Gate: T-1201..T-1203.
@@ -680,6 +680,23 @@ P12.1 is the single active item.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-25T16:49:01-06:00 — PR #51 merged; P12.2 activated locally — Codex
+
+- **Owner authorization:** the owner explicitly requested push, merge, and cleanup of unnecessary
+  local and remote branches.
+- **Publication evidence:** branch `p12-1-live-route53-acm` published exact head `c7b199c` in
+  PR #51. GitHub Actions run `32907691085` passed API tests, web lint/test/build, Terraform/Helm
+  validation, and container build/zero-fixable-vulnerability scans/SPDX SBOM/signing verification.
+  The unchanged head was mergeable with clean merge state and merged to `main` as `452b214` at
+  2026-08-25T22:48:16Z.
+- **Phase/task:** P12.1/T-1201 remains complete and is now published on `main`. P12.2 becomes the
+  single `IN PROGRESS` item for local design and review only. PR merge and the earlier exact-plan
+  approval do not authorize an EKS/ALB session or any P12.2 AWS mutation.
+- **AWS:** none in this publication step. Git/GitHub operations only; the approved persistent
+  Route 53 zone, issued ACM certificate/validation records, and prior allowlist remain unchanged.
+- **Next action:** merge this post-merge checkpoint, remove the merged P12.1 branches locally and
+  remotely, retain a focused local P12.2 branch, then inspect P12.2's current ALB/Ingress path.
 
 ### 2026-08-25T16:26:27-06:00 — P12.1 certificate session opened for plan review — Codex
 
