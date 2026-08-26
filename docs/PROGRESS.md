@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P12 — TLS & custom domain |
-| Active task | P12.2 — local HTTPS/redirect/alias implementation and guarded runbook ready for PR review; T-1202 live proof remains. No AWS session open. |
-| Last verified | 2026-08-26T13:36:09-06:00 — draft PR #53 at exact head `2797424` is mergeable/clean and all four jobs passed in run `33005829307`. |
+| Active task | P12.2 — HTTPS/redirect/alias implementation merged; T-1202 live proof and same-session teardown remain. No AWS session open. |
+| Last verified | 2026-08-26T13:42:37-06:00 — PR #53 final head `f04462e` passed all four jobs in run `33006117123` and merged to `main` as `775dfe1`. |
 | AWS resources currently live | No temporary or unattached billable resources. Persistent allowlist only: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider, the `bedoux.ca` public Route 53 zone, and its issued ACM certificate/validation records. |
 | Month-to-date estimated AWS spend | USD 4.87 budget actual at the 2026-08-25 closeout check; no forecast returned. |
-| Next operator action | Obtain explicit owner authorization before marking reviewed draft PR #53 ready or merging. No AWS mutation is authorized now. |
+| Next operator action | Owner sets a fresh four-hour independent alarm and explicitly opens the P12.2 AWS session for read-only preflight and exact infrastructure-plan review. No AWS mutation is authorized now. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -682,6 +682,23 @@ P12.1 is the single active item.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-26T13:42:37-06:00 — PR #53 merged; P12.2 live proof is next — Codex
+
+- **Owner authorization:** the owner explicitly approved merging PR #53 after its green CI and
+  technical review. This did not open an AWS session or authorize infrastructure mutation.
+- **Merge evidence:** immediately before merge, GitHub reported draft PR #53 at exact head
+  `f04462e` mergeable/clean with all four jobs successful in final run `33006117123`. The PR was
+  marked ready and merged at 2026-08-26T19:40:44Z; GitHub reports merge commit `775dfe1` on
+  `main`, independently fetched and verified through `origin/main`.
+- **Phase/task:** P12.2 remains `IN PROGRESS`. The reviewed implementation is merged, but T-1202
+  still requires live apex/`www` aliases, trusted HTTPS, HTTP 301 redirects, a real browser
+  catalog check, alias removal, and clean same-session teardown. P12.3 has not started.
+- **AWS:** none. GitHub ready/merge and read-only Git fetch only; no AWS session is open and the
+  persistent allowlist is unchanged.
+- **Next action:** the owner sets a fresh independent four-hour alarm and explicitly opens the
+  P12.2 session. Start with read-only identity, region, budget, inventory, DNS, and certificate
+  checks plus exact temporary-infrastructure plan review; no apply is pre-authorized.
 
 ### 2026-08-26T13:36:09-06:00 — P12.2 draft PR green — Codex
 

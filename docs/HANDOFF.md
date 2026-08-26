@@ -60,14 +60,14 @@ Current state as of 2026-08-26:
   names have trusted HTTPS health and HTTP 301 redirects. T-1202 still requires a real browser.
 - Credential-free Terraform validation, Helm lint/TLS render, workflow YAML parse, proof-helper
   syntax/help/dry-run, and `git diff --check` pass. No AWS command or public endpoint proof ran.
-- Draft PR #53 is open from `p12-2-https`, mergeable/clean at exact head `2797424`, and all four
-  jobs passed in run `33005829307`. Scoped technical review found no blocker. It remains draft
-  and unmerged; T-1202 is still deferred.
+- PR #53 final head `f04462e` passed all four jobs in run `33006117123`, completed scoped
+  technical review without a blocker, and merged to `main` as `775dfe1`. T-1202 is still
+  deferred; no AWS session is open.
 
 Next action:
-1. Obtain explicit owner authorization before marking draft PR #53 ready or merging. After
-   merge, open a fresh four-hour alarmed AWS session and review the exact temporary-infrastructure
-   plan. Do not apply infrastructure or aliases without their separate exact saved-plan approvals.
+1. The owner sets a fresh four-hour independent alarm and explicitly opens the P12.2 AWS session.
+   Begin with read-only preflight and the exact temporary-infrastructure plan. Do not apply
+   infrastructure or aliases without their separate exact saved-plan approvals.
 
 Hard boundaries: USD 20/month; ca-central-1; bedoux-admin only; no NAT Gateway; same-day teardown;
 never record account IDs, secrets, personal email addresses, or registrar details. No P12.2 AWS
