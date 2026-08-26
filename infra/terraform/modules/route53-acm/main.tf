@@ -6,6 +6,11 @@ locals {
       type   = option.resource_record_type
     }
   } : {}
+
+  website_alias_names = var.website_aliases_enabled ? toset(concat(
+    [var.domain_name],
+    var.subject_alternative_names,
+  )) : toset([])
 }
 
 resource "aws_route53_zone" "this" {
@@ -51,5 +56,30 @@ resource "aws_acm_certificate_validation" "this" {
 
   timeouts {
     create = "45m"
+  }
+}
+
+resource "aws_route53_record" "website_alias" {
+  for_each = local.website_alias_names
+
+  name    = each.value
+  type    = "A"
+  zone_id = aws_route53_zone.this.zone_id
+
+  alias {
+    evaluate_target_health = true
+    name                   = var.website_alias_dns_name
+    zone_id                = var.website_alias_zone_id
+  }
+
+  lifecycle {
+    precondition {
+      condition = (
+        var.certificate_enabled &&
+        var.website_alias_dns_name != "" &&
+        var.website_alias_zone_id != ""
+      )
+      error_message = "Website aliases require the issued-certificate stage and a discovered ALB DNS name/zone ID."
+    }
   }
 }

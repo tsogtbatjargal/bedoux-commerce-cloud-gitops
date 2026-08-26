@@ -28,6 +28,11 @@ on:
         required: true
         default: false
         type: boolean
+      use_custom_domain:
+        description: Enable P12.2 HTTPS for bedoux.ca/www through ACM certificate discovery.
+        required: true
+        default: false
+        type: boolean
 
 # The role trust policy admits only this repository's main branch. Keep this workflow
 # manually dispatched so a live AWS session is an intentional, time-bounded operation.
@@ -215,6 +220,7 @@ jobs:
           USE_RDS: ${{ inputs.use_rds }}
           USE_SECRETS_MANAGER: ${{ inputs.use_secrets_manager }}
           USE_S3_IMAGES: ${{ inputs.use_s3_images }}
+          USE_CUSTOM_DOMAIN: ${{ inputs.use_custom_domain }}
         shell: bash
         run: |
           set -euo pipefail
@@ -234,6 +240,10 @@ jobs:
             # Keep both verified image digests. Only the web command is overridden,
             # exercising a real rollout failure without bypassing signature policy.
             release_timeout="3m"
+          fi
+          if [[ "$USE_CUSTOM_DOMAIN" == "true" && "$ROLLBACK_DRILL" == "true" ]]; then
+            echo 'P12 custom-domain proof and the rollback drill must run in separate sessions.' >&2
+            exit 1
           fi
           helm_args=(
             upgrade --install bedoux charts/bedoux
@@ -281,6 +291,9 @@ jobs:
             kubectl -n "$KUBERNETES_NAMESPACE" get configmap bedoux-image-storage >/dev/null
             helm_args+=(-f charts/bedoux/values-aws-s3.yaml)
           fi
+          if [[ "$USE_CUSTOM_DOMAIN" == "true" ]]; then
+            helm_args+=(-f charts/bedoux/values-aws-tls.yaml)
+          fi
           if [[ "$SEED_CATALOG" == "true" ]]; then
             helm_args+=(--set seed.enabled=true)
           fi
@@ -315,6 +328,7 @@ jobs:
       - name: Smoke-test the public ALB route
         env:
           USE_S3_IMAGES: ${{ inputs.use_s3_images }}
+          USE_CUSTOM_DOMAIN: ${{ inputs.use_custom_domain }}
         shell: bash
         run: |
           set -euo pipefail
@@ -329,15 +343,24 @@ jobs:
           test -n "$hostname"
           echo "::add-mask::$hostname"
 
-          base_url="http://$hostname"
+          curl_args=(--fail --silent --show-error --connect-timeout 10 --max-time 30)
+          if [[ "$USE_CUSTOM_DOMAIN" == "true" ]]; then
+            # Route 53 aliases are deliberately added only after this workflow
+            # proves the listener. Connect to the discovered ALB while keeping
+            # bedoux.ca as the TLS SNI and HTTP host.
+            base_url="https://bedoux.ca"
+            curl_args+=(--connect-to "bedoux.ca:443:$hostname:443")
+          else
+            base_url="http://$hostname"
+          fi
           for _ in $(seq 1 24); do
-            if curl --fail --silent --show-error --connect-timeout 10 "$base_url/api/health" > /tmp/bedoux-health.json; then
+            if curl "${curl_args[@]}" "$base_url/api/health" > /tmp/bedoux-health.json; then
               break
             fi
             sleep 10
           done
           python -c 'import json; response = json.load(open("/tmp/bedoux-health.json")); assert response == {"status": "ok", "orders_enabled": False}, response'
-          curl --fail --silent --show-error --connect-timeout 10 "$base_url/api/products?limit=1" > /tmp/bedoux-products.json
+          curl "${curl_args[@]}" "$base_url/api/products?limit=1" > /tmp/bedoux-products.json
           python -c 'import json; products = json.load(open("/tmp/bedoux-products.json")); assert len(products) >= 1, products'
           if [[ "$USE_S3_IMAGES" == "true" ]]; then
             image_url="$(python -c 'import json; print(json.load(open("/tmp/bedoux-products.json"))[0]["image_url"])')"

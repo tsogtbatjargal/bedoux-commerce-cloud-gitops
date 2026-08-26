@@ -17,3 +17,8 @@ output "validation_record_fqdns" {
   description = "FQDNs of the Route 53 records used to validate the ACM certificate."
   value       = [for record in aws_route53_record.validation : record.fqdn]
 }
+
+output "website_alias_fqdns" {
+  description = "P12 apex and website alias FQDNs; empty while website aliases are disabled."
+  value       = [for record in aws_route53_record.website_alias : record.fqdn]
+}

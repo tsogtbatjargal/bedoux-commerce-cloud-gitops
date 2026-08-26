@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P12 — TLS & custom domain |
-| Active task | P12.2 — ALB HTTPS listener, HTTP redirect, aliases, and real TLS proof (local design/review only; no AWS session open). |
-| Last verified | 2026-08-25T16:49:01-06:00 — PR #51 passed all four jobs in run `32907691085` and merged to `main` as `452b214`. |
+| Active task | P12.2 — local HTTPS/redirect/alias implementation and guarded runbook ready for PR review; T-1202 live proof remains. No AWS session open. |
+| Last verified | 2026-08-26T13:36:09-06:00 — draft PR #53 at exact head `2797424` is mergeable/clean and all four jobs passed in run `33005829307`. |
 | AWS resources currently live | No temporary or unattached billable resources. Persistent allowlist only: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider, the `bedoux.ca` public Route 53 zone, and its issued ACM certificate/validation records. |
 | Month-to-date estimated AWS spend | USD 4.87 budget actual at the 2026-08-25 closeout check; no forecast returned. |
-| Next operator action | Continue P12.2 on a focused branch: review the existing ALB/Ingress/Terraform path, then prepare local declarations and a guarded live-session runbook before any AWS mutation. |
+| Next operator action | Obtain explicit owner authorization before marking reviewed draft PR #53 ready or merging. No AWS mutation is authorized now. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -647,7 +647,9 @@ Gate: T-1101..T-1104.
 - [x] P12.1 COMPLETE — T-1201 passed live: delegated Route 53 apex zone, two DNS validation
       records, and an Amazon-issued ACM certificate in `ISSUED` state for exactly `bedoux.ca`
       and `www.bedoux.ca`. Evidence: session logs 2026-08-24 through 2026-08-25.
-- [ ] P12.2 IN PROGRESS — ALB HTTPS listener + redirect, browser TLS check. No AWS session open.
+- [ ] P12.2 IN PROGRESS — opt-in ALB HTTPS listener/redirect, certificate discovery, staged
+      Terraform aliases, guarded four-hour runbook, and fail-closed curl proof are implemented
+      locally; PR review and live browser/curl T-1202 evidence remain. No AWS session open.
 - [ ] P12.3 NOT STARTED — teardown; hosted zone persistence matches the owner's decision.
 
 Gate: T-1201..T-1203.
@@ -680,6 +682,77 @@ P12.1 is the single active item.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-26T13:36:09-06:00 — P12.2 draft PR green — Codex
+
+- **Owner authorization:** the owner approved proceeding to the next PR-review step. This
+  authorized draft PR creation and CI inspection, not merge or AWS work.
+- **PR evidence:** draft PR #53 targets `main` from `p12-2-https` at exact head `2797424`; GitHub
+  reports it open, mergeable, and clean. The PR description records scope, local evidence,
+  rollback, session-scoped aliases, and the deliberately deferred T-1202 live proof.
+- **CI evidence:** run `33005829307` passed all four jobs: API tests; web lint/test/build;
+  Terraform/Helm validation; and container build/zero-fixable-vulnerability scan, SPDX SBOM,
+  signing, and verification. The web job retained its existing non-failing Fast Refresh warning;
+  no new failure or P12 blocker was reported.
+- **Technical review:** the scoped PR diff preserves ordinary AWS/kind profiles, keeps aliases
+  disabled without a discovered ALB target, avoids an account-bearing certificate ARN, breaks the
+  Kubernetes/Route 53 dependency cycle with a staged plan, and removes aliases before ALB
+  teardown. No blocking design or implementation issue was found.
+- **Phase/task:** P12.2 remains `IN PROGRESS`. Green CI validates declarations and safeguards but
+  does not prove public DNS, TLS, redirect, browser behavior, or teardown.
+- **AWS:** none. GitHub PR/CI activity only; no AWS session is open and the persistent allowlist
+  is unchanged.
+- **Next action:** obtain explicit owner authorization before marking PR #53 ready or merging.
+  Only merged code may enter a separately alarmed P12.2 session.
+
+### 2026-08-26T13:28:51-06:00 — P12.2 preparation branch published — Codex
+
+- **Owner authorization:** the owner explicitly approved pushing the focused P12.2 branch. This
+  did not authorize PR creation, merge, or AWS work.
+- **Publication evidence:** `p12-2-https` published exact local commit `70fe3da`; the push created
+  `origin/p12-2-https`, configured upstream tracking, and local/remote heads matched immediately
+  afterward. `main` was not pushed.
+- **Phase/task:** P12.2 remains `IN PROGRESS`; publication does not satisfy T-1202 and no live TLS,
+  redirect, browser, alias, or teardown evidence is claimed.
+- **AWS:** none. Git publication only; no AWS session is open and the persistent allowlist is
+  unchanged.
+- **Next action:** with separate owner authorization, open the focused draft PR, verify all four
+  CI jobs, and obtain review before merge. A live session may begin only after merged code and a
+  fresh independent four-hour alarm.
+
+### 2026-08-26T12:56:45-06:00 — P12.2 HTTPS/alias path implemented locally — Codex
+
+- **Phase/task:** P12.2 remains the only `IN PROGRESS` item. The intended remaining evidence is
+  T-1202: trusted public HTTPS plus HTTP-to-HTTPS redirect for both `bedoux.ca` names and a real
+  browser catalog check. P12.3 has not started.
+- **Verified base:** checkpoint PR #52 passed all four jobs in run `32908011599`, merged as
+  `184a916`, and is the exact base of the focused `p12-2-https` branch.
+- **Design:** ADR 0022 already assigns website aliases to Terraform, while the existing Helm
+  Ingress owns ALB listener behavior, so no new ADR was required. The opt-in AWS TLS overlay
+  fixes the Ingress hosts to `bedoux.ca` and `www.bedoux.ca`; the controller discovers the
+  already-issued certificate with its existing list/describe permissions. No account-bearing
+  certificate ARN is committed or passed through GitHub. Terraform aliases remain disabled until
+  the live ALB DNS name and canonical hosted zone ID are discovered and separately planned.
+- **Changed:** added the AWS TLS Helm overlay and fail-closed host/listener/redirect render; added
+  disabled-by-default apex/`www` alias resources and validated runtime target inputs to the
+  Route 53/ACM module; extended the deployment workflow with a custom-domain input and pre-alias
+  TLS smoke using the ALB hostname with `bedoux.ca` SNI; added CI render assertions,
+  `scripts/p12-tls-proof.sh`, and `docs/runbooks/p12-2-https-session.md`.
+- **Safety/teardown:** the runbook reserves four hours and 75 minutes of teardown margin. Website
+  aliases are session-scoped and must be removed before deleting the Ingress/ALB; the approved
+  zone, certificate, and validation records persist. Each infrastructure/alias/alias-removal
+  apply requires a fresh exact saved-plan review and owner approval.
+- **Local verification:** Terraform format completed; credential-free `terraform validate`
+  passed for default and P12 profiles outside the sandbox because the sandbox cannot execute the
+  installed provider binaries. Helm lint and the TLS render passed; workflow YAML parsed;
+  proof-helper syntax/help/default dry-run passed; `git diff --check` passed. No endpoint proof
+  was claimed from local rendering.
+- **AWS:** none. No AWS CLI, Terraform plan/apply, kubectl, Helm deployment, DNS mutation, or
+  public-site proof ran in this local implementation step. The prior persistent allowlist is
+  unchanged and no AWS session is open.
+- **Next action:** complete the full local gate, review the scoped diff, and publish the focused
+  branch for PR/CI. After merge only, the owner may open the four-hour P12.2 session with an
+  independent alarm and exact-plan approval boundaries.
 
 ### 2026-08-25T16:49:01-06:00 — PR #51 merged; P12.2 activated locally — Codex
 

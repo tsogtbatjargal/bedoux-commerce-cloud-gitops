@@ -82,3 +82,8 @@ output "acm_certificate_arn" {
   description = "P12 validated ACM certificate ARN for the ALB; null while route53_acm_enabled is false."
   value       = try(module.route53_acm[0].certificate_arn, null)
 }
+
+output "route53_website_alias_fqdns" {
+  description = "P12 apex/www alias FQDNs; empty while route53_aliases_enabled is false."
+  value       = try(module.route53_acm[0].website_alias_fqdns, [])
+}

@@ -1,0 +1,12 @@
+# P12.2 opt-in overlay. Apply only in the bounded custom-domain session, after
+# P12.1's ACM certificate for exactly these names is ISSUED. The AWS Load
+# Balancer Controller discovers that certificate from the Ingress hosts, so a
+# full account-bearing certificate ARN is never committed or passed to Helm.
+ingress:
+  className: alb
+  controller: alb
+  hosts:
+    - bedoux.ca
+    - www.bedoux.ca
+  tls:
+    enabled: true
