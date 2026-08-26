@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P12 — TLS & custom domain |
 | Active task | P12.2 — local HTTPS/redirect/alias implementation and guarded runbook ready for PR review; T-1202 live proof remains. No AWS session open. |
-| Last verified | 2026-08-26T12:56:45-06:00 — credential-free Terraform validation, Helm lint/TLS render, workflow YAML parse, proof-helper syntax/help/dry-run, and `git diff --check` passed. |
+| Last verified | 2026-08-26T13:28:51-06:00 — approved feature branch push published exact P12.2 preparation commit `70fe3da`; local and remote heads matched. |
 | AWS resources currently live | No temporary or unattached billable resources. Persistent allowlist only: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider, the `bedoux.ca` public Route 53 zone, and its issued ACM certificate/validation records. |
 | Month-to-date estimated AWS spend | USD 4.87 budget actual at the 2026-08-25 closeout check; no forecast returned. |
-| Next operator action | Review and publish the focused P12.2 local implementation. Only after merge, open a fresh four-hour alarmed session for an exact infrastructure plan; no AWS mutation is authorized now. |
+| Next operator action | Open a focused draft PR for published branch `p12-2-https`, inspect all four CI jobs, and merge only after review. No AWS mutation is authorized now. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -682,6 +682,21 @@ P12.1 is the single active item.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-26T13:28:51-06:00 — P12.2 preparation branch published — Codex
+
+- **Owner authorization:** the owner explicitly approved pushing the focused P12.2 branch. This
+  did not authorize PR creation, merge, or AWS work.
+- **Publication evidence:** `p12-2-https` published exact local commit `70fe3da`; the push created
+  `origin/p12-2-https`, configured upstream tracking, and local/remote heads matched immediately
+  afterward. `main` was not pushed.
+- **Phase/task:** P12.2 remains `IN PROGRESS`; publication does not satisfy T-1202 and no live TLS,
+  redirect, browser, alias, or teardown evidence is claimed.
+- **AWS:** none. Git publication only; no AWS session is open and the persistent allowlist is
+  unchanged.
+- **Next action:** with separate owner authorization, open the focused draft PR, verify all four
+  CI jobs, and obtain review before merge. A live session may begin only after merged code and a
+  fresh independent four-hour alarm.
 
 ### 2026-08-26T12:56:45-06:00 — P12.2 HTTPS/alias path implemented locally — Codex
 

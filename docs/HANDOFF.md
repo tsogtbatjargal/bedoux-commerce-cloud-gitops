@@ -48,7 +48,8 @@ Current state as of 2026-08-26:
   repositories, six IAM roles/policies, GitHub OIDC provider, and the approved `bedoux.ca`
   hosted zone plus issued certificate/validation records. The 2026-08-25 closeout sweep was
   clean; budget actual was USD 4.87 of USD 20. Temporary plan/variables files are removed.
-- P12.2 local implementation is ready on `p12-2-https`: an opt-in Helm TLS overlay creates HTTP
+- P12.2 local implementation is published on `p12-2-https` from exact preparation commit
+  `70fe3da`: an opt-in Helm TLS overlay creates HTTP
   80/HTTPS 443 with a 443 redirect and exact apex/`www` hosts. The ALB controller discovers the
   issued ACM certificate, so no full certificate ARN is committed or stored in GitHub.
 - The Route 53/ACM module now has disabled-by-default apex/`www` alias records. A live session
@@ -61,9 +62,9 @@ Current state as of 2026-08-26:
   syntax/help/dry-run, and `git diff --check` pass. No AWS command or public endpoint proof ran.
 
 Next action:
-1. Review and publish the focused P12.2 branch through a PR. After it merges, open a fresh
-   four-hour alarmed AWS session and review the exact temporary-infrastructure plan. Do not apply
-   infrastructure or aliases without their separate exact saved-plan approvals.
+1. Open the focused P12.2 draft PR and verify all four CI jobs. After review and merge, open a
+   fresh four-hour alarmed AWS session and review the exact temporary-infrastructure plan. Do not
+   apply infrastructure or aliases without their separate exact saved-plan approvals.
 
 Hard boundaries: USD 20/month; ca-central-1; bedoux-admin only; no NAT Gateway; same-day teardown;
 never record account IDs, secrets, personal email addresses, or registrar details. No P12.2 AWS

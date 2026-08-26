@@ -163,8 +163,8 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   `452b214`, and checkpoint PR #52 merged as `184a916`. P12.2 is the single active item. Its
   opt-in HTTPS/redirect Ingress, certificate
   discovery, staged Terraform aliases, proof helper, CI checks, and guarded live runbook are
-  implemented locally on `p12-2-https`; PR review and T-1202 live proof remain. No AWS session is
-  open.
+  implemented and published on `p12-2-https` from exact preparation commit `70fe3da`; PR review
+  and T-1202 live proof remain. No AWS session is open.
   The Calico-backed kind cluster is
   still running and Ready, but the default kubeconfig context points at the deleted EKS endpoint;
   use or switch deliberately to `kind-bedoux`.
