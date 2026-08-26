@@ -151,6 +151,11 @@ ingress:
   # proxy (apps/web/nginx.conf.template's dormant-in-kind /api/ location block)
   # instead. See ADR 0008.
   controller: nginx
+  # Empty preserves the host-agnostic local/AWS session Ingress. P12's TLS
+  # overlay fixes these to the two names covered by ADR 0022's certificate.
+  hosts: []
+  tls:
+    enabled: false
   # Empty keeps the cloud-provider default. The AWS HA overlay bounds this so
   # its pod preStop hold can outlive target deregistration.
   targetGroupDeregistrationDelaySeconds: ""

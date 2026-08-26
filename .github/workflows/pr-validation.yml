@@ -92,6 +92,24 @@ jobs:
           test "$(grep -c '^      terminationGracePeriodSeconds: 30$' <<< "$base_rendered")" -eq 2
           test "$(grep -c '^          lifecycle:$' <<< "$base_rendered")" -eq 0
           helm template bedoux charts/bedoux -f charts/bedoux/values-aws.yaml >/dev/null
+          aws_tls_rendered="$(helm template bedoux charts/bedoux \
+            -f charts/bedoux/values-aws.yaml \
+            -f charts/bedoux/values-aws-tls.yaml)"
+          grep -Fq "alb.ingress.kubernetes.io/listen-ports: '[{\"HTTP\":80},{\"HTTPS\":443}]'" <<< "$aws_tls_rendered"
+          grep -Fq 'alb.ingress.kubernetes.io/ssl-redirect: "443"' <<< "$aws_tls_rendered"
+          test "$(grep -c '^    - host: ".*bedoux.ca"$' <<< "$aws_tls_rendered")" -eq 2
+          test "$(grep -c '^        - ".*bedoux.ca"$' <<< "$aws_tls_rendered")" -eq 2
+          if grep -q 'alb.ingress.kubernetes.io/certificate-arn' <<< "$aws_tls_rendered"; then
+            echo 'P12 TLS render must use ACM discovery, not an account-bearing certificate ARN' >&2
+            exit 1
+          fi
+          bash -n scripts/p12-tls-proof.sh
+          scripts/p12-tls-proof.sh --help >/dev/null
+          scripts/p12-tls-proof.sh --dry-run >/dev/null
+          if helm template bedoux charts/bedoux --set ingress.tls.enabled=true >/dev/null 2>&1; then
+            echo 'TLS must fail closed outside the ALB profile and without discovery hosts' >&2
+            exit 1
+          fi
           helm template bedoux charts/bedoux -f charts/bedoux/values-kind-ha.yaml >/dev/null
           helm template bedoux charts/bedoux -f charts/bedoux/values-aws.yaml -f charts/bedoux/values-aws-ha.yaml >/dev/null
           helm template bedoux charts/bedoux -f charts/bedoux/values-aws.yaml -f charts/bedoux/values-aws-rds.yaml >/dev/null

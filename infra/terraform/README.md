@@ -80,8 +80,11 @@ separate persistent state bucket before migrating this root state to S3.
   two normal reviewed plans: first set `route53_acm_enabled=true` while leaving
   `route53_acm_certificate_enabled=false`, replace and verify the apex nameserver delegation at
   the registrar from the resulting output, then enable the certificate and apply its DNS
-  validation records. P12.2 separately creates the ALB aliases; the website is intentionally
-  unavailable between the Shopify DNS cutover and that later deployment.
+  validation records. P12.2 opt-in variables separately create the apex and `www` ALB aliases
+  only after the controller-created ALB DNS name and canonical hosted zone ID are discovered.
+  The aliases are removed before same-session ALB teardown, while the approved zone,
+  certificate, and validation records persist. See
+  [`docs/runbooks/p12-2-https-session.md`](../../docs/runbooks/p12-2-https-session.md).
 
 ## P6.1 validation
 

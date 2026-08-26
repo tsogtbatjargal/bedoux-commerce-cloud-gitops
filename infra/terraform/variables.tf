@@ -270,6 +270,40 @@ variable "route53_acm_subject_alternative_names" {
   }
 }
 
+variable "route53_aliases_enabled" {
+  description = "Create P12 apex/www aliases only after the temporary ALB target is discovered and reviewed."
+  type        = bool
+  default     = false
+}
+
+variable "route53_alias_target_dns_name" {
+  description = "Temporary P12 ALB DNS name discovered after its Ingress is ready; never commit a live value."
+  type        = string
+  default     = ""
+
+  validation {
+    condition = (
+      var.route53_alias_target_dns_name == "" ||
+      endswith(var.route53_alias_target_dns_name, ".elb.amazonaws.com")
+    )
+    error_message = "route53_alias_target_dns_name must be empty or an AWS ELB DNS name."
+  }
+}
+
+variable "route53_alias_target_zone_id" {
+  description = "Temporary P12 ALB canonical hosted zone ID discovered with ELBv2."
+  type        = string
+  default     = ""
+
+  validation {
+    condition = (
+      var.route53_alias_target_zone_id == "" ||
+      can(regex("^Z[A-Z0-9]+$", var.route53_alias_target_zone_id))
+    )
+    error_message = "route53_alias_target_zone_id must be empty or an AWS canonical hosted zone ID."
+  }
+}
+
 check "secrets_manager_requires_rds" {
   assert {
     condition     = !var.secrets_manager_enabled || var.rds_enabled

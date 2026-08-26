@@ -34,6 +34,40 @@ variable "certificate_enabled" {
   default     = false
 }
 
+variable "website_aliases_enabled" {
+  description = "Create apex and subject-alternative-name aliases to the temporary P12 ALB."
+  type        = bool
+  default     = false
+}
+
+variable "website_alias_dns_name" {
+  description = "DNS name of the controller-created P12 Application Load Balancer."
+  type        = string
+  default     = ""
+
+  validation {
+    condition = (
+      var.website_alias_dns_name == "" ||
+      endswith(var.website_alias_dns_name, ".elb.amazonaws.com")
+    )
+    error_message = "website_alias_dns_name must be empty or an AWS ELB DNS name."
+  }
+}
+
+variable "website_alias_zone_id" {
+  description = "Canonical hosted zone ID reported for the controller-created P12 ALB."
+  type        = string
+  default     = ""
+
+  validation {
+    condition = (
+      var.website_alias_zone_id == "" ||
+      can(regex("^Z[A-Z0-9]+$", var.website_alias_zone_id))
+    )
+    error_message = "website_alias_zone_id must be empty or an AWS canonical hosted zone ID."
+  }
+}
+
 variable "validation_record_ttl" {
   description = "TTL in seconds for ACM DNS validation records."
   type        = number

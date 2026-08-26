@@ -39,3 +39,6 @@ route53_acm_enabled                   = false
 route53_acm_certificate_enabled       = false
 route53_acm_domain_name               = "bedoux.ca"
 route53_acm_subject_alternative_names = ["www.bedoux.ca"]
+route53_aliases_enabled                = false
+route53_alias_target_dns_name          = ""
+route53_alias_target_zone_id           = ""

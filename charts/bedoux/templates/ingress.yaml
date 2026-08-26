@@ -1,3 +1,9 @@
+{{- if and .Values.ingress.tls.enabled (ne .Values.ingress.controller "alb") }}
+{{- fail "ingress.tls.enabled is supported only by the AWS ALB profile" }}
+{{- end }}
+{{- if and .Values.ingress.tls.enabled (empty .Values.ingress.hosts) }}
+{{- fail "ingress.tls.enabled requires at least one certificate-discovery host" }}
+{{- end }}
 {{- if eq .Values.ingress.controller "alb" }}
 # Single ALB Ingress — ALB has no path-rewrite annotation equivalent to nginx's
 # rewrite-target, so /api can't be prefix-stripped at the Ingress layer here.
@@ -15,12 +21,39 @@ metadata:
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/group.name: bedoux
+    {{- if .Values.ingress.tls.enabled }}
+    # The controller discovers the already-issued ACM certificate from these
+    # Ingress hosts; no account-bearing certificate ARN belongs in chart values.
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    {{- end }}
     {{- with .Values.ingress.targetGroupDeregistrationDelaySeconds }}
     alb.ingress.kubernetes.io/target-group-attributes: {{ printf "deregistration_delay.timeout_seconds=%v" . | quote }}
     {{- end }}
 spec:
   ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    - hosts:
+        {{- range .Values.ingress.hosts }}
+        - {{ . | quote }}
+        {{- end }}
+  {{- end }}
   rules:
+    {{- if .Values.ingress.hosts }}
+    {{- range .Values.ingress.hosts }}
+    - host: {{ . | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web
+                port:
+                  number: 8080
+    {{- end }}
+    {{- else }}
     - http:
         paths:
           - path: /
@@ -30,6 +63,7 @@ spec:
                 name: web
                 port:
                   number: 8080
+    {{- end }}
 {{- else }}
 # Two Ingress objects, not one — nginx.ingress.kubernetes.io/rewrite-target applies to
 # the whole Ingress resource, not per-path, and only /api needs its prefix stripped.

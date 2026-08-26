@@ -141,6 +141,9 @@ module "route53_acm" {
   certificate_enabled       = var.route53_acm_certificate_enabled
   domain_name               = var.route53_acm_domain_name
   subject_alternative_names = var.route53_acm_subject_alternative_names
+  website_aliases_enabled   = var.route53_aliases_enabled
+  website_alias_dns_name    = var.route53_alias_target_dns_name
+  website_alias_zone_id     = var.route53_alias_target_zone_id
   tags                      = local.tags
 }
 
@@ -194,5 +197,20 @@ check "route53_acm_certificate_requires_zone" {
   assert {
     condition     = !var.route53_acm_certificate_enabled || var.route53_acm_enabled
     error_message = "Enable the Route 53 hosted zone before enabling its ACM certificate."
+  }
+}
+
+check "route53_aliases_require_certificate_and_target" {
+  assert {
+    condition = (
+      !var.route53_aliases_enabled ||
+      (
+        var.route53_acm_enabled &&
+        var.route53_acm_certificate_enabled &&
+        var.route53_alias_target_dns_name != "" &&
+        var.route53_alias_target_zone_id != ""
+      )
+    )
+    error_message = "P12 aliases require the Route 53/ACM stage plus a discovered ALB DNS name and canonical hosted zone ID."
   }
 }
