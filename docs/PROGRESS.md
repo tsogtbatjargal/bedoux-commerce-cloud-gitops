@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P12 — TLS & custom domain |
 | Active task | P12.2 — local HTTPS/redirect/alias implementation and guarded runbook ready for PR review; T-1202 live proof remains. No AWS session open. |
-| Last verified | 2026-08-26T13:28:51-06:00 — approved feature branch push published exact P12.2 preparation commit `70fe3da`; local and remote heads matched. |
+| Last verified | 2026-08-26T13:36:09-06:00 — draft PR #53 at exact head `2797424` is mergeable/clean and all four jobs passed in run `33005829307`. |
 | AWS resources currently live | No temporary or unattached billable resources. Persistent allowlist only: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider, the `bedoux.ca` public Route 53 zone, and its issued ACM certificate/validation records. |
 | Month-to-date estimated AWS spend | USD 4.87 budget actual at the 2026-08-25 closeout check; no forecast returned. |
-| Next operator action | Open a focused draft PR for published branch `p12-2-https`, inspect all four CI jobs, and merge only after review. No AWS mutation is authorized now. |
+| Next operator action | Obtain explicit owner authorization before marking reviewed draft PR #53 ready or merging. No AWS mutation is authorized now. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -682,6 +682,28 @@ P12.1 is the single active item.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-26T13:36:09-06:00 — P12.2 draft PR green — Codex
+
+- **Owner authorization:** the owner approved proceeding to the next PR-review step. This
+  authorized draft PR creation and CI inspection, not merge or AWS work.
+- **PR evidence:** draft PR #53 targets `main` from `p12-2-https` at exact head `2797424`; GitHub
+  reports it open, mergeable, and clean. The PR description records scope, local evidence,
+  rollback, session-scoped aliases, and the deliberately deferred T-1202 live proof.
+- **CI evidence:** run `33005829307` passed all four jobs: API tests; web lint/test/build;
+  Terraform/Helm validation; and container build/zero-fixable-vulnerability scan, SPDX SBOM,
+  signing, and verification. The web job retained its existing non-failing Fast Refresh warning;
+  no new failure or P12 blocker was reported.
+- **Technical review:** the scoped PR diff preserves ordinary AWS/kind profiles, keeps aliases
+  disabled without a discovered ALB target, avoids an account-bearing certificate ARN, breaks the
+  Kubernetes/Route 53 dependency cycle with a staged plan, and removes aliases before ALB
+  teardown. No blocking design or implementation issue was found.
+- **Phase/task:** P12.2 remains `IN PROGRESS`. Green CI validates declarations and safeguards but
+  does not prove public DNS, TLS, redirect, browser behavior, or teardown.
+- **AWS:** none. GitHub PR/CI activity only; no AWS session is open and the persistent allowlist
+  is unchanged.
+- **Next action:** obtain explicit owner authorization before marking PR #53 ready or merging.
+  Only merged code may enter a separately alarmed P12.2 session.
 
 ### 2026-08-26T13:28:51-06:00 — P12.2 preparation branch published — Codex
 

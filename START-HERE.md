@@ -164,7 +164,8 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   opt-in HTTPS/redirect Ingress, certificate
   discovery, staged Terraform aliases, proof helper, CI checks, and guarded live runbook are
   implemented and published on `p12-2-https` from exact preparation commit `70fe3da`; PR review
-  and T-1202 live proof remain. No AWS session is open.
+  and T-1202 live proof remain. Draft PR #53 is mergeable/clean and all four jobs passed in run
+  `33005829307`; it remains draft and unmerged. No AWS session is open.
   The Calico-backed kind cluster is
   still running and Ready, but the default kubeconfig context points at the deleted EKS endpoint;
   use or switch deliberately to `kind-bedoux`.
