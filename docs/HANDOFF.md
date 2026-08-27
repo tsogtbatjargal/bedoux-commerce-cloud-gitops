@@ -38,13 +38,17 @@ Current state as of 2026-08-26:
 - All exact `/tmp/bedoux*` session files are removed. Persistent resources are intentionally
   detached from session Terraform state; any future AWS session must run the guarded persistent
   import first. No AWS call ran after the clean closeout sweep.
-- Local branch `docs/p12-2-merge-checkpoint` contains separate PR #53 merge, P12 completion, and
-  P12-gate commits. Preserve these changes and use a focused PR; never push `main`.
+- PR #54 passed all four jobs in run `33036631123` at exact head `38999f2` and merged the P12
+  completion/gate checkpoint as `386f66e`. `origin/main` and the primary `main` worktree match
+  that merge. Merged P12 branches are deleted locally/remotely; the registrar export in the
+  primary worktree remains intentionally untracked and untouched.
+- This worktree is on clean local branch `p13-1-canary` from exact merge `386f66e`, with only the
+  post-merge reconciliation expected locally. Never push `main`.
 
 Next action:
-1. With explicit publication authorization, push the focused checkpoint branch, open/review its
-   PR, and merge it. Then begin P13.1 locally by reviewing the merged deploy workflow/chart and
-   defining the staged rollout plus automated health-gate boundary. P13.2 remains gated.
+1. Commit the post-merge checkpoint, mark P13.1 `IN PROGRESS`, then review the merged deploy
+   workflow/chart and define the staged rollout plus automated health-gate boundary. P13.2
+   remains gated.
 
 Hard boundaries: USD 20/month; ca-central-1; bedoux-admin only; no NAT Gateway; same-day teardown;
 never record account IDs, secrets, personal email addresses, or registrar details. No AWS session

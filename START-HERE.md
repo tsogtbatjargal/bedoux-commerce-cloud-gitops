@@ -163,7 +163,9 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   redirect, and staged-alias path to `main` as `775dfe1`. The bounded live session passed T-1202
   through trusted apex/`www` HTTPS, HTTP 301 redirects, and a real Chrome catalog render; T-1203
   passed after removing aliases and every temporary ALB/EKS/VPC resource while retaining only
-  the approved zone/certificate allowlist. P13.1 is next and has not started.
+  the approved zone/certificate allowlist. PR #54 passed all four checks and merged the P12
+  completion/gate evidence as `386f66e`; merged P12 branches are cleaned locally/remotely.
+  P13.1 is next and has not started.
   The Calico-backed kind cluster is
   still running and Ready, but the default kubeconfig context points at the deleted EKS endpoint;
   use or switch deliberately to `kind-bedoux`.
@@ -207,7 +209,8 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   then removed both aliases before the ALB/application/EKS/VPC teardown. The 2026-08-26 final
   sweep found no temporary resource or dangling alias; budget actual was USD 5.384 of USD 20.
   Only the approved persistent allowlist remains. The owner approved the P12 gate on 2026-08-26,
-  activating P13; publish the focused checkpoint, then begin P13.1 from the merged state.
+  activating P13; PR #54 merged the focused checkpoint as `386f66e`. Begin P13.1 from that
+  verified merged state.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

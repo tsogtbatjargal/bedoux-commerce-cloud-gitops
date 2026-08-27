@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P13 — Delivery maturity |
 | Active task | P13.1 — activated but NOT STARTED; first review the merged deployment path and define the staged/canary rollout boundary. |
-| Last verified | 2026-08-26T21:03:57-06:00 — owner explicitly approved the P12 gate and activated P13 after T-1201–T-1203 and clean teardown. |
+| Last verified | 2026-08-26T21:36:54-06:00 — PR #54 passed all four checks at `38999f2`, merged as `386f66e`, and merged P12 branches were cleaned locally/remotely. |
 | AWS resources currently live | Persistent allowlist only: one protected state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider, and the `bedoux.ca` public Route 53 zone with its issued ACM certificate and two validation records. No temporary compute, network, storage, database, load-balancing, alias, or cluster-OIDC resource remains. |
 | Month-to-date estimated AWS spend | USD 5.384 budget actual at the 2026-08-26 P12 closeout; delayed session charges may not yet be reflected, but the bounded shape remains below the reviewed USD 1 session estimate. |
-| Next operator action | Publish the focused P12 completion/gate checkpoint through PR review, then begin P13.1 locally from the merged checkpoint. No AWS session is needed for initial design. |
+| Next operator action | Mark P13.1 `IN PROGRESS`, then review the merged deployment workflow/chart and define the staged/canary rollout plus automated health-gate boundary. No AWS session is needed for initial design. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -686,6 +686,27 @@ P13.1 is the next checklist item and has not started.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-26T21:36:54-06:00 — PR #54 merged; P12 branches cleaned; P13.1 base ready — Codex
+
+- **Owner authorization:** the owner explicitly requested pushing and merging the P12 changes,
+  followed by branch cleanup.
+- **Publication/CI:** branch `docs/p12-2-merge-checkpoint` published exact head `38999f2`. Draft
+  PR #54 targeted `main`; validation run `33036631123` passed API tests, web lint/test/build,
+  Terraform/Helm validation, and container build/fixable-vulnerability scan/SPDX generation/
+  signing verification on that unchanged head.
+- **Merge evidence:** PR #54 was marked ready only after all four jobs passed. GitHub reported it
+  mergeable and clean, then merged it as `386f66e` at 2026-08-27T03:34:05Z. A fresh fetch
+  confirmed `origin/main` at that exact merge.
+- **Cleanup:** GitHub removed the PR branch. After proving ancestry in `origin/main`, local
+  `docs/p12-2-merge-checkpoint` and local/remote `p12-2-https` were deleted. The remote now has
+  only `main` and its HEAD alias. This worktree is clean on `p13-1-canary` at the merge base.
+  The separate primary `main` worktree was fast-forwarded to `386f66e`; its pre-existing untracked
+  registrar export remains untouched and uncommitted.
+- **Phase/AWS:** P12 remains complete and gate-approved; P13 remains active with P13.1
+  `NOT STARTED`. Git/GitHub operations only—no AWS session or resource change occurred.
+- **Next action:** commit this post-merge checkpoint locally, then mark P13.1 `IN PROGRESS` before
+  beginning its local design review. P13.2 remains gated.
 
 ### 2026-08-26T21:03:57-06:00 — P12 gate approved; P13 activated — Codex
 
