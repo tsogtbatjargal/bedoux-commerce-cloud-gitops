@@ -157,15 +157,13 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   **P10.4 is complete:** ADR 0015's permissions boundary, `bedoux-iam-scoped` v4, replacement
   workload identities, and bounded deny test were proven live. **P10.5 is complete:** the EKS VPC
   CNI enforced the NetworkPolicies in a real allow/deny drill, followed by a clean same-session
-  teardown. **P10 gate approved 2026-08-11; P11 gate approved 2026-08-20; P12 is active.**
-  ADR 0022 records the owner's `bedoux.ca` apex cutover and Shopify-retirement choice. PR #50
-  merged the reviewed module as `b08f197`; PR #51 merged the live P12.1/T-1201 evidence as
-  `452b214`, and checkpoint PR #52 merged as `184a916`. P12.2 is the single active item. Its
-  opt-in HTTPS/redirect Ingress, certificate
-  discovery, staged Terraform aliases, proof helper, CI checks, and guarded live runbook are
-  implemented and published on `p12-2-https` from exact preparation commit `70fe3da`; PR review
-  and T-1202 live proof remain. Draft PR #53 is mergeable/clean and all four jobs passed in run
-  `33005829307`; it remains draft and unmerged. No AWS session is open.
+  teardown. **P10 gate approved 2026-08-11; P11 gate approved 2026-08-20; P12 gate approved
+  2026-08-26; P13 is active.** ADR 0022 records the owner's
+  `bedoux.ca` apex cutover and Shopify-retirement choice. PR #53 merged the opt-in HTTPS,
+  redirect, and staged-alias path to `main` as `775dfe1`. The bounded live session passed T-1202
+  through trusted apex/`www` HTTPS, HTTP 301 redirects, and a real Chrome catalog render; T-1203
+  passed after removing aliases and every temporary ALB/EKS/VPC resource while retaining only
+  the approved zone/certificate allowlist. P13.1 is next and has not started.
   The Calico-backed kind cluster is
   still running and Ready, but the default kubeconfig context points at the deleted EKS endpoint;
   use or switch deliberately to `kind-bedoux`.
@@ -202,20 +200,14 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   final AWS sweep and local temporary-file/process sweep were clean. Budget actual remained
   USD 4.552 of USD 20; estimated session cost is below USD 0.30 pending billing ingestion.
 - **All P11.1–P11.5 tasks and T-1101–T-1104 tests are complete, and the owner approved the P11
-  gate on 2026-08-20. P12 is active.** The owner selected the `bedoux.ca` apex and retired
-  Shopify; ADR 0022 supersedes ADR 0021 and satisfies ADR 0014's owned-domain path. P12.1's
-  disabled-by-default Route 53/ACM module and two-stage live runbook first create the apex zone,
-  then replace the registrar nameservers before validating a certificate for the apex and `www`.
-  The in-house ALB aliases arrive in P12.2, so the Shopify cutover creates an accepted temporary
-  no-site window. The owner approved hosted-zone persistence on 2026-08-24. The tagged public
-  zone is live and the `.ca` parent plus four independent resolvers now return exactly its four
-  Route 53 nameservers. **P12.1 and T-1201 are complete:** the exact owner-approved plan created
-  two DNS validation records and an Amazon-issued RSA-2048 ACM certificate that is `ISSUED` for
-  exactly `bedoux.ca` and `www.bedoux.ca`. The final inventory is clean, budget actual remains
-  USD 4.87 of USD 20, and only the approved zone/certificate plus prior persistent allowlist
-  remain. PR #51 passed all four checks in run `32907691085` and merged as `452b214`. P12.2's
-  local ALB HTTPS/redirect/alias implementation and four-hour guarded-session preparation are
-  ready for focused PR review; no P12.2 AWS mutation is authorized from this checkpoint.
+  gate on 2026-08-20. All P12.1–P12.3 tasks and T-1201–T-1203 tests are now complete.** The owner
+  selected the `bedoux.ca` apex, retired Shopify, and approved hosted-zone persistence through
+  ADR 0022. The delegated zone, two validation records, and issued certificate remain. The live
+  P12.2 session proved trusted HTTPS and redirects for both names plus a real browser catalog,
+  then removed both aliases before the ALB/application/EKS/VPC teardown. The 2026-08-26 final
+  sweep found no temporary resource or dangling alias; budget actual was USD 5.384 of USD 20.
+  Only the approved persistent allowlist remains. The owner approved the P12 gate on 2026-08-26,
+  activating P13; publish the focused checkpoint, then begin P13.1 from the merged state.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

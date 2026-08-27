@@ -9,12 +9,12 @@ checked here and its evidence is recorded in the session log.
 | Field | Value |
 |---|---|
 | State | IN PROGRESS |
-| Active phase | P12 — TLS & custom domain |
-| Active task | P12.2 — local HTTPS/redirect/alias implementation and guarded runbook ready for PR review; T-1202 live proof remains. No AWS session open. |
-| Last verified | 2026-08-26T13:36:09-06:00 — draft PR #53 at exact head `2797424` is mergeable/clean and all four jobs passed in run `33005829307`. |
-| AWS resources currently live | No temporary or unattached billable resources. Persistent allowlist only: state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider, the `bedoux.ca` public Route 53 zone, and its issued ACM certificate/validation records. |
-| Month-to-date estimated AWS spend | USD 4.87 budget actual at the 2026-08-25 closeout check; no forecast returned. |
-| Next operator action | Obtain explicit owner authorization before marking reviewed draft PR #53 ready or merging. No AWS mutation is authorized now. |
+| Active phase | P13 — Delivery maturity |
+| Active task | P13.1 — activated but NOT STARTED; first review the merged deployment path and define the staged/canary rollout boundary. |
+| Last verified | 2026-08-26T21:03:57-06:00 — owner explicitly approved the P12 gate and activated P13 after T-1201–T-1203 and clean teardown. |
+| AWS resources currently live | Persistent allowlist only: one protected state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider, and the `bedoux.ca` public Route 53 zone with its issued ACM certificate and two validation records. No temporary compute, network, storage, database, load-balancing, alias, or cluster-OIDC resource remains. |
+| Month-to-date estimated AWS spend | USD 5.384 budget actual at the 2026-08-26 P12 closeout; delayed session charges may not yet be reflected, but the bounded shape remains below the reviewed USD 1 session estimate. |
+| Next operator action | Publish the focused P12 completion/gate checkpoint through PR review, then begin P13.1 locally from the merged checkpoint. No AWS session is needed for initial design. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -647,12 +647,16 @@ Gate: T-1101..T-1104.
 - [x] P12.1 COMPLETE — T-1201 passed live: delegated Route 53 apex zone, two DNS validation
       records, and an Amazon-issued ACM certificate in `ISSUED` state for exactly `bedoux.ca`
       and `www.bedoux.ca`. Evidence: session logs 2026-08-24 through 2026-08-25.
-- [ ] P12.2 IN PROGRESS — opt-in ALB HTTPS listener/redirect, certificate discovery, staged
-      Terraform aliases, guarded four-hour runbook, and fail-closed curl proof are implemented
-      locally; PR review and live browser/curl T-1202 evidence remain. No AWS session open.
-- [ ] P12.3 NOT STARTED — teardown; hosted zone persistence matches the owner's decision.
+- [x] P12.2 COMPLETE — T-1202 passed live: trusted HTTPS and HTTP 301 redirect for both apex and
+      `www`, plus a real Chrome catalog render without a certificate warning. Evidence: session
+      logs 2026-08-26 and workflow run `33013651632`.
+- [x] P12.3 COMPLETE — T-1203 passed: temporary aliases/ALB/application/EKS/VPC were removed,
+      final inventory was clean, and the owner-approved Route 53 zone/certificate/validation
+      records persist exactly as ADR 0022 requires. Evidence: session log 2026-08-26.
 
 Gate: T-1201..T-1203.
+
+**P12 gate approved by owner 2026-08-26; P13 activated.**
 
 ### P13 — Delivery maturity
 
@@ -671,8 +675,8 @@ Gate: T-1301..T-1302.
 
 Gate: T-1401..T-1404.
 
-**P10–P14 track bootstrapped 2026-08-09; P10 and P11 are gate-approved. P12 is active and
-P12.1 is the single active item.**
+**P10–P14 track bootstrapped 2026-08-09; P10, P11, and P12 are gate-approved. P13 is active;
+P13.1 is the next checklist item and has not started.**
 
 ## Blockers
 
@@ -682,6 +686,203 @@ P12.1 is the single active item.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-26T21:03:57-06:00 — P12 gate approved; P13 activated — Codex
+
+- **Owner authorization:** after reviewing the complete P12 result, the owner explicitly stated
+  `P12 gate approved; activate P13`.
+- **Gate result:** P12.1–P12.3 and T-1201–T-1203 remain complete with the clean 18:56 AWS sweep.
+  P13 is now the active phase; P13.1 is the next item but remains `NOT STARTED` until its scoped
+  local design work begins.
+- **AWS:** none. This gate checkpoint changed documentation only; no AWS session is open and the
+  persistent allowlist is unchanged.
+- **Next action:** publish the focused completion/gate branch through PR review, then inspect the
+  merged deployment workflow and chart to define P13.1's staged rollout and automated health
+  gate. Do not start P13.2 before P13.1 evidence exists.
+
+### 2026-08-26T20:58:00-06:00 — P12.2/P12.3 complete; clean closeout and P12 gate pending — Codex
+
+- **Final destroy approval/apply:** the owner supplied exact SHA-256
+  `99d4ad5b97c2b7f6016d3616e0e54211cf1f2837400b024336b6906dcaf81d60`; it still matched at
+  17:56:43 Edmonton. The guarded helper applied only that binary, destroying all 15 planned
+  add-on/access/EKS/VPC resources with no create/update action, then deleted the exact captured
+  temporary cluster OIDC provider.
+- **Final temporary-resource sweep:** at 18:56:22 Edmonton, counts were zero for EKS clusters,
+  ALBs, target groups, RDS instances/manual snapshots/subnet groups, active NAT Gateways, EIPs,
+  project non-terminated instances, EBS volumes/self-owned snapshots, project VPCs, and active
+  CloudFormation stacks. The temporary cluster OIDC provider was absent. No AWS call or mutation
+  ran after this clean sweep; subsequent work was offline documentation closeout only.
+- **Persistent allowlist proof:** exactly one S3 state bucket, `bedoux-api`/`bedoux-web` ECR
+  repositories, the six expected persistent roles, and the exact GitHub OIDC provider remain.
+  The bucket is versioned, AES-256 encrypted, and has all four public-access blocks enabled.
+  The tag inventory contains the expected four persistent mappings.
+- **T-1203 DNS/certificate proof:** the delegated zone contains exactly NS/SOA and the two
+  validation CNAMEs, with zero website `A` aliases. ACM remains `ISSUED`, unused, and exact for
+  `bedoux.ca` plus `www.bedoux.ca`. This matches ADR 0022's explicit persistent-zone decision;
+  there is no dangling alias to deleted infrastructure.
+- **Cost/local cleanup:** budget actual was USD 5.384 of USD 20 at closeout; delayed charges may
+  not yet be reflected, while the reviewed bounded session estimate remains below USD 1. All
+  exact `/tmp/bedoux*` session plans, variables, kubeconfig, rendered output, comparison files,
+  and captured-provider file were removed. Persistent allowlist resources remain intentionally
+  detached from session Terraform state; a future AWS session must run the guarded import first.
+- **Phase result:** P12.2/T-1202 and P12.3/T-1203 are complete. Together with P12.1/T-1201, all
+  P12 deliverables and tests now pass. P13 remains blocked on the required explicit owner gate:
+  `Phase P12 gate approved by owner; activate P13`.
+
+### 2026-08-26T17:54:59-06:00 — Application path removed; exact infrastructure teardown awaits approval — Codex
+
+- **Alias removal:** the owner supplied exact removal-plan SHA-256
+  `a66d4185aadb53aa21efaaab6fd9542a9601bf2145ebea7c3d4dddd63a0d1166`; it still matched at
+  17:31:38 Edmonton. Applying only that binary destroyed the two temporary aliases and changed
+  nothing else. Authoritative website `A` record count is zero.
+- **Ordered Kubernetes/AWS teardown:** the Ingress was deleted first; its ALB and target group
+  disappeared before the application release was uninstalled. Namespace `bedoux` and its PVC,
+  the controller release, and `gp3` StorageClass were removed and independently absent.
+- **State safety preparation:** the guarded helper dry-run was reviewed, then its state-only
+  execution captured the temporary cluster OIDC provider and detached the persistent allowlist
+  plus that provider from Terraform state. No live AWS resource changed in this preparation.
+- **Exact temporary destroy plan:** `/tmp/bedoux-session-destroy.tfplan`, 57,039 bytes, SHA-256
+  `99d4ad5b97c2b7f6016d3616e0e54211cf1f2837400b024336b6906dcaf81d60`, contains exactly 15
+  deletes and no create/update/replace action: two managed add-ons, two access entries, two
+  access-policy associations, the node group, EKS cluster, and seven VPC resources. Structured
+  inspection confirms no Route 53/ACM, ECR, persistent IAM, workload-role, or GitHub OIDC action.
+- **Captured-provider check:** the separately captured OIDC provider exactly matches the live
+  temporary EKS cluster issuer and is not the persistent GitHub Actions provider. The helper
+  deletes it only after the saved Terraform plan completes.
+- **Approval/deadline boundary:** no infrastructure destroy has been applied. The owner must
+  approve the exact full SHA-256 above. At plan inspection 65 minutes remained before the
+  independent 19:00 alarm; approval and apply are now time-critical.
+
+### 2026-08-26T17:29:30-06:00 — T-1202 passed; exact alias-removal plan awaiting approval — Codex
+
+- **Alias approval/apply:** the owner supplied exact SHA-256
+  `2774f03181b4deb6876ee889c481483e828a2ad63ff749647cd1aac5165d3552`. At 17:22:05 Edmonton,
+  the saved two-record plan still matched and 98 minutes remained before the alarm. Applying only
+  that binary completed with two creates and zero changes/destroys.
+- **Public DNS evidence:** Route 53 contains exactly the apex and `www` `A` aliases with target
+  health evaluation enabled. The workstation resolver, Cloudflare, Google, and Quad9 each returned
+  addresses for both names.
+- **T-1202 automated proof:** `scripts/p12-tls-proof.sh --execute` passed both names with trusted,
+  hostname-verified HTTPS health and an HTTP 301 redirect to HTTPS.
+- **T-1202 browser proof:** real Google Chrome loaded `https://bedoux.ca` at
+  2026-08-26T17:27:38-06:00 with no certificate warning and rendered the seeded product catalog,
+  including `Bedoux Ceramic Mug`.
+- **Exact alias-removal plan:** module-scoped `/tmp/bedoux-p12-alias-removal.tfplan`, 66,392 bytes,
+  SHA-256 `a66d4185aadb53aa21efaaab6fd9542a9601bf2145ebea7c3d4dddd63a0d1166`, contains exactly two
+  deletes and zero creates/updates/replacements: only the temporary apex and `www` `A` aliases.
+  Structured inspection confirms no hosted-zone, certificate, validation-record, or unrelated
+  resource action.
+- **Approval/deadline boundary:** no removal has been applied. The owner must approve the exact
+  full removal-plan SHA-256 above; any re-plan invalidates approval. Evidence work is complete;
+  after approval, remove aliases and start ordered teardown immediately. The independent 19:00
+  alarm remains the final deadline.
+
+### 2026-08-26T15:20:40-06:00 — P12.2 HTTPS stack healthy; exact alias plan awaiting approval — Codex
+
+- **Infrastructure approval/apply:** the owner supplied the exact approved SHA-256
+  `0b18ff2813a84f4bf6a12838ab1280e756d7bf4d909fc19356ff96c9eaabb76a`. At
+  14:39:47 Edmonton the saved binary still matched and retained more than the required teardown
+  margin. Applying only that binary completed with 25 creates, 11 in-place updates, and zero
+  destroys. The EBS CSI add-on was briefly degraded while no schedulable node existed, then
+  reconciled to `ACTIVE` after the node joined; Terraform completed successfully.
+- **Independent infrastructure proof:** EKS 1.34, the fixed one-node Spot `t3.medium` group,
+  VPC CNI `v1.22.4-eksbuild.3`, and EBS CSI `v1.63.1-eksbuild.1` are `ACTIVE`; the Kubernetes
+  node is `Ready` and all inspected system pods are Running. The group remains
+  min/desired/max `1/1/1`, 20 GiB, with no health issue. Project NAT Gateway count is zero.
+  Route 53 still contained only NS/SOA and the two validation CNAMEs, while ACM remained
+  `ISSUED`, unused, and exact for the apex plus `www`.
+- **Operator bootstrap:** namespace `bedoux` and the `gp3` StorageClass were created. The AWS
+  Load Balancer Controller chart `3.4.3` installed with runtime-only role/VPC values; both
+  controller replicas became available on image `v3.4.3`. The runtime GitHub deploy-role
+  variable was refreshed without recording its account-bearing value.
+- **Deployment evidence:** GitHub Actions run `33013651632` deployed merged `main` commit
+  `775dfe1` with only `seed_catalog=true` and `use_custom_domain=true`; all RDS, S3, Secrets
+  Manager, and rollback inputs were false. The run passed in 3m22s, including immutable image
+  build/push, SPDX artifacts, OIDC signing/verification, Helm rollout, and the hostname-verified
+  pre-alias HTTPS smoke test.
+- **Independent HTTPS-path proof:** the live Ingress has exactly the `bedoux.ca` and
+  `www.bedoux.ca` rules and TLS hosts, HTTP 80 plus HTTPS 443, and redirect port 443. The ALB is
+  active, internet-facing, and application type; HTTP's default action redirects. HTTPS uses the
+  existing issued certificate covering exactly both names, and its one target group has one
+  healthy target. No website DNS alias exists yet.
+- **Exact alias plan:** module-scoped `/tmp/bedoux-p12-aliases.tfplan`, 66,058 bytes, SHA-256
+  `2774f03181b4deb6876ee889c481483e828a2ad63ff749647cd1aac5165d3552`, contains exactly two
+  creates and zero updates/deletes/replacements: one `A` alias each for the apex and `www`, both
+  targeting the same active ALB with target-health evaluation enabled. Structured inspection
+  confirms there is no hosted-zone, certificate, validation-record, or unrelated-resource
+  action.
+- **Approval/deadline boundary:** no alias has been applied. The owner must approve the exact
+  full alias-plan SHA-256 above; any re-plan invalidates approval. Evidence work still stops at
+  17:45 and the independent 19:00 alarm remains the final teardown deadline.
+
+### 2026-08-26T14:12:59-06:00 — P12.2 AWS session opened for preflight and plan review — Codex
+
+- **Phase/task and deadline:** P12.2/T-1202 remains the only active item. The owner confirmed an
+  independent alarm for 19:00 Edmonton. Evidence work stops at 17:45 so at least 75 minutes is
+  reserved for alias removal and full same-session teardown; the alarm overrides incomplete work.
+- **Approval boundary:** this instruction opens the bounded session for read-only preflight,
+  persistent-state reconciliation, and an exact saved infrastructure-plan review. It does not
+  authorize Terraform apply, Kubernetes deployment, Route 53 aliases, or any other mutation.
+  Every saved apply requires separate owner approval of its exact SHA-256.
+- **Merged/local gate:** PR #53 is merged to `main` as `775dfe1`. Terraform recursive format and
+  credential-free P12 validation, Helm lint and the AWS TLS render, the TLS proof-helper dry-run,
+  documentation checks, and `git diff --check` all passed immediately before live preflight.
+- **Planned temporary shape:** one public no-NAT VPC, EKS 1.34 control plane, one bounded Spot
+  `t3.medium` node, required add-ons/controller, in-cluster PostgreSQL, and one internet-facing
+  ALB. The apex and `www` aliases are session-scoped and must be removed before the ALB.
+- **Persistent exceptions:** existing Terraform state/history, two ECR repositories, six bounded
+  IAM roles and related policies/attachments, GitHub OIDC provider, plus the approved `bedoux.ca`
+  Route 53 zone, issued ACM certificate, and validation records.
+- **Read-only preflight:** the caller is the expected non-root `bedoux-admin` user and the pinned
+  region is `ca-central-1`. The USD 20 budget reports USD 5.382 actual and no forecast. EKS,
+  load balancers/target groups, RDS, project VPCs, active NAT Gateways, EIPs, non-terminated
+  instances, EBS volumes/snapshots, and active CloudFormation stacks are empty.
+- **Persistent allowlist:** the account has the expected one state bucket, two ECR repositories,
+  six `bedoux-*` roles, GitHub OIDC provider, one public `bedoux.ca` zone, and one issued ACM
+  certificate. The state bucket is tagged, versioned, AES-256 encrypted, and fully public-blocked.
+- **DNS/certificate:** the workstation, Cloudflare, Google, and Quad9 each return four Route 53
+  nameservers. Apex/`www` website answers and apex MX/TXT remain absent. The zone contains only
+  NS/SOA plus two validation CNAMEs. ACM remains `ISSUED`, Amazon-issued RSA-2048, unused, and
+  covers exactly `bedoux.ca` and `www.bedoux.ca`; zone and certificate tags are correct.
+- **Pricing:** EKS 1.34 remains in standard support at USD 0.10/cluster-hour. Current Linux
+  `t3.medium` Spot observations are USD 0.0180–0.0194/node-hour. Canada Central ALB pricing is
+  USD 0.02475/load-balancer-hour plus USD 0.0088/LCU-hour. The four-hour temporary shape remains
+  conservatively below USD 1 and keeps projected month-to-date spend below the USD 16 stop line.
+- **State reconciliation:** the root was reconnected to the existing encrypted S3 backend. The
+  persistent helper dry-run was reviewed, then its explicit state-only execution imported the
+  already-existing ECR/IAM/OIDC allowlist. It did not create, modify, or delete infrastructure;
+  only the versioned Terraform state object changed.
+- **Exact infrastructure plan:** `/tmp/bedoux-p12-infra.tfplan`, SHA-256
+  `0b18ff2813a84f4bf6a12838ab1280e756d7bf4d909fc19356ff96c9eaabb76a`, is 25 creates,
+  11 in-place updates, five reads, and zero destroys/replacements. Sixteen creates are temporary:
+  the public no-NAT VPC resources, EKS 1.34, one fixed one-node Spot `t3.medium` group, two access
+  entries/associations, two pinned add-ons, and the temporary cluster OIDC provider. The other
+  nine creates adopt two already-live matching ECR lifecycle policies and seven already-live
+  exact IAM attachments, each independently confirmed.
+- **Structured refusal checks:** there are zero Route 53/ACM changes, zero NAT/EIP/RDS/S3-image/
+  Secrets Manager/CloudWatch creates, zero delete/replace actions, and zero node-cap violations.
+  Aliases and every unrelated optional profile are false. Every taggable create carries the
+  standard tags. The 11 updates add standard tags and rotate workload-role trust to the new exact
+  cluster OIDC subjects; no permission-policy expansion is planned.
+- **Apply gate:** the plan passes technical review but remains unauthorized. The owner must
+  approve the exact full SHA-256 above; re-planning invalidates that approval.
+
+### 2026-08-26T13:42:37-06:00 — PR #53 merged; P12.2 live proof is next — Codex
+
+- **Owner authorization:** the owner explicitly approved merging PR #53 after its green CI and
+  technical review. This did not open an AWS session or authorize infrastructure mutation.
+- **Merge evidence:** immediately before merge, GitHub reported draft PR #53 at exact head
+  `f04462e` mergeable/clean with all four jobs successful in final run `33006117123`. The PR was
+  marked ready and merged at 2026-08-26T19:40:44Z; GitHub reports merge commit `775dfe1` on
+  `main`, independently fetched and verified through `origin/main`.
+- **Phase/task:** P12.2 remains `IN PROGRESS`. The reviewed implementation is merged, but T-1202
+  still requires live apex/`www` aliases, trusted HTTPS, HTTP 301 redirects, a real browser
+  catalog check, alias removal, and clean same-session teardown. P12.3 has not started.
+- **AWS:** none. GitHub ready/merge and read-only Git fetch only; no AWS session is open and the
+  persistent allowlist is unchanged.
+- **Next action:** the owner sets a fresh independent four-hour alarm and explicitly opens the
+  P12.2 session. Start with read-only identity, region, budget, inventory, DNS, and certificate
+  checks plus exact temporary-infrastructure plan review; no apply is pre-authorized.
 
 ### 2026-08-26T13:36:09-06:00 — P12.2 draft PR green — Codex
 
