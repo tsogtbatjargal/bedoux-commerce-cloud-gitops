@@ -9,12 +9,12 @@ checked here and its evidence is recorded in the session log.
 | Field | Value |
 |---|---|
 | State | IN PROGRESS |
-| Active phase | P12 — TLS & custom domain |
-| Active task | P12 gate review — P12.1–P12.3 and T-1201–T-1203 are complete; explicit owner approval is required before P13 starts. |
-| Last verified | 2026-08-26T18:56:22-06:00 — final AWS sweep clean; only the approved persistent allowlist remains and no website alias points at deleted infrastructure. |
+| Active phase | P13 — Delivery maturity |
+| Active task | P13.1 — activated but NOT STARTED; first review the merged deployment path and define the staged/canary rollout boundary. |
+| Last verified | 2026-08-26T21:03:57-06:00 — owner explicitly approved the P12 gate and activated P13 after T-1201–T-1203 and clean teardown. |
 | AWS resources currently live | Persistent allowlist only: one protected state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider, and the `bedoux.ca` public Route 53 zone with its issued ACM certificate and two validation records. No temporary compute, network, storage, database, load-balancing, alias, or cluster-OIDC resource remains. |
 | Month-to-date estimated AWS spend | USD 5.384 budget actual at the 2026-08-26 P12 closeout; delayed session charges may not yet be reflected, but the bounded shape remains below the reviewed USD 1 session estimate. |
-| Next operator action | Review the complete T-1201–T-1203 evidence and explicitly approve or reject the P12 gate. Do not start P13 early. |
+| Next operator action | Publish the focused P12 completion/gate checkpoint through PR review, then begin P13.1 locally from the merged checkpoint. No AWS session is needed for initial design. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -656,6 +656,8 @@ Gate: T-1101..T-1104.
 
 Gate: T-1201..T-1203.
 
+**P12 gate approved by owner 2026-08-26; P13 activated.**
+
 ### P13 — Delivery maturity
 
 - [ ] P13.1 NOT STARTED — staged/canary rollout with an automated health gate.
@@ -673,8 +675,8 @@ Gate: T-1301..T-1302.
 
 Gate: T-1401..T-1404.
 
-**P10–P14 track bootstrapped 2026-08-09; P10 and P11 are gate-approved. P12 evidence is complete
-and its owner gate is pending; P13 is not active.**
+**P10–P14 track bootstrapped 2026-08-09; P10, P11, and P12 are gate-approved. P13 is active;
+P13.1 is the next checklist item and has not started.**
 
 ## Blockers
 
@@ -684,6 +686,19 @@ and its owner gate is pending; P13 is not active.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-26T21:03:57-06:00 — P12 gate approved; P13 activated — Codex
+
+- **Owner authorization:** after reviewing the complete P12 result, the owner explicitly stated
+  `P12 gate approved; activate P13`.
+- **Gate result:** P12.1–P12.3 and T-1201–T-1203 remain complete with the clean 18:56 AWS sweep.
+  P13 is now the active phase; P13.1 is the next item but remains `NOT STARTED` until its scoped
+  local design work begins.
+- **AWS:** none. This gate checkpoint changed documentation only; no AWS session is open and the
+  persistent allowlist is unchanged.
+- **Next action:** publish the focused completion/gate branch through PR review, then inspect the
+  merged deployment workflow and chart to define P13.1's staged rollout and automated health
+  gate. Do not start P13.2 before P13.1 evidence exists.
 
 ### 2026-08-26T20:58:00-06:00 — P12.2/P12.3 complete; clean closeout and P12 gate pending — Codex
 

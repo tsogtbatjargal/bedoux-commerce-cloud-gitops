@@ -157,13 +157,13 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   **P10.4 is complete:** ADR 0015's permissions boundary, `bedoux-iam-scoped` v4, replacement
   workload identities, and bounded deny test were proven live. **P10.5 is complete:** the EKS VPC
   CNI enforced the NetworkPolicies in a real allow/deny drill, followed by a clean same-session
-  teardown. **P10 gate approved 2026-08-11; P11 gate approved 2026-08-20; all P12.1–P12.3
-  evidence is complete and the P12 owner gate is pending.** ADR 0022 records the owner's
+  teardown. **P10 gate approved 2026-08-11; P11 gate approved 2026-08-20; P12 gate approved
+  2026-08-26; P13 is active.** ADR 0022 records the owner's
   `bedoux.ca` apex cutover and Shopify-retirement choice. PR #53 merged the opt-in HTTPS,
   redirect, and staged-alias path to `main` as `775dfe1`. The bounded live session passed T-1202
   through trusted apex/`www` HTTPS, HTTP 301 redirects, and a real Chrome catalog render; T-1203
   passed after removing aliases and every temporary ALB/EKS/VPC resource while retaining only
-  the approved zone/certificate allowlist. P13 is not active.
+  the approved zone/certificate allowlist. P13.1 is next and has not started.
   The Calico-backed kind cluster is
   still running and Ready, but the default kubeconfig context points at the deleted EKS endpoint;
   use or switch deliberately to `kind-bedoux`.
@@ -206,8 +206,8 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   P12.2 session proved trusted HTTPS and redirects for both names plus a real browser catalog,
   then removed both aliases before the ALB/application/EKS/VPC teardown. The 2026-08-26 final
   sweep found no temporary resource or dangling alias; budget actual was USD 5.384 of USD 20.
-  Only the approved persistent allowlist remains. The next action is explicit owner approval of
-  the P12 gate; do not activate P13 early.
+  Only the approved persistent allowlist remains. The owner approved the P12 gate on 2026-08-26,
+  activating P13; publish the focused checkpoint, then begin P13.1 from the merged state.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

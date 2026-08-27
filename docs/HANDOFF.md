@@ -14,8 +14,8 @@ Start with START-HERE.md, AGENTS.md, and docs/PROGRESS.md. The progress file is 
 Use the active worktree/branch recorded by Git; preserve unrelated changes.
 
 Current state as of 2026-08-26:
-- P0-P11 are complete and gate-approved. P12.1–P12.3 and T-1201–T-1203 are complete; the P12
-  owner gate is pending and P13 must not start early.
+- P0-P12 are complete and gate-approved. The owner explicitly approved the P12 gate on
+  2026-08-26 and activated P13. P13.1 is next but remains `NOT STARTED`.
 - ADR 0022 supersedes ADR 0021: the owner retired Shopify, selected the `bedoux.ca` apex plus
   `www`, and explicitly approved hosted-zone/certificate persistence.
 - PR #53 passed all four jobs in final run `33006117123` and merged the P12.2 HTTPS/redirect,
@@ -38,14 +38,15 @@ Current state as of 2026-08-26:
 - All exact `/tmp/bedoux*` session files are removed. Persistent resources are intentionally
   detached from session Terraform state; any future AWS session must run the guarded persistent
   import first. No AWS call ran after the clean closeout sweep.
-- Local branch `docs/p12-2-merge-checkpoint` contains the PR #53 merge checkpoint plus the P12
-  live-evidence closeout. Preserve these changes and use a focused PR; never push `main`.
+- Local branch `docs/p12-2-merge-checkpoint` contains separate PR #53 merge, P12 completion, and
+  P12-gate commits. Preserve these changes and use a focused PR; never push `main`.
 
 Next action:
-1. The owner reviews T-1201–T-1203 and explicitly approves or rejects the P12 gate. If approved,
-   record a separate `Phase P12 gate approved by owner; activate P13` commit before P13 work.
+1. With explicit publication authorization, push the focused checkpoint branch, open/review its
+   PR, and merge it. Then begin P13.1 locally by reviewing the merged deploy workflow/chart and
+   defining the staged rollout plus automated health-gate boundary. P13.2 remains gated.
 
 Hard boundaries: USD 20/month; ca-central-1; bedoux-admin only; no NAT Gateway; same-day teardown;
 never record account IDs, secrets, personal email addresses, or registrar details. No AWS session
-is open and P13 is not authorized from this checkpoint.
+is open; initial P13.1 design is local-only.
 ```
