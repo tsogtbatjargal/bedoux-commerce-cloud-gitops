@@ -55,8 +55,8 @@ Complete every **Before the session** item in [`aws-session.md`](aws-session.md)
 - Review the exact no-NAT Terraform plan and obtain owner approval of its saved-plan SHA-256 before
   apply. The plan must include the reviewed read-only ELBv2 additions to
   `bedoux-github-actions-policy` (`DescribeLoadBalancers`, `DescribeListeners`, `DescribeRules`,
-  and `DescribeTargetHealth`) and no ELB mutation permission. No Route 53 alias is required for
-  T-1301; the ALB DNS name is sufficient.
+  `DescribeTargetGroupAttributes`, and `DescribeTargetHealth`) and no ELB mutation permission. No
+  Route 53 alias is required for T-1301; the ALB DNS name is sufficient.
 - The persistent allowlist is still detached after P12. Import it through the guarded helper before
   planning, exactly as the AWS session runbook requires.
 - PR validation must be green. Do not merge the P13 implementation until the baseline step below
@@ -97,18 +97,21 @@ Complete every **Before the session** item in [`aws-session.md`](aws-session.md)
    - fail unless `kubectl auth can-i` confirms the CI identity can `get/list` the namespaced
      target-group bindings through that narrow Role;
    - apply those unchanged stable images through the permanent stable-only action backend and
-     require its listener rule plus target health to reconcile before staging any candidate;
+     pin the target-group deregistration delay to 30 seconds, then require its listener rule,
+     applied target-group attribute, and target health to reconcile before staging any candidate;
    - stage one candidate API/web pair at 10%;
    - map stable/canary Services through their `TargetGroupBinding` objects, then wait for the
      active ALB listener rule to contain the exact 90/10 target-group ARN mapping and for every
-     registered target in both non-empty groups to report `healthy`;
+     active target group to report `deregistration_delay.timeout_seconds=30` and every registered
+     target in both non-empty groups to report `healthy`;
    - print a passing 20-request, zero-error `CANARY_GATE` result;
    - send 100 bounded public ALB health requests at 90/10 with zero errors and prove at least one
      request reached `web-canary` through a unique access-log correlation marker;
    - promote the verified candidate through a 100/0 split;
    - require every active replacement stable web pod's injected ALB target-health condition to be
      `True`, both target-group bindings to remain present, the listener to reconcile exact 100/0,
-     and the stable target group to be fully healthy before starting the drain timer;
+     both target groups to retain the applied 30-second deregistration delay, and the stable target
+     group to be fully healthy before starting the drain timer;
    - remove zero-weight canary resources after the bounded drain hold, retain the same ALB action
      backend with only stable `web` at 100%, and wait for the stable-only listener/health state;
    - pass the existing public ALB health/catalog smoke.
@@ -122,10 +125,11 @@ Complete every **Before the session** item in [`aws-session.md`](aws-session.md)
 
 Stop immediately if the baseline is absent, a running image is not digest-pinned, stable web pods
 lack a healthy injected ALB readiness gate, the staged weight differs from 10%, the listener rule
-is not reconciled, either staged target group is empty or has a non-healthy target, the gate or
-public sample reports any error, no public request is correlated to `web-canary`, promotion begins
-before the staged gate passes, the exact 100/0 listener/stable-health state is absent before drain,
-cleanup changes away from the named action backend, or the public smoke fails. For a pre-promotion
+is not reconciled, any active target group does not report the exact 30-second deregistration delay,
+either staged target group is empty or has a non-healthy target, the gate or public sample reports
+any error, no public request is correlated to `web-canary`, promotion begins before the staged gate
+passes, the exact 100/0 listener/stable-health state is absent before drain, cleanup changes away
+from the named action backend, or the public smoke fails. For a pre-promotion
 failure, the helper restores the captured stable images through reconciled 100/0 plus the drain hold
 before disabling canary. If that reconciliation fails, it preserves canary resources for diagnosis
 instead of cleaning them up. Diagnose and recover before teardown; do not begin P13.2.

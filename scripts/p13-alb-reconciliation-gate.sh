@@ -28,9 +28,11 @@ Options:
   --help                          Show this help.
 
 Staged mode requires both TargetGroupBindings, exact non-zero weights, and both groups
-fully healthy. Promotion mode keeps both bindings, requires exact 100/0 weights, and
-requires the stable group fully healthy before the drain clock may start. Cleanup mode
-requires no canary binding, a stable-only 100% action, and a fully healthy stable group.
+fully healthy. Every mode also requires the controller-applied 30-second target-group
+deregistration delay. Promotion mode keeps both bindings, requires exact 100/0 weights,
+and requires the stable group fully healthy before the drain clock may start. Cleanup
+mode requires no canary binding, a stable-only 100% action, and a fully healthy stable
+group.
 EOF
 }
 
@@ -125,6 +127,7 @@ if [[ "$execute" == false ]]; then
     "$aws_region" "$namespace" "$mode" "$expected_canary_weight" "$timeout_seconds" "$poll_seconds"
   printf '%s\n' 'DRY RUN: map Services to TargetGroupBindings without printing ARNs.'
   printf '%s\n' 'DRY RUN: require active ALB, exact reconciled listener weights, and all targets healthy.'
+  printf '%s\n' 'DRY RUN: require every active target group to report deregistration_delay.timeout_seconds=30.'
   exit 0
 fi
 
@@ -137,7 +140,8 @@ aws_args=(--region "$aws_region" --no-cli-pager)
 
 verify_reconciliation_once() {
   local ingress_class alb_hostname tgb_json load_balancers_json alb_arn
-  local listeners_json rules_json stable_health_json canary_health_json
+  local listeners_json rules_json stable_attributes_json canary_attributes_json
+  local stable_health_json canary_health_json
   local stable_target_group_arn canary_target_group_arn listener_arn
   local -a target_group_arns=() listener_arns=()
 
@@ -235,6 +239,28 @@ raise SystemExit(1)
   done
   [[ "$matching_rule" == true ]] || return 1
 
+  stable_attributes_json="$(aws elbv2 describe-target-group-attributes "${aws_args[@]}" \
+    --target-group-arn "$stable_target_group_arn" --output json 2>/dev/null)" || return 1
+  EXPECTED_DEREGISTRATION_DELAY_SECONDS=30 python -c '
+import json, os, sys
+attributes = {item.get("Key"): item.get("Value")
+              for item in json.load(sys.stdin).get("Attributes", [])}
+if attributes.get("deregistration_delay.timeout_seconds") != os.environ["EXPECTED_DEREGISTRATION_DELAY_SECONDS"]:
+    raise SystemExit(1)
+' <<<"$stable_attributes_json" 2>/dev/null || return 1
+
+  if [[ "$mode" != "cleanup" ]]; then
+    canary_attributes_json="$(aws elbv2 describe-target-group-attributes "${aws_args[@]}" \
+      --target-group-arn "$canary_target_group_arn" --output json 2>/dev/null)" || return 1
+    EXPECTED_DEREGISTRATION_DELAY_SECONDS=30 python -c '
+import json, os, sys
+attributes = {item.get("Key"): item.get("Value")
+              for item in json.load(sys.stdin).get("Attributes", [])}
+if attributes.get("deregistration_delay.timeout_seconds") != os.environ["EXPECTED_DEREGISTRATION_DELAY_SECONDS"]:
+    raise SystemExit(1)
+' <<<"$canary_attributes_json" 2>/dev/null || return 1
+  fi
+
   stable_health_json="$(aws elbv2 describe-target-health "${aws_args[@]}" \
     --target-group-arn "$stable_target_group_arn" --output json 2>/dev/null)" || return 1
   python -c '
@@ -264,14 +290,14 @@ while ((SECONDS <= deadline)); do
   poll=$((poll + 1))
   if verify_reconciliation_once; then
     if [[ "$mode" == "staged" ]]; then
-      printf 'ALB_RECONCILIATION_GATE mode=staged weight=%d target_groups=2 healthy=true\n' \
+      printf 'ALB_RECONCILIATION_GATE mode=staged weight=%d target_groups=2 deregistration_delay=30 healthy=true\n' \
         "$expected_canary_weight"
     elif [[ "$mode" == "promotion" ]]; then
-      printf '%s\n' 'ALB_RECONCILIATION_GATE mode=promotion weight=100/0 target_groups=2 stable_healthy=true'
+      printf '%s\n' 'ALB_RECONCILIATION_GATE mode=promotion weight=100/0 target_groups=2 deregistration_delay=30 stable_healthy=true'
     else
-      printf '%s\n' 'ALB_RECONCILIATION_GATE mode=cleanup weight=100 target_groups=1 healthy=true'
+      printf '%s\n' 'ALB_RECONCILIATION_GATE mode=cleanup weight=100 target_groups=1 deregistration_delay=30 healthy=true'
     fi
-    printf '%s\n' 'PASS: ALB listener action and target health are fully reconciled.'
+    printf '%s\n' 'PASS: ALB listener action, deregistration delay, and target health are fully reconciled.'
     exit 0
   fi
   if ((SECONDS + poll_seconds > deadline)); then

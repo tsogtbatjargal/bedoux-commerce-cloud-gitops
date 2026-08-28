@@ -58,6 +58,10 @@ case "$operation" in
       printf '%s\n' '{"Rules":[{"Actions":[{"Type":"forward","ForwardConfig":{"TargetGroups":[{"TargetGroupArn":"arn:stable","Weight":90},{"TargetGroupArn":"arn:canary","Weight":10}]}}]}]}'
     fi
     ;;
+  describe-target-group-attributes)
+    printf '{"Attributes":[{"Key":"deregistration_delay.timeout_seconds","Value":"%s"}]}\n' \
+      "${MOCK_DEREGISTRATION_DELAY_SECONDS:-30}"
+    ;;
   describe-target-health)
     printf '%s\n' '{"TargetHealthDescriptions":[{"TargetHealth":{"State":"healthy"}}]}'
     ;;
@@ -124,6 +128,22 @@ if PATH="$fixture_dir:$PATH" MOCK_MODE=promotion MOCK_RULE_MODE=staged \
     --poll-seconds 1 \
     --execute >/dev/null 2>&1; then
   printf '%s\n' 'expected lingering 90/10 listener to block promotion cleanup' >&2
+  exit 1
+fi
+
+# The gate deadline must not race the ELB default. Even with exact 100/0 and a
+# healthy replacement, a target group that still reports the default 300-second
+# deregistration delay must block promotion cleanup.
+if PATH="$fixture_dir:$PATH" MOCK_MODE=promotion MOCK_DEREGISTRATION_DELAY_SECONDS=300 \
+  scripts/p13-alb-reconciliation-gate.sh \
+    --context mock-eks \
+    --aws-region ca-central-1 \
+    --mode promotion \
+    --expected-canary-weight 0 \
+    --timeout-seconds 1 \
+    --poll-seconds 1 \
+    --execute >/dev/null 2>&1; then
+  printf '%s\n' 'expected default 300s deregistration delay to block promotion cleanup' >&2
   exit 1
 fi
 

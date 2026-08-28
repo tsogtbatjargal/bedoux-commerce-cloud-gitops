@@ -45,11 +45,22 @@ The gate checks the exact expected canary images, Ready/available state, rendere
 health response, catalog response, and a bounded request sample with zero allowed errors. On AWS it
 also maps the stable and canary Services through their `TargetGroupBinding` objects, discovers the
 active ALB without printing its ARN, polls `DescribeRules` for the exact 90/10 target-group ARN
-mapping, and polls `DescribeTargetHealth` until both non-empty groups are fully healthy. The GitHub
-OIDC role receives only the four ELBv2 read actions needed for this proof; ELB Describe APIs require
-`Resource: *`. Because `AmazonEKSEditPolicy` does not include controller custom resources, the EKS
-access entry also joins one dedicated Kubernetes group whose session-bootstrapped, namespace-scoped
-Role grants only `get/list` on `targetgroupbindings.elbv2.k8s.aws`.
+mapping, verifies through `DescribeTargetGroupAttributes` that every active target group has
+`deregistration_delay.timeout_seconds=30`, and polls `DescribeTargetHealth` until both non-empty
+groups are fully healthy. The GitHub OIDC role receives only the five ELBv2 read actions needed for
+this proof; ELB Describe APIs require `Resource: *`. Because `AmazonEKSEditPolicy` does not include
+controller custom resources, the EKS access entry also joins one dedicated Kubernetes group whose
+session-bootstrapped, namespace-scoped Role grants only `get/list` on
+`targetgroupbindings.elbv2.k8s.aws`.
+
+The P13 AWS rollout pins the target-group deregistration delay to 30 seconds on every Helm
+mutation, reusing the value proven by accepted ADR 0019 without broadening the ordinary AWS profile.
+This P13-specific bound is intentionally shorter than the 300-second ALB reconciliation deadline.
+AWS can continue to display an obsolete target as `draining` for the configured delay, so leaving
+the ELB default at 300 seconds would race a healthy one-replica promotion against the gate's own
+deadline. The desired Ingress annotation is not accepted as evidence: normalization, stage,
+promotion, abort, and cleanup gates read the applied attribute from each controller-owned target
+group and fail closed unless its exact value is 30 seconds.
 
 The AWS session labels the application namespace
 `elbv2.k8s.aws/pod-readiness-gate-inject=enabled` before the baseline. Because the controller injects
@@ -99,6 +110,9 @@ it must not introduce a different rollback mechanism.
   alarmed AWS session and same-session teardown.
 - The stable ALB target group and action backend persist across stage, promotion, and cleanup;
   only the temporary canary target group is removed.
+- The P13 AWS rollout temporarily applies the already-proven 30-second deregistration bound to its
+  stable and canary target groups; a controller that leaves either group at the 300-second default
+  blocks progression.
 - Acceptance of this ADR permits the live T-1301 plan review; it does not authorize AWS apply or
   dispatch by itself.
 
@@ -110,5 +124,7 @@ it must not introduce a different rollback mechanism.
   <https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/deploy/pod_readiness_gate/>
 - Amazon EKS access-policy permissions:
   <https://docs.aws.amazon.com/eks/latest/userguide/access-policy-permissions.html>
+- AWS ALB target-group deregistration delay:
+  <https://docs.aws.amazon.com/elasticloadbalancing/latest/application/edit-target-group-attributes.html>
 - ingress-nginx canary annotations:
   <https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/annotations/#canary>

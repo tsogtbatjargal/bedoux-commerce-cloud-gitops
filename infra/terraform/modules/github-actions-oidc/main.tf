@@ -75,6 +75,7 @@ data "aws_iam_policy_document" "deployment" {
       "elasticloadbalancing:DescribeListeners",
       "elasticloadbalancing:DescribeLoadBalancers",
       "elasticloadbalancing:DescribeRules",
+      "elasticloadbalancing:DescribeTargetGroupAttributes",
       "elasticloadbalancing:DescribeTargetHealth",
     ]
     # ELBv2 Describe APIs do not support resource-level permissions. These are

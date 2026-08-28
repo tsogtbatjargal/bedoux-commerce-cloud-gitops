@@ -98,6 +98,12 @@ jobs:
             echo 'stable AWS render unexpectedly retained a canary target' >&2
             exit 1
           fi
+          p13_aws_rendered="$(helm template bedoux charts/bedoux \
+            -f charts/bedoux/values-aws.yaml \
+            --set ingress.targetGroupDeregistrationDelaySeconds=30)"
+          grep -Fq 'alb.ingress.kubernetes.io/target-group-attributes: "deregistration_delay.timeout_seconds=30"' <<< "$p13_aws_rendered"
+          grep -Fq 'helm_base+=(--set ingress.targetGroupDeregistrationDelaySeconds=30)' scripts/p13-canary-rollout.sh
+          grep -Fq 'elasticloadbalancing:DescribeTargetGroupAttributes' infra/terraform/modules/github-actions-oidc/main.tf
           aws_tls_rendered="$(helm template bedoux charts/bedoux \
             -f charts/bedoux/values-aws.yaml \
             -f charts/bedoux/values-aws-tls.yaml)"

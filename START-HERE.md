@@ -170,11 +170,13 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   health/error gate. Static validation passes. The local kind rehearsal also passed at 10% with
   20/20 healthy samples and zero errors, promoted the candidate to 100%, and removed every canary
   object while preserving the HPA and NetworkPolicy overlays. Live AWS T-1301 evidence remains
-  pending. Two independent reviews correctly withheld ADR acceptance for asynchronous ALB races.
-  The hardened local diff now proves exact 90/10, target health, bounded public canary handling,
-  injected ALB pod-readiness conditions, exact 100/0 before the drain clock, and stable-only
-  cleanup while retaining the stable target group; another independent re-review is next. The
-  retained Calico-backed kind node is
+  pending. Independent reviews correctly withheld ADR acceptance for asynchronous ALB races.
+  The hardened local diff now also pins the P13 ALB target-group deregistration delay to 30 seconds
+  and reads the applied AWS attribute in every reconciliation state, so the 300-second ELB default
+  cannot race the gate deadline. It proves exact 90/10, target health, bounded public canary
+  handling, injected ALB pod-readiness conditions, exact 100/0 before the drain clock, and
+  stable-only cleanup while retaining the stable target group; another independent re-review is
+  next. The retained Calico-backed kind node is
   stopped with its PVC preserved and the host inotify value restored to 128. The default kubeconfig
   context still points at the deleted EKS endpoint, so always use an explicit context.
 - Repository workflow skills are validated and published on `main` through merged PR #47

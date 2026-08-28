@@ -112,7 +112,7 @@ if [[ "$execute" == false ]]; then
   printf 'DRY RUN: context=<explicit> namespace=%s weight=%d attempts=%d public_attempts=%d max_errors=%d\n' \
     "$namespace" "$weight" "$attempts" "$public_attempts" "$max_errors"
   printf '%s\n' 'DRY RUN: verify exact canary images, one available pod per Deployment, and controller weight.'
-  printf '%s\n' 'DRY RUN: for ALB, require exact reconciled listener weights and all targets healthy.'
+  printf '%s\n' 'DRY RUN: for ALB, require exact listener weights, 30s deregistration, and healthy targets.'
   printf '%s\n' 'DRY RUN: for ALB, send bounded public probes and require a matching web-canary access log.'
   printf '%s\n' 'DRY RUN: sample /api/health through web-canary, then require a non-empty canary catalog.'
   exit 0

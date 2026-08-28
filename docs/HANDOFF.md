@@ -59,12 +59,15 @@ Current state as of 2026-08-28:
 - The two temporary image archives and redundant host-side candidate tags are gone. The retained
   kind node is stopped with its PVC, node-local candidate images, and promoted local release
   preserved. The owner restored the host inotify limit to 128.
-- Two independent reviews withheld ADR 0023 acceptance for asynchronous ALB races. The local
+- Independent reviews withheld ADR 0023 acceptance for asynchronous ALB races. The local
   hardening now maps Services through `TargetGroupBinding`, proves real 90/10 public traffic through
   a correlated canary access-log hit, requires injected stable-pod ALB readiness, and blocks the
   drain/cleanup block until the listener is exactly 100/0 with a healthy stable target group. It
   then proves stable-only cleanup and complete canary-object removal. Staged, promotion, cleanup,
-  lingering-90/10, and pod-readiness mocks are fail-closed.
+  lingering-90/10, and pod-readiness mocks are fail-closed. The latest re-review found that ALB's
+  default 300-second deregistration delay could race the gate's 300-second deadline; the P13 helper
+  now pins the already-proven 30-second value and every ALB gate verifies the applied target-group
+  attribute. A mock left at 300 seconds fails promotion closed.
 
 Next action:
 1. Obtain independent technical re-review of hardened Proposed ADR 0023. The full local static

@@ -11,7 +11,7 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P13 — Delivery maturity |
 | Active task | P13.1 IN PROGRESS — review the merged deployment path, then implement and locally prove a staged/canary rollout with an automated health gate. |
-| Last verified | 2026-08-28T09:46:55-06:00 — resumed P13.1 second-review hardening passes the complete local suite: promotion/cleanup and pod-readiness mocks, Helm renders, three Terraform profiles, YAML/docs/action-pin/whitespace checks. |
+| Last verified | 2026-08-28T10:47:52-06:00 — P13.1 pins and verifies the applied 30-second ALB target-group deregistration delay; the default-300 mock fails promotion closed and the complete local suite passes. |
 | AWS resources currently live | Persistent allowlist only: one protected state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider, and the `bedoux.ca` public Route 53 zone with its issued ACM certificate and two validation records. No temporary compute, network, storage, database, load-balancing, alias, or cluster-OIDC resource remains. |
 | Month-to-date estimated AWS spend | USD 5.384 budget actual at the 2026-08-26 P12 closeout; delayed session charges may not yet be reflected, but the bounded shape remains below the reviewed USD 1 session estimate. |
 | Next operator action | Obtain independent technical re-review of the hardened Proposed ADR 0023 and exact diff. After acceptance, prepare the focused PR and reviewed live T-1301 session plan; do not start P13.2. |
@@ -686,6 +686,34 @@ P13.1 is in progress with its local rehearsal complete and live T-1301 evidence 
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-28T10:47:52-06:00 — P13.1 ALB deregistration deadline race closed — Codex
+
+- **Independent review result:** ADR 0023 remains unaccepted. The latest review correctly found
+  that a healthy one-replica promotion could contain one healthy replacement plus one obsolete
+  `draining` target for ALB's default 300-second deregistration delay, racing the reconciliation
+  gate's own 300-second deadline.
+- **Bounded fix:** the P13 AWS helper now pins
+  `ingress.targetGroupDeregistrationDelaySeconds=30` on every normalization, stage, promotion,
+  abort, and cleanup Helm mutation. This reuses ADR 0019's proven value only for the P13 AWS path;
+  the ordinary AWS profile remains unchanged.
+- **Applied-state proof:** all three ALB reconciliation modes map the stable/canary Services to
+  controller-owned target groups and call `DescribeTargetGroupAttributes`. They fail closed unless
+  every active group reports exact `deregistration_delay.timeout_seconds=30`; the desired Ingress
+  annotation alone is not evidence. The GitHub OIDC deployment policy adds only that read-only
+  Describe permission.
+- **Regression proof:** staged, promotion, and cleanup fixtures at 30 seconds pass. A promotion
+  fixture that is otherwise exact 100/0 and healthy but reports the ELB default 300 seconds fails
+  closed, so drain/cleanup cannot start at the deadline boundary.
+- **Verification:** P13 shell syntax/help/dry-runs and ALB/pod-readiness mocks pass; Helm lint plus
+  five stable/staged/promotion/cleanup YAML renders pass; all three credential-disabled Terraform
+  profiles validate; workflow/Kubernetes YAML parsing, 18 immutable action pins, toolbox
+  `make docs-check`, and `git diff --check` pass. Terraform schema validation ran outside the
+  filesystem sandbox only because provider plugins cannot start inside it; no AWS endpoint was
+  contacted.
+- **AWS/Kubernetes/cost:** no endpoint contacted and no resource changed; estimated AWS cost USD 0.
+- **Next action:** publish the already-authorized focused fix, then obtain independent technical
+  re-review. ADR 0023 remains Proposed, live T-1301 remains blocked, and P13.2 remains gated.
 
 ### 2026-08-28T09:46:55-06:00 — P13.1 hardening resumed and revalidated — Codex
 

@@ -41,7 +41,9 @@ Options:
 Before promotion, every failure restores the captured stable images through a
 reconciled 100/0 hold before canary removal. Each Helm mutation uses --atomic. On
 ALB, the drain hold starts only after the listener is exactly 100/0 and stable pods
-and targets are confirmed healthy.
+and targets are confirmed healthy. Every ALB Helm mutation pins the target-group
+deregistration delay to the project-proven 30-second bound, and each reconciliation
+gate verifies the controller-applied AWS attribute before proceeding.
 EOF
 }
 
@@ -147,6 +149,7 @@ if [[ "$execute" == false ]]; then
     "$namespace" "$release" "$weight" "$attempts" "$public_attempts" "$max_errors"
   printf '%s\n' 'DRY RUN: assert the running stable images exactly match the captured baseline.'
   printf '%s\n' 'DRY RUN: for ALB, normalize and reconcile the stable-only action before staging.'
+  printf '%s\n' 'DRY RUN: for ALB, pin and verify a 30-second target-group deregistration delay.'
   printf '%s\n' 'DRY RUN: stage weighted traffic; for ALB, prove exact 90/10 reconciliation and public canary handling.'
   printf 'DRY RUN: promote candidate, prove ALB pod readiness and exact 100/0 reconciliation, hold %d seconds, then remove canary resources.\n' \
     "$drain_seconds"
@@ -326,6 +329,11 @@ abort_to_stable() {
 alb_rollout=false
 if kubectl "${kubectl_args[@]}" get ingress bedoux >/dev/null 2>&1; then
   alb_rollout=true
+  # Keep the target-draining interval comfortably below the 300-second ALB
+  # reconciliation deadline so an obsolete draining target cannot race the
+  # gate boundary. The AWS gate verifies the applied attribute; this desired
+  # Helm value alone is not proof.
+  helm_base+=(--set ingress.targetGroupDeregistrationDelaySeconds=30)
   stable_target_group_before=""
   stable_target_group_after=""
   if [[ -z "$aws_region" ]]; then
