@@ -165,7 +165,7 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   passed after removing aliases and every temporary ALB/EKS/VPC resource while retaining only
   the approved zone/certificate allowlist. PR #54 passed all four checks and merged the P12
   completion/gate evidence as `386f66e`; merged P12 branches are cleaned locally/remotely.
-  **P13.1 is IN PROGRESS.** Proposed ADR 0023 and the local chart/workflow/helpers implement one
+  **P13.1 is IN PROGRESS.** Accepted ADR 0023 and the local chart/workflow/helpers implement one
   Helm-release canary with controller-native 90/10 routing and an automated exact-image,
   health/error gate. Static validation passes. The local kind rehearsal also passed at 10% with
   20/20 healthy samples and zero errors, promoted the candidate to 100%, and removed every canary
@@ -175,8 +175,9 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   and reads the applied AWS attribute in every reconciliation state, so the 300-second ELB default
   cannot race the gate deadline. It proves exact 90/10, target health, bounded public canary
   handling, injected ALB pod-readiness conditions, exact 100/0 before the drain clock, and
-  stable-only cleanup while retaining the stable target group; another independent re-review is
-  next. The retained Calico-backed kind node is
+  stable-only cleanup while retaining the stable target group. The owner accepted ADR 0023 on
+  2026-08-28 against implementation `6cdb54c` and checkpoint `791b0e4`; focused PR preparation is
+  next, while live T-1301 remains pending. The retained Calico-backed kind node is
   stopped with its PVC preserved and the host inotify value restored to 128. The default kubeconfig
   context still points at the deleted EKS endpoint, so always use an explicit context.
 - Repository workflow skills are validated and published on `main` through merged PR #47

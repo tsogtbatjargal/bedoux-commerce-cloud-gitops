@@ -45,7 +45,7 @@ Current state as of 2026-08-28:
 - This worktree is on feature branch `p13-1-canary` from exact merge `386f66e`, with the expected
   post-merge checkpoint and focused P13.1 implementation. The latest reviewed hardening is
   published as `6cdb54c` on `origin/p13-1-canary`; no PR exists yet. Never push `main`.
-- Proposed ADR 0023 keeps one Helm release and adds opt-in stable/canary API+web pairs,
+- Accepted ADR 0023 keeps one Helm release and adds opt-in stable/canary API+web pairs,
   controller-native ALB/ingress-nginx weighting, an exact-image/health/error gate, and an automated
   stage → gate → reconciled 100/0 promotion → cleanup helper. The existing signed-image deployment
   workflow gains only an opt-in `canary_rollout` input.
@@ -69,10 +69,13 @@ Current state as of 2026-08-28:
   now pins the already-proven 30-second value and every ALB gate verifies the applied target-group
   attribute. A mock left at 300 seconds fails promotion closed.
 
+The owner accepted ADR 0023 on 2026-08-28 against implementation `6cdb54c` as represented by
+checkpoint `791b0e4`. This permits PR and live-plan preparation, not merge or AWS execution.
+
 Next action:
-1. Obtain independent technical re-review of hardened Proposed ADR 0023. The full local static
-   suite passes. After acceptance, prepare the focused PR and reviewed live T-1301 session
-   sequence. Do not start P13.2.
+1. Prepare the focused P13.1 PR when explicitly authorized, then prepare the reviewed live T-1301
+   session sequence. Do not merge, apply AWS changes, dispatch the workflow, or start P13.2 without
+   the next explicit approvals.
 
 Hard boundaries: USD 20/month; ca-central-1; bedoux-admin only; no NAT Gateway; same-day teardown;
 never record account IDs, secrets, personal email addresses, or registrar details. No AWS session

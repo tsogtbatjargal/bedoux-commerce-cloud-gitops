@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P13 — Delivery maturity |
 | Active task | P13.1 IN PROGRESS — review the merged deployment path, then implement and locally prove a staged/canary rollout with an automated health gate. |
-| Last verified | 2026-08-28T10:47:52-06:00 — P13.1 pins and verifies the applied 30-second ALB target-group deregistration delay; the default-300 mock fails promotion closed and the complete local suite passes. |
+| Last verified | 2026-08-28T10:55:56-06:00 — owner accepted ADR 0023 against implementation `6cdb54c` and branch checkpoint `791b0e4`; P13.1 remains active pending live T-1301. |
 | AWS resources currently live | Persistent allowlist only: one protected state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider, and the `bedoux.ca` public Route 53 zone with its issued ACM certificate and two validation records. No temporary compute, network, storage, database, load-balancing, alias, or cluster-OIDC resource remains. |
 | Month-to-date estimated AWS spend | USD 5.384 budget actual at the 2026-08-26 P12 closeout; delayed session charges may not yet be reflected, but the bounded shape remains below the reviewed USD 1 session estimate. |
-| Next operator action | Obtain independent technical re-review of the hardened Proposed ADR 0023 and exact diff. After acceptance, prepare the focused PR and reviewed live T-1301 session plan; do not start P13.2. |
+| Next operator action | Prepare the focused P13.1 PR and reviewed live T-1301 session plan. Do not merge, apply AWS changes, or start P13.2 without the next explicit approvals. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -686,6 +686,19 @@ P13.1 is in progress with its local rehearsal complete and live T-1301 evidence 
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-28T10:55:56-06:00 — ADR 0023 accepted by owner — Codex
+
+- **Owner decision:** the owner explicitly accepted ADR 0023 and confirmed no blocker remains in
+  implementation `6cdb54c` as represented by branch checkpoint `791b0e4`.
+- **State change:** ADR 0023 and the decision index now record `Accepted`. This is design
+  acceptance only: P13.1 remains `IN PROGRESS`, live T-1301 evidence remains pending, and P13.2
+  remains gated.
+- **Authorization boundary:** acceptance permits preparation of the focused PR and exact live
+  T-1301 plan review. It does not authorize PR merge, AWS apply, workflow dispatch, or P13.2.
+- **AWS/Kubernetes/cost:** no endpoint contacted and no resource changed; estimated AWS cost USD 0.
+- **Next action:** publish this acceptance checkpoint on `p13-1-canary`, then prepare the focused
+  PR when explicitly authorized.
 
 ### 2026-08-28T10:47:52-06:00 — P13.1 ALB deregistration deadline race closed — Codex
 

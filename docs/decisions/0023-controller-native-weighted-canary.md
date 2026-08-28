@@ -1,6 +1,6 @@
 # ADR 0023: Controller-native weighted canary extends the existing Helm deployment path
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-08-27
 
 ## Context
