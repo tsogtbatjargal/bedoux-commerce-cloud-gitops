@@ -177,8 +177,22 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   handling, injected ALB pod-readiness conditions, exact 100/0 before the drain clock, and
   stable-only cleanup while retaining the stable target group. The owner accepted ADR 0023 on
   2026-08-28 against implementation `6cdb54c` and checkpoint `791b0e4`; focused PR preparation is
-  complete. Draft PR #55 is open and its initial four-job validation run `33192970640` passed;
-  the PR remains unmerged while live T-1301 is pending. The retained Calico-backed kind node is
+  complete. Draft PR #55 is open at exact head `efb3b06`; exact-head four-job validation run
+  `33193213907` passed. A fresh bounded T-1301 session on 2026-08-28 confirmed the budget, region,
+  non-root identity, conservative sub-USD-1 session estimate, and clean temporary-resource
+  inventory. Persistent state is reconciled, and exact saved plan
+  `ce72db3e6c6a1d39680784a7fb680f93195f824265121a185ce6c1bb5dc49376` has 25 creates, 11
+  in-place updates, and zero deletes/replacements. The owner approved and Terraform applied that
+  exact binary: EKS 1.34, one Ready Spot `t3.medium` at 1/1/1, both pinned add-ons active, and no
+  alias/NAT/EIP/optional service. Post-apply verification found that EKS did not propagate the two
+  standard tags to the managed EC2 instance or root gp3 volume, and the backing Auto Scaling group
+  lacks propagate-at-launch project/environment tags. The owner ordered immediate teardown and
+  approved exact temporary-only destroy plan
+  `77a0273803ca29faa826ecbe09ee2100174c6c03f813e96dbf8c57acf5da21f9`. Terraform destroyed its
+  exact 15 resources, the helper deleted the captured temporary cluster OIDC provider, and the
+  16:49 Edmonton sweep returned zero temporary resources. P13.1 remains in progress and T-1301 is
+  not claimed; next implement and locally verify durable managed-node tag propagation before a
+  fresh reviewed AWS plan. The retained Calico-backed kind node is
   stopped with its PVC preserved and the host inotify value restored to 128. The default kubeconfig
   context still points at the deleted EKS endpoint, so always use an explicit context.
 - Repository workflow skills are validated and published on `main` through merged PR #47

@@ -72,16 +72,43 @@ Current state as of 2026-08-28:
 
 The owner accepted ADR 0023 on 2026-08-28 against implementation `6cdb54c` as represented by
 checkpoint `791b0e4`. This permits PR and live-plan preparation, not merge or AWS execution.
-- Draft PR #55 targets `main` from `p13-1-canary`; its initial exact-head run `33192970640` passed
-  API, web, Terraform/Helm, and container build/scan/SBOM/signature jobs. It remains draft and
-  unmerged; live T-1301 is deliberately deferred.
+- Draft PR #55 targets `main` from `p13-1-canary` at exact head `efb3b06`; exact-head run
+  `33193213907` passed API, web, Terraform/Helm, and container
+  build/scan/SBOM/signature jobs. It remains draft and unmerged.
+- A bounded T-1301 session used a 19:00 Edmonton alarm and 17:45 teardown cutoff. Read-only
+  preflight confirmed the non-root identity, pinned region, budget actual USD 5.915, forecast
+  USD 6.603, a conservative four-hour estimate below USD 1, and zero temporary AWS resources.
+- Persistent state is reconciled at exact Terraform source head `efb3b06`. Exact saved plan
+  `/tmp/bedoux-p13-t1301-20260828-1558.tfplan` hashes to
+  `ce72db3e6c6a1d39680784a7fb680f93195f824265121a185ce6c1bb5dc49376`: 25 creates, 11 in-place
+  updates, zero deletes/replacements. It preserves Route 53/ACM as no-op, keeps aliases disabled,
+  uses EKS 1.34 with one Spot `t3.medium` at 1/1/1, and contains no NAT/EIP or optional managed
+  service. The owner approved and Terraform applied that exact binary: EKS, the Ready Spot node,
+  and both pinned add-ons are healthy. No PR state change, workflow dispatch, application, ALB, or
+  Kubernetes bootstrap occurred.
+- Post-apply verification found a blocker: EKS did not propagate the standard project/environment
+  tags to its managed EC2 instance or root gp3 volume, and its backing Auto Scaling group has no
+  propagate-at-launch copies. Live remediation is a new mutation outside the approved binary.
+- The owner ordered immediate teardown and approved exact temporary-only destroy plan SHA-256
+  `77a0273803ca29faa826ecbe09ee2100174c6c03f813e96dbf8c57acf5da21f9`. The guarded helper
+  rechecked the hash, destroyed its exact 15 resources, and deleted the captured temporary cluster
+  OIDC provider. The 16:49 Edmonton sweep returned zero temporary compute, network, storage,
+  database, load-balancing, alias, log, stack, and cluster-OIDC resources. Only the approved
+  persistent allowlist remains. All exact session files were removed from `/tmp`.
+- Temporary infrastructure existed for less than one hour, with no ALB/NAT/RDS; conservative
+  incremental cost is below USD 0.10 pending billing ingestion. P13.1 remains `IN PROGRESS`, and
+  T-1301 is not claimed because required managed-node/root-volume tag propagation was absent.
 
 Next action:
-1. Review the exact bounded T-1301 session sequence and prerequisites with the owner. Do not mark
-   PR #55 ready, merge, apply AWS changes, dispatch the workflow, or start P13.2 without the next
-   explicit approvals.
+1. Implement and locally verify the durable Terraform tagging repair for both the primary and
+   P11 HA secondary node groups: add launch-template tag specifications for `instance` and
+   `volume`; move the 20-GiB root-volume configuration into each launch template and remove
+   `disk_size` from the node-group resources; and apply both standard tags to each backing Auto
+   Scaling group with `propagate_at_launch=true`, covering the ASG itself and future workers.
+   Review a fresh exact AWS plan before any new apply. PR ready/merge, workflow dispatch, T-1301
+   completion, and P13.2 remain separately gated.
 
 Hard boundaries: USD 20/month; ca-central-1; bedoux-admin only; no NAT Gateway; same-day teardown;
 never record account IDs, secrets, personal email addresses, or registrar details. No AWS session
-is open; current P13.1 implementation and proof are local-only.
+is open and no temporary AWS resource is live; P13.1 still awaits T-1301.
 ```

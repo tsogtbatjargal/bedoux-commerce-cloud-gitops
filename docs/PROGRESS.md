@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P13 — Delivery maturity |
 | Active task | P13.1 IN PROGRESS — review the merged deployment path, then implement and locally prove a staged/canary rollout with an automated health gate. |
-| Last verified | 2026-08-28T11:06:22-06:00 — draft PR #55 is open and mergeable; all four initial checks passed in run `33192970640`. P13.1 remains active pending live T-1301. |
-| AWS resources currently live | Persistent allowlist only: one protected state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider, and the `bedoux.ca` public Route 53 zone with its issued ACM certificate and two validation records. No temporary compute, network, storage, database, load-balancing, alias, or cluster-OIDC resource remains. |
-| Month-to-date estimated AWS spend | USD 5.384 budget actual at the 2026-08-26 P12 closeout; delayed session charges may not yet be reflected, but the bounded shape remains below the reviewed USD 1 session estimate. |
-| Next operator action | Review the exact live T-1301 session plan and prerequisites for draft PR #55. Do not mark ready, merge, apply AWS changes, dispatch a workflow, or start P13.2 without the next explicit approvals. |
+| Last verified | 2026-08-28T16:49:17-06:00 — approved exact destroy plan removed all 15 temporary Terraform resources; the captured temporary cluster OIDC provider was deleted and the full teardown inventory sweep returned zero temporary resources. |
+| AWS resources currently live | Persistent allowlist only: one protected state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider, and the `bedoux.ca` public Route 53 zone with its issued ACM certificate and validation records. No temporary compute, network, storage, database, load-balancing, alias, or cluster-OIDC resource remains. |
+| Month-to-date estimated AWS spend | USD 5.915 budget actual and USD 6.603 forecast at the 2026-08-28 T-1301 preflight; the reviewed four-hour session shape remains below USD 1. |
+| Next operator action | Implement and locally verify the durable Terraform tagging repair for both the primary and P11 HA secondary node groups: launch-template tag specifications for `instance` and `volume`; a 20-GiB root-volume block in each launch template with node-group `disk_size` removed; and both standard tags on the backing Auto Scaling groups with `propagate_at_launch=true`, covering each ASG itself and future workers. Then obtain review of a fresh exact AWS plan. P13.1 remains active; T-1301 is not claimed, and PR ready/merge, workflow dispatch, and P13.2 remain separately gated. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -686,6 +686,152 @@ P13.1 is in progress with its local rehearsal complete and live T-1301 evidence 
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-28T16:49:17-06:00 — approved exact teardown complete; clean sweep — Codex
+
+- **Exact approval and apply:** the owner approved destroy-plan SHA-256
+  `77a0273803ca29faa826ecbe09ee2100174c6c03f813e96dbf8c57acf5da21f9`. The guarded helper
+  rechecked that unchanged hash, started at 16:38:25 Edmonton with 3,997 seconds before cutoff,
+  and applied only that binary: zero added, zero changed, and exactly 15 destroyed.
+- **OIDC cleanup:** after Terraform completed, the helper deleted the captured temporary cluster
+  OIDC provider. No application, Ingress, Helm release, ALB, target group, namespace, PVC,
+  controller, or StorageClass had been created, so no application-layer cleanup was required.
+- **Full clean sweep:** at 16:49:17 Edmonton, counts were zero for EKS clusters, project VPCs,
+  active instances, NAT Gateways, EIPs, load balancers, target groups, available/in-use EBS
+  volumes, self-owned snapshots, RDS instances/snapshots/subnet groups, active CloudFormation
+  stacks, project log groups, website aliases, and temporary cluster OIDC providers.
+- **Persistent allowlist:** retained exactly two ECR repositories, one state bucket, six IAM roles,
+  GitHub OIDC, one Route 53 public zone, and one issued certificate with validation records. The
+  remaining Terraform state contains only data sources plus the protected Route 53/ACM resources.
+- **Local evidence cleanup:** removed the exact create/destroy plan binaries and JSON, temporary
+  kubeconfig, and captured OIDC ARN file from `/tmp`; none is committed.
+- **Cost and outcome:** temporary infrastructure existed for less than one hour, no ALB/NAT/RDS
+  was created, and conservative incremental cost is estimated below USD 0.10 pending billing
+  ingestion. P13.1 remains `IN PROGRESS`; T-1301 is not claimed because the managed instance/root
+  volume lacked required propagated tags. Next repair both the primary and P11 HA secondary node
+  groups: add launch-template `instance`/`volume` tag specifications, move the 20-GiB root-volume
+  setting into each launch template and remove node-group `disk_size`, and tag each backing Auto
+  Scaling group with both standard tags and `propagate_at_launch=true`. Verify locally before
+  generating a fresh exact AWS plan. The 19:00 alarm may be canceled.
+
+### 2026-08-28T16:35:54-06:00 — exact temporary-only destroy plan awaiting approval — Codex
+
+- **Owner direction:** after the managed-node tag blocker, the owner instructed `Teardown now`.
+  No application namespace, Ingress, Helm release, ALB, or target group existed, so no ordered
+  Kubernetes/load-balancer deletion was required before infrastructure teardown.
+- **Guarded preparation:** captured the exact temporary cluster OIDC provider for explicit
+  post-cluster deletion. Detached 20 persistent ECR/IAM/GitHub-OIDC addresses and the cluster
+  OIDC provider from Terraform state; this state-only action changed no AWS resource. Protected
+  Route 53/ACM state remains attached and outside the destroy targets.
+- **Exact destroy plan:** `/tmp/bedoux-session-destroy.tfplan` is 57,812 bytes and hashes to
+  `77a0273803ca29faa826ecbe09ee2100174c6c03f813e96dbf8c57acf5da21f9`. It contains exactly 15
+  deletes and zero create/update/replace action: two pinned add-ons, two access entries, two access
+  associations, one EKS cluster, one node group, one Internet Gateway, one route table, two route
+  associations, two public subnets, and one VPC.
+- **Persistent-resource proof:** machine inspection found no delete under ECR, cluster IAM,
+  GitHub Actions OIDC/role/policy, workload IAM roles/policies/attachments, or Route 53/ACM.
+  Destroy has not applied and the temporary cluster remains live while awaiting exact-hash approval.
+- **Next action:** owner approves or rejects the exact SHA-256 above. Apply only that unchanged
+  binary; the helper then deletes the captured temporary cluster OIDC provider. Complete the full
+  inventory sweep before the 17:45 Edmonton cutoff.
+
+### 2026-08-28T16:21:27-06:00 — approved T-1301 plan applied; managed-node tag blocker — Codex
+
+- **Exact approval/apply:** the owner approved saved-plan SHA-256
+  `ce72db3e6c6a1d39680784a7fb680f93195f824265121a185ce6c1bb5dc49376`. Immediately before apply,
+  its hash matched, the caller remained non-root `bedoux-admin` in `ca-central-1`, the temporary
+  inventory was empty, and 6,072 seconds remained before cutoff. Terraform applied only that
+  binary: 25 resources added, 11 changed in place, and zero destroyed.
+- **Healthy infrastructure:** EKS 1.34 is `ACTIVE`; one Ready `t3.medium` Spot node is fixed at
+  desired/min/max 1/1/1; EBS CSI `v1.63.1-eksbuild.1` and VPC CNI `v1.22.4-eksbuild.3` are both
+  `ACTIVE` with no health issues. EBS CSI briefly reported `InsufficientNumberOfReplicas` while
+  starting, but read-only Kubernetes inspection showed both controller pods 6/6 Running and its
+  node pod 3/3 Running before AWS reconciled the add-on to `ACTIVE`.
+- **Guardrail verification:** one project VPC is live with two public subnets and an Internet
+  Gateway; NAT Gateway, EIP, ALB, target group, available EBS volume, RDS, optional managed
+  services, and website aliases remain zero. The certificate remains issued. The GitHub access
+  entry has only `bedoux-ci-targetgroupbinding-reader`, and the deployed policy contains exactly
+  the five approved ELB Describe actions.
+- **Blocking tag finding:** the project-tag inventory contains 15 resources and every returned
+  resource has `environment=learning`, but the EKS-managed EC2 instance and its root gp3 volume
+  have neither standard tag. The backing Auto Scaling group also has neither tag configured with
+  propagate-at-launch. EKS node-group tags therefore did not satisfy the repository's requirement
+  that every AWS resource carry `project=bedoux-commerce-cloud` and `environment=learning`.
+- **Stop boundary:** no namespace/RBAC/StorageClass/controller bootstrap, PR change, workflow
+  dispatch, or application deployment occurred. Live tag repair is a new AWS mutation outside the
+  exact approved plan and requires separate review/authorization. P13.1 remains `IN PROGRESS` and
+  T-1301 is not claimed.
+- **Deadline:** the 19:00 Edmonton alarm and 17:45 teardown cutoff remain active. If no reviewed
+  remediation is authorized with enough teardown reserve, begin guarded teardown immediately.
+
+### 2026-08-28T16:00:55-06:00 — exact T-1301 saved plan ready for separate approval — Codex
+
+- **Owner boundary:** the owner confirmed a 19:00 Edmonton alarm and 17:45 teardown cutoff and
+  authorized read-only T-1301 preflight, persistent-state reconciliation, and exact saved-plan
+  generation only. No apply, PR state change, workflow dispatch, or Kubernetes mutation is
+  authorized by that instruction.
+- **Fresh preflight:** at 15:54 Edmonton, confirmed the non-root `bedoux-admin` identity in
+  `ca-central-1`; budget actual USD 5.915 and forecast USD 6.603 against the USD 20 cap; current
+  Spot `t3.medium` USD 0.0182/hour; and zero temporary EKS, VPC, instance, NAT Gateway, EIP,
+  load-balancing, EBS, RDS, CloudFormation, or project log resources. The approved persistent
+  inventory remains one state bucket, two ECR repositories, six IAM roles, GitHub OIDC provider,
+  and one `bedoux.ca` zone/certificate set. The conservative four-hour estimate remains below
+  USD 1 and the USD 4 session stop condition.
+- **State reconciliation:** backend initialization succeeded at exact Terraform source head
+  `efb3b065a2264ac93f1d5af2490dbfb769d9664e`. Contrary to the preceding detached-state wording,
+  the protected Route 53/ACM resources were already attached to remote state; the guarded helper
+  imported the existing allowlisted ECR/IAM/GitHub-OIDC objects only. This changed Terraform state,
+  not AWS resources.
+- **Exact plan:** `/tmp/bedoux-p13-t1301-20260828-1558.tfplan` was generated with the persistent
+  Route 53 zone and certificate enabled and aliases disabled. Its SHA-256 is
+  `ce72db3e6c6a1d39680784a7fb680f93195f824265121a185ce6c1bb5dc49376` (52,602 bytes). Apply has
+  not run.
+- **Machine review:** 25 creates, 11 in-place updates, zero deletes, and zero replacements. The
+  plan has one EKS 1.34 cluster, one Spot `t3.medium` node group fixed at desired/min/max 1/1/1,
+  pinned EBS CSI `v1.63.1-eksbuild.1` and VPC CNI `v1.22.4-eksbuild.3`, two public subnets and one
+  Internet Gateway, no NAT Gateway/EIP, and no RDS/S3-images/Secrets/observability resources.
+  Every taggable change has both standard tags. The existing hosted zone, certificate, validation,
+  and DNS records are all no-op, and no website alias exists in the plan.
+- **Access review:** the GitHub EKS entry receives only group
+  `bedoux-ci-targetgroupbinding-reader`; its managed edit association remains namespace-scoped to
+  `bedoux`. The deployment policy adds exactly `DescribeLoadBalancers`, `DescribeListeners`,
+  `DescribeRules`, `DescribeTargetGroupAttributes`, and `DescribeTargetHealth`; it adds no ELB
+  mutation action.
+- **Temporary evidence:** the binary and machine-readable JSON remain under `/tmp` for exact-plan
+  approval and must not be committed. Persistent state remains attached while this bounded session
+  awaits the owner's separate hash decision.
+- **AWS/Kubernetes/cost:** read-only AWS APIs plus Terraform state imports only; no AWS or
+  Kubernetes resource was created, modified, or deleted. Incremental resource cost remains USD 0.
+- **Next action:** owner approves or rejects the exact SHA-256 above. Apply only that unchanged
+  binary after explicit approval; otherwise detach persistent state and remove the temporary plan
+  evidence by the 17:45 cutoff.
+
+### 2026-08-28T15:44:06-06:00 — T-1301 preflight passed; session stopped after cutoff — Codex
+
+- **Owner boundary:** the owner set a 16:05 Edmonton alarm and 14:50 teardown cutoff, authorizing
+  read-only T-1301 preflight, persistent-state reconciliation, and exact saved-plan generation
+  only. Apply, PR state changes, workflow dispatch, and Kubernetes mutation were not authorized.
+- **Read-only preflight:** confirmed the non-root `bedoux-admin` identity in `ca-central-1`;
+  monthly budget actual USD 5.914 and forecast USD 6.603 against the USD 20 cap; zero temporary
+  EKS, VPC, instance, NAT Gateway, EIP, load-balancing, EBS, RDS, CloudFormation, or project log
+  resources; and only the approved persistent-resource allowlist. Current `t3.medium` Spot and
+  exact regional EKS/ALB rates keep the conservative four-hour estimate below USD 1, beneath the
+  USD 4 session and USD 16 forecast stop conditions.
+- **PR evidence refreshed:** draft PR #55 remains open and cleanly mergeable at exact head
+  `efb3b065a2264ac93f1d5af2490dbfb769d9664e` over base
+  `386f66ea8788010ada8c4f8ef535291c13121cc6`; exact-head run `33193213907` passed all four jobs.
+  No ready, merge, or dispatch action occurred.
+- **Stop condition:** execution resumed at 15:44 Edmonton, after the recorded 14:50 cutoff.
+  Terraform initialization also failed before backend access because the sandbox blocked DNS to
+  AWS STS. The persistent-state import never ran, no saved plan or plan hash was produced, and no
+  Terraform apply was attempted.
+- **AWS/Kubernetes/cost:** read-only AWS APIs only; no AWS or Kubernetes resource was created,
+  modified, or deleted. Estimated incremental resource cost USD 0. No temporary resource needs
+  teardown.
+- **Next action:** open a fresh owner-authorized session with a new alarm and cutoff, rerun the
+  current preflight, initialize Terraform with approved network access, import only persistent
+  resources into state, generate and inspect a zero-delete/zero-replace saved plan, and stop at
+  its exact SHA-256 for separate apply approval.
 
 ### 2026-08-28T11:06:22-06:00 — draft P13.1 PR #55 opened; initial checks green — Codex
 
