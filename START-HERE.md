@@ -177,7 +177,8 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   handling, injected ALB pod-readiness conditions, exact 100/0 before the drain clock, and
   stable-only cleanup while retaining the stable target group. The owner accepted ADR 0023 on
   2026-08-28 against implementation `6cdb54c` and checkpoint `791b0e4`; focused PR preparation is
-  next, while live T-1301 remains pending. The retained Calico-backed kind node is
+  complete. Draft PR #55 is open and its initial four-job validation run `33192970640` passed;
+  the PR remains unmerged while live T-1301 is pending. The retained Calico-backed kind node is
   stopped with its PVC preserved and the host inotify value restored to 128. The default kubeconfig
   context still points at the deleted EKS endpoint, so always use an explicit context.
 - Repository workflow skills are validated and published on `main` through merged PR #47

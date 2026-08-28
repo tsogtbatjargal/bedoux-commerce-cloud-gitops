@@ -72,11 +72,14 @@ Current state as of 2026-08-28:
 
 The owner accepted ADR 0023 on 2026-08-28 against implementation `6cdb54c` as represented by
 checkpoint `791b0e4`. This permits PR and live-plan preparation, not merge or AWS execution.
+- Draft PR #55 targets `main` from `p13-1-canary`; its initial exact-head run `33192970640` passed
+  API, web, Terraform/Helm, and container build/scan/SBOM/signature jobs. It remains draft and
+  unmerged; live T-1301 is deliberately deferred.
 
 Next action:
-1. Prepare the focused P13.1 PR when explicitly authorized, then prepare the reviewed live T-1301
-   session sequence. Do not merge, apply AWS changes, dispatch the workflow, or start P13.2 without
-   the next explicit approvals.
+1. Review the exact bounded T-1301 session sequence and prerequisites with the owner. Do not mark
+   PR #55 ready, merge, apply AWS changes, dispatch the workflow, or start P13.2 without the next
+   explicit approvals.
 
 Hard boundaries: USD 20/month; ca-central-1; bedoux-admin only; no NAT Gateway; same-day teardown;
 never record account IDs, secrets, personal email addresses, or registrar details. No AWS session

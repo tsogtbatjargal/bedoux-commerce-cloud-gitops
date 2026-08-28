@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P13 — Delivery maturity |
 | Active task | P13.1 IN PROGRESS — review the merged deployment path, then implement and locally prove a staged/canary rollout with an automated health gate. |
-| Last verified | 2026-08-28T10:55:56-06:00 — owner accepted ADR 0023 against implementation `6cdb54c` and branch checkpoint `791b0e4`; P13.1 remains active pending live T-1301. |
+| Last verified | 2026-08-28T11:06:22-06:00 — draft PR #55 is open and mergeable; all four initial checks passed in run `33192970640`. P13.1 remains active pending live T-1301. |
 | AWS resources currently live | Persistent allowlist only: one protected state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider, and the `bedoux.ca` public Route 53 zone with its issued ACM certificate and two validation records. No temporary compute, network, storage, database, load-balancing, alias, or cluster-OIDC resource remains. |
 | Month-to-date estimated AWS spend | USD 5.384 budget actual at the 2026-08-26 P12 closeout; delayed session charges may not yet be reflected, but the bounded shape remains below the reviewed USD 1 session estimate. |
-| Next operator action | Prepare the focused P13.1 PR and reviewed live T-1301 session plan. Do not merge, apply AWS changes, or start P13.2 without the next explicit approvals. |
+| Next operator action | Review the exact live T-1301 session plan and prerequisites for draft PR #55. Do not mark ready, merge, apply AWS changes, dispatch a workflow, or start P13.2 without the next explicit approvals. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -686,6 +686,22 @@ P13.1 is in progress with its local rehearsal complete and live T-1301 evidence 
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-28T11:06:22-06:00 — draft P13.1 PR #55 opened; initial checks green — Codex
+
+- **Owner authorization:** the owner explicitly authorized opening the focused P13.1 PR. This did
+  not authorize merge, AWS execution, workflow dispatch, or P13.2.
+- **PR state:** draft PR #55 targets `main` from `p13-1-canary` at exact head `b74e00f`; GitHub
+  reports it open and mergeable. Its body records scope, local evidence, asynchronous-ALB risks,
+  rollback, and the deliberately deferred live T-1301 proof.
+- **CI evidence:** initial PR validation run `33192970640` passed all four jobs: API tests, web
+  lint/test/build, Terraform and Helm validation, and container build/scan/SBOM/signature
+  verification. The web job retained only its known non-blocking Fast Refresh annotation.
+- **State boundary:** ADR 0023 remains Accepted and P13.1 remains `IN PROGRESS`. The PR stays draft;
+  live T-1301, baseline deployment, PR merge, and P13.2 remain pending separate approvals.
+- **AWS/Kubernetes/cost:** no endpoint contacted and no resource changed; estimated AWS cost USD 0.
+- **Next action:** publish this PR checkpoint, then review the exact bounded T-1301 session plan and
+  prerequisites with the owner.
 
 ### 2026-08-28T10:55:56-06:00 — ADR 0023 accepted by owner — Codex
 
