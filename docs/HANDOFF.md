@@ -43,8 +43,8 @@ Current state as of 2026-08-28:
   that merge. Merged P12 branches are deleted locally/remotely; the registrar export in the
   primary worktree remains intentionally untracked and untouched.
 - This worktree is on feature branch `p13-1-canary` from exact merge `386f66e`, with the expected
-  post-merge checkpoint and focused P13.1 implementation. Verify its publication state from Git;
-  never push `main`.
+  post-merge checkpoint and focused P13.1 implementation. The latest reviewed hardening is
+  published as `6cdb54c` on `origin/p13-1-canary`; no PR exists yet. Never push `main`.
 - Proposed ADR 0023 keeps one Helm release and adds opt-in stable/canary API+web pairs,
   controller-native ALB/ingress-nginx weighting, an exact-image/health/error gate, and an automated
   stage → gate → reconciled 100/0 promotion → cleanup helper. The existing signed-image deployment

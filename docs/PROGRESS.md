@@ -712,8 +712,10 @@ Append newest entries immediately below this heading. Never include secrets or A
   filesystem sandbox only because provider plugins cannot start inside it; no AWS endpoint was
   contacted.
 - **AWS/Kubernetes/cost:** no endpoint contacted and no resource changed; estimated AWS cost USD 0.
-- **Next action:** publish the already-authorized focused fix, then obtain independent technical
-  re-review. ADR 0023 remains Proposed, live T-1301 remains blocked, and P13.2 remains gated.
+- **Publication:** focused implementation commit `6cdb54c` was pushed to
+  `origin/p13-1-canary`; no PR was opened or merged.
+- **Next action:** obtain independent technical re-review of `6cdb54c`. ADR 0023 remains Proposed,
+  live T-1301 remains blocked, and P13.2 remains gated.
 
 ### 2026-08-28T09:46:55-06:00 — P13.1 hardening resumed and revalidated — Codex
 
