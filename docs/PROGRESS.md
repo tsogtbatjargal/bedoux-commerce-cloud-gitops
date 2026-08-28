@@ -11,7 +11,7 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P13 — Delivery maturity |
 | Active task | P13.1 IN PROGRESS — review the merged deployment path, then implement and locally prove a staged/canary rollout with an automated health gate. |
-| Last verified | 2026-08-27T18:29:25-06:00 — P13.1 review hardening passes full local validation: exact ALB rule/health gates, stable target-group identity preservation, complete cleanup assertions, narrow TGB RBAC, Helm/Terraform/YAML/docs/action-pin/whitespace checks. |
+| Last verified | 2026-08-28T09:46:55-06:00 — resumed P13.1 second-review hardening passes the complete local suite: promotion/cleanup and pod-readiness mocks, Helm renders, three Terraform profiles, YAML/docs/action-pin/whitespace checks. |
 | AWS resources currently live | Persistent allowlist only: one protected state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider, and the `bedoux.ca` public Route 53 zone with its issued ACM certificate and two validation records. No temporary compute, network, storage, database, load-balancing, alias, or cluster-OIDC resource remains. |
 | Month-to-date estimated AWS spend | USD 5.384 budget actual at the 2026-08-26 P12 closeout; delayed session charges may not yet be reflected, but the bounded shape remains below the reviewed USD 1 session estimate. |
 | Next operator action | Obtain independent technical re-review of the hardened Proposed ADR 0023 and exact diff. After acceptance, prepare the focused PR and reviewed live T-1301 session plan; do not start P13.2. |
@@ -686,6 +686,59 @@ P13.1 is in progress with its local rehearsal complete and live T-1301 evidence 
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-28T09:46:55-06:00 — P13.1 hardening resumed and revalidated — Codex
+
+- **Checkpoint:** resumed the focused uncommitted follow-up on `p13-1-canary` at published commit
+  `e4af433`; P13.1 remains the only active item, ADR 0023 remains Proposed, live T-1301 remains
+  blocked, and P13.2 remains gated.
+- **Final safety refinement:** bounded public ALB probes now suppress curl error details that could
+  print the discovered hostname and cap each attempt at five seconds. Failures remain counted and
+  fail closed; no evidence requirement was weakened.
+- **Revalidation:** shell syntax/help/dry-runs pass; staged/promotion/cleanup and lingering-90/10
+  listener mocks pass; healthy/missing/unhealthy pod-readiness mocks pass; Helm lint and all five
+  stable/staged/promotion/cleanup renders parse; all three credential-disabled Terraform profiles
+  validate; workflow/Kubernetes YAML parse; all 18 action references remain immutable-pinned;
+  toolbox `make docs-check` and `git diff --check` pass.
+- **AWS/Kubernetes/cost:** no endpoint contacted and no resource changed; estimated AWS cost USD 0.
+- **Publication boundary:** proceed only with the already-authorized focused commit and feature-
+  branch push. Do not open/merge a PR, accept ADR 0023, start AWS, or activate P13.2.
+
+### 2026-08-27T19:29:03-06:00 — P13.1 second acceptance race addressed locally — Codex
+
+- **Independent review result:** ADR 0023 remains unaccepted. The second review correctly found
+  that Kubernetes rollout status started the drain timer without proving the ALB's desired 100/0
+  action had reconciled, and that replacing the single stable web pod lacked an explicit ALB target
+  readiness contract. It also identified the gap between declared 90/10 routing and observed public
+  canary traffic.
+- **Promotion/cleanup ordering:** the ALB gate now has explicit `staged`, `promotion`, and `cleanup`
+  modes. Promotion requires both stable and canary `TargetGroupBinding` objects, the exact listener
+  mapping stable 100/canary 0, and a fully healthy stable target group. Only that passing state can
+  start the 45-second drain timer. A mock listener left at 90/10 fails closed. If this gate fails
+  after promotion, the helper preserves canary resources and refuses drain/cleanup.
+- **Safe abort ordering:** a pre-promotion failure no longer disables canary in the same change that
+  requests stable-only traffic. It restores the captured stable images while retaining canary at
+  0%, requires the same 100/0 ALB reconciliation, waits the drain hold, and only then removes canary.
+  A failed abort reconciliation also preserves the canary resources for diagnosis.
+- **ALB readiness contract:** `k8s/00-namespace.yaml` enables controller readiness-gate injection
+  for the `bedoux` namespace. The runbook accounts for injection occurring only at pod creation
+  after the IP-mode Service and binding exist. New `p13-alb-pod-readiness-gate.sh` verifies the
+  actual active stable web pods—not merely the label—are Running/Ready and have a
+  `target-health.elbv2.k8s.aws/*` condition set `True` before normalization and after replacement.
+  Healthy, missing, and unhealthy local mocks prove the assertion fails closed.
+- **Public weighted evidence:** after exact 90/10 reconciliation, the gate sends 100 bounded public
+  ALB health requests with zero errors allowed and requires at least one unique probe marker in the
+  `web-canary` access log. This corroborates that real listener traffic reached the candidate before
+  promotion; the later stable-only public smoke remains unchanged.
+- **Verification:** P13 shell syntax/help/dry-runs and all fail-closed mocks pass; Helm lint plus
+  stable, kind-staged, ALB-staged, ALB-promotion, and ALB-cleanup renders/YAML parse pass; all three
+  credential-disabled Terraform profiles validate; workflow/Kubernetes YAML parses; all 18 actions
+  remain immutable-pinned; toolbox `make docs-check` and `git diff --check` pass.
+- **Publication boundary:** the owner's prior request remains limited to a focused commit and push
+  on `p13-1-canary`. It does not accept ADR 0023, authorize PR merge/live AWS work, or start P13.2.
+- **AWS/Kubernetes/cost:** no endpoint contacted and no resource changed; estimated AWS cost USD 0.
+- **Next action:** publish the focused follow-up after final diff review, then request another
+  independent technical review. ADR 0023 remains Proposed and live T-1301 remains blocked.
 
 ### 2026-08-27T18:21:21-06:00 — P13.1 acceptance blocker addressed locally — Codex
 

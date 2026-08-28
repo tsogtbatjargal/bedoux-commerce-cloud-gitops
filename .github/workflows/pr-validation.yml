@@ -182,16 +182,24 @@ jobs:
           bash -n scripts/p13-canary-gate.sh
           bash -n scripts/p13-canary-rollout.sh
           bash -n scripts/p13-alb-reconciliation-gate.sh
+          bash -n scripts/p13-alb-pod-readiness-gate.sh
           bash -n scripts/test-p13-alb-reconciliation-gate.sh
+          bash -n scripts/test-p13-alb-pod-readiness-gate.sh
           scripts/p13-canary-gate.sh --help >/dev/null
           scripts/p13-canary-rollout.sh --help >/dev/null
           scripts/p13-alb-reconciliation-gate.sh --help >/dev/null
+          scripts/p13-alb-pod-readiness-gate.sh --help >/dev/null
           scripts/p13-alb-reconciliation-gate.sh \
             --context bedoux \
             --aws-region ca-central-1 \
+            --mode staged \
             --expected-canary-weight 10 \
             --dry-run >/dev/null
           scripts/test-p13-alb-reconciliation-gate.sh
+          scripts/p13-alb-pod-readiness-gate.sh \
+            --context bedoux \
+            --dry-run >/dev/null
+          scripts/test-p13-alb-pod-readiness-gate.sh
           scripts/p13-canary-gate.sh \
             --context kind-bedoux \
             --expected-api-image localhost/bedoux-api:candidate \

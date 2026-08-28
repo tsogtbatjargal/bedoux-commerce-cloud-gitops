@@ -65,14 +65,29 @@ Complete every **Before the session** item in [`aws-session.md`](aws-session.md)
 
 ## Baseline, merge, and canary dispatch
 
-1. Create the bounded temporary EKS/VPC session and bootstrap namespace, `gp3`, and the pinned AWS
-   Load Balancer Controller using [`p6-4-ci-deploy.md`](p6-4-ci-deploy.md). As the cluster-admin
-   session operator, apply `k8s/ci-targetgroupbinding-reader.yaml`; it binds the GitHub access
-   entry's dedicated group to namespace-scoped `get/list` on only
-   `targetgroupbindings.elbv2.k8s.aws`. Do not grant CI EKS admin access.
+1. Create the bounded temporary EKS/VPC session and bootstrap `gp3` and the pinned AWS Load
+   Balancer Controller using [`p6-4-ci-deploy.md`](p6-4-ci-deploy.md). Apply
+   `k8s/00-namespace.yaml` before the baseline; its
+   `elbv2.k8s.aws/pod-readiness-gate-inject=enabled` label enables target-health readiness gates
+   for this IP-target namespace. As the cluster-admin session operator, apply
+   `k8s/ci-targetgroupbinding-reader.yaml`; it binds the GitHub access entry's dedicated group to
+   namespace-scoped `get/list` on only `targetgroupbindings.elbv2.k8s.aws`. Do not grant CI EKS
+   admin access.
 2. While the preceding P12 revision is still `main`, dispatch **Deploy learning session** with
    `seed_catalog=true` and every other option, including `canary_rollout`, false. Record the green
-   run and exact immutable API/web images. Prove ALB health and a non-empty catalog.
+   run and exact immutable API/web images. Prove ALB health and a non-empty catalog. Wait for the
+   stable `web` `TargetGroupBinding`. Because readiness gates are injected only at pod creation
+   after the matching Service/binding exists, restart `deployment/web` once if its initial pods
+   have no `target-health.elbv2.k8s.aws/*` gate, then wait for rollout and run:
+
+   ```text
+   scripts/p13-alb-pod-readiness-gate.sh \
+     --context bedoux \
+     --namespace bedoux \
+     --execute
+   ```
+
+   Do not merge or dispatch the canary until this reports every active stable web pod target-ready.
 3. Only after that baseline is healthy, obtain the owner's explicit PR merge approval. Merge the
    unchanged, green P13 branch to `main` and verify the exact merge SHA.
 4. Dispatch the new `main` workflow with `seed_catalog=false`, `canary_rollout=true`, and all
@@ -88,23 +103,32 @@ Complete every **Before the session** item in [`aws-session.md`](aws-session.md)
      active ALB listener rule to contain the exact 90/10 target-group ARN mapping and for every
      registered target in both non-empty groups to report `healthy`;
    - print a passing 20-request, zero-error `CANARY_GATE` result;
+   - send 100 bounded public ALB health requests at 90/10 with zero errors and prove at least one
+     request reached `web-canary` through a unique access-log correlation marker;
    - promote the verified candidate through a 100/0 split;
+   - require every active replacement stable web pod's injected ALB target-health condition to be
+     `True`, both target-group bindings to remain present, the listener to reconcile exact 100/0,
+     and the stable target group to be fully healthy before starting the drain timer;
    - remove zero-weight canary resources after the bounded drain hold, retain the same ALB action
      backend with only stable `web` at 100%, and wait for the stable-only listener/health state;
    - pass the existing public ALB health/catalog smoke.
 
-5. Record Helm history, sanitized `ALB_RECONCILIATION_GATE` output, and Kubernetes output showing
-   stable-only action normalization, stage, promotion, cleanup, final stable candidate images, no canary
-   Deployments/Services/Ingresses, no canary `TargetGroupBinding`, and the stable-only action.
-   Explicitly verify the stable target group was retained throughout the transition and public
-   requests remained healthy. This is T-1301 evidence only.
+5. Record Helm history, sanitized `ALB_RECONCILIATION_GATE`, `ALB_POD_READINESS_GATE`,
+   `PUBLIC_CANARY_GATE`, and Kubernetes output showing stable-only action normalization, stage,
+   promotion, cleanup, final stable candidate images, no canary Deployments/Services/Ingresses, no
+   canary `TargetGroupBinding`, and the stable-only action. Explicitly verify the stable target
+   group was retained throughout the transition and public requests remained healthy. This is
+   T-1301 evidence only.
 
-Stop immediately if the baseline is absent, a running image is not digest-pinned, the staged
-weight differs from 10%, the listener rule is not reconciled, either target group is empty or has
-a non-healthy target, the gate reports any error, promotion begins before the gate passes, cleanup
-changes away from the named action backend, or the public smoke fails. The helper automatically
-restores the captured stable images for any pre-promotion failure and verifies the same stable-only
-cleanup contract. Diagnose and recover before teardown; do not begin P13.2.
+Stop immediately if the baseline is absent, a running image is not digest-pinned, stable web pods
+lack a healthy injected ALB readiness gate, the staged weight differs from 10%, the listener rule
+is not reconciled, either staged target group is empty or has a non-healthy target, the gate or
+public sample reports any error, no public request is correlated to `web-canary`, promotion begins
+before the staged gate passes, the exact 100/0 listener/stable-health state is absent before drain,
+cleanup changes away from the named action backend, or the public smoke fails. For a pre-promotion
+failure, the helper restores the captured stable images through reconciled 100/0 plus the drain hold
+before disabling canary. If that reconciliation fails, it preserves canary resources for diagnosis
+instead of cleaning them up. Diagnose and recover before teardown; do not begin P13.2.
 
 ## Teardown
 

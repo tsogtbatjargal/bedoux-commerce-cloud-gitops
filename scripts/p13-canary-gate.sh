@@ -18,6 +18,7 @@ Options:
   --namespace NAME            Namespace (default: bedoux).
   --weight N                  Expected controller traffic percentage (default: 10).
   --attempts N                Direct canary health samples (default: 20).
+  --public-attempts N         Public ALB weighted samples (default: 100).
   --max-errors N              Allowed failed samples (default: 0).
   --aws-region REGION         Required when the active Ingress class is ALB.
   --alb-timeout-seconds N     ALB reconciliation deadline (default: 300).
@@ -29,8 +30,9 @@ Options:
 The gate is read-only apart from kubectl exec processes inside the existing canary
 web pod. It verifies exact images, one available pod per canary Deployment, the
 controller's staged weight, health JSON, a non-empty catalog, and the sampled error
-rate. For ALB it also requires the listener rule and both target groups to reconcile
-with every registered target healthy. It creates no Kubernetes or AWS resource.
+rate. For ALB it also requires the listener rule and both target groups to reconcile,
+then correlates bounded public requests with the canary web access log. It creates no
+Kubernetes or AWS resource.
 EOF
 }
 
@@ -40,6 +42,7 @@ expected_api_image=""
 expected_web_image=""
 weight=10
 attempts=20
+public_attempts=100
 max_errors=0
 aws_region=""
 alb_timeout_seconds=300
@@ -48,7 +51,7 @@ execute=false
 
 while (($#)); do
   case "$1" in
-    --context|--namespace|--expected-api-image|--expected-web-image|--weight|--attempts|--max-errors|--aws-region|--alb-timeout-seconds|--alb-poll-seconds)
+    --context|--namespace|--expected-api-image|--expected-web-image|--weight|--attempts|--public-attempts|--max-errors|--aws-region|--alb-timeout-seconds|--alb-poll-seconds)
       if (($# < 2)) || [[ "$2" == --* ]]; then
         usage >&2
         exit 2
@@ -60,6 +63,7 @@ while (($#)); do
         --expected-web-image) expected_web_image="$2" ;;
         --weight) weight="$2" ;;
         --attempts) attempts="$2" ;;
+        --public-attempts) public_attempts="$2" ;;
         --max-errors) max_errors="$2" ;;
         --aws-region) aws_region="$2" ;;
         --alb-timeout-seconds) alb_timeout_seconds="$2" ;;
@@ -89,25 +93,27 @@ if [[ -z "$context" || -z "$expected_api_image" || -z "$expected_web_image" ]]; 
   printf '%s\n' 'REFUSING: --context and both expected image references are required.' >&2
   exit 2
 fi
-for value_name in weight attempts max_errors alb_timeout_seconds alb_poll_seconds; do
+for value_name in weight attempts public_attempts max_errors alb_timeout_seconds alb_poll_seconds; do
   value="${!value_name}"
   if [[ ! "$value" =~ ^[0-9]+$ ]]; then
     printf 'REFUSING: --%s must be a non-negative integer.\n' "${value_name//_/-}" >&2
     exit 2
   fi
 done
-if ((weight < 1 || weight > 50 || attempts < 1 || max_errors >= attempts || \
+if ((weight < 1 || weight > 50 || attempts < 1 || public_attempts < 1 || public_attempts > 200 || \
+     max_errors >= attempts || \
      alb_timeout_seconds < 1 || alb_timeout_seconds > 600 || \
      alb_poll_seconds < 1 || alb_poll_seconds > 30)); then
-  printf '%s\n' 'REFUSING: require weight 1..50, attempts >= 1, max-errors < attempts, ALB timeout 1..600s, and poll 1..30s.' >&2
+  printf '%s\n' 'REFUSING: require weight 1..50, attempts >= 1, public-attempts 1..200, max-errors < attempts, ALB timeout 1..600s, and poll 1..30s.' >&2
   exit 2
 fi
 
 if [[ "$execute" == false ]]; then
-  printf 'DRY RUN: context=<explicit> namespace=%s weight=%d attempts=%d max_errors=%d\n' \
-    "$namespace" "$weight" "$attempts" "$max_errors"
+  printf 'DRY RUN: context=<explicit> namespace=%s weight=%d attempts=%d public_attempts=%d max_errors=%d\n' \
+    "$namespace" "$weight" "$attempts" "$public_attempts" "$max_errors"
   printf '%s\n' 'DRY RUN: verify exact canary images, one available pod per Deployment, and controller weight.'
   printf '%s\n' 'DRY RUN: for ALB, require exact reconciled listener weights and all targets healthy.'
+  printf '%s\n' 'DRY RUN: for ALB, send bounded public probes and require a matching web-canary access log.'
   printf '%s\n' 'DRY RUN: sample /api/health through web-canary, then require a non-empty canary catalog.'
   exit 0
 fi
@@ -185,10 +191,43 @@ if [[ "$controller_kind" == "alb" ]]; then
     --context "$context" \
     --namespace "$namespace" \
     --aws-region "$aws_region" \
+    --mode staged \
     --expected-canary-weight "$weight" \
     --timeout-seconds "$alb_timeout_seconds" \
     --poll-seconds "$alb_poll_seconds" \
     --execute
+
+  command -v curl >/dev/null
+  alb_hostname="$(kubectl "${kubectl_args[@]}" get ingress bedoux \
+    --output jsonpath='{.status.loadBalancer.ingress[0].hostname}')"
+  if [[ ! "$alb_hostname" =~ ^[A-Za-z0-9.-]+\.elb\.amazonaws\.com$ ]]; then
+    printf '%s\n' 'BLOCK: active ALB hostname is unavailable for the public weighted sample.' >&2
+    exit 1
+  fi
+  printf -v probe_prefix 'p13-canary-%05d-%05d' "$RANDOM" "$RANDOM"
+  public_errors=0
+  for ((attempt = 1; attempt <= public_attempts; attempt++)); do
+    if public_health_json="$(curl --fail --silent \
+      --connect-timeout 2 --max-time 5 \
+      "http://$alb_hostname/api/health?bedoux_canary_probe=$probe_prefix-$attempt")" && \
+      python -c 'import json, sys; assert json.load(sys.stdin).get("status") == "ok"' \
+        <<<"$public_health_json"; then
+      :
+    else
+      public_errors=$((public_errors + 1))
+    fi
+  done
+  canary_logs="$(kubectl "${kubectl_args[@]}" logs deployment/web-canary --since=5m)"
+  canary_hits="$(PROBE_PREFIX="$probe_prefix" python -c '
+import os, sys
+print(sys.stdin.read().count("bedoux_canary_probe=" + os.environ["PROBE_PREFIX"] + "-"))
+' <<<"$canary_logs")"
+  printf 'PUBLIC_CANARY_GATE attempts=%d errors=%d canary_log_hits=%d\n' \
+    "$public_attempts" "$public_errors" "$canary_hits"
+  if ((public_errors > max_errors || canary_hits < 1)); then
+    printf '%s\n' 'BLOCK: public 90/10 sample failed or did not reach web-canary.' >&2
+    exit 1
+  fi
 fi
 
 errors=0

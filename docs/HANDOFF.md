@@ -13,7 +13,7 @@ Continue bedoux-commerce-cloud from
 Start with START-HERE.md, AGENTS.md, and docs/PROGRESS.md. The progress file is authoritative.
 Use the active worktree/branch recorded by Git; preserve unrelated changes.
 
-Current state as of 2026-08-27:
+Current state as of 2026-08-28:
 - P0-P12 are complete and gate-approved. The owner explicitly approved the P12 gate on
   2026-08-26 and activated P13. P13.1 is the sole `IN PROGRESS` item; P13.2 remains gated.
 - ADR 0022 supersedes ADR 0021: the owner retired Shopify, selected the `bedoux.ca` apex plus
@@ -47,8 +47,8 @@ Current state as of 2026-08-27:
   never push `main`.
 - Proposed ADR 0023 keeps one Helm release and adds opt-in stable/canary API+web pairs,
   controller-native ALB/ingress-nginx weighting, an exact-image/health/error gate, and an automated
-  stage → gate → 100/0 promotion → cleanup helper. The existing signed-image deployment workflow
-  gains only an opt-in `canary_rollout` input.
+  stage → gate → reconciled 100/0 promotion → cleanup helper. The existing signed-image deployment
+  workflow gains only an opt-in `canary_rollout` input.
 - Helm lint/renders, shell syntax/help/dry-runs, workflow YAML, action pins, `git diff --check`, and
   toolbox `make docs-check` pass. No AWS endpoint was contacted.
 - The P13.1 local canary rehearsal passed on explicit context `kind-bedoux`: ingress-nginx staged
@@ -59,11 +59,12 @@ Current state as of 2026-08-27:
 - The two temporary image archives and redundant host-side candidate tags are gone. The retained
   kind node is stopped with its PVC, node-local candidate images, and promoted local release
   preserved. The owner restored the host inotify limit to 128.
-- Independent review withheld ADR 0023 acceptance because annotation intent did not prove ALB
-  reconciliation. The local hardening now maps Services through `TargetGroupBinding`, blocks
-  promotion until the exact ELB listener rule and both healthy target groups are observed, keeps
-  one stable action backend through cleanup, and verifies all canary object types plus the canary
-  target group are removed. Local staged/stable-only mocks pass and an unreconciled rule fails.
+- Two independent reviews withheld ADR 0023 acceptance for asynchronous ALB races. The local
+  hardening now maps Services through `TargetGroupBinding`, proves real 90/10 public traffic through
+  a correlated canary access-log hit, requires injected stable-pod ALB readiness, and blocks the
+  drain/cleanup block until the listener is exactly 100/0 with a healthy stable target group. It
+  then proves stable-only cleanup and complete canary-object removal. Staged, promotion, cleanup,
+  lingering-90/10, and pod-readiness mocks are fail-closed.
 
 Next action:
 1. Obtain independent technical re-review of hardened Proposed ADR 0023. The full local static

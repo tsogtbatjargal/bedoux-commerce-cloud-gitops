@@ -27,9 +27,10 @@ Options:
   --helm-set KEY=VALUE        Repeatable non-secret Helm --set override.
   --weight N                  Staged canary percentage (default: 10).
   --attempts N                Gate request count (default: 20).
+  --public-attempts N         Public ALB weighted samples (default: 100).
   --max-errors N              Gate error allowance (default: 0).
   --aws-region REGION         Required when the active Ingress class is ALB.
-  --alb-timeout-seconds N     ALB stage/cleanup reconciliation deadline (default: 300).
+  --alb-timeout-seconds N     ALB reconciliation deadline per state (default: 300).
   --alb-poll-seconds N        ALB reconciliation poll interval (default: 5).
   --drain-seconds N           100/0 hold before canary removal (default: 45).
   --timeout DURATION          Helm timeout (default: 10m).
@@ -37,9 +38,10 @@ Options:
   --execute                   Perform the rollout against the explicit context.
   --help                      Show this help.
 
-Before promotion, every failure reapplies the captured stable images with canary
-disabled. Each Helm mutation uses --atomic. The final 100/0 hold lets controllers
-reconcile away from canary targets before their bounded removal.
+Before promotion, every failure restores the captured stable images through a
+reconciled 100/0 hold before canary removal. Each Helm mutation uses --atomic. On
+ALB, the drain hold starts only after the listener is exactly 100/0 and stable pods
+and targets are confirmed healthy.
 EOF
 }
 
@@ -53,6 +55,7 @@ candidate_api_image=""
 candidate_web_image=""
 weight=10
 attempts=20
+public_attempts=100
 max_errors=0
 aws_region=""
 alb_timeout_seconds=300
@@ -65,7 +68,7 @@ declare -a helm_sets=()
 
 while (($#)); do
   case "$1" in
-    --context|--namespace|--release|--chart|--stable-api-image|--stable-web-image|--candidate-api-image|--candidate-web-image|--weight|--attempts|--max-errors|--aws-region|--alb-timeout-seconds|--alb-poll-seconds|--drain-seconds|--timeout|--values|--helm-set)
+    --context|--namespace|--release|--chart|--stable-api-image|--stable-web-image|--candidate-api-image|--candidate-web-image|--weight|--attempts|--public-attempts|--max-errors|--aws-region|--alb-timeout-seconds|--alb-poll-seconds|--drain-seconds|--timeout|--values|--helm-set)
       if (($# < 2)) || [[ "$2" == --* ]]; then
         usage >&2
         exit 2
@@ -81,6 +84,7 @@ while (($#)); do
         --candidate-web-image) candidate_web_image="$2" ;;
         --weight) weight="$2" ;;
         --attempts) attempts="$2" ;;
+        --public-attempts) public_attempts="$2" ;;
         --max-errors) max_errors="$2" ;;
         --aws-region) aws_region="$2" ;;
         --alb-timeout-seconds) alb_timeout_seconds="$2" ;;
@@ -111,17 +115,18 @@ if [[ -z "$context" || -z "$stable_api_image" || -z "$stable_web_image" || \
   printf '%s\n' 'REFUSING: explicit context and all four image references are required.' >&2
   exit 2
 fi
-for value_name in weight attempts max_errors alb_timeout_seconds alb_poll_seconds drain_seconds; do
+for value_name in weight attempts public_attempts max_errors alb_timeout_seconds alb_poll_seconds drain_seconds; do
   value="${!value_name}"
   if [[ ! "$value" =~ ^[0-9]+$ ]]; then
     printf 'REFUSING: --%s must be a non-negative integer.\n' "${value_name//_/-}" >&2
     exit 2
   fi
 done
-if ((weight < 1 || weight > 50 || attempts < 1 || max_errors >= attempts || \
+if ((weight < 1 || weight > 50 || attempts < 1 || public_attempts < 1 || public_attempts > 200 || \
+     max_errors >= attempts || \
      alb_timeout_seconds < 1 || alb_timeout_seconds > 600 || \
      alb_poll_seconds < 1 || alb_poll_seconds > 30)); then
-  printf '%s\n' 'REFUSING: require weight 1..50, attempts >= 1, max-errors < attempts, ALB timeout 1..600s, and poll 1..30s.' >&2
+  printf '%s\n' 'REFUSING: require weight 1..50, attempts >= 1, public-attempts 1..200, max-errors < attempts, ALB timeout 1..600s, and poll 1..30s.' >&2
   exit 2
 fi
 if [[ "$stable_api_image" == "$candidate_api_image" || \
@@ -138,15 +143,15 @@ for file in "${values_files[@]}"; do
 done
 
 if [[ "$execute" == false ]]; then
-  printf 'DRY RUN: context=<explicit> namespace=%s release=%s weight=%d attempts=%d max_errors=%d\n' \
-    "$namespace" "$release" "$weight" "$attempts" "$max_errors"
+  printf 'DRY RUN: context=<explicit> namespace=%s release=%s weight=%d attempts=%d public_attempts=%d max_errors=%d\n' \
+    "$namespace" "$release" "$weight" "$attempts" "$public_attempts" "$max_errors"
   printf '%s\n' 'DRY RUN: assert the running stable images exactly match the captured baseline.'
   printf '%s\n' 'DRY RUN: for ALB, normalize and reconcile the stable-only action before staging.'
-  printf '%s\n' 'DRY RUN: stage weighted traffic; for ALB, wait for exact listener/target-health reconciliation.'
-  printf 'DRY RUN: promote candidate at 100/0, hold %d seconds, then remove canary resources.\n' \
+  printf '%s\n' 'DRY RUN: stage weighted traffic; for ALB, prove exact 90/10 reconciliation and public canary handling.'
+  printf 'DRY RUN: promote candidate, prove ALB pod readiness and exact 100/0 reconciliation, hold %d seconds, then remove canary resources.\n' \
     "$drain_seconds"
   printf '%s\n' 'DRY RUN: verify canary Deployments, Services, Ingresses, and weighted targets are removed.'
-  printf '%s\n' 'DRY RUN: any pre-promotion failure reapplies the captured stable images with canary disabled.'
+  printf '%s\n' 'DRY RUN: any pre-promotion failure restores stable through reconciled 100/0 before canary removal.'
   exit 0
 fi
 
@@ -276,6 +281,7 @@ assert groups == {"web": 100}, groups
       --context "$context" \
       --namespace "$namespace" \
       --aws-region "$aws_region" \
+      --mode cleanup \
       --expected-canary-weight 0 \
       --timeout-seconds "$alb_timeout_seconds" \
       --poll-seconds "$alb_poll_seconds" \
@@ -288,7 +294,28 @@ assert groups == {"web": 100}, groups
 }
 
 abort_to_stable() {
-  printf '%s\n' 'ABORT: removing canary and restoring the captured stable images.' >&2
+  printf '%s\n' 'ABORT: restoring captured stable images and requesting 100/0 while retaining canary.' >&2
+  helm "${helm_base[@]}" "${stable_values[@]}" "${canary_candidate_values[@]}" \
+    --set canary.enabled=true --set canary.weight=0 --set migration.enabled=false
+  kubectl "${kubectl_args[@]}" rollout status deployment/api --timeout=5m
+  kubectl "${kubectl_args[@]}" rollout status deployment/web --timeout=5m
+  if [[ "$alb_rollout" == true ]]; then
+    scripts/p13-alb-pod-readiness-gate.sh \
+      --context "$context" \
+      --namespace "$namespace" \
+      --execute
+    scripts/p13-alb-reconciliation-gate.sh \
+      --context "$context" \
+      --namespace "$namespace" \
+      --aws-region "$aws_region" \
+      --mode promotion \
+      --expected-canary-weight 0 \
+      --timeout-seconds "$alb_timeout_seconds" \
+      --poll-seconds "$alb_poll_seconds" \
+      --execute
+  fi
+  printf 'ABORT DRAIN: holding 100/0 for %d seconds before canary removal.\n' "$drain_seconds" >&2
+  sleep "$drain_seconds"
   helm "${helm_base[@]}" "${stable_values[@]}" \
     --set canary.enabled=false --set migration.enabled=false
   kubectl "${kubectl_args[@]}" rollout status deployment/api --timeout=5m
@@ -296,13 +323,19 @@ abort_to_stable() {
   verify_cleanup
 }
 
+alb_rollout=false
 if kubectl "${kubectl_args[@]}" get ingress bedoux >/dev/null 2>&1; then
+  alb_rollout=true
   stable_target_group_before=""
   stable_target_group_after=""
   if [[ -z "$aws_region" ]]; then
     printf '%s\n' 'REFUSING: --aws-region is required for an ALB rollout.' >&2
     exit 1
   fi
+  scripts/p13-alb-pod-readiness-gate.sh \
+    --context "$context" \
+    --namespace "$namespace" \
+    --execute
   if ! stable_target_group_before="$(get_service_target_group_arn web)"; then
     printf '%s\n' 'REFUSING: baseline must have exactly one controller-owned target group for Service/web.' >&2
     exit 1
@@ -342,6 +375,7 @@ gate_args=(
   --expected-web-image "$candidate_web_image"
   --weight "$weight"
   --attempts "$attempts"
+  --public-attempts "$public_attempts"
   --max-errors "$max_errors"
   --alb-timeout-seconds "$alb_timeout_seconds"
   --alb-poll-seconds "$alb_poll_seconds"
@@ -369,6 +403,26 @@ if ! kubectl "${kubectl_args[@]}" rollout status deployment/api --timeout=5m || 
    ! kubectl "${kubectl_args[@]}" rollout status deployment/web --timeout=5m; then
   abort_to_stable
   exit 1
+fi
+
+if [[ "$alb_rollout" == true ]]; then
+  if ! scripts/p13-alb-pod-readiness-gate.sh \
+       --context "$context" \
+       --namespace "$namespace" \
+       --execute || \
+     ! scripts/p13-alb-reconciliation-gate.sh \
+       --context "$context" \
+       --namespace "$namespace" \
+       --aws-region "$aws_region" \
+       --mode promotion \
+       --expected-canary-weight 0 \
+       --timeout-seconds "$alb_timeout_seconds" \
+       --poll-seconds "$alb_poll_seconds" \
+       --execute; then
+    printf '%s\n' \
+      'BLOCK: promotion did not reach ALB-target-ready 100/0; preserving canary resources and refusing drain/cleanup.' >&2
+    exit 1
+  fi
 fi
 
 printf 'DRAIN: holding the 100/0 split for %d seconds before canary removal.\n' "$drain_seconds"

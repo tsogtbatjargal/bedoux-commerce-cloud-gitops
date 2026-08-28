@@ -5,7 +5,7 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage: scripts/p13-alb-reconciliation-gate.sh --context NAME --aws-region REGION
-       --expected-canary-weight N [options] [--dry-run|--execute]
+       --mode MODE --expected-canary-weight N [options] [--dry-run|--execute]
 
 Fail-closed, read-only proof that an AWS ALB has reconciled the P13 forward action.
 The default is --dry-run. It never prints ALB or target-group ARNs.
@@ -13,7 +13,8 @@ The default is --dry-run. It never prints ALB or target-group ARNs.
 Required:
   --context NAME                  Explicit kubectl context.
   --aws-region REGION             Explicit AWS region.
-  --expected-canary-weight N      1..50 for stage; 0 for stable-only cleanup.
+  --mode MODE                     staged, promotion, or cleanup.
+  --expected-canary-weight N      1..50 for staged; 0 for promotion/cleanup.
 
 Options:
   --namespace NAME                Namespace (default: bedoux).
@@ -26,11 +27,10 @@ Options:
   --execute                       Perform read-only Kubernetes and ELBv2 checks.
   --help                          Show this help.
 
-At a staged weight, the gate requires exactly one TargetGroupBinding for each Service,
-one active ALB, a reconciled listener rule with the exact stable/canary target-group
-ARNs and weights, and at least one registered target per group with every target
-healthy. At weight 0, it requires no canary TargetGroupBinding, a stable-only 100%
-listener action, and a fully healthy stable target group.
+Staged mode requires both TargetGroupBindings, exact non-zero weights, and both groups
+fully healthy. Promotion mode keeps both bindings, requires exact 100/0 weights, and
+requires the stable group fully healthy before the drain clock may start. Cleanup mode
+requires no canary binding, a stable-only 100% action, and a fully healthy stable group.
 EOF
 }
 
@@ -41,13 +41,14 @@ ingress="bedoux"
 stable_service="web"
 canary_service="web-canary"
 expected_canary_weight=""
+mode=""
 timeout_seconds=300
 poll_seconds=5
 execute=false
 
 while (($#)); do
   case "$1" in
-    --context|--aws-region|--namespace|--ingress|--stable-service|--canary-service|--expected-canary-weight|--timeout-seconds|--poll-seconds)
+    --context|--aws-region|--namespace|--ingress|--stable-service|--canary-service|--mode|--expected-canary-weight|--timeout-seconds|--poll-seconds)
       if (($# < 2)) || [[ "$2" == --* ]]; then
         usage >&2
         exit 2
@@ -59,6 +60,7 @@ while (($#)); do
         --ingress) ingress="$2" ;;
         --stable-service) stable_service="$2" ;;
         --canary-service) canary_service="$2" ;;
+        --mode) mode="$2" ;;
         --expected-canary-weight) expected_canary_weight="$2" ;;
         --timeout-seconds) timeout_seconds="$2" ;;
         --poll-seconds) poll_seconds="$2" ;;
@@ -79,8 +81,8 @@ while (($#)); do
   shift
 done
 
-if [[ -z "$context" || -z "$aws_region" || -z "$expected_canary_weight" ]]; then
-  printf '%s\n' 'REFUSING: --context, --aws-region, and --expected-canary-weight are required.' >&2
+if [[ -z "$context" || -z "$aws_region" || -z "$mode" || -z "$expected_canary_weight" ]]; then
+  printf '%s\n' 'REFUSING: --context, --aws-region, --mode, and --expected-canary-weight are required.' >&2
   exit 2
 fi
 for value_name in expected_canary_weight timeout_seconds poll_seconds; do
@@ -95,14 +97,32 @@ if ((expected_canary_weight > 50 || timeout_seconds < 1 || timeout_seconds > 600
   printf '%s\n' 'REFUSING: weight must be 0..50, timeout 1..600s, and poll 1..30s.' >&2
   exit 2
 fi
+case "$mode" in
+  staged)
+    if ((expected_canary_weight < 1)); then
+      printf '%s\n' 'REFUSING: staged mode requires a canary weight from 1..50.' >&2
+      exit 2
+    fi
+    ;;
+  promotion|cleanup)
+    if ((expected_canary_weight != 0)); then
+      printf 'REFUSING: %s mode requires canary weight 0.\n' "$mode" >&2
+      exit 2
+    fi
+    ;;
+  *)
+    printf '%s\n' 'REFUSING: --mode must be staged, promotion, or cleanup.' >&2
+    exit 2
+    ;;
+esac
 if [[ ! "$aws_region" =~ ^[a-z]{2}(-gov)?-[a-z]+-[0-9]+$ ]]; then
   printf '%s\n' 'REFUSING: --aws-region is not a valid explicit AWS region.' >&2
   exit 2
 fi
 
 if [[ "$execute" == false ]]; then
-  printf 'DRY RUN: context=<explicit> region=%s namespace=%s canary_weight=%d timeout=%ds poll=%ds\n' \
-    "$aws_region" "$namespace" "$expected_canary_weight" "$timeout_seconds" "$poll_seconds"
+  printf 'DRY RUN: context=<explicit> region=%s namespace=%s mode=%s canary_weight=%d timeout=%ds poll=%ds\n' \
+    "$aws_region" "$namespace" "$mode" "$expected_canary_weight" "$timeout_seconds" "$poll_seconds"
   printf '%s\n' 'DRY RUN: map Services to TargetGroupBindings without printing ARNs.'
   printf '%s\n' 'DRY RUN: require active ALB, exact reconciled listener weights, and all targets healthy.'
   exit 0
@@ -133,7 +153,7 @@ verify_reconciliation_once() {
   mapfile -t target_group_arns < <(
     STABLE_SERVICE="$stable_service" \
     CANARY_SERVICE="$canary_service" \
-    EXPECTED_CANARY_WEIGHT="$expected_canary_weight" \
+    EXPECTED_MODE="$mode" \
       python -c '
 import json, os, sys
 items = json.load(sys.stdin).get("items", [])
@@ -141,15 +161,16 @@ stable = [item["spec"]["targetGroupARN"] for item in items
           if item.get("spec", {}).get("serviceRef", {}).get("name") == os.environ["STABLE_SERVICE"]]
 canary = [item["spec"]["targetGroupARN"] for item in items
           if item.get("spec", {}).get("serviceRef", {}).get("name") == os.environ["CANARY_SERVICE"]]
-expected = int(os.environ["EXPECTED_CANARY_WEIGHT"])
-if len(stable) != 1 or (expected > 0 and len(canary) != 1) or (expected == 0 and canary):
+mode = os.environ["EXPECTED_MODE"]
+canary_required = mode in {"staged", "promotion"}
+if len(stable) != 1 or (canary_required and len(canary) != 1) or (not canary_required and canary):
     raise SystemExit(1)
 print(stable[0])
-if expected > 0:
+if canary_required:
     print(canary[0])
 ' <<<"$tgb_json" 2>/dev/null
   )
-  if ((expected_canary_weight > 0)); then
+  if [[ "$mode" != "cleanup" ]]; then
     ((${#target_group_arns[@]} == 2)) || return 1
     canary_target_group_arn="${target_group_arns[1]}"
   else
@@ -188,13 +209,15 @@ for listener in json.load(sys.stdin).get("Listeners", []):
     if STABLE_TARGET_GROUP_ARN="$stable_target_group_arn" \
        CANARY_TARGET_GROUP_ARN="$canary_target_group_arn" \
        EXPECTED_CANARY_WEIGHT="$expected_canary_weight" \
+       EXPECTED_MODE="$mode" \
        python -c '
 import json, os, sys
 stable = os.environ["STABLE_TARGET_GROUP_ARN"]
 canary = os.environ["CANARY_TARGET_GROUP_ARN"]
 weight = int(os.environ["EXPECTED_CANARY_WEIGHT"])
+mode = os.environ["EXPECTED_MODE"]
 expected = {stable: 100 - weight}
-if weight > 0:
+if mode != "cleanup":
     expected[canary] = weight
 for rule in json.load(sys.stdin).get("Rules", []):
     for action in rule.get("Actions", []):
@@ -222,7 +245,7 @@ if not states or any(state != "healthy" for state in states):
     raise SystemExit(1)
 ' <<<"$stable_health_json" 2>/dev/null || return 1
 
-  if ((expected_canary_weight > 0)); then
+  if [[ "$mode" == "staged" ]]; then
     canary_health_json="$(aws elbv2 describe-target-health "${aws_args[@]}" \
       --target-group-arn "$canary_target_group_arn" --output json 2>/dev/null)" || return 1
     python -c '
@@ -240,11 +263,13 @@ poll=0
 while ((SECONDS <= deadline)); do
   poll=$((poll + 1))
   if verify_reconciliation_once; then
-    if ((expected_canary_weight > 0)); then
+    if [[ "$mode" == "staged" ]]; then
       printf 'ALB_RECONCILIATION_GATE mode=staged weight=%d target_groups=2 healthy=true\n' \
         "$expected_canary_weight"
+    elif [[ "$mode" == "promotion" ]]; then
+      printf '%s\n' 'ALB_RECONCILIATION_GATE mode=promotion weight=100/0 target_groups=2 stable_healthy=true'
     else
-      printf '%s\n' 'ALB_RECONCILIATION_GATE mode=stable-only weight=100 target_groups=1 healthy=true'
+      printf '%s\n' 'ALB_RECONCILIATION_GATE mode=cleanup weight=100 target_groups=1 healthy=true'
     fi
     printf '%s\n' 'PASS: ALB listener action and target health are fully reconciled.'
     exit 0

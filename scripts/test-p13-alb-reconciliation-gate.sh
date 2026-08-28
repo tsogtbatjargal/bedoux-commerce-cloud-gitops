@@ -26,7 +26,7 @@ case "$joined" in
     printf '%s' 'mock.ca-central-1.elb.amazonaws.com'
     ;;
   *"get targetgroupbindings.elbv2.k8s.aws"*)
-    if [[ "${MOCK_MODE:-stage}" == "cleanup" ]]; then
+    if [[ "${MOCK_MODE:-staged}" == "cleanup" ]]; then
       printf '%s\n' '{"items":[{"spec":{"serviceRef":{"name":"web"},"targetGroupARN":"arn:stable"}}]}'
     else
       printf '%s\n' '{"items":[{"spec":{"serviceRef":{"name":"web"},"targetGroupARN":"arn:stable"}},{"spec":{"serviceRef":{"name":"web-canary"},"targetGroupARN":"arn:canary"}}]}'
@@ -50,10 +50,10 @@ case "$operation" in
     printf '%s\n' '{"Listeners":[{"ListenerArn":"arn:listener"}]}'
     ;;
   describe-rules)
-    if [[ "${MOCK_BAD_RULE:-false}" == "true" ]]; then
+    if [[ "${MOCK_RULE_MODE:-${MOCK_MODE:-staged}}" == "cleanup" ]]; then
       printf '%s\n' '{"Rules":[{"Actions":[{"Type":"forward","ForwardConfig":{"TargetGroups":[{"TargetGroupArn":"arn:stable","Weight":100}]}}]}]}'
-    elif [[ "${MOCK_MODE:-stage}" == "cleanup" ]]; then
-      printf '%s\n' '{"Rules":[{"Actions":[{"Type":"forward","ForwardConfig":{"TargetGroups":[{"TargetGroupArn":"arn:stable","Weight":100}]}}]}]}'
+    elif [[ "${MOCK_RULE_MODE:-${MOCK_MODE:-staged}}" == "promotion" ]]; then
+      printf '%s\n' '{"Rules":[{"Actions":[{"Type":"forward","ForwardConfig":{"TargetGroups":[{"TargetGroupArn":"arn:stable","Weight":100},{"TargetGroupArn":"arn:canary","Weight":0}]}}]}]}'
     else
       printf '%s\n' '{"Rules":[{"Actions":[{"Type":"forward","ForwardConfig":{"TargetGroups":[{"TargetGroupArn":"arn:stable","Weight":90},{"TargetGroupArn":"arn:canary","Weight":10}]}}]}]}'
     fi
@@ -69,11 +69,22 @@ EOF
 
 chmod +x "$fixture_dir/kubectl" "$fixture_dir/aws"
 
-PATH="$fixture_dir:$PATH" MOCK_MODE=stage \
+PATH="$fixture_dir:$PATH" MOCK_MODE=staged \
   scripts/p13-alb-reconciliation-gate.sh \
     --context mock-eks \
     --aws-region ca-central-1 \
+    --mode staged \
     --expected-canary-weight 10 \
+    --timeout-seconds 1 \
+    --poll-seconds 1 \
+    --execute >/dev/null
+
+PATH="$fixture_dir:$PATH" MOCK_MODE=promotion \
+  scripts/p13-alb-reconciliation-gate.sh \
+    --context mock-eks \
+    --aws-region ca-central-1 \
+    --mode promotion \
+    --expected-canary-weight 0 \
     --timeout-seconds 1 \
     --poll-seconds 1 \
     --execute >/dev/null
@@ -82,20 +93,37 @@ PATH="$fixture_dir:$PATH" MOCK_MODE=cleanup \
   scripts/p13-alb-reconciliation-gate.sh \
     --context mock-eks \
     --aws-region ca-central-1 \
+    --mode cleanup \
     --expected-canary-weight 0 \
     --timeout-seconds 1 \
     --poll-seconds 1 \
     --execute >/dev/null
 
-if PATH="$fixture_dir:$PATH" MOCK_MODE=stage MOCK_BAD_RULE=true \
+if PATH="$fixture_dir:$PATH" MOCK_MODE=staged MOCK_RULE_MODE=cleanup \
   scripts/p13-alb-reconciliation-gate.sh \
     --context mock-eks \
     --aws-region ca-central-1 \
+    --mode staged \
     --expected-canary-weight 10 \
     --timeout-seconds 1 \
     --poll-seconds 1 \
     --execute >/dev/null 2>&1; then
   printf '%s\n' 'expected unreconciled ALB rule to fail closed' >&2
+  exit 1
+fi
+
+# The rollout invokes promotion mode before its drain/cleanup block. A listener
+# that remains at the staged 90/10 rule must therefore fail this gate closed.
+if PATH="$fixture_dir:$PATH" MOCK_MODE=promotion MOCK_RULE_MODE=staged \
+  scripts/p13-alb-reconciliation-gate.sh \
+    --context mock-eks \
+    --aws-region ca-central-1 \
+    --mode promotion \
+    --expected-canary-weight 0 \
+    --timeout-seconds 1 \
+    --poll-seconds 1 \
+    --execute >/dev/null 2>&1; then
+  printf '%s\n' 'expected lingering 90/10 listener to block promotion cleanup' >&2
   exit 1
 fi
 

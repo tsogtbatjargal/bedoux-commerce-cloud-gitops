@@ -338,6 +338,7 @@ jobs:
               --aws-region "$AWS_REGION"
               --weight 10
               --attempts 20
+              --public-attempts 100
               --max-errors 0
               --drain-seconds 45
               --helm-set storageClass.create=false
