@@ -6,6 +6,15 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 {{- end -}}
 
+{{/* P13 stages schema-compatible candidate migrations before candidate pods. */}}
+{{- define "bedoux.migrationImageReference" -}}
+{{- if .Values.canary.enabled -}}
+{{- include "bedoux.imageReference" .Values.canary.api.image -}}
+{{- else -}}
+{{- include "bedoux.imageReference" .Values.api.image -}}
+{{- end -}}
+{{- end -}}
+
 {{/* One Kubernetes-secret interface for local/in-cluster and P7.1 external RDS. */}}
 {{- define "bedoux.databaseCredentialsSecretName" -}}
 {{- required "database.credentialsSecret.name is required" .Values.database.credentialsSecret.name -}}

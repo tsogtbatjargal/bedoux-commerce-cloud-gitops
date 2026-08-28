@@ -165,10 +165,17 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   passed after removing aliases and every temporary ALB/EKS/VPC resource while retaining only
   the approved zone/certificate allowlist. PR #54 passed all four checks and merged the P12
   completion/gate evidence as `386f66e`; merged P12 branches are cleaned locally/remotely.
-  P13.1 is next and has not started.
-  The Calico-backed kind cluster is
-  still running and Ready, but the default kubeconfig context points at the deleted EKS endpoint;
-  use or switch deliberately to `kind-bedoux`.
+  **P13.1 is IN PROGRESS.** Proposed ADR 0023 and the local chart/workflow/helpers implement one
+  Helm-release canary with controller-native 90/10 routing and an automated exact-image,
+  health/error gate. Static validation passes. The local kind rehearsal also passed at 10% with
+  20/20 healthy samples and zero errors, promoted the candidate to 100%, and removed every canary
+  object while preserving the HPA and NetworkPolicy overlays. Live AWS T-1301 evidence remains
+  pending. Independent review correctly withheld ADR acceptance until ALB listener/target-health
+  reconciliation was added. The hardened local diff now gates promotion on the exact reconciled
+  rule and healthy targets, keeps a stable action backend through cleanup, and verifies every
+  canary object is gone; independent re-review is next. The retained Calico-backed kind node is
+  stopped with its PVC preserved and the host inotify value restored to 128. The default kubeconfig
+  context still points at the deleted EKS endpoint, so always use an explicit context.
 - Repository workflow skills are validated and published on `main` through merged PR #47
   (`874305c`); P11.1 is complete with T-1101 evidence and P11.2 is complete with local
   PDB/topology evidence.
@@ -209,8 +216,8 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   then removed both aliases before the ALB/application/EKS/VPC teardown. The 2026-08-26 final
   sweep found no temporary resource or dangling alias; budget actual was USD 5.384 of USD 20.
   Only the approved persistent allowlist remains. The owner approved the P12 gate on 2026-08-26,
-  activating P13; PR #54 merged the focused checkpoint as `386f66e`. Begin P13.1 from that
-  verified merged state.
+  activating P13; PR #54 merged the focused checkpoint as `386f66e`. P13.1 began from that
+  verified merged state and remains the sole active item; P13.2 is still gated.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

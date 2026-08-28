@@ -38,9 +38,10 @@ resource "aws_eks_access_policy_association" "cluster_creator_admin" {
 # explicit P6.4 session precondition, so the GitHub role does not need cluster-wide
 # administrative access merely to bootstrap it.
 resource "aws_eks_access_entry" "github_actions" {
-  cluster_name  = aws_eks_cluster.this.name
-  principal_arn = var.github_actions_role_arn
-  type          = "STANDARD"
+  cluster_name      = aws_eks_cluster.this.name
+  principal_arn     = var.github_actions_role_arn
+  kubernetes_groups = ["bedoux-ci-targetgroupbinding-reader"]
+  type              = "STANDARD"
 }
 
 resource "aws_eks_access_policy_association" "github_actions_edit" {

@@ -1,0 +1,261 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: scripts/p13-alb-reconciliation-gate.sh --context NAME --aws-region REGION
+       --expected-canary-weight N [options] [--dry-run|--execute]
+
+Fail-closed, read-only proof that an AWS ALB has reconciled the P13 forward action.
+The default is --dry-run. It never prints ALB or target-group ARNs.
+
+Required:
+  --context NAME                  Explicit kubectl context.
+  --aws-region REGION             Explicit AWS region.
+  --expected-canary-weight N      1..50 for stage; 0 for stable-only cleanup.
+
+Options:
+  --namespace NAME                Namespace (default: bedoux).
+  --ingress NAME                  ALB Ingress (default: bedoux).
+  --stable-service NAME           Stable web Service (default: web).
+  --canary-service NAME           Canary web Service (default: web-canary).
+  --timeout-seconds N             Reconciliation deadline (default: 300).
+  --poll-seconds N                Poll interval (default: 5).
+  --dry-run                       Print bounded checks without contacting AWS/Kubernetes.
+  --execute                       Perform read-only Kubernetes and ELBv2 checks.
+  --help                          Show this help.
+
+At a staged weight, the gate requires exactly one TargetGroupBinding for each Service,
+one active ALB, a reconciled listener rule with the exact stable/canary target-group
+ARNs and weights, and at least one registered target per group with every target
+healthy. At weight 0, it requires no canary TargetGroupBinding, a stable-only 100%
+listener action, and a fully healthy stable target group.
+EOF
+}
+
+context=""
+aws_region=""
+namespace="bedoux"
+ingress="bedoux"
+stable_service="web"
+canary_service="web-canary"
+expected_canary_weight=""
+timeout_seconds=300
+poll_seconds=5
+execute=false
+
+while (($#)); do
+  case "$1" in
+    --context|--aws-region|--namespace|--ingress|--stable-service|--canary-service|--expected-canary-weight|--timeout-seconds|--poll-seconds)
+      if (($# < 2)) || [[ "$2" == --* ]]; then
+        usage >&2
+        exit 2
+      fi
+      case "$1" in
+        --context) context="$2" ;;
+        --aws-region) aws_region="$2" ;;
+        --namespace) namespace="$2" ;;
+        --ingress) ingress="$2" ;;
+        --stable-service) stable_service="$2" ;;
+        --canary-service) canary_service="$2" ;;
+        --expected-canary-weight) expected_canary_weight="$2" ;;
+        --timeout-seconds) timeout_seconds="$2" ;;
+        --poll-seconds) poll_seconds="$2" ;;
+      esac
+      shift
+      ;;
+    --dry-run) execute=false ;;
+    --execute) execute=true ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      usage >&2
+      exit 2
+      ;;
+  esac
+  shift
+done
+
+if [[ -z "$context" || -z "$aws_region" || -z "$expected_canary_weight" ]]; then
+  printf '%s\n' 'REFUSING: --context, --aws-region, and --expected-canary-weight are required.' >&2
+  exit 2
+fi
+for value_name in expected_canary_weight timeout_seconds poll_seconds; do
+  value="${!value_name}"
+  if [[ ! "$value" =~ ^[0-9]+$ ]]; then
+    printf 'REFUSING: --%s must be a non-negative integer.\n' "${value_name//_/-}" >&2
+    exit 2
+  fi
+done
+if ((expected_canary_weight > 50 || timeout_seconds < 1 || timeout_seconds > 600 || \
+     poll_seconds < 1 || poll_seconds > 30)); then
+  printf '%s\n' 'REFUSING: weight must be 0..50, timeout 1..600s, and poll 1..30s.' >&2
+  exit 2
+fi
+if [[ ! "$aws_region" =~ ^[a-z]{2}(-gov)?-[a-z]+-[0-9]+$ ]]; then
+  printf '%s\n' 'REFUSING: --aws-region is not a valid explicit AWS region.' >&2
+  exit 2
+fi
+
+if [[ "$execute" == false ]]; then
+  printf 'DRY RUN: context=<explicit> region=%s namespace=%s canary_weight=%d timeout=%ds poll=%ds\n' \
+    "$aws_region" "$namespace" "$expected_canary_weight" "$timeout_seconds" "$poll_seconds"
+  printf '%s\n' 'DRY RUN: map Services to TargetGroupBindings without printing ARNs.'
+  printf '%s\n' 'DRY RUN: require active ALB, exact reconciled listener weights, and all targets healthy.'
+  exit 0
+fi
+
+command -v aws >/dev/null
+command -v kubectl >/dev/null
+command -v python >/dev/null
+
+kubectl_args=(--context "$context" --namespace "$namespace")
+aws_args=(--region "$aws_region" --no-cli-pager)
+
+verify_reconciliation_once() {
+  local ingress_class alb_hostname tgb_json load_balancers_json alb_arn
+  local listeners_json rules_json stable_health_json canary_health_json
+  local stable_target_group_arn canary_target_group_arn listener_arn
+  local -a target_group_arns=() listener_arns=()
+
+  ingress_class="$(kubectl "${kubectl_args[@]}" get ingress "$ingress" \
+    --output jsonpath='{.spec.ingressClassName}' 2>/dev/null)" || return 1
+  [[ "$ingress_class" == "alb" ]] || return 1
+  alb_hostname="$(kubectl "${kubectl_args[@]}" get ingress "$ingress" \
+    --output jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null)" || return 1
+  [[ "$alb_hostname" =~ ^[A-Za-z0-9.-]+\.elb\.amazonaws\.com$ ]] || return 1
+
+  tgb_json="$(kubectl "${kubectl_args[@]}" get targetgroupbindings.elbv2.k8s.aws \
+    --output json 2>/dev/null)" || return 1
+  mapfile -t target_group_arns < <(
+    STABLE_SERVICE="$stable_service" \
+    CANARY_SERVICE="$canary_service" \
+    EXPECTED_CANARY_WEIGHT="$expected_canary_weight" \
+      python -c '
+import json, os, sys
+items = json.load(sys.stdin).get("items", [])
+stable = [item["spec"]["targetGroupARN"] for item in items
+          if item.get("spec", {}).get("serviceRef", {}).get("name") == os.environ["STABLE_SERVICE"]]
+canary = [item["spec"]["targetGroupARN"] for item in items
+          if item.get("spec", {}).get("serviceRef", {}).get("name") == os.environ["CANARY_SERVICE"]]
+expected = int(os.environ["EXPECTED_CANARY_WEIGHT"])
+if len(stable) != 1 or (expected > 0 and len(canary) != 1) or (expected == 0 and canary):
+    raise SystemExit(1)
+print(stable[0])
+if expected > 0:
+    print(canary[0])
+' <<<"$tgb_json" 2>/dev/null
+  )
+  if ((expected_canary_weight > 0)); then
+    ((${#target_group_arns[@]} == 2)) || return 1
+    canary_target_group_arn="${target_group_arns[1]}"
+  else
+    ((${#target_group_arns[@]} == 1)) || return 1
+    canary_target_group_arn=""
+  fi
+  stable_target_group_arn="${target_group_arns[0]}"
+
+  load_balancers_json="$(aws elbv2 describe-load-balancers "${aws_args[@]}" \
+    --output json 2>/dev/null)" || return 1
+  alb_arn="$(ALB_HOSTNAME="$alb_hostname" python -c '
+import json, os, sys
+matches = [lb for lb in json.load(sys.stdin).get("LoadBalancers", [])
+           if lb.get("DNSName") == os.environ["ALB_HOSTNAME"]
+           and lb.get("Type") == "application"
+           and lb.get("State", {}).get("Code") == "active"]
+if len(matches) != 1:
+    raise SystemExit(1)
+print(matches[0]["LoadBalancerArn"])
+' <<<"$load_balancers_json" 2>/dev/null)" || return 1
+  [[ -n "$alb_arn" ]] || return 1
+
+  listeners_json="$(aws elbv2 describe-listeners "${aws_args[@]}" \
+    --load-balancer-arn "$alb_arn" --output json 2>/dev/null)" || return 1
+  mapfile -t listener_arns < <(python -c '
+import json, sys
+for listener in json.load(sys.stdin).get("Listeners", []):
+    print(listener["ListenerArn"])
+' <<<"$listeners_json" 2>/dev/null)
+  ((${#listener_arns[@]} >= 1)) || return 1
+
+  local matching_rule=false
+  for listener_arn in "${listener_arns[@]}"; do
+    rules_json="$(aws elbv2 describe-rules "${aws_args[@]}" \
+      --listener-arn "$listener_arn" --output json 2>/dev/null)" || return 1
+    if STABLE_TARGET_GROUP_ARN="$stable_target_group_arn" \
+       CANARY_TARGET_GROUP_ARN="$canary_target_group_arn" \
+       EXPECTED_CANARY_WEIGHT="$expected_canary_weight" \
+       python -c '
+import json, os, sys
+stable = os.environ["STABLE_TARGET_GROUP_ARN"]
+canary = os.environ["CANARY_TARGET_GROUP_ARN"]
+weight = int(os.environ["EXPECTED_CANARY_WEIGHT"])
+expected = {stable: 100 - weight}
+if weight > 0:
+    expected[canary] = weight
+for rule in json.load(sys.stdin).get("Rules", []):
+    for action in rule.get("Actions", []):
+        if action.get("Type") != "forward":
+            continue
+        groups = action.get("ForwardConfig", {}).get("TargetGroups", [])
+        actual = {group.get("TargetGroupArn"): group.get("Weight") for group in groups}
+        if actual == expected:
+            raise SystemExit(0)
+raise SystemExit(1)
+' <<<"$rules_json" 2>/dev/null; then
+      matching_rule=true
+      break
+    fi
+  done
+  [[ "$matching_rule" == true ]] || return 1
+
+  stable_health_json="$(aws elbv2 describe-target-health "${aws_args[@]}" \
+    --target-group-arn "$stable_target_group_arn" --output json 2>/dev/null)" || return 1
+  python -c '
+import json, sys
+states = [item.get("TargetHealth", {}).get("State")
+          for item in json.load(sys.stdin).get("TargetHealthDescriptions", [])]
+if not states or any(state != "healthy" for state in states):
+    raise SystemExit(1)
+' <<<"$stable_health_json" 2>/dev/null || return 1
+
+  if ((expected_canary_weight > 0)); then
+    canary_health_json="$(aws elbv2 describe-target-health "${aws_args[@]}" \
+      --target-group-arn "$canary_target_group_arn" --output json 2>/dev/null)" || return 1
+    python -c '
+import json, sys
+states = [item.get("TargetHealth", {}).get("State")
+          for item in json.load(sys.stdin).get("TargetHealthDescriptions", [])]
+if not states or any(state != "healthy" for state in states):
+    raise SystemExit(1)
+' <<<"$canary_health_json" 2>/dev/null || return 1
+  fi
+}
+
+deadline=$((SECONDS + timeout_seconds))
+poll=0
+while ((SECONDS <= deadline)); do
+  poll=$((poll + 1))
+  if verify_reconciliation_once; then
+    if ((expected_canary_weight > 0)); then
+      printf 'ALB_RECONCILIATION_GATE mode=staged weight=%d target_groups=2 healthy=true\n' \
+        "$expected_canary_weight"
+    else
+      printf '%s\n' 'ALB_RECONCILIATION_GATE mode=stable-only weight=100 target_groups=1 healthy=true'
+    fi
+    printf '%s\n' 'PASS: ALB listener action and target health are fully reconciled.'
+    exit 0
+  fi
+  if ((SECONDS + poll_seconds > deadline)); then
+    break
+  fi
+  printf 'ALB_GATE_WAIT poll=%d state=not-yet-reconciled\n' "$poll"
+  sleep "$poll_seconds"
+done
+
+printf 'BLOCK: ALB did not reconcile the expected action and healthy targets within %d seconds.\n' \
+  "$timeout_seconds" >&2
+exit 1

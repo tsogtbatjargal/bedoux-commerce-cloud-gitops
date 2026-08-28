@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P13 — Delivery maturity |
-| Active task | P13.1 — activated but NOT STARTED; first review the merged deployment path and define the staged/canary rollout boundary. |
-| Last verified | 2026-08-26T21:36:54-06:00 — PR #54 passed all four checks at `38999f2`, merged as `386f66e`, and merged P12 branches were cleaned locally/remotely. |
+| Active task | P13.1 IN PROGRESS — review the merged deployment path, then implement and locally prove a staged/canary rollout with an automated health gate. |
+| Last verified | 2026-08-27T18:29:25-06:00 — P13.1 review hardening passes full local validation: exact ALB rule/health gates, stable target-group identity preservation, complete cleanup assertions, narrow TGB RBAC, Helm/Terraform/YAML/docs/action-pin/whitespace checks. |
 | AWS resources currently live | Persistent allowlist only: one protected state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider, and the `bedoux.ca` public Route 53 zone with its issued ACM certificate and two validation records. No temporary compute, network, storage, database, load-balancing, alias, or cluster-OIDC resource remains. |
 | Month-to-date estimated AWS spend | USD 5.384 budget actual at the 2026-08-26 P12 closeout; delayed session charges may not yet be reflected, but the bounded shape remains below the reviewed USD 1 session estimate. |
-| Next operator action | Mark P13.1 `IN PROGRESS`, then review the merged deployment workflow/chart and define the staged/canary rollout plus automated health-gate boundary. No AWS session is needed for initial design. |
+| Next operator action | Obtain independent technical re-review of the hardened Proposed ADR 0023 and exact diff. After acceptance, prepare the focused PR and reviewed live T-1301 session plan; do not start P13.2. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -660,7 +660,7 @@ Gate: T-1201..T-1203.
 
 ### P13 — Delivery maturity
 
-- [ ] P13.1 NOT STARTED — staged/canary rollout with an automated health gate.
+- [ ] P13.1 IN PROGRESS — staged/canary rollout with an automated health gate.
 - [ ] P13.2 NOT STARTED — blocked-canary drill (injected regression, automatic rollback).
 
 Gate: T-1301..T-1302.
@@ -676,7 +676,7 @@ Gate: T-1301..T-1302.
 Gate: T-1401..T-1404.
 
 **P10–P14 track bootstrapped 2026-08-09; P10, P11, and P12 are gate-approved. P13 is active;
-P13.1 is the next checklist item and has not started.**
+P13.1 is in progress with its local rehearsal complete and live T-1301 evidence pending.**
 
 ## Blockers
 
@@ -686,6 +686,123 @@ P13.1 is the next checklist item and has not started.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-27T18:21:21-06:00 — P13.1 acceptance blocker addressed locally — Codex
+
+- **Publication authorization:** after the hardened checks passed, the owner authorized a focused
+  commit and feature-branch push. This does not authorize PR merge, live AWS work, ADR acceptance,
+  or P13.2.
+- **Independent review result:** ADR 0023 was not accepted. The blocking finding was correct:
+  the first gate verified only the desired Ingress annotation and direct canary path, so an
+  asynchronous ALB could remain unreconciled while promotion began. Non-blocking findings also
+  required broader cleanup assertions, replayable HPA/NetworkPolicy overlays, and a safer ALB
+  cleanup transition.
+- **Reconciliation fix:** new fail-closed `p13-alb-reconciliation-gate.sh` maps the named stable
+  and canary Services to exact controller-owned target groups through `TargetGroupBinding`, finds
+  one active ALB without printing identifiers, and polls the listener rules for the exact 90/10
+  ARN mapping plus `DescribeTargetHealth` until both non-empty groups contain only healthy
+  targets. The canary gate invokes it before promotion on ALB profiles. Cleanup invokes it again
+  for a stable-only 100% rule, no canary binding, and a fully healthy stable group.
+- **Least privilege:** the declared GitHub OIDC deployment policy adds only read-only
+  `DescribeLoadBalancers`, `DescribeListeners`, `DescribeRules`, and `DescribeTargetHealth`.
+  ELBv2 Describe operations require `Resource: *`; no ALB mutation permission was added. The
+  future reviewed Terraform plan must show this expected persistent-policy update explicitly.
+  Official EKS policy review also showed `AmazonEKSEditPolicy` omits controller CRDs, so the CI
+  access entry joins one dedicated group and a session-bootstrapped namespace Role grants only
+  `get/list` on `targetgroupbindings.elbv2.k8s.aws`; the workflow checks both verbs before use.
+- **Transition/cleanup fix:** the AWS Ingress keeps backend service name `web` and attaches the
+  matching persistent `actions.web` forward action. Before staging, the helper first applies the
+  captured stable images through that
+  stable-only action and waits for its listener/target health to reconcile. Stable mode contains
+  only `web` at 100%; stage adds `web-canary`; cleanup returns to stable-only without changing the
+  service name. It privately compares the stable `TargetGroupBinding` ARN before/after normalization
+  and blocks if the target group was replaced. The rollout helper verifies removal
+  of both canary Deployments, both Services, the web canary ConfigMap, both possible canary
+  Ingresses, the canary target-group binding, and the weighted listener target.
+- **Replayability fix:** the local runbook now includes `values-kind-hpa.yaml` and
+  `networkPolicy.enabled=true`, matching the successful rehearsal despite helper
+  `--reset-values` behavior.
+- **Verification:** shell syntax/help/dry-runs pass for all P13 helpers; staged and stable-only
+  reconciled fixtures pass; a deliberately unreconciled listener rule fails closed; stable,
+  staged, and cleanup Helm renders pass; all three Terraform validation profiles pass with AWS
+  credential checks disabled; workflow/RBAC YAML parses; immutable action-pin, toolbox
+  `make docs-check`, and `git diff --check` pass.
+- **Owner host action:** the owner restored `fs.inotify.max_user_instances=128`. The retained
+  kind node remains stopped; no Kubernetes endpoint was contacted in this hardening pass.
+- **AWS/cost:** none. No AWS session was opened, no AWS endpoint was contacted, and no resource
+  changed; estimated AWS cost USD 0.
+- **Next action:** request independent technical re-review. ADR 0023 remains Proposed and live
+  AWS use remains blocked until acceptance.
+
+### 2026-08-27T18:03:02-06:00 — P13.1 local canary promotion passed — Codex
+
+- **Owner action/authorization:** the owner confirmed the temporary local-drill prerequisite
+  `fs.inotify.max_user_instances=1024`; P13.1 remained the only authorized task.
+- **Recovered baseline:** the retained explicit `kind-bedoux` context recovered with one Ready
+  stable API pod at `localhost/bedoux-api:p10-2`, one Ready stable web pod at
+  `localhost/bedoux-web:p10-2`, one PostgreSQL pod, both HPAs, and the P10 default-deny/allow
+  NetworkPolicies. The already-documented node restart issue also required restoring the kind
+  node's `iptables-nft` alternative before ingress-nginx became Ready. Stable health returned
+  `status=ok` with orders enabled and the catalog returned the seeded Canvas Tote.
+- **Local T-1301 rehearsal:** fresh API/web images labelled for the local proof were loaded into
+  the retained kind node. The rollout helper dry-run passed, then Helm revision 4 staged exactly
+  one `api-canary` and one `web-canary` at ingress-nginx weight 10 while preserving the existing
+  HPAs and NetworkPolicies. The fail-closed gate verified the exact candidate image references,
+  one desired/available/Running pod per canary Deployment, the 10% controller weight, 20 health
+  samples with `CANARY_GATE attempts=20 errors=0 error_rate=0.0000`, and a non-empty catalog.
+- **Promotion/cleanup evidence:** Helm revision 5 promoted the candidate images onto the stable
+  API/web Deployments at a 100/0 split. After a bounded five-second local drain, revision 6
+  disabled the canary and migration hook. Final stable images are
+  `localhost/bedoux-api:p13-candidate` and `localhost/bedoux-web:p13-candidate`; API/web are Ready,
+  health/catalog still pass, and the canary Deployments, Services, and Ingresses are all absent.
+- **Local cleanup:** the two temporary image archives and redundant host-side candidate image
+  tags were removed; independent candidate copies remain in the retained kind node's containerd
+  store so its promoted release is reproducible after restart. The kind node and PVC were not
+  deleted; its container was returned to `Exited` state. Graceful Podman stop did
+  not complete within ten seconds and Podman used SIGKILL, but this occurred only after all
+  Kubernetes and application evidence had passed and the persistent node container was
+  confirmed stopped.
+- **AWS/cost:** none. No AWS session was opened, no AWS endpoint was contacted, and no AWS
+  resource changed; estimated AWS cost USD 0.
+- **Remaining P13.1 work:** this is local-first evidence, not the live T-1301 completion record.
+  The owner restores the host limit to 128 and reviews Proposed ADR 0023. After technical
+  acceptance, prepare the focused PR and the alarmed, owner-approved AWS plan/apply sequence in
+  `docs/runbooks/p13-1-canary-session.md`. P13.2 remains `NOT STARTED` and gated.
+
+### 2026-08-27T17:14:01-06:00 — P13.1 implementation ready; local proof awaits host limit — Codex
+
+- **Owner authorization:** the owner explicitly requested starting P13.1.
+- **Checkpoint:** P12 remains complete and gate-approved. `origin/main` is still the verified PR
+  #54 merge `386f66e`; branch `p13-1-canary` contains only the expected local post-merge
+  reconciliation commit above that base.
+- **Phase/task:** P13.1 is now the single `IN PROGRESS` checklist item. P13.2 remains
+  `NOT STARTED` and is not authorized by this task start.
+- **AWS:** none. This start checkpoint is documentation-only; no AWS session is open and no
+  resource changed.
+- **Next action:** review the existing push-based deployment workflow and Helm chart, choose the
+  smallest compatible canary boundary, then implement and validate it locally before proposing
+  any live AWS proof.
+- **Design/implementation:** Proposed ADR 0023 keeps one Helm release and adds disabled-by-default
+  `api-canary`/`web-canary` resources, controller-native 90/10 routing for ALB and ingress-nginx,
+  candidate-first migration hooks, an exact-image/health/error gate, and a stage → gate → 100/0
+  promotion → cleanup helper with automatic pre-promotion abort. The existing deployment workflow
+  now exposes an opt-in canary dispatch and still verifies signed immutable images before Helm.
+- **Static verification:** Helm lint and base/AWS/canary/NetworkPolicy renders pass; invalid weight
+  51 fails closed; migration cleanup rendering omits the hook; both P13 scripts pass syntax,
+  `--help`, and dry-run checks; workflow YAML parses; immutable action-pin check, `git diff
+  --check`, and the required toolbox `make docs-check` pass.
+- **Local baseline finding:** the retained `kind-bedoux` node had been stopped for two weeks. It
+  returned `Ready` after a local Podman restart, but every non-control-plane pod was stale. A
+  controller-managed rollout restart exposed the already-documented host-limit failure:
+  `kube-proxy` exits with `too many open files` while `fs.inotify.max_user_instances=128`.
+  No canary was staged and no persistent volume or cluster object was deleted. The node container
+  was returned to its prior stopped state after the failed baseline check.
+- **AWS:** none. No AWS endpoint was contacted and no AWS resource changed. Local implementation
+  and read-only/local recovery checks only; estimated AWS cost USD 0.
+- **Current next action:** the owner temporarily runs
+  `sudo sysctl -w fs.inotify.max_user_instances=1024`. Then restart the existing node, prove a
+  healthy stable release, execute the local P13.1 canary path, clean drill-only artifacts, and have
+  the owner restore the value to 128. P13.2 remains gated.
 
 ### 2026-08-26T21:36:54-06:00 — PR #54 merged; P12 branches cleaned; P13.1 base ready — Codex
 
