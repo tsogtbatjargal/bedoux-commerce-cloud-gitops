@@ -697,8 +697,9 @@ Append newest entries immediately below this heading. Never include secrets or A
 - **Authorization boundary:** acceptance permits preparation of the focused PR and exact live
   T-1301 plan review. It does not authorize PR merge, AWS apply, workflow dispatch, or P13.2.
 - **AWS/Kubernetes/cost:** no endpoint contacted and no resource changed; estimated AWS cost USD 0.
-- **Next action:** publish this acceptance checkpoint on `p13-1-canary`, then prepare the focused
-  PR when explicitly authorized.
+- **Publication:** acceptance commit `e2db4dc` was pushed to `origin/p13-1-canary`; no PR was
+  opened or merged.
+- **Next action:** prepare the focused PR when explicitly authorized.
 
 ### 2026-08-28T10:47:52-06:00 — P13.1 ALB deregistration deadline race closed — Codex
 
