@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P13 — Delivery maturity |
 | Active task | P13.1 IN PROGRESS — review the merged deployment path, then implement and locally prove a staged/canary rollout with an automated health gate. |
-| Last verified | 2026-08-28T21:02:59-06:00 — local Terraform repair commit `353e3f4` passed mocked default/P11-HA node-tagging plans, all three credential-free profile validations, formatting, action-pin/docs, whitespace, and sensitive-data checks. No AWS API endpoint or remote state was reached. |
+| Last verified | 2026-08-28T21:15:59-06:00 — owner accepted implementation `353e3f4` for fresh Terraform plan review; draft PR #55 exact head `ec21ba3` is open, mergeable, unmerged, and passed all four jobs in run `33230531403`. No AWS API, Kubernetes endpoint, or remote Terraform state was contacted during review. |
 | AWS resources currently live | Persistent allowlist only: one protected state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider, and the `bedoux.ca` public Route 53 zone with its issued ACM certificate and validation records. No temporary compute, network, storage, database, load-balancing, alias, or cluster-OIDC resource remains. |
 | Month-to-date estimated AWS spend | USD 5.915 budget actual and USD 6.603 forecast at the 2026-08-28 T-1301 preflight; the reviewed four-hour session shape remains below USD 1. |
-| Next operator action | Obtain independent review of local Terraform repair `353e3f4` in draft PR #55. After acceptance, open a fresh alarmed AWS session, reconcile persistent state, and generate a new exact plan for separate approval. P13.1 remains active; T-1301 is not claimed, and PR ready/merge, workflow dispatch, and P13.2 remain separately gated. |
+| Next operator action | Owner supplies a new Edmonton alarm and teardown cutoff, then explicitly authorizes read-only preflight, persistent-state reconciliation, and exact saved-plan generation only. Inspect the plan for the new launch template and two primary ASG-tag resources, no node-group `disk_size`, no NAT/unplanned service, and zero delete/replace actions; stop at its SHA-256 for separate apply approval. P13.1 remains active; T-1301 is not claimed, and PR ready/merge, workflow dispatch, and P13.2 remain separately gated. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -686,6 +686,30 @@ P13.1 is in progress with its local rehearsal complete and live T-1301 evidence 
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-28T21:15:59-06:00 — tagging repair accepted for fresh plan review — owner/Codex
+
+- **Owner acceptance:** the owner accepted implementation `353e3f4` for fresh Terraform plan
+  review with no blocking findings. The acceptance covers both dedicated launch templates,
+  at-creation instance/volume tags, 20-GiB gp3 delete-on-termination root mappings, absent
+  node-group `disk_size`, corresponding template references, propagated standard ASG tags, and
+  fail-closed standard-tag input validation.
+- **Exact published evidence:** local and remote branch heads match checkpoint `ec21ba3`; draft
+  PR #55 is open, cleanly mergeable, and unmerged. Exact-head run `33230531403` passed API, web,
+  Terraform/Helm—including the 2/2 mocked node-tagging plans—and container
+  build/scan/SBOM/signature jobs.
+- **Non-blocking suggestion:** explicit mock assertions tying each node group's template ID/version
+  and ASG tag values to expected values would strengthen regression coverage. The reviewed wiring
+  is correct; do not change accepted implementation `353e3f4` before the fresh plan merely for
+  this optional improvement.
+- **AWS/Kubernetes:** none. No AWS API, Kubernetes endpoint, or remote Terraform state was
+  contacted during the review; no AWS session is open and no temporary resource is live.
+- **Authorized next boundary:** a new session may proceed only after the owner supplies an
+  independent Edmonton alarm and teardown cutoff and explicitly authorizes read-only preflight,
+  persistent-state reconciliation, and exact saved-plan generation. The plan must show the new
+  launch template and two primary ASG-tag resources, no node-group `disk_size`, no NAT or
+  unplanned service, and zero delete/replace actions. Stop at the exact SHA-256; apply remains a
+  separate approval. PR ready/merge, workflow dispatch, T-1301 completion, and P13.2 remain gated.
 
 ### 2026-08-28T21:02:59-06:00 — durable managed-node tagging repair locally proven — Codex
 

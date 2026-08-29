@@ -104,12 +104,19 @@ checkpoint `791b0e4`. This permits PR and live-plan preparation, not merge or AW
   `propagate_at_launch=true`. Mocked default/P11-HA plans pass 2/2, all three credential-free
   Terraform profile validations pass, and CI now enforces the mock tests plus the `disk_size`
   absence check. No AWS API endpoint or remote state was reached for this local repair.
+- The owner accepted implementation `353e3f4` for fresh-plan review with no blockers. Draft PR #55
+  remains open, mergeable, unmerged, and draft at exact checkpoint `ec21ba3`; exact-head run
+  `33230531403` passed all four jobs. The suggested extra mock assertions for node-group template
+  references and ASG tag values are non-blocking and deliberately do not alter the accepted
+  implementation before plan review.
 
 Next action:
-1. Obtain independent review of local Terraform repair `353e3f4` in draft PR #55. After
-   acceptance, open a fresh alarmed AWS session, reconcile persistent state, and generate a new
-   exact plan for separate approval. PR ready/merge, workflow dispatch, T-1301 completion, and
-   P13.2 remain separately gated.
+1. Owner supplies a new Edmonton alarm and teardown cutoff, then explicitly authorizes read-only
+   preflight, persistent-state reconciliation, and exact saved-plan generation only. Inspect the
+   plan for the new launch template and two primary ASG-tag resources, absent node-group
+   `disk_size`, no NAT/unplanned service, and zero delete/replace actions; stop at its SHA-256 for
+   separate apply approval. PR ready/merge, workflow dispatch, T-1301 completion, and P13.2 remain
+   separately gated.
 
 Hard boundaries: USD 20/month; ca-central-1; bedoux-admin only; no NAT Gateway; same-day teardown;
 never record account IDs, secrets, personal email addresses, or registrar details. No AWS session

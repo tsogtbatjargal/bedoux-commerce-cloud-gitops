@@ -195,8 +195,11 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   groups dedicated launch templates with at-creation instance/volume tags and 20-GiB gp3 root
   mappings; removes node-group `disk_size`; and manages both standard tags on each EKS-created ASG
   with `propagate_at_launch=true`. Mocked default/P11-HA plans, all three offline validation
-  profiles, and repository checks pass. Obtain independent review before a fresh alarmed AWS plan;
-  PR #55 remains draft and unmerged. The retained Calico-backed kind node is
+  profiles, and repository checks pass. The owner accepted implementation `353e3f4` for fresh-plan
+  review; exact-head run `33230531403` passed all four jobs at checkpoint `ec21ba3`. PR #55 remains
+  draft and unmerged. No AWS session is open: require a new owner-supplied Edmonton alarm/cutoff
+  and authorization for preflight, state reconciliation, and exact-plan generation only. The
+  retained Calico-backed kind node is
   stopped with its PVC preserved and the host inotify value restored to 128. The default kubeconfig
   context still points at the deleted EKS endpoint, so always use an explicit context.
 - Repository workflow skills are validated and published on `main` through merged PR #47
