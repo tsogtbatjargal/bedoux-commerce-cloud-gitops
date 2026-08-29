@@ -105,20 +105,34 @@ checkpoint `791b0e4`. This permits PR and live-plan preparation, not merge or AW
   Terraform profile validations pass, and CI now enforces the mock tests plus the `disk_size`
   absence check. No AWS API endpoint or remote state was reached for this local repair.
 - The owner accepted implementation `353e3f4` for fresh-plan review with no blockers. Draft PR #55
-  remains open, mergeable, unmerged, and draft at exact checkpoint `ec21ba3`; exact-head run
-  `33230531403` passed all four jobs. The suggested extra mock assertions for node-group template
+  remains open, mergeable, unmerged, and draft at exact checkpoint `9fb1fc3`; exact-head run
+  `33266130986` passed all four jobs. The suggested extra mock assertions for node-group template
   references and ASG tag values are non-blocking and deliberately do not alter the accepted
   implementation before plan review.
+- The owner opened a bounded 2026-08-29 planning session with a 19:00 Edmonton alarm and 17:45
+  teardown cutoff. Read-only identity, region, budget, pricing, and complete temporary-resource
+  inventory passed; budget actual is USD 6.001, forecast USD 6.382, and the conservative
+  four-hour estimate remains below USD 1. The persistent allowlist is reconciled at exact
+  local/remote source head `9fb1fc3`.
+- Exact saved plan `/tmp/bedoux-p13-t1301-20260829-1146.tfplan` is 53,839 bytes and hashes to
+  `cdcc092e162d9b506d68ded8d41b283438da064e6c8c0a76364e7941b43256b4`: 28 creates, 11
+  expected in-place updates, zero deletes, and zero replacements. It adds exactly the repaired
+  primary launch template and two propagated ASG tags beyond the prior plan; configuration JSON
+  proves absent node-group `disk_size` and corresponding primary/secondary template references.
+  It retains one Spot `t3.medium` at 1/1/1, pinned add-ons, five exact read-only ELBv2 actions,
+  no-op Route 53/ACM, no aliases/NAT/EIP/optional service, and only the primary node path. Apply
+  has not run.
 
 Next action:
-1. Owner supplies a new Edmonton alarm and teardown cutoff, then explicitly authorizes read-only
-   preflight, persistent-state reconciliation, and exact saved-plan generation only. Inspect the
-   plan for the new launch template and two primary ASG-tag resources, absent node-group
-   `disk_size`, no NAT/unplanned service, and zero delete/replace actions; stop at its SHA-256 for
-   separate apply approval. PR ready/merge, workflow dispatch, T-1301 completion, and P13.2 remain
-   separately gated.
+1. Owner approves or rejects exact saved-plan SHA-256
+   `cdcc092e162d9b506d68ded8d41b283438da064e6c8c0a76364e7941b43256b4`. Apply only that
+   unchanged binary after explicit approval. If rejected or not approved with sufficient
+   execution/teardown margin, detach the persistent allowlist and remove temporary plan files by
+   the 17:45 Edmonton cutoff. PR ready/merge, workflow dispatch, T-1301 completion, and P13.2
+   remain separately gated.
 
 Hard boundaries: USD 20/month; ca-central-1; bedoux-admin only; no NAT Gateway; same-day teardown;
-never record account IDs, secrets, personal email addresses, or registrar details. No AWS session
-is open and no temporary AWS resource is live; P13.1 still awaits T-1301.
+never record account IDs, secrets, personal email addresses, or registrar details. A bounded
+planning session is open until the 17:45 cutoff; no temporary AWS resource is live and apply is
+not authorized. P13.1 still awaits T-1301.
 ```

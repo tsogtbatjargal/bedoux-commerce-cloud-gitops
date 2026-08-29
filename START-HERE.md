@@ -191,15 +191,19 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   `77a0273803ca29faa826ecbe09ee2100174c6c03f813e96dbf8c57acf5da21f9`. Terraform destroyed its
   exact 15 resources, the helper deleted the captured temporary cluster OIDC provider, and the
   16:49 Edmonton sweep returned zero temporary resources. P13.1 remains in progress and T-1301 is
-  not claimed. Local repair `353e3f4` now gives both the default primary and P11 HA secondary node
+  not claimed. Local repair `353e3f4` gives both the default primary and P11 HA secondary node
   groups dedicated launch templates with at-creation instance/volume tags and 20-GiB gp3 root
   mappings; removes node-group `disk_size`; and manages both standard tags on each EKS-created ASG
-  with `propagate_at_launch=true`. Mocked default/P11-HA plans, all three offline validation
-  profiles, and repository checks pass. The owner accepted implementation `353e3f4` for fresh-plan
-  review; exact-head run `33230531403` passed all four jobs at checkpoint `ec21ba3`. PR #55 remains
-  draft and unmerged. No AWS session is open: require a new owner-supplied Edmonton alarm/cutoff
-  and authorization for preflight, state reconciliation, and exact-plan generation only. The
-  retained Calico-backed kind node is
+  with `propagate_at_launch=true`. The owner accepted the repair, and exact-head PR run
+  `33266130986` passes all four jobs at checkpoint `9fb1fc3`; PR #55 remains draft and unmerged.
+  A fresh authorized read-only preflight on 2026-08-29 found zero temporary resources, budget
+  actual USD 6.001 and forecast USD 6.382, and a refreshed four-hour estimate below USD 1.
+  Persistent state is reconciled. Exact saved plan
+  `cdcc092e162d9b506d68ded8d41b283438da064e6c8c0a76364e7941b43256b4` has 28 creates, 11
+  expected in-place updates, and zero deletes/replacements; the three new creates are exactly the
+  primary launch template and two propagated ASG tags. No NAT, optional service, website alias,
+  or secondary HA path is planned. Apply has not run and requires separate exact-hash approval
+  before the 17:45 Edmonton cutoff. The retained Calico-backed kind node is
   stopped with its PVC preserved and the host inotify value restored to 128. The default kubeconfig
   context still points at the deleted EKS endpoint, so always use an explicit context.
 - Repository workflow skills are validated and published on `main` through merged PR #47
