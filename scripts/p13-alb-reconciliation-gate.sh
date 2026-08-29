@@ -32,7 +32,8 @@ fully healthy. Every mode also requires the controller-applied 30-second target-
 deregistration delay. Promotion mode keeps both bindings, requires exact 100/0 weights,
 and requires the stable group fully healthy before the drain clock may start. Cleanup
 mode requires no canary binding, a stable-only 100% action, and a fully healthy stable
-group.
+group. AWS may normalize that sole target group's relative weight to any positive value
+(observed as 1); with no second target group, it still receives 100% of forwarded traffic.
 EOF
 }
 
@@ -228,6 +229,15 @@ for rule in json.load(sys.stdin).get("Rules", []):
         if action.get("Type") != "forward":
             continue
         groups = action.get("ForwardConfig", {}).get("TargetGroups", [])
+        if mode == "cleanup":
+            direct = action.get("TargetGroupArn")
+            if (len(groups) == 1
+                    and groups[0].get("TargetGroupArn") == stable
+                    and isinstance(groups[0].get("Weight"), int)
+                    and groups[0]["Weight"] > 0
+                    and direct in {None, stable}):
+                raise SystemExit(0)
+            continue
         actual = {group.get("TargetGroupArn"): group.get("Weight") for group in groups}
         if actual == expected:
             raise SystemExit(0)

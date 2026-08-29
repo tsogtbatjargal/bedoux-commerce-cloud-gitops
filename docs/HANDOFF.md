@@ -13,7 +13,7 @@ Continue bedoux-commerce-cloud from
 Start with START-HERE.md, AGENTS.md, and docs/PROGRESS.md. The progress file is authoritative.
 Use the active worktree/branch recorded by Git; preserve unrelated changes.
 
-Current state as of 2026-08-28:
+Current state as of 2026-08-29:
 - P0-P12 are complete and gate-approved. The owner explicitly approved the P12 gate on
   2026-08-26 and activated P13. P13.1 is the sole `IN PROGRESS` item; P13.2 remains gated.
 - ADR 0022 supersedes ADR 0021: the owner retired Shopify, selected the `bedoux.ca` apex plus
@@ -139,16 +139,34 @@ checkpoint `791b0e4`. This permits PR and live-plan preparation, not merge or AW
   and `ALB_POD_READINESS_GATE pods=1 injected=true target_health=true` passes. One obsolete
   pre-restart target is only draining under P12's default deregistration window. There is one
   ALB/stable target group and no canary object.
+- The three baseline/apply checkpoints were pushed through exact `8d21033`; PR validation run
+  `33268443132` passed all four jobs. The owner approved only that exact head, and PR #55 merged it
+  to `main` as `5bbf959a689f46e20b7512b2be42c52a148b5c36`.
+- Separately authorized T-1301 run `33277095118` used only `canary_rollout=true`. It passed OIDC,
+  immutable build/signing, SPDX, EKS access, stable readiness, Helm revision 2, and Kubernetes
+  rollout, then failed closed during the initial stable-only ALB gate before staging. No canary
+  Deployment, Service, Ingress, or TargetGroupBinding was created.
+- Live diagnosis proves the controller represented the sole stable target with relative weight 1
+  and the same direct target, not literal weight 100. The target retains the applied 30-second
+  deregistration delay and is healthy. Stable pod ALB readiness, public health, disabled ordering,
+  and the six-product catalog all pass.
+- Focused branch `fix/p13-alb-single-target-weight` starts at exact merged `main` and accepts only
+  a sole positive-weight stable target in cleanup mode. Exact staged 90/10 and promotion 100/0
+  matching are unchanged. Live-weight-1, declared-weight-100, and zero-weight fail-closed mocks
+  pass; the patched read-only live cleanup gate passes. Draft PR #56 is open and mergeable at
+  exact fix head `4dc20606fb0eeb000ebde6881be82149a680d976`; exact-head run `33277768187` passed
+  all four jobs. Independent review found no implementation blocker and accepted the fix
+  technically; stale checkpoint wording was its sole merge blocker.
 
 Next action:
-1. Owner authorizes pushing the three local checkpoint commits through this baseline evidence to
-   `p13-1-canary` only. Keep PR #55 draft/unmerged and do not dispatch the canary. Wait for
-   exact-head CI to pass, then obtain separate explicit PR-ready/merge approval. Begin teardown
-   by the 17:45 Edmonton cutoff regardless of progress.
+1. Verify and commit the documentation-only checkpoint reconciliation, then obtain explicit owner
+   authorization before pushing its new exact head to draft PR #56. Reconfirm exact-head CI and
+   review before requesting merge approval. Merge and canary retry each require separate approval.
+   Begin teardown by 17:45 Edmonton regardless.
 
 Hard boundaries: USD 20/month; ca-central-1; bedoux-admin only; no NAT Gateway; same-day teardown;
 never record account IDs, secrets, personal email addresses, or registrar details. A bounded
 T-1301 session is live until the 17:45 cutoff; temporary no-NAT EKS/VPC, application, and ALB
-resources are running. PR push/ready/merge and canary dispatch remain unauthorized. P13.1 still
-awaits T-1301.
+resources are running. PR #56 remains draft and unmerged; its documentation-only follow-up is
+local and unpublished, and retry is unauthorized. P13.1 still awaits T-1301.
 ```

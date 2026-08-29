@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P13 — Delivery maturity |
 | Active task | P13.1 IN PROGRESS — review the merged deployment path, then implement and locally prove a staged/canary rollout with an automated health gate. |
-| Last verified | 2026-08-29T12:26:22-06:00 — older-P12 baseline run `33267748556` passed on exact `main` SHA `386f66e`. Public health and six-product catalog pass; exact digest-pinned API/web images run; the stable TargetGroupBinding has one healthy active target; and the restarted stable web pod has an injected, `True` ALB readiness gate. |
+| Last verified | 2026-08-29T16:23:31-06:00 — draft PR #56 is open and mergeable at exact fix head `4dc20606fb0eeb000ebde6881be82149a680d976`; exact-head run `33277768187` passed all four jobs. Independent review found the ALB normalization fix technically acceptable and fail-closed, with stale checkpoint wording as the sole merge blocker. |
 | AWS resources currently live | Bounded T-1301 session: no-NAT EKS/VPC shape plus `gp3`, AWS Load Balancer Controller 3.4.3, namespace/RBAC, one deployed `bedoux` Helm release with bound PostgreSQL PVC, and one public ALB/stable target group. Persistent allowlist remains attached. No EIP, NAT, RDS, optional service, website alias, or canary object exists. |
 | Month-to-date estimated AWS spend | USD 6.001 budget actual and USD 6.382 forecast at the 2026-08-29 T-1301 preflight; the refreshed four-hour session shape remains below USD 1. |
-| Next operator action | Owner authorizes pushing the three local checkpoint commits through the current baseline evidence to `p13-1-canary` only. Keep PR #55 draft/unmerged and do not dispatch the canary. Wait for exact-head CI to pass, then obtain separate explicit PR-ready/merge approval. Begin teardown by 17:45 Edmonton regardless of progress. |
+| Next operator action | Verify and commit the documentation-only checkpoint reconciliation, then obtain explicit authorization before pushing the resulting exact head to draft PR #56. Reconfirm exact-head CI and review before requesting merge approval. Merge and canary retry remain separately gated. Begin teardown by 17:45 Edmonton regardless of progress. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -686,6 +686,53 @@ P13.1 is in progress with its local rehearsal complete and live T-1301 evidence 
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-29T16:23:31-06:00 — PR #56 published and independently reviewed — Codex
+
+- **Published state verified:** draft PR #56 is open and mergeable against exact base
+  `5bbf959a689f46e20b7512b2be42c52a148b5c36` at exact fix head
+  `4dc20606fb0eeb000ebde6881be82149a680d976`. Exact-head validation run `33277768187`
+  passed API, web, Terraform/Helm, and container build/scan jobs.
+- **Independent review:** no implementation blocker was found. Cleanup still requires exactly one
+  stable target group, a positive integer relative weight, no canary TargetGroupBinding, the
+  applied 30-second deregistration delay, and healthy stable targets. Staged 90/10 and promotion
+  100/0 matching remain exact. The reviewer accepted the fix technically and identified stale
+  authoritative checkpoint wording as the sole merge blocker.
+- **Reconciliation boundary:** this documentation-only follow-up records the actual published PR
+  and CI state. It does not change the rollout implementation or claim T-1301. Publishing its new
+  exact head, marking PR #56 ready, merging, and retrying the canary each remain unauthorized
+  until their required owner approvals. The 17:45 Edmonton teardown cutoff remains hard.
+
+### 2026-08-29T16:03:35-06:00 — T-1301 pre-stage gate exposed live ALB normalization — Codex
+
+- **Owner boundary/merge:** the owner approved marking PR #55 ready and merging only exact head
+  `8d21033b6c8d01f5434750774af8b86fd6f35362`. Exact-head validation run `33268443132` passed
+  all four jobs; PR #55 merged to `main` as `5bbf959a689f46e20b7512b2be42c52a148b5c36`.
+  No canary was dispatched during the merge.
+- **Authorized dispatch:** after separate owner approval, dispatched run `33277095118` from that
+  exact `main` SHA with `canary_rollout=true`, `seed_catalog=false`, and every unrelated input
+  false. OIDC authentication, immutable builds, SPDX upload, signing, namespace-scoped EKS access,
+  stable image capture, stable pod-readiness, Helm revision 2, and Kubernetes rollout passed.
+- **Fail-closed result:** the initial stable-only ALB reconciliation gate waited its full 300
+  seconds and blocked before staging. The later smoke step did not run. No canary Deployment,
+  Service, Ingress, or TargetGroupBinding was created, so T-1301 is not claimed.
+- **Live root cause:** the Ingress retains the stable action backend and its sole stable
+  TargetGroupBinding. AWS reports that stable group both directly and as the only forward target,
+  normalized to relative weight 1 rather than the chart's declared 100. With one target this is
+  semantically 100% stable traffic, but the matcher required literal weight 100. The applied
+  deregistration delay is 30 seconds and the sole target is healthy.
+- **Safe state:** Helm revision 2 is deployed; API, web, and PostgreSQL remain 1/1. The stable web
+  readiness helper passes with one injected, target-ready pod; public health returns `status=ok`,
+  ordering remains disabled, and the catalog count remains six.
+- **Focused local repair:** created `fix/p13-alb-single-target-weight` from exact merged `main`.
+  Cleanup mode now accepts exactly one stable forward target with any positive relative weight and
+  no mismatched direct target, while staged 90/10 and promotion 100/0 remain exact. Mocks cover
+  live weight 1, declared weight 100, and fail-closed weight 0. Shell syntax, mocks, and
+  `git diff --check` pass; the patched read-only live cleanup gate also passes immediately.
+- **Boundary/next action:** P13.1 remains `IN PROGRESS`; T-1301 remains unclaimed. Obtain an
+  independent review and explicit publication approval for this focused fix. Do not push, open or
+  merge a fix PR, or retry the canary without their respective approvals. The 17:45 Edmonton
+  teardown cutoff remains hard.
 
 ### 2026-08-29T12:26:22-06:00 — older-P12 baseline healthy and ALB-ready — Codex
 

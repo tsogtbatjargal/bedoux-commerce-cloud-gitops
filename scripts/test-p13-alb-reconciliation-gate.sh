@@ -51,7 +51,12 @@ case "$operation" in
     ;;
   describe-rules)
     if [[ "${MOCK_RULE_MODE:-${MOCK_MODE:-staged}}" == "cleanup" ]]; then
+      # Live AWS normalizes a sole forward target to relative weight 1.
+      printf '%s\n' '{"Rules":[{"Actions":[{"Type":"forward","TargetGroupArn":"arn:stable","ForwardConfig":{"TargetGroups":[{"TargetGroupArn":"arn:stable","Weight":1}]}}]}]}'
+    elif [[ "${MOCK_RULE_MODE:-${MOCK_MODE:-staged}}" == "cleanup-declared" ]]; then
       printf '%s\n' '{"Rules":[{"Actions":[{"Type":"forward","ForwardConfig":{"TargetGroups":[{"TargetGroupArn":"arn:stable","Weight":100}]}}]}]}'
+    elif [[ "${MOCK_RULE_MODE:-${MOCK_MODE:-staged}}" == "cleanup-zero" ]]; then
+      printf '%s\n' '{"Rules":[{"Actions":[{"Type":"forward","TargetGroupArn":"arn:stable","ForwardConfig":{"TargetGroups":[{"TargetGroupArn":"arn:stable","Weight":0}]}}]}]}'
     elif [[ "${MOCK_RULE_MODE:-${MOCK_MODE:-staged}}" == "promotion" ]]; then
       printf '%s\n' '{"Rules":[{"Actions":[{"Type":"forward","ForwardConfig":{"TargetGroups":[{"TargetGroupArn":"arn:stable","Weight":100},{"TargetGroupArn":"arn:canary","Weight":0}]}}]}]}'
     else
@@ -102,6 +107,29 @@ PATH="$fixture_dir:$PATH" MOCK_MODE=cleanup \
     --timeout-seconds 1 \
     --poll-seconds 1 \
     --execute >/dev/null
+
+PATH="$fixture_dir:$PATH" MOCK_MODE=cleanup MOCK_RULE_MODE=cleanup-declared \
+  scripts/p13-alb-reconciliation-gate.sh \
+    --context mock-eks \
+    --aws-region ca-central-1 \
+    --mode cleanup \
+    --expected-canary-weight 0 \
+    --timeout-seconds 1 \
+    --poll-seconds 1 \
+    --execute >/dev/null
+
+if PATH="$fixture_dir:$PATH" MOCK_MODE=cleanup MOCK_RULE_MODE=cleanup-zero \
+  scripts/p13-alb-reconciliation-gate.sh \
+    --context mock-eks \
+    --aws-region ca-central-1 \
+    --mode cleanup \
+    --expected-canary-weight 0 \
+    --timeout-seconds 1 \
+    --poll-seconds 1 \
+    --execute >/dev/null 2>&1; then
+  printf '%s\n' 'expected a zero-weight stable-only action to fail closed' >&2
+  exit 1
+fi
 
 if PATH="$fixture_dir:$PATH" MOCK_MODE=staged MOCK_RULE_MODE=cleanup \
   scripts/p13-alb-reconciliation-gate.sh \
