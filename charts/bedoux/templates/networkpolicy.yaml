@@ -45,8 +45,10 @@ metadata:
     {{- include "bedoux.labels" . | nindent 4 }}
 spec:
   podSelector:
-    matchLabels:
-      app: web
+    matchExpressions:
+      - key: app
+        operator: In
+        values: ["web", "web-canary"]
   policyTypes:
     - Ingress
   ingress:
@@ -66,15 +68,19 @@ metadata:
     {{- include "bedoux.labels" . | nindent 4 }}
 spec:
   podSelector:
-    matchLabels:
-      app: web
+    matchExpressions:
+      - key: app
+        operator: In
+        values: ["web", "web-canary"]
   policyTypes:
     - Egress
   egress:
     - to:
         - podSelector:
-            matchLabels:
-              app: api
+            matchExpressions:
+              - key: app
+                operator: In
+                values: ["api", "api-canary"]
       ports:
         - protocol: TCP
           port: 8000
@@ -90,15 +96,19 @@ metadata:
     {{- include "bedoux.labels" . | nindent 4 }}
 spec:
   podSelector:
-    matchLabels:
-      app: api
+    matchExpressions:
+      - key: app
+        operator: In
+        values: ["api", "api-canary"]
   policyTypes:
     - Ingress
   ingress:
     - from:
         - podSelector:
-            matchLabels:
-              app: web
+            matchExpressions:
+              - key: app
+                operator: In
+                values: ["web", "web-canary"]
         - namespaceSelector:
             matchLabels:
               {{- toYaml .Values.networkPolicy.ingressNamespaceSelector | nindent 14 }}
@@ -119,7 +129,7 @@ spec:
     matchExpressions:
       - key: app
         operator: In
-        values: ["api", "bedoux-migrate", "bedoux-seed"]
+        values: ["api", "api-canary", "bedoux-migrate", "bedoux-seed"]
   policyTypes:
     - Egress
   egress:
@@ -149,7 +159,7 @@ spec:
             matchExpressions:
               - key: app
                 operator: In
-                values: ["api", "bedoux-migrate", "bedoux-seed"]
+                values: ["api", "api-canary", "bedoux-migrate", "bedoux-seed"]
       ports:
         - protocol: TCP
           port: 5432

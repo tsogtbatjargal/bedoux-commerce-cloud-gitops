@@ -163,10 +163,61 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   redirect, and staged-alias path to `main` as `775dfe1`. The bounded live session passed T-1202
   through trusted apex/`www` HTTPS, HTTP 301 redirects, and a real Chrome catalog render; T-1203
   passed after removing aliases and every temporary ALB/EKS/VPC resource while retaining only
-  the approved zone/certificate allowlist. P13.1 is next and has not started.
-  The Calico-backed kind cluster is
-  still running and Ready, but the default kubeconfig context points at the deleted EKS endpoint;
-  use or switch deliberately to `kind-bedoux`.
+  the approved zone/certificate allowlist. PR #54 passed all four checks and merged the P12
+  completion/gate evidence as `386f66e`; merged P12 branches are cleaned locally/remotely.
+  **P13.1 is IN PROGRESS.** Accepted ADR 0023 and the local chart/workflow/helpers implement one
+  Helm-release canary with controller-native 90/10 routing and an automated exact-image,
+  health/error gate. Static validation passes. The local kind rehearsal also passed at 10% with
+  20/20 healthy samples and zero errors, promoted the candidate to 100%, and removed every canary
+  object while preserving the HPA and NetworkPolicy overlays. Live AWS T-1301 evidence remains
+  pending. Independent reviews correctly withheld ADR acceptance for asynchronous ALB races.
+  The hardened local diff now also pins the P13 ALB target-group deregistration delay to 30 seconds
+  and reads the applied AWS attribute in every reconciliation state, so the 300-second ELB default
+  cannot race the gate deadline. It proves exact 90/10, target health, bounded public canary
+  handling, injected ALB pod-readiness conditions, exact 100/0 before the drain clock, and
+  stable-only cleanup while retaining the stable target group. The owner accepted ADR 0023 on
+  2026-08-28 against implementation `6cdb54c` and checkpoint `791b0e4`; focused PR preparation is
+  complete. Draft PR #55 is open at exact head `efb3b06`; exact-head four-job validation run
+  `33193213907` passed. A fresh bounded T-1301 session on 2026-08-28 confirmed the budget, region,
+  non-root identity, conservative sub-USD-1 session estimate, and clean temporary-resource
+  inventory. Persistent state is reconciled, and exact saved plan
+  `ce72db3e6c6a1d39680784a7fb680f93195f824265121a185ce6c1bb5dc49376` has 25 creates, 11
+  in-place updates, and zero deletes/replacements. The owner approved and Terraform applied that
+  exact binary: EKS 1.34, one Ready Spot `t3.medium` at 1/1/1, both pinned add-ons active, and no
+  alias/NAT/EIP/optional service. Post-apply verification found that EKS did not propagate the two
+  standard tags to the managed EC2 instance or root gp3 volume, and the backing Auto Scaling group
+  lacks propagate-at-launch project/environment tags. The owner ordered immediate teardown and
+  approved exact temporary-only destroy plan
+  `77a0273803ca29faa826ecbe09ee2100174c6c03f813e96dbf8c57acf5da21f9`. Terraform destroyed its
+  exact 15 resources, the helper deleted the captured temporary cluster OIDC provider, and the
+  16:49 Edmonton sweep returned zero temporary resources. P13.1 remains in progress and T-1301 is
+  not claimed. Local repair `353e3f4` gives both the default primary and P11 HA secondary node
+  groups dedicated launch templates with at-creation instance/volume tags and 20-GiB gp3 root
+  mappings; removes node-group `disk_size`; and manages both standard tags on each EKS-created ASG
+  with `propagate_at_launch=true`. The owner accepted the repair, and exact-head PR run
+  `33266130986` passes all four jobs at checkpoint `9fb1fc3`; PR #55 remains draft and unmerged.
+  A fresh authorized read-only preflight on 2026-08-29 found zero temporary resources, budget
+  actual USD 6.001 and forecast USD 6.382, and a refreshed four-hour estimate below USD 1.
+  Persistent state is reconciled. Exact saved plan
+  `cdcc092e162d9b506d68ded8d41b283438da064e6c8c0a76364e7941b43256b4` has 28 creates, 11
+  expected in-place updates, and zero deletes/replacements; the three new creates are exactly the
+  primary launch template and two propagated ASG tags. The owner approved and Terraform applied
+  that exact binary: 28 added, 11 changed, 0 destroyed. EKS 1.34, one Ready Spot
+  `t3.medium` at 1/1/1, and both pinned add-ons are healthy. Live verification proves the launch
+  template's instance/volume tag specifications and 20-GiB gp3 mapping, standard tags on the
+  template, worker, and root volume, and both backing-ASG tags with propagation enabled. No NAT,
+  EIP, RDS, optional service, or website alias exists. Authorized operator bootstrap installed the
+  readiness-gate namespace, narrow TargetGroupBinding RBAC, `gp3`, and AWS Load Balancer
+  Controller 3.4.3. Older-P12 baseline run `33267748556` passed on exact `main` SHA
+  `386f66e`: public health and the six-product catalog pass, running API/web images match the
+  exact signed digests, and the one active stable target is healthy. The initial web pod predated
+  its TargetGroupBinding; the runbook's one restart produced a replacement with an injected,
+  `True` ALB target-health gate. One ALB/stable target group is live; no canary object exists.
+  Three local checkpoint commits await explicit branch-push authorization; PR #55 remains draft
+  and unmerged, and canary dispatch remains gated. The 17:45 Edmonton teardown cutoff remains
+  hard. The retained Calico-backed kind node is
+  stopped with its PVC preserved and the host inotify value restored to 128. The default kubeconfig
+  context still points at the deleted EKS endpoint, so always use an explicit context.
 - Repository workflow skills are validated and published on `main` through merged PR #47
   (`874305c`); P11.1 is complete with T-1101 evidence and P11.2 is complete with local
   PDB/topology evidence.
@@ -207,7 +258,8 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   then removed both aliases before the ALB/application/EKS/VPC teardown. The 2026-08-26 final
   sweep found no temporary resource or dangling alias; budget actual was USD 5.384 of USD 20.
   Only the approved persistent allowlist remains. The owner approved the P12 gate on 2026-08-26,
-  activating P13; publish the focused checkpoint, then begin P13.1 from the merged state.
+  activating P13; PR #54 merged the focused checkpoint as `386f66e`. P13.1 began from that
+  verified merged state and remains the sole active item; P13.2 is still gated.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

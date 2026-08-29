@@ -1,3 +1,4 @@
+{{- if .Values.migration.enabled }}
 # Per ADR 0005 (docs/decisions/0005-helm-migration-hook-job.md): runs alembic upgrade
 # head so the chart is independently deployable — no manual `kubectl exec` step
 # required. Fails the release if migration fails (Helm's default behavior for a failed
@@ -40,7 +41,7 @@ spec:
       serviceAccountName: {{ .Values.api.serviceAccount.name }}
       initContainers:
         - name: wait-for-postgres
-          image: {{ include "bedoux.imageReference" .Values.api.image | quote }}
+          image: {{ include "bedoux.migrationImageReference" . | quote }}
           command:
             - python
             - -c
@@ -60,8 +61,9 @@ spec:
             {{- include "bedoux.databaseCredentialEnv" . | nindent 12 }}
       containers:
         - name: migrate
-          image: {{ include "bedoux.imageReference" .Values.api.image | quote }}
-          imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+          image: {{ include "bedoux.migrationImageReference" . | quote }}
+          imagePullPolicy: {{ ternary .Values.canary.api.image.pullPolicy .Values.api.image.pullPolicy .Values.canary.enabled }}
           command: ["python", "-m", "alembic", "upgrade", "head"]
           env:
             {{- include "bedoux.databaseCredentialEnv" . | nindent 12 }}
+{{- end }}

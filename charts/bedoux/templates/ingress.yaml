@@ -21,6 +21,13 @@ metadata:
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/group.name: bedoux
+    # ADR 0023: keep this action backend before, during, and after a canary so
+    # cleanup never changes the Ingress backend type or replaces the stable TG.
+    {{- if .Values.canary.enabled }}
+    alb.ingress.kubernetes.io/actions.web: {{ dict "type" "forward" "forwardConfig" (dict "targetGroups" (list (dict "serviceName" "web" "servicePort" 8080 "weight" (sub 100 (int .Values.canary.weight))) (dict "serviceName" "web-canary" "servicePort" 8080 "weight" (int .Values.canary.weight)))) | toJson | quote }}
+    {{- else }}
+    alb.ingress.kubernetes.io/actions.web: {{ dict "type" "forward" "forwardConfig" (dict "targetGroups" (list (dict "serviceName" "web" "servicePort" 8080 "weight" 100))) | toJson | quote }}
+    {{- end }}
     {{- if .Values.ingress.tls.enabled }}
     # The controller discovers the already-issued ACM certificate from these
     # Ingress hosts; no account-bearing certificate ARN belongs in chart values.
@@ -51,7 +58,7 @@ spec:
               service:
                 name: web
                 port:
-                  number: 8080
+                  name: use-annotation
     {{- end }}
     {{- else }}
     - http:
@@ -62,7 +69,7 @@ spec:
               service:
                 name: web
                 port:
-                  number: 8080
+                  name: use-annotation
     {{- end }}
 {{- else }}
 # Two Ingress objects, not one — nginx.ingress.kubernetes.io/rewrite-target applies to
@@ -106,4 +113,52 @@ spec:
                 name: web
                 port:
                   number: 8080
+{{- if .Values.canary.enabled }}
+---
+# ingress-nginx permits one canary Ingress per matching host/path. Mirror both
+# stable paths so kind exercises the same weighted API and web boundary as AWS.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bedoux-api-canary
+  labels:
+    {{- include "bedoux.labels" . | nindent 4 }}
+  annotations:
+    nginx.ingress.kubernetes.io/canary: "true"
+    nginx.ingress.kubernetes.io/canary-weight: {{ .Values.canary.weight | quote }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  rules:
+    - http:
+        paths:
+          - path: /api(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: api-canary
+                port:
+                  number: 8000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bedoux-web-canary
+  labels:
+    {{- include "bedoux.labels" . | nindent 4 }}
+  annotations:
+    nginx.ingress.kubernetes.io/canary: "true"
+    nginx.ingress.kubernetes.io/canary-weight: {{ .Values.canary.weight | quote }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web-canary
+                port:
+                  number: 8080
+{{- end }}
 {{- end }}

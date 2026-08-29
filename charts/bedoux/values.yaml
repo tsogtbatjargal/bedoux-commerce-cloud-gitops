@@ -133,6 +133,7 @@ database:
 # rollback doesn't re-fire pre-upgrade hooks at all, verified live — nothing to
 # configure for that here).
 migration:
+  enabled: true
   backoffLimit: 2
   activeDeadlineSeconds: 120
 
@@ -159,6 +160,29 @@ ingress:
   # Empty keeps the cloud-provider default. The AWS HA overlay bounds this so
   # its pod preStop hold can outlive target deregistration.
   targetGroupDeregistrationDelaySeconds: ""
+
+# P13.1: disabled-by-default candidate pair in the same Helm release. The
+# deployment workflow supplies candidate images explicitly and fixes the live
+# stage at 10%; weight 0 is used briefly after promotion while the canary target
+# drains before these resources are removed.
+canary:
+  enabled: false
+  weight: 10
+  replicas: 1
+  api:
+    image:
+      repository: localhost/bedoux-api
+      tag: p3
+      digest: ""
+      pullPolicy: IfNotPresent
+  web:
+    image:
+      repository: localhost/bedoux-web
+      tag: p3
+      digest: ""
+      pullPolicy: IfNotPresent
+    # Reserved for P13.2's signed, narrowly scoped regression drill.
+    command: []
 
 # Per ADR 0006: only the AWS session profile creates this (values-aws.yaml).
 # kind has no ebs.csi.aws.com provisioner to satisfy it.

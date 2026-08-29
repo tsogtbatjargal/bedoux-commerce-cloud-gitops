@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P13 — Delivery maturity |
-| Active task | P13.1 — activated but NOT STARTED; first review the merged deployment path and define the staged/canary rollout boundary. |
-| Last verified | 2026-08-26T21:03:57-06:00 — owner explicitly approved the P12 gate and activated P13 after T-1201–T-1203 and clean teardown. |
-| AWS resources currently live | Persistent allowlist only: one protected state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider, and the `bedoux.ca` public Route 53 zone with its issued ACM certificate and two validation records. No temporary compute, network, storage, database, load-balancing, alias, or cluster-OIDC resource remains. |
-| Month-to-date estimated AWS spend | USD 5.384 budget actual at the 2026-08-26 P12 closeout; delayed session charges may not yet be reflected, but the bounded shape remains below the reviewed USD 1 session estimate. |
-| Next operator action | Publish the focused P12 completion/gate checkpoint through PR review, then begin P13.1 locally from the merged checkpoint. No AWS session is needed for initial design. |
+| Active task | P13.1 IN PROGRESS — review the merged deployment path, then implement and locally prove a staged/canary rollout with an automated health gate. |
+| Last verified | 2026-08-29T12:26:22-06:00 — older-P12 baseline run `33267748556` passed on exact `main` SHA `386f66e`. Public health and six-product catalog pass; exact digest-pinned API/web images run; the stable TargetGroupBinding has one healthy active target; and the restarted stable web pod has an injected, `True` ALB readiness gate. |
+| AWS resources currently live | Bounded T-1301 session: no-NAT EKS/VPC shape plus `gp3`, AWS Load Balancer Controller 3.4.3, namespace/RBAC, one deployed `bedoux` Helm release with bound PostgreSQL PVC, and one public ALB/stable target group. Persistent allowlist remains attached. No EIP, NAT, RDS, optional service, website alias, or canary object exists. |
+| Month-to-date estimated AWS spend | USD 6.001 budget actual and USD 6.382 forecast at the 2026-08-29 T-1301 preflight; the refreshed four-hour session shape remains below USD 1. |
+| Next operator action | Owner authorizes pushing the three local checkpoint commits through the current baseline evidence to `p13-1-canary` only. Keep PR #55 draft/unmerged and do not dispatch the canary. Wait for exact-head CI to pass, then obtain separate explicit PR-ready/merge approval. Begin teardown by 17:45 Edmonton regardless of progress. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -660,7 +660,7 @@ Gate: T-1201..T-1203.
 
 ### P13 — Delivery maturity
 
-- [ ] P13.1 NOT STARTED — staged/canary rollout with an automated health gate.
+- [ ] P13.1 IN PROGRESS — staged/canary rollout with an automated health gate.
 - [ ] P13.2 NOT STARTED — blocked-canary drill (injected regression, automatic rollback).
 
 Gate: T-1301..T-1302.
@@ -676,7 +676,7 @@ Gate: T-1301..T-1302.
 Gate: T-1401..T-1404.
 
 **P10–P14 track bootstrapped 2026-08-09; P10, P11, and P12 are gate-approved. P13 is active;
-P13.1 is the next checklist item and has not started.**
+P13.1 is in progress with its local rehearsal complete and live T-1301 evidence pending.**
 
 ## Blockers
 
@@ -686,6 +686,579 @@ P13.1 is the next checklist item and has not started.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-29T12:26:22-06:00 — older-P12 baseline healthy and ALB-ready — Codex
+
+- **Owner boundary:** the owner authorized T-1301 operator bootstrap and the older-P12 baseline
+  dispatch only, explicitly excluding PR ready/merge and canary dispatch. The 19:00 alarm and
+  17:45 teardown cutoff remain active.
+- **Operator bootstrap:** on the explicit temporary `bedoux` context, applied namespace
+  `bedoux` with `elbv2.k8s.aws/pod-readiness-gate-inject=enabled`, the dedicated
+  TargetGroupBinding reader Role/RoleBinding, and the `gp3` EBS CSI StorageClass. Installed
+  AWS Load Balancer Controller chart 3.4.3 with its Terraform-managed IRSA role and explicit VPC;
+  both controller replicas are Ready. The registered CRD proof confirms the dedicated group can
+  only `get/list` TargetGroupBindings, not create them or read Secrets.
+- **Dispatch boundary:** refreshed repository variable `AWS_DEPLOY_ROLE_ARN` from Terraform
+  output without recording its value. Verified `origin/main` remains the older P12 merge
+  `386f66ea8788010ada8c4f8ef535291c13121cc6` and PR #55 remains open, draft, mergeable, and
+  unmerged. Dispatched run `33267748556` with exactly `seed_catalog=true` and
+  `rollback_drill/use_rds/use_secrets_manager/use_s3_images/use_custom_domain=false`.
+- **Green older baseline:** run `33267748556` passed in 4m42s on exact SHA `386f66e`:
+  GitHub OIDC authentication, immutable image build/push, SPDX generation/upload, keyless signing,
+  namespace-scoped EKS access, atomic Helm deployment, and public ALB smoke all succeeded.
+  Helm revision 1 is deployed; API, web, and PostgreSQL are each 1/1 available; migration and seed
+  Jobs succeeded; and the one PostgreSQL PVC is Bound on `gp3`.
+- **Exact images/public proof:** running API digest
+  `sha256:ff44f44785d483b090f3fd04c03254fd4eb9e7b411700fcbe66f24def1c2958e` and web digest
+  `sha256:d8e2d43b724a162ad1cdb5828641c769ab1a0c4ddcae9f9758e631567b2ab606`
+  exactly match ECR tag `386f66e...`. Public `/api/health` returns `status=ok`, the catalog
+  contains six products, and the API deployment keeps `BEDOUX_ORDERS_ENABLED=false`.
+- **ALB readiness proof:** the initial web pod predated its controller-created TargetGroupBinding
+  and correctly lacked an injected gate. Per the runbook, restarted `deployment/web` exactly
+  once. The replacement rolled out only after target health, and the dedicated helper returned
+  `ALB_POD_READINESS_GATE pods=1 injected=true target_health=true`. The active web pod IP maps
+  to one healthy stable target. One obsolete pre-restart target remains only in AWS's P12 default
+  draining window; it is not an active endpoint. There is one ALB, one stable target group, and
+  zero canary Deployments, Services, Ingresses, or TargetGroupBindings.
+- **Boundary/next action:** P13.1 remains `IN PROGRESS` and T-1301 is not yet claimed. No PR
+  push/ready/merge or canary dispatch occurred. Three local checkpoint commits now await explicit
+  push authorization; publish them only to `p13-1-canary`, keep PR #55 draft, wait for exact-head
+  CI, and then obtain separate PR-ready/merge approval.
+
+### 2026-08-29T12:09:17-06:00 — approved repaired plan applied; tag chain passes — Codex
+
+- **Exact approval/apply:** the owner approved saved-plan SHA-256
+  `cdcc092e162d9b506d68ded8d41b283438da064e6c8c0a76364e7941b43256b4`. Immediately before
+  apply, the binary still matched, Terraform source was unchanged from plan head `9fb1fc3`, the
+  caller remained non-root `bedoux-admin` in `ca-central-1`, forecast remained USD 6.382, the
+  temporary inventory was empty, and 21,050 seconds remained before cutoff. Terraform applied
+  only that binary: exactly 28 added, 11 changed, and 0 destroyed.
+- **Healthy infrastructure:** EKS 1.34 is `ACTIVE`; its one managed Spot `t3.medium` node group
+  is `ACTIVE` at desired/min/max `1/1/1`; and the explicit Kubernetes context reports exactly
+  one Ready v1.34 node. EBS CSI `v1.63.1-eksbuild.1` and VPC CNI
+  `v1.22.4-eksbuild.3` are both `ACTIVE` with zero health issues.
+- **Durable tag repair live proof:** the managed node group references the new launch template.
+  Its exact version defines `/dev/xvda` as 20-GiB gp3 with delete-on-termination and has
+  at-creation `instance` and `volume` tag specifications carrying both standard tags. The
+  launch template itself, the one running worker, and its one in-use root volume all carry
+  `project=bedoux-commerce-cloud` and `environment=learning`. The backing ASG has both exact
+  tags with `PropagateAtLaunch=true` and remains fixed at `1/1/1`. This closes the blocker from
+  the first T-1301 attempt.
+- **Access/scope proof:** the GitHub EKS access entry has only
+  `bedoux-ci-targetgroupbinding-reader`; its managed edit association is scoped only to namespace
+  `bedoux`. The live deployment policy contains exactly the five reviewed read-only ELBv2
+  actions and no ELB mutation.
+- **Negative inventory:** no NAT Gateway, EIP, ALB, target group, RDS instance, or website alias
+  exists. The project tag inventory has 18 resources and zero missing learning-environment tags.
+  No application namespace, Helm release, controller, ALB, PR state change, or workflow dispatch
+  has occurred.
+- **Authorization/deadline boundary:** the 19:00 alarm and 17:45 teardown cutoff remain active.
+  The exact-plan approval covered Terraform apply and read-only verification only. Operator
+  Kubernetes bootstrap, GitHub variable refresh, older-P12 baseline dispatch, PR ready/merge,
+  canary dispatch, and P13.2 remain separately gated.
+- **Next action:** owner explicitly authorizes operator bootstrap and the older-P12 baseline
+  dispatch only. Then apply the readiness-gate namespace and narrow RBAC, bootstrap `gp3` and
+  AWS Load Balancer Controller 3.4.3, refresh the deployment-role variable, and dispatch existing
+  `main` with `seed_catalog=true` and all optional inputs false. Do not make PR #55 ready or
+  merge it, and do not dispatch the canary without later explicit approval.
+
+### 2026-08-29T11:50:10-06:00 — repaired T-1301 exact plan ready for approval — Codex
+
+- **Owner boundary:** the owner set an independent 19:00 Edmonton alarm and 17:45 teardown cutoff
+  and authorized read-only preflight, persistent-state reconciliation, and exact saved-plan
+  generation only. No apply, PR ready/merge, workflow dispatch, Kubernetes mutation, or P13.2 is
+  authorized.
+- **Fresh preflight:** confirmed the non-root `bedoux-admin` IAM user and pinned
+  `ca-central-1`; draft PR #55 remains open, draft, mergeable, and unmerged at exact head
+  `9fb1fc3`, with all four jobs passing in run `33266130986`. Budget actual is USD 6.001 and
+  forecast is USD 6.382 against the USD 20 cap. Current `t3.medium` Spot is
+  USD 0.0182–0.0196/hour; EKS 1.34 remains in standard support at USD 0.10/hour; and the regional
+  ALB rate is USD 0.02475/hour plus USD 0.0088/LCU-hour. The conservative four-hour estimate
+  remains below USD 1 and the USD 4 session stop condition.
+- **Clean inventory:** zero EKS clusters, project VPCs, active instances, NAT Gateways, EIPs, EBS
+  volumes/self-owned snapshots, load balancers/target groups, RDS instances/manual snapshots/
+  subnet groups, active CloudFormation stacks, project log groups, or project secrets. There are
+  no website aliases. The persistent allowlist remains one protected state bucket, two ECR
+  repositories, six IAM roles, GitHub OIDC, and the `bedoux.ca` zone plus issued certificate.
+  The tag sweep contains only the state bucket, two ECR repositories, and certificate; all carry
+  the standard learning tags. The state bucket is versioned, AES-256 encrypted, and fully
+  public-blocked.
+- **State reconciliation:** backend initialization succeeded at exact local/remote source head
+  `9fb1fc373ccb3aa3a620f60e75e5e96fb7701884`. The protected Route 53/ACM objects were already
+  attached; the reviewed guarded helper imported only the approved ECR/IAM/GitHub-OIDC allowlist.
+  This changed Terraform state, not AWS resources.
+- **Exact plan:** `/tmp/bedoux-p13-t1301-20260829-1146.tfplan` is 53,839 bytes and hashes to
+  `cdcc092e162d9b506d68ded8d41b283438da064e6c8c0a76364e7941b43256b4`. Its temporary JSON
+  review artifact and input file are mode 0600. Apply has not run.
+- **Machine review:** 28 creates, 11 expected persistent-resource updates, zero deletes, and zero
+  replacements. Relative to the prior 25-create plan, the exact three additional creates are one
+  primary launch template and two primary ASG-tag resources. The template tags instances and
+  volumes at creation, defines `/dev/xvda` as 20-GiB gp3 with delete-on-termination, and the
+  ASG tags carry exact project/environment values with `propagate_at_launch=true`. Configuration
+  JSON proves both primary and optional secondary node groups omit a `disk_size` expression and
+  reference their corresponding launch-template ID/latest version; only the one-node primary
+  path is enabled in this plan.
+- **Scope/access review:** EKS 1.34, one Spot `t3.medium` at desired/min/max `1/1/1`, and the
+  pinned EBS CSI/VPC CNI add-ons are exact. The GitHub access entry receives only
+  `bedoux-ci-targetgroupbinding-reader`; its managed edit policy remains namespace-scoped to
+  `bedoux`. The deployment policy contains exactly the five reviewed read-only ELBv2 actions.
+  Route 53/ACM's five objects are no-op. The plan contains no NAT/EIP, RDS, S3-images, Secrets
+  Manager, observability, website alias, secondary HA node, or other optional service.
+- **AWS/Kubernetes/cost:** read-only AWS APIs plus Terraform state imports only; no AWS resource
+  or Kubernetes object was created, modified, or deleted. Incremental infrastructure cost remains
+  USD 0.
+- **Next action:** owner approves or rejects the exact SHA-256 above. Apply only that unchanged
+  binary after explicit approval; otherwise detach the persistent allowlist and remove temporary
+  plan files by the 17:45 cutoff. P13.1 remains `IN PROGRESS`; T-1301 is not claimed.
+
+### 2026-08-28T21:15:59-06:00 — tagging repair accepted for fresh plan review — owner/Codex
+
+- **Owner acceptance:** the owner accepted implementation `353e3f4` for fresh Terraform plan
+  review with no blocking findings. The acceptance covers both dedicated launch templates,
+  at-creation instance/volume tags, 20-GiB gp3 delete-on-termination root mappings, absent
+  node-group `disk_size`, corresponding template references, propagated standard ASG tags, and
+  fail-closed standard-tag input validation.
+- **Exact published evidence:** local and remote branch heads match checkpoint `ec21ba3`; draft
+  PR #55 is open, cleanly mergeable, and unmerged. Exact-head run `33230531403` passed API, web,
+  Terraform/Helm—including the 2/2 mocked node-tagging plans—and container
+  build/scan/SBOM/signature jobs.
+- **Non-blocking suggestion:** explicit mock assertions tying each node group's template ID/version
+  and ASG tag values to expected values would strengthen regression coverage. The reviewed wiring
+  is correct; do not change accepted implementation `353e3f4` before the fresh plan merely for
+  this optional improvement.
+- **AWS/Kubernetes:** none. No AWS API, Kubernetes endpoint, or remote Terraform state was
+  contacted during the review; no AWS session is open and no temporary resource is live.
+- **Authorized next boundary:** a new session may proceed only after the owner supplies an
+  independent Edmonton alarm and teardown cutoff and explicitly authorizes read-only preflight,
+  persistent-state reconciliation, and exact saved-plan generation. The plan must show the new
+  launch template and two primary ASG-tag resources, no node-group `disk_size`, no NAT or
+  unplanned service, and zero delete/replace actions. Stop at the exact SHA-256; apply remains a
+  separate approval. PR ready/merge, workflow dispatch, T-1301 completion, and P13.2 remain gated.
+
+### 2026-08-28T21:02:59-06:00 — durable managed-node tagging repair locally proven — Codex
+
+- **Focused implementation:** commit `353e3f4` adds separate EC2 launch templates for the default
+  primary and opt-in P11 HA secondary node groups. Both templates tag `instance` and `volume` at
+  launch, own the `/dev/xvda` 20-GiB gp3 root-volume mapping, and carry the standard tags
+  themselves. Both EKS node groups reference the corresponding latest template version and no
+  longer configure `disk_size`, avoiding the EKS duplicate disk-size rejection.
+- **Backing ASGs:** dedicated `aws_autoscaling_group_tag` resources derive each EKS-created ASG
+  name from the node-group `resources` result and set `project` and `environment` with
+  `propagate_at_launch=true`. Launch-template tags cover initial workers and every root volume;
+  ASG tags cover the ASG itself and future workers.
+- **Fail-closed input/test contract:** the EKS module now refuses missing or empty standard tags.
+  Mocked Terraform plans prove the default path and the P11 two-AZ path: exact instance/volume tag
+  specifications and values, 20-GiB gp3 root mappings, both propagated ASG tags, and absence of the
+  secondary path from the default profile. PR validation now runs those tests and rejects any
+  reintroduced node-group `disk_size` assignment.
+- **Local evidence:** `terraform fmt -check -recursive` passed; the focused mocked test passed 2/2;
+  credential-free `terraform validate` passed for default, P11 HA, and P12 TLS profiles;
+  `make docs-check`, immutable-action checks, `git diff --check`, and the account-ID pattern scan
+  passed. The test uses provider mocks and inert non-account ARN placeholders.
+- **AWS:** none. No AWS API or remote Terraform state was reached, and no resource was created,
+  modified, or deleted. A provider-schema probe initially attempted credential validation but was
+  blocked locally at DNS before any endpoint connection; all successful validation used explicit
+  credential-free or mock-provider paths.
+- **Boundary/next action:** P13.1 remains `IN PROGRESS` and T-1301 remains unclaimed. Keep PR #55
+  draft and unmerged. Obtain independent review of `353e3f4`; only after acceptance open a fresh
+  alarmed session, reconcile persistent state, and generate a new exact plan for separate approval.
+
+### 2026-08-28T16:49:17-06:00 — approved exact teardown complete; clean sweep — Codex
+
+- **Exact approval and apply:** the owner approved destroy-plan SHA-256
+  `77a0273803ca29faa826ecbe09ee2100174c6c03f813e96dbf8c57acf5da21f9`. The guarded helper
+  rechecked that unchanged hash, started at 16:38:25 Edmonton with 3,997 seconds before cutoff,
+  and applied only that binary: zero added, zero changed, and exactly 15 destroyed.
+- **OIDC cleanup:** after Terraform completed, the helper deleted the captured temporary cluster
+  OIDC provider. No application, Ingress, Helm release, ALB, target group, namespace, PVC,
+  controller, or StorageClass had been created, so no application-layer cleanup was required.
+- **Full clean sweep:** at 16:49:17 Edmonton, counts were zero for EKS clusters, project VPCs,
+  active instances, NAT Gateways, EIPs, load balancers, target groups, available/in-use EBS
+  volumes, self-owned snapshots, RDS instances/snapshots/subnet groups, active CloudFormation
+  stacks, project log groups, website aliases, and temporary cluster OIDC providers.
+- **Persistent allowlist:** retained exactly two ECR repositories, one state bucket, six IAM roles,
+  GitHub OIDC, one Route 53 public zone, and one issued certificate with validation records. The
+  remaining Terraform state contains only data sources plus the protected Route 53/ACM resources.
+- **Local evidence cleanup:** removed the exact create/destroy plan binaries and JSON, temporary
+  kubeconfig, and captured OIDC ARN file from `/tmp`; none is committed.
+- **Cost and outcome:** temporary infrastructure existed for less than one hour, no ALB/NAT/RDS
+  was created, and conservative incremental cost is estimated below USD 0.10 pending billing
+  ingestion. P13.1 remains `IN PROGRESS`; T-1301 is not claimed because the managed instance/root
+  volume lacked required propagated tags. Next repair both the primary and P11 HA secondary node
+  groups: add launch-template `instance`/`volume` tag specifications, move the 20-GiB root-volume
+  setting into each launch template and remove node-group `disk_size`, and tag each backing Auto
+  Scaling group with both standard tags and `propagate_at_launch=true`. Verify locally before
+  generating a fresh exact AWS plan. The 19:00 alarm may be canceled.
+
+### 2026-08-28T16:35:54-06:00 — exact temporary-only destroy plan awaiting approval — Codex
+
+- **Owner direction:** after the managed-node tag blocker, the owner instructed `Teardown now`.
+  No application namespace, Ingress, Helm release, ALB, or target group existed, so no ordered
+  Kubernetes/load-balancer deletion was required before infrastructure teardown.
+- **Guarded preparation:** captured the exact temporary cluster OIDC provider for explicit
+  post-cluster deletion. Detached 20 persistent ECR/IAM/GitHub-OIDC addresses and the cluster
+  OIDC provider from Terraform state; this state-only action changed no AWS resource. Protected
+  Route 53/ACM state remains attached and outside the destroy targets.
+- **Exact destroy plan:** `/tmp/bedoux-session-destroy.tfplan` is 57,812 bytes and hashes to
+  `77a0273803ca29faa826ecbe09ee2100174c6c03f813e96dbf8c57acf5da21f9`. It contains exactly 15
+  deletes and zero create/update/replace action: two pinned add-ons, two access entries, two access
+  associations, one EKS cluster, one node group, one Internet Gateway, one route table, two route
+  associations, two public subnets, and one VPC.
+- **Persistent-resource proof:** machine inspection found no delete under ECR, cluster IAM,
+  GitHub Actions OIDC/role/policy, workload IAM roles/policies/attachments, or Route 53/ACM.
+  Destroy has not applied and the temporary cluster remains live while awaiting exact-hash approval.
+- **Next action:** owner approves or rejects the exact SHA-256 above. Apply only that unchanged
+  binary; the helper then deletes the captured temporary cluster OIDC provider. Complete the full
+  inventory sweep before the 17:45 Edmonton cutoff.
+
+### 2026-08-28T16:21:27-06:00 — approved T-1301 plan applied; managed-node tag blocker — Codex
+
+- **Exact approval/apply:** the owner approved saved-plan SHA-256
+  `ce72db3e6c6a1d39680784a7fb680f93195f824265121a185ce6c1bb5dc49376`. Immediately before apply,
+  its hash matched, the caller remained non-root `bedoux-admin` in `ca-central-1`, the temporary
+  inventory was empty, and 6,072 seconds remained before cutoff. Terraform applied only that
+  binary: 25 resources added, 11 changed in place, and zero destroyed.
+- **Healthy infrastructure:** EKS 1.34 is `ACTIVE`; one Ready `t3.medium` Spot node is fixed at
+  desired/min/max 1/1/1; EBS CSI `v1.63.1-eksbuild.1` and VPC CNI `v1.22.4-eksbuild.3` are both
+  `ACTIVE` with no health issues. EBS CSI briefly reported `InsufficientNumberOfReplicas` while
+  starting, but read-only Kubernetes inspection showed both controller pods 6/6 Running and its
+  node pod 3/3 Running before AWS reconciled the add-on to `ACTIVE`.
+- **Guardrail verification:** one project VPC is live with two public subnets and an Internet
+  Gateway; NAT Gateway, EIP, ALB, target group, available EBS volume, RDS, optional managed
+  services, and website aliases remain zero. The certificate remains issued. The GitHub access
+  entry has only `bedoux-ci-targetgroupbinding-reader`, and the deployed policy contains exactly
+  the five approved ELB Describe actions.
+- **Blocking tag finding:** the project-tag inventory contains 15 resources and every returned
+  resource has `environment=learning`, but the EKS-managed EC2 instance and its root gp3 volume
+  have neither standard tag. The backing Auto Scaling group also has neither tag configured with
+  propagate-at-launch. EKS node-group tags therefore did not satisfy the repository's requirement
+  that every AWS resource carry `project=bedoux-commerce-cloud` and `environment=learning`.
+- **Stop boundary:** no namespace/RBAC/StorageClass/controller bootstrap, PR change, workflow
+  dispatch, or application deployment occurred. Live tag repair is a new AWS mutation outside the
+  exact approved plan and requires separate review/authorization. P13.1 remains `IN PROGRESS` and
+  T-1301 is not claimed.
+- **Deadline:** the 19:00 Edmonton alarm and 17:45 teardown cutoff remain active. If no reviewed
+  remediation is authorized with enough teardown reserve, begin guarded teardown immediately.
+
+### 2026-08-28T16:00:55-06:00 — exact T-1301 saved plan ready for separate approval — Codex
+
+- **Owner boundary:** the owner confirmed a 19:00 Edmonton alarm and 17:45 teardown cutoff and
+  authorized read-only T-1301 preflight, persistent-state reconciliation, and exact saved-plan
+  generation only. No apply, PR state change, workflow dispatch, or Kubernetes mutation is
+  authorized by that instruction.
+- **Fresh preflight:** at 15:54 Edmonton, confirmed the non-root `bedoux-admin` identity in
+  `ca-central-1`; budget actual USD 5.915 and forecast USD 6.603 against the USD 20 cap; current
+  Spot `t3.medium` USD 0.0182/hour; and zero temporary EKS, VPC, instance, NAT Gateway, EIP,
+  load-balancing, EBS, RDS, CloudFormation, or project log resources. The approved persistent
+  inventory remains one state bucket, two ECR repositories, six IAM roles, GitHub OIDC provider,
+  and one `bedoux.ca` zone/certificate set. The conservative four-hour estimate remains below
+  USD 1 and the USD 4 session stop condition.
+- **State reconciliation:** backend initialization succeeded at exact Terraform source head
+  `efb3b065a2264ac93f1d5af2490dbfb769d9664e`. Contrary to the preceding detached-state wording,
+  the protected Route 53/ACM resources were already attached to remote state; the guarded helper
+  imported the existing allowlisted ECR/IAM/GitHub-OIDC objects only. This changed Terraform state,
+  not AWS resources.
+- **Exact plan:** `/tmp/bedoux-p13-t1301-20260828-1558.tfplan` was generated with the persistent
+  Route 53 zone and certificate enabled and aliases disabled. Its SHA-256 is
+  `ce72db3e6c6a1d39680784a7fb680f93195f824265121a185ce6c1bb5dc49376` (52,602 bytes). Apply has
+  not run.
+- **Machine review:** 25 creates, 11 in-place updates, zero deletes, and zero replacements. The
+  plan has one EKS 1.34 cluster, one Spot `t3.medium` node group fixed at desired/min/max 1/1/1,
+  pinned EBS CSI `v1.63.1-eksbuild.1` and VPC CNI `v1.22.4-eksbuild.3`, two public subnets and one
+  Internet Gateway, no NAT Gateway/EIP, and no RDS/S3-images/Secrets/observability resources.
+  Every taggable change has both standard tags. The existing hosted zone, certificate, validation,
+  and DNS records are all no-op, and no website alias exists in the plan.
+- **Access review:** the GitHub EKS entry receives only group
+  `bedoux-ci-targetgroupbinding-reader`; its managed edit association remains namespace-scoped to
+  `bedoux`. The deployment policy adds exactly `DescribeLoadBalancers`, `DescribeListeners`,
+  `DescribeRules`, `DescribeTargetGroupAttributes`, and `DescribeTargetHealth`; it adds no ELB
+  mutation action.
+- **Temporary evidence:** the binary and machine-readable JSON remain under `/tmp` for exact-plan
+  approval and must not be committed. Persistent state remains attached while this bounded session
+  awaits the owner's separate hash decision.
+- **AWS/Kubernetes/cost:** read-only AWS APIs plus Terraform state imports only; no AWS or
+  Kubernetes resource was created, modified, or deleted. Incremental resource cost remains USD 0.
+- **Next action:** owner approves or rejects the exact SHA-256 above. Apply only that unchanged
+  binary after explicit approval; otherwise detach persistent state and remove the temporary plan
+  evidence by the 17:45 cutoff.
+
+### 2026-08-28T15:44:06-06:00 — T-1301 preflight passed; session stopped after cutoff — Codex
+
+- **Owner boundary:** the owner set a 16:05 Edmonton alarm and 14:50 teardown cutoff, authorizing
+  read-only T-1301 preflight, persistent-state reconciliation, and exact saved-plan generation
+  only. Apply, PR state changes, workflow dispatch, and Kubernetes mutation were not authorized.
+- **Read-only preflight:** confirmed the non-root `bedoux-admin` identity in `ca-central-1`;
+  monthly budget actual USD 5.914 and forecast USD 6.603 against the USD 20 cap; zero temporary
+  EKS, VPC, instance, NAT Gateway, EIP, load-balancing, EBS, RDS, CloudFormation, or project log
+  resources; and only the approved persistent-resource allowlist. Current `t3.medium` Spot and
+  exact regional EKS/ALB rates keep the conservative four-hour estimate below USD 1, beneath the
+  USD 4 session and USD 16 forecast stop conditions.
+- **PR evidence refreshed:** draft PR #55 remains open and cleanly mergeable at exact head
+  `efb3b065a2264ac93f1d5af2490dbfb769d9664e` over base
+  `386f66ea8788010ada8c4f8ef535291c13121cc6`; exact-head run `33193213907` passed all four jobs.
+  No ready, merge, or dispatch action occurred.
+- **Stop condition:** execution resumed at 15:44 Edmonton, after the recorded 14:50 cutoff.
+  Terraform initialization also failed before backend access because the sandbox blocked DNS to
+  AWS STS. The persistent-state import never ran, no saved plan or plan hash was produced, and no
+  Terraform apply was attempted.
+- **AWS/Kubernetes/cost:** read-only AWS APIs only; no AWS or Kubernetes resource was created,
+  modified, or deleted. Estimated incremental resource cost USD 0. No temporary resource needs
+  teardown.
+- **Next action:** open a fresh owner-authorized session with a new alarm and cutoff, rerun the
+  current preflight, initialize Terraform with approved network access, import only persistent
+  resources into state, generate and inspect a zero-delete/zero-replace saved plan, and stop at
+  its exact SHA-256 for separate apply approval.
+
+### 2026-08-28T11:06:22-06:00 — draft P13.1 PR #55 opened; initial checks green — Codex
+
+- **Owner authorization:** the owner explicitly authorized opening the focused P13.1 PR. This did
+  not authorize merge, AWS execution, workflow dispatch, or P13.2.
+- **PR state:** draft PR #55 targets `main` from `p13-1-canary` at exact head `b74e00f`; GitHub
+  reports it open and mergeable. Its body records scope, local evidence, asynchronous-ALB risks,
+  rollback, and the deliberately deferred live T-1301 proof.
+- **CI evidence:** initial PR validation run `33192970640` passed all four jobs: API tests, web
+  lint/test/build, Terraform and Helm validation, and container build/scan/SBOM/signature
+  verification. The web job retained only its known non-blocking Fast Refresh annotation.
+- **State boundary:** ADR 0023 remains Accepted and P13.1 remains `IN PROGRESS`. The PR stays draft;
+  live T-1301, baseline deployment, PR merge, and P13.2 remain pending separate approvals.
+- **AWS/Kubernetes/cost:** no endpoint contacted and no resource changed; estimated AWS cost USD 0.
+- **Next action:** publish this PR checkpoint, then review the exact bounded T-1301 session plan and
+  prerequisites with the owner.
+
+### 2026-08-28T10:55:56-06:00 — ADR 0023 accepted by owner — Codex
+
+- **Owner decision:** the owner explicitly accepted ADR 0023 and confirmed no blocker remains in
+  implementation `6cdb54c` as represented by branch checkpoint `791b0e4`.
+- **State change:** ADR 0023 and the decision index now record `Accepted`. This is design
+  acceptance only: P13.1 remains `IN PROGRESS`, live T-1301 evidence remains pending, and P13.2
+  remains gated.
+- **Authorization boundary:** acceptance permits preparation of the focused PR and exact live
+  T-1301 plan review. It does not authorize PR merge, AWS apply, workflow dispatch, or P13.2.
+- **AWS/Kubernetes/cost:** no endpoint contacted and no resource changed; estimated AWS cost USD 0.
+- **Publication:** acceptance commit `e2db4dc` was pushed to `origin/p13-1-canary`; no PR was
+  opened or merged.
+- **Next action:** prepare the focused PR when explicitly authorized.
+
+### 2026-08-28T10:47:52-06:00 — P13.1 ALB deregistration deadline race closed — Codex
+
+- **Independent review result:** ADR 0023 remains unaccepted. The latest review correctly found
+  that a healthy one-replica promotion could contain one healthy replacement plus one obsolete
+  `draining` target for ALB's default 300-second deregistration delay, racing the reconciliation
+  gate's own 300-second deadline.
+- **Bounded fix:** the P13 AWS helper now pins
+  `ingress.targetGroupDeregistrationDelaySeconds=30` on every normalization, stage, promotion,
+  abort, and cleanup Helm mutation. This reuses ADR 0019's proven value only for the P13 AWS path;
+  the ordinary AWS profile remains unchanged.
+- **Applied-state proof:** all three ALB reconciliation modes map the stable/canary Services to
+  controller-owned target groups and call `DescribeTargetGroupAttributes`. They fail closed unless
+  every active group reports exact `deregistration_delay.timeout_seconds=30`; the desired Ingress
+  annotation alone is not evidence. The GitHub OIDC deployment policy adds only that read-only
+  Describe permission.
+- **Regression proof:** staged, promotion, and cleanup fixtures at 30 seconds pass. A promotion
+  fixture that is otherwise exact 100/0 and healthy but reports the ELB default 300 seconds fails
+  closed, so drain/cleanup cannot start at the deadline boundary.
+- **Verification:** P13 shell syntax/help/dry-runs and ALB/pod-readiness mocks pass; Helm lint plus
+  five stable/staged/promotion/cleanup YAML renders pass; all three credential-disabled Terraform
+  profiles validate; workflow/Kubernetes YAML parsing, 18 immutable action pins, toolbox
+  `make docs-check`, and `git diff --check` pass. Terraform schema validation ran outside the
+  filesystem sandbox only because provider plugins cannot start inside it; no AWS endpoint was
+  contacted.
+- **AWS/Kubernetes/cost:** no endpoint contacted and no resource changed; estimated AWS cost USD 0.
+- **Publication:** focused implementation commit `6cdb54c` was pushed to
+  `origin/p13-1-canary`; no PR was opened or merged.
+- **Next action:** obtain independent technical re-review of `6cdb54c`. ADR 0023 remains Proposed,
+  live T-1301 remains blocked, and P13.2 remains gated.
+
+### 2026-08-28T09:46:55-06:00 — P13.1 hardening resumed and revalidated — Codex
+
+- **Checkpoint:** resumed the focused uncommitted follow-up on `p13-1-canary` at published commit
+  `e4af433`; P13.1 remains the only active item, ADR 0023 remains Proposed, live T-1301 remains
+  blocked, and P13.2 remains gated.
+- **Final safety refinement:** bounded public ALB probes now suppress curl error details that could
+  print the discovered hostname and cap each attempt at five seconds. Failures remain counted and
+  fail closed; no evidence requirement was weakened.
+- **Revalidation:** shell syntax/help/dry-runs pass; staged/promotion/cleanup and lingering-90/10
+  listener mocks pass; healthy/missing/unhealthy pod-readiness mocks pass; Helm lint and all five
+  stable/staged/promotion/cleanup renders parse; all three credential-disabled Terraform profiles
+  validate; workflow/Kubernetes YAML parse; all 18 action references remain immutable-pinned;
+  toolbox `make docs-check` and `git diff --check` pass.
+- **AWS/Kubernetes/cost:** no endpoint contacted and no resource changed; estimated AWS cost USD 0.
+- **Publication boundary:** proceed only with the already-authorized focused commit and feature-
+  branch push. Do not open/merge a PR, accept ADR 0023, start AWS, or activate P13.2.
+
+### 2026-08-27T19:29:03-06:00 — P13.1 second acceptance race addressed locally — Codex
+
+- **Independent review result:** ADR 0023 remains unaccepted. The second review correctly found
+  that Kubernetes rollout status started the drain timer without proving the ALB's desired 100/0
+  action had reconciled, and that replacing the single stable web pod lacked an explicit ALB target
+  readiness contract. It also identified the gap between declared 90/10 routing and observed public
+  canary traffic.
+- **Promotion/cleanup ordering:** the ALB gate now has explicit `staged`, `promotion`, and `cleanup`
+  modes. Promotion requires both stable and canary `TargetGroupBinding` objects, the exact listener
+  mapping stable 100/canary 0, and a fully healthy stable target group. Only that passing state can
+  start the 45-second drain timer. A mock listener left at 90/10 fails closed. If this gate fails
+  after promotion, the helper preserves canary resources and refuses drain/cleanup.
+- **Safe abort ordering:** a pre-promotion failure no longer disables canary in the same change that
+  requests stable-only traffic. It restores the captured stable images while retaining canary at
+  0%, requires the same 100/0 ALB reconciliation, waits the drain hold, and only then removes canary.
+  A failed abort reconciliation also preserves the canary resources for diagnosis.
+- **ALB readiness contract:** `k8s/00-namespace.yaml` enables controller readiness-gate injection
+  for the `bedoux` namespace. The runbook accounts for injection occurring only at pod creation
+  after the IP-mode Service and binding exist. New `p13-alb-pod-readiness-gate.sh` verifies the
+  actual active stable web pods—not merely the label—are Running/Ready and have a
+  `target-health.elbv2.k8s.aws/*` condition set `True` before normalization and after replacement.
+  Healthy, missing, and unhealthy local mocks prove the assertion fails closed.
+- **Public weighted evidence:** after exact 90/10 reconciliation, the gate sends 100 bounded public
+  ALB health requests with zero errors allowed and requires at least one unique probe marker in the
+  `web-canary` access log. This corroborates that real listener traffic reached the candidate before
+  promotion; the later stable-only public smoke remains unchanged.
+- **Verification:** P13 shell syntax/help/dry-runs and all fail-closed mocks pass; Helm lint plus
+  stable, kind-staged, ALB-staged, ALB-promotion, and ALB-cleanup renders/YAML parse pass; all three
+  credential-disabled Terraform profiles validate; workflow/Kubernetes YAML parses; all 18 actions
+  remain immutable-pinned; toolbox `make docs-check` and `git diff --check` pass.
+- **Publication boundary:** the owner's prior request remains limited to a focused commit and push
+  on `p13-1-canary`. It does not accept ADR 0023, authorize PR merge/live AWS work, or start P13.2.
+- **AWS/Kubernetes/cost:** no endpoint contacted and no resource changed; estimated AWS cost USD 0.
+- **Next action:** publish the focused follow-up after final diff review, then request another
+  independent technical review. ADR 0023 remains Proposed and live T-1301 remains blocked.
+
+### 2026-08-27T18:21:21-06:00 — P13.1 acceptance blocker addressed locally — Codex
+
+- **Publication authorization:** after the hardened checks passed, the owner authorized a focused
+  commit and feature-branch push. This does not authorize PR merge, live AWS work, ADR acceptance,
+  or P13.2.
+- **Independent review result:** ADR 0023 was not accepted. The blocking finding was correct:
+  the first gate verified only the desired Ingress annotation and direct canary path, so an
+  asynchronous ALB could remain unreconciled while promotion began. Non-blocking findings also
+  required broader cleanup assertions, replayable HPA/NetworkPolicy overlays, and a safer ALB
+  cleanup transition.
+- **Reconciliation fix:** new fail-closed `p13-alb-reconciliation-gate.sh` maps the named stable
+  and canary Services to exact controller-owned target groups through `TargetGroupBinding`, finds
+  one active ALB without printing identifiers, and polls the listener rules for the exact 90/10
+  ARN mapping plus `DescribeTargetHealth` until both non-empty groups contain only healthy
+  targets. The canary gate invokes it before promotion on ALB profiles. Cleanup invokes it again
+  for a stable-only 100% rule, no canary binding, and a fully healthy stable group.
+- **Least privilege:** the declared GitHub OIDC deployment policy adds only read-only
+  `DescribeLoadBalancers`, `DescribeListeners`, `DescribeRules`, and `DescribeTargetHealth`.
+  ELBv2 Describe operations require `Resource: *`; no ALB mutation permission was added. The
+  future reviewed Terraform plan must show this expected persistent-policy update explicitly.
+  Official EKS policy review also showed `AmazonEKSEditPolicy` omits controller CRDs, so the CI
+  access entry joins one dedicated group and a session-bootstrapped namespace Role grants only
+  `get/list` on `targetgroupbindings.elbv2.k8s.aws`; the workflow checks both verbs before use.
+- **Transition/cleanup fix:** the AWS Ingress keeps backend service name `web` and attaches the
+  matching persistent `actions.web` forward action. Before staging, the helper first applies the
+  captured stable images through that
+  stable-only action and waits for its listener/target health to reconcile. Stable mode contains
+  only `web` at 100%; stage adds `web-canary`; cleanup returns to stable-only without changing the
+  service name. It privately compares the stable `TargetGroupBinding` ARN before/after normalization
+  and blocks if the target group was replaced. The rollout helper verifies removal
+  of both canary Deployments, both Services, the web canary ConfigMap, both possible canary
+  Ingresses, the canary target-group binding, and the weighted listener target.
+- **Replayability fix:** the local runbook now includes `values-kind-hpa.yaml` and
+  `networkPolicy.enabled=true`, matching the successful rehearsal despite helper
+  `--reset-values` behavior.
+- **Verification:** shell syntax/help/dry-runs pass for all P13 helpers; staged and stable-only
+  reconciled fixtures pass; a deliberately unreconciled listener rule fails closed; stable,
+  staged, and cleanup Helm renders pass; all three Terraform validation profiles pass with AWS
+  credential checks disabled; workflow/RBAC YAML parses; immutable action-pin, toolbox
+  `make docs-check`, and `git diff --check` pass.
+- **Owner host action:** the owner restored `fs.inotify.max_user_instances=128`. The retained
+  kind node remains stopped; no Kubernetes endpoint was contacted in this hardening pass.
+- **AWS/cost:** none. No AWS session was opened, no AWS endpoint was contacted, and no resource
+  changed; estimated AWS cost USD 0.
+- **Next action:** request independent technical re-review. ADR 0023 remains Proposed and live
+  AWS use remains blocked until acceptance.
+
+### 2026-08-27T18:03:02-06:00 — P13.1 local canary promotion passed — Codex
+
+- **Owner action/authorization:** the owner confirmed the temporary local-drill prerequisite
+  `fs.inotify.max_user_instances=1024`; P13.1 remained the only authorized task.
+- **Recovered baseline:** the retained explicit `kind-bedoux` context recovered with one Ready
+  stable API pod at `localhost/bedoux-api:p10-2`, one Ready stable web pod at
+  `localhost/bedoux-web:p10-2`, one PostgreSQL pod, both HPAs, and the P10 default-deny/allow
+  NetworkPolicies. The already-documented node restart issue also required restoring the kind
+  node's `iptables-nft` alternative before ingress-nginx became Ready. Stable health returned
+  `status=ok` with orders enabled and the catalog returned the seeded Canvas Tote.
+- **Local T-1301 rehearsal:** fresh API/web images labelled for the local proof were loaded into
+  the retained kind node. The rollout helper dry-run passed, then Helm revision 4 staged exactly
+  one `api-canary` and one `web-canary` at ingress-nginx weight 10 while preserving the existing
+  HPAs and NetworkPolicies. The fail-closed gate verified the exact candidate image references,
+  one desired/available/Running pod per canary Deployment, the 10% controller weight, 20 health
+  samples with `CANARY_GATE attempts=20 errors=0 error_rate=0.0000`, and a non-empty catalog.
+- **Promotion/cleanup evidence:** Helm revision 5 promoted the candidate images onto the stable
+  API/web Deployments at a 100/0 split. After a bounded five-second local drain, revision 6
+  disabled the canary and migration hook. Final stable images are
+  `localhost/bedoux-api:p13-candidate` and `localhost/bedoux-web:p13-candidate`; API/web are Ready,
+  health/catalog still pass, and the canary Deployments, Services, and Ingresses are all absent.
+- **Local cleanup:** the two temporary image archives and redundant host-side candidate image
+  tags were removed; independent candidate copies remain in the retained kind node's containerd
+  store so its promoted release is reproducible after restart. The kind node and PVC were not
+  deleted; its container was returned to `Exited` state. Graceful Podman stop did
+  not complete within ten seconds and Podman used SIGKILL, but this occurred only after all
+  Kubernetes and application evidence had passed and the persistent node container was
+  confirmed stopped.
+- **AWS/cost:** none. No AWS session was opened, no AWS endpoint was contacted, and no AWS
+  resource changed; estimated AWS cost USD 0.
+- **Remaining P13.1 work:** this is local-first evidence, not the live T-1301 completion record.
+  The owner restores the host limit to 128 and reviews Proposed ADR 0023. After technical
+  acceptance, prepare the focused PR and the alarmed, owner-approved AWS plan/apply sequence in
+  `docs/runbooks/p13-1-canary-session.md`. P13.2 remains `NOT STARTED` and gated.
+
+### 2026-08-27T17:14:01-06:00 — P13.1 implementation ready; local proof awaits host limit — Codex
+
+- **Owner authorization:** the owner explicitly requested starting P13.1.
+- **Checkpoint:** P12 remains complete and gate-approved. `origin/main` is still the verified PR
+  #54 merge `386f66e`; branch `p13-1-canary` contains only the expected local post-merge
+  reconciliation commit above that base.
+- **Phase/task:** P13.1 is now the single `IN PROGRESS` checklist item. P13.2 remains
+  `NOT STARTED` and is not authorized by this task start.
+- **AWS:** none. This start checkpoint is documentation-only; no AWS session is open and no
+  resource changed.
+- **Next action:** review the existing push-based deployment workflow and Helm chart, choose the
+  smallest compatible canary boundary, then implement and validate it locally before proposing
+  any live AWS proof.
+- **Design/implementation:** Proposed ADR 0023 keeps one Helm release and adds disabled-by-default
+  `api-canary`/`web-canary` resources, controller-native 90/10 routing for ALB and ingress-nginx,
+  candidate-first migration hooks, an exact-image/health/error gate, and a stage → gate → 100/0
+  promotion → cleanup helper with automatic pre-promotion abort. The existing deployment workflow
+  now exposes an opt-in canary dispatch and still verifies signed immutable images before Helm.
+- **Static verification:** Helm lint and base/AWS/canary/NetworkPolicy renders pass; invalid weight
+  51 fails closed; migration cleanup rendering omits the hook; both P13 scripts pass syntax,
+  `--help`, and dry-run checks; workflow YAML parses; immutable action-pin check, `git diff
+  --check`, and the required toolbox `make docs-check` pass.
+- **Local baseline finding:** the retained `kind-bedoux` node had been stopped for two weeks. It
+  returned `Ready` after a local Podman restart, but every non-control-plane pod was stale. A
+  controller-managed rollout restart exposed the already-documented host-limit failure:
+  `kube-proxy` exits with `too many open files` while `fs.inotify.max_user_instances=128`.
+  No canary was staged and no persistent volume or cluster object was deleted. The node container
+  was returned to its prior stopped state after the failed baseline check.
+- **AWS:** none. No AWS endpoint was contacted and no AWS resource changed. Local implementation
+  and read-only/local recovery checks only; estimated AWS cost USD 0.
+- **Current next action:** the owner temporarily runs
+  `sudo sysctl -w fs.inotify.max_user_instances=1024`. Then restart the existing node, prove a
+  healthy stable release, execute the local P13.1 canary path, clean drill-only artifacts, and have
+  the owner restore the value to 128. P13.2 remains gated.
+
+### 2026-08-26T21:36:54-06:00 — PR #54 merged; P12 branches cleaned; P13.1 base ready — Codex
+
+- **Owner authorization:** the owner explicitly requested pushing and merging the P12 changes,
+  followed by branch cleanup.
+- **Publication/CI:** branch `docs/p12-2-merge-checkpoint` published exact head `38999f2`. Draft
+  PR #54 targeted `main`; validation run `33036631123` passed API tests, web lint/test/build,
+  Terraform/Helm validation, and container build/fixable-vulnerability scan/SPDX generation/
+  signing verification on that unchanged head.
+- **Merge evidence:** PR #54 was marked ready only after all four jobs passed. GitHub reported it
+  mergeable and clean, then merged it as `386f66e` at 2026-08-27T03:34:05Z. A fresh fetch
+  confirmed `origin/main` at that exact merge.
+- **Cleanup:** GitHub removed the PR branch. After proving ancestry in `origin/main`, local
+  `docs/p12-2-merge-checkpoint` and local/remote `p12-2-https` were deleted. The remote now has
+  only `main` and its HEAD alias. This worktree is clean on `p13-1-canary` at the merge base.
+  The separate primary `main` worktree was fast-forwarded to `386f66e`; its pre-existing untracked
+  registrar export remains untouched and uncommitted.
+- **Phase/AWS:** P12 remains complete and gate-approved; P13 remains active with P13.1
+  `NOT STARTED`. Git/GitHub operations only—no AWS session or resource change occurred.
+- **Next action:** commit this post-merge checkpoint locally, then mark P13.1 `IN PROGRESS` before
+  beginning its local design review. P13.2 remains gated.
 
 ### 2026-08-26T21:03:57-06:00 — P12 gate approved; P13 activated — Codex
 

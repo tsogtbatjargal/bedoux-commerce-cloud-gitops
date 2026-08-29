@@ -33,6 +33,11 @@ on:
         required: true
         default: false
         type: boolean
+      canary_rollout:
+        description: Stage the signed candidate at 10%, gate it, then promote and clean up.
+        required: true
+        default: false
+        type: boolean
 
 # The role trust policy admits only this repository's main branch. Keep this workflow
 # manually dispatched so a live AWS session is an intentional, time-bounded operation.
@@ -123,7 +128,9 @@ jobs:
               return
             fi
 
-            docker build --tag "$image" "apps/$component"
+            docker build \
+              --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+              --tag "$image" "apps/$component"
             docker push "$image"
           }
 
@@ -209,6 +216,28 @@ jobs:
           echo "::add-mask::$previous_web_image"
           echo "web_image=$previous_web_image" >> "$GITHUB_OUTPUT"
 
+      - name: Capture the immutable stable release for canary
+        id: stable_release
+        if: ${{ inputs.canary_rollout }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(kubectl auth can-i get targetgroupbindings.elbv2.k8s.aws \
+            --namespace "$KUBERNETES_NAMESPACE")" = "yes"
+          test "$(kubectl auth can-i list targetgroupbindings.elbv2.k8s.aws \
+            --namespace "$KUBERNETES_NAMESPACE")" = "yes"
+          helm -n "$KUBERNETES_NAMESPACE" status bedoux >/dev/null
+          api_image="$(kubectl -n "$KUBERNETES_NAMESPACE" get deployment/api \
+            -o jsonpath='{.spec.template.spec.containers[0].image}')"
+          web_image="$(kubectl -n "$KUBERNETES_NAMESPACE" get deployment/web \
+            -o jsonpath='{.spec.template.spec.containers[0].image}')"
+          [[ "$api_image" =~ @sha256:[0-9a-f]{64}$ ]]
+          [[ "$web_image" =~ @sha256:[0-9a-f]{64}$ ]]
+          echo "::add-mask::$api_image"
+          echo "::add-mask::$web_image"
+          echo "api_image=$api_image" >> "$GITHUB_OUTPUT"
+          echo "web_image=$web_image" >> "$GITHUB_OUTPUT"
+
       - name: Deploy the Helm release
         id: helm_deploy
         env:
@@ -221,6 +250,9 @@ jobs:
           USE_SECRETS_MANAGER: ${{ inputs.use_secrets_manager }}
           USE_S3_IMAGES: ${{ inputs.use_s3_images }}
           USE_CUSTOM_DOMAIN: ${{ inputs.use_custom_domain }}
+          CANARY_ROLLOUT: ${{ inputs.canary_rollout }}
+          STABLE_API_IMAGE: ${{ steps.stable_release.outputs.api_image }}
+          STABLE_WEB_IMAGE: ${{ steps.stable_release.outputs.web_image }}
         shell: bash
         run: |
           set -euo pipefail
@@ -245,25 +277,22 @@ jobs:
             echo 'P12 custom-domain proof and the rollback drill must run in separate sessions.' >&2
             exit 1
           fi
-          helm_args=(
-            upgrade --install bedoux charts/bedoux
-            --namespace "$KUBERNETES_NAMESPACE"
-            --wait --wait-for-jobs --timeout "$release_timeout" --atomic
+          if [[ "$CANARY_ROLLOUT" == "true" && "$ROLLBACK_DRILL" == "true" ]]; then
+            echo 'canary_rollout and rollback_drill are separate evidence paths.' >&2
+            exit 1
+          fi
+          if [[ "$CANARY_ROLLOUT" == "true" && "$SEED_CATALOG" == "true" ]]; then
+            echo 'canary_rollout requires an existing seeded baseline; set seed_catalog=false.' >&2
+            exit 1
+          fi
+
+          profile_files=(
             -f charts/bedoux/values.yaml
             -f charts/bedoux/values-aws.yaml
-            # StorageClass is cluster-scoped. The session operator bootstraps
-            # gp3 before dispatch so this namespace-only CI role never needs
-            # cluster-wide Kubernetes permissions.
-            --set storageClass.create=false
-            --set-string "api.image.repository=$ECR_REGISTRY/bedoux-api"
-            --set-string "api.image.tag=$GITHUB_SHA"
-            --set-string "api.image.digest=$API_IMAGE_DIGEST"
-            --set-string "web.image.repository=$ECR_REGISTRY/bedoux-web"
-            --set-string "web.image.tag=$GITHUB_SHA"
-            --set-string "web.image.digest=$WEB_IMAGE_DIGEST"
           )
+          helm_extra_args=()
           if [[ "$ROLLBACK_DRILL" == "true" ]]; then
-            helm_args+=(--set-json 'web.command=["sh","-c","echo signed rollback drill failure >&2; exit 1"]')
+            helm_extra_args+=(--set-json 'web.command=["sh","-c","echo signed rollback drill failure >&2; exit 1"]')
           fi
           if [[ "$USE_SECRETS_MANAGER" == "true" && "$USE_RDS" != "true" ]]; then
             echo 'use_secrets_manager requires use_rds=true' >&2
@@ -274,7 +303,7 @@ jobs:
             exit 1
           fi
           if [[ "$USE_RDS" == "true" ]]; then
-            helm_args+=(-f charts/bedoux/values-aws-rds.yaml)
+            profile_files+=(-f charts/bedoux/values-aws-rds.yaml)
           fi
           if [[ "$USE_SECRETS_MANAGER" == "true" ]]; then
             kubectl -n "$KUBERNETES_NAMESPACE" get serviceaccount bedoux-api-secrets >/dev/null
@@ -282,22 +311,62 @@ jobs:
               echo 'refusing to deploy Secrets Manager mode while rds-credentials Kubernetes Secret exists' >&2
               exit 1
             fi
-            helm_args+=(-f charts/bedoux/values-aws-secrets.yaml)
+            profile_files+=(-f charts/bedoux/values-aws-secrets.yaml)
           elif [[ "$USE_RDS" == "true" ]]; then
             kubectl -n "$KUBERNETES_NAMESPACE" get secret rds-credentials >/dev/null
           fi
           if [[ "$USE_S3_IMAGES" == "true" ]]; then
             kubectl -n "$KUBERNETES_NAMESPACE" get serviceaccount bedoux-api >/dev/null
             kubectl -n "$KUBERNETES_NAMESPACE" get configmap bedoux-image-storage >/dev/null
-            helm_args+=(-f charts/bedoux/values-aws-s3.yaml)
+            profile_files+=(-f charts/bedoux/values-aws-s3.yaml)
           fi
           if [[ "$USE_CUSTOM_DOMAIN" == "true" ]]; then
-            helm_args+=(-f charts/bedoux/values-aws-tls.yaml)
+            profile_files+=(-f charts/bedoux/values-aws-tls.yaml)
           fi
           if [[ "$SEED_CATALOG" == "true" ]]; then
-            helm_args+=(--set seed.enabled=true)
+            helm_extra_args+=(--set seed.enabled=true)
           fi
-          helm "${helm_args[@]}"
+
+          if [[ "$CANARY_ROLLOUT" == "true" ]]; then
+            rollout_args=(
+              --context "$EKS_CLUSTER"
+              --namespace "$KUBERNETES_NAMESPACE"
+              --stable-api-image "$STABLE_API_IMAGE"
+              --stable-web-image "$STABLE_WEB_IMAGE"
+              --candidate-api-image "$ECR_REGISTRY/bedoux-api@$API_IMAGE_DIGEST"
+              --candidate-web-image "$ECR_REGISTRY/bedoux-web@$WEB_IMAGE_DIGEST"
+              --aws-region "$AWS_REGION"
+              --weight 10
+              --attempts 20
+              --public-attempts 100
+              --max-errors 0
+              --drain-seconds 45
+              --helm-set storageClass.create=false
+            )
+            for ((index = 1; index < ${#profile_files[@]}; index += 2)); do
+              rollout_args+=(--values "${profile_files[index]}")
+            done
+            scripts/p13-canary-rollout.sh "${rollout_args[@]}" --execute
+          else
+            helm_args=(
+              upgrade --install bedoux charts/bedoux
+              --namespace "$KUBERNETES_NAMESPACE"
+              --reset-values --wait --wait-for-jobs --timeout "$release_timeout" --atomic
+              "${profile_files[@]}"
+              # StorageClass is cluster-scoped. The session operator bootstraps
+              # gp3 before dispatch so this namespace-only CI role never needs
+              # cluster-wide Kubernetes permissions.
+              --set storageClass.create=false
+              --set-string "api.image.repository=$ECR_REGISTRY/bedoux-api"
+              --set-string "api.image.tag=$GITHUB_SHA"
+              --set-string "api.image.digest=$API_IMAGE_DIGEST"
+              --set-string "web.image.repository=$ECR_REGISTRY/bedoux-web"
+              --set-string "web.image.tag=$GITHUB_SHA"
+              --set-string "web.image.digest=$WEB_IMAGE_DIGEST"
+              "${helm_extra_args[@]}"
+            )
+            helm "${helm_args[@]}"
+          fi
           kubectl -n "$KUBERNETES_NAMESPACE" rollout status deployment/api --timeout=5m
           kubectl -n "$KUBERNETES_NAMESPACE" rollout status deployment/web --timeout=5m
 

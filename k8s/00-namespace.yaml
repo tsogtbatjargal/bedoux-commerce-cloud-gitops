@@ -2,3 +2,7 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: bedoux
+  labels:
+    # With ALB IP targets, replacement pods are not Kubernetes Ready until the
+    # controller confirms their target-group health. Local controllers ignore it.
+    elbv2.k8s.aws/pod-readiness-gate-inject: enabled

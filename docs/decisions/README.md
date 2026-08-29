@@ -30,6 +30,7 @@ and flip the old one's status to `Superseded by NNNN`.
 | [0020](0020-use-bedoux-com-for-p12.md) | Use bedoux.com as the P12 apex domain | Superseded by 0021 | 2026-08-23 |
 | [0021](0021-delegate-cloud-subdomain-for-p12.md) | Delegate cloud.bedoux.com for P12 | Superseded by 0022 | 2026-08-23 |
 | [0022](0022-use-bedoux-ca-apex-and-retire-shopify.md) | Use the bedoux.ca apex for P12 and retire Shopify | Accepted | 2026-08-24 |
+| [0023](0023-controller-native-weighted-canary.md) | Controller-native weighted canary extends the existing Helm deployment path | Accepted | 2026-08-27 |
 
 ## Template
 

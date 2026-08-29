@@ -68,6 +68,21 @@ data "aws_iam_policy_document" "deployment" {
     actions   = ["eks:DescribeCluster"]
     resources = ["arn:aws:eks:${var.aws_region}:${data.aws_caller_identity.current.account_id}:cluster/${var.cluster_name}"]
   }
+
+  statement {
+    sid = "VerifyCanaryAlbReconciliation"
+    actions = [
+      "elasticloadbalancing:DescribeListeners",
+      "elasticloadbalancing:DescribeLoadBalancers",
+      "elasticloadbalancing:DescribeRules",
+      "elasticloadbalancing:DescribeTargetGroupAttributes",
+      "elasticloadbalancing:DescribeTargetHealth",
+    ]
+    # ELBv2 Describe APIs do not support resource-level permissions. These are
+    # read-only and are used only after Kubernetes maps the two named Services
+    # to their controller-owned target-group ARNs.
+    resources = ["*"]
+  }
 }
 
 resource "aws_iam_policy" "deployment" {

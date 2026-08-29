@@ -84,6 +84,11 @@ jobs:
           terraform -chdir=infra/terraform validate -var=skip_aws_credentials_validation=true
           terraform -chdir=infra/terraform validate -var=skip_aws_credentials_validation=true -var-file=terraform.tfvars.p11-ha.example
           terraform -chdir=infra/terraform validate -var=skip_aws_credentials_validation=true -var-file=terraform.tfvars.p12-tls.example
+          if grep -Eq '^[[:space:]]*disk_size[[:space:]]*=' infra/terraform/modules/eks/main.tf; then
+            echo 'EKS node-group disk_size must stay unset when launch templates own the root volume' >&2
+            exit 1
+          fi
+          terraform -chdir=infra/terraform test -filter=tests/eks_node_tagging.tftest.hcl -no-color
       - name: Lint and render all Helm profiles
         run: |
           set -euo pipefail
@@ -91,7 +96,19 @@ jobs:
           base_rendered="$(helm template bedoux charts/bedoux)"
           test "$(grep -c '^      terminationGracePeriodSeconds: 30$' <<< "$base_rendered")" -eq 2
           test "$(grep -c '^          lifecycle:$' <<< "$base_rendered")" -eq 0
-          helm template bedoux charts/bedoux -f charts/bedoux/values-aws.yaml >/dev/null
+          aws_rendered="$(helm template bedoux charts/bedoux -f charts/bedoux/values-aws.yaml)"
+          grep -Fq '\"serviceName\":\"web\",\"servicePort\":8080,\"weight\":100' <<< "$aws_rendered"
+          grep -Fq 'name: use-annotation' <<< "$aws_rendered"
+          if grep -Fq 'serviceName\":\"web-canary' <<< "$aws_rendered"; then
+            echo 'stable AWS render unexpectedly retained a canary target' >&2
+            exit 1
+          fi
+          p13_aws_rendered="$(helm template bedoux charts/bedoux \
+            -f charts/bedoux/values-aws.yaml \
+            --set ingress.targetGroupDeregistrationDelaySeconds=30)"
+          grep -Fq 'alb.ingress.kubernetes.io/target-group-attributes: "deregistration_delay.timeout_seconds=30"' <<< "$p13_aws_rendered"
+          grep -Fq 'helm_base+=(--set ingress.targetGroupDeregistrationDelaySeconds=30)' scripts/p13-canary-rollout.sh
+          grep -Fq 'elasticloadbalancing:DescribeTargetGroupAttributes' infra/terraform/modules/github-actions-oidc/main.tf
           aws_tls_rendered="$(helm template bedoux charts/bedoux \
             -f charts/bedoux/values-aws.yaml \
             -f charts/bedoux/values-aws-tls.yaml)"
@@ -134,6 +151,79 @@ jobs:
             echo 'digest-pinned render unexpectedly retained a mutable application tag' >&2
             exit 1
           fi
+          if grep -q '^  name: api-canary$\|^  name: web-canary$' <<< "$base_rendered"; then
+            echo 'canary resources must remain disabled in the base chart' >&2
+            exit 1
+          fi
+          candidate_digest="sha256:$(printf 'b%.0s' {1..64})"
+          canary_rendered="$(helm template bedoux charts/bedoux \
+            -f charts/bedoux/values-aws.yaml \
+            --set canary.enabled=true \
+            --set canary.weight=10 \
+            --set-string "api.image.digest=$digest" \
+            --set-string "web.image.digest=$digest" \
+            --set-string "canary.api.image.digest=$candidate_digest" \
+            --set-string "canary.web.image.digest=$candidate_digest")"
+          test "$(grep -c '^  name: api-canary$' <<< "$canary_rendered")" -eq 2
+          test "$(grep -c '^  name: web-canary$' <<< "$canary_rendered")" -eq 2
+          grep -Fq 'API_UPSTREAM: api-canary:8000' <<< "$canary_rendered"
+          grep -Fq '\"serviceName\":\"web\",\"servicePort\":8080,\"weight\":90' <<< "$canary_rendered"
+          grep -Fq '\"serviceName\":\"web-canary\",\"servicePort\":8080,\"weight\":10' <<< "$canary_rendered"
+          grep -Fq "localhost/bedoux-api@$candidate_digest" <<< "$canary_rendered"
+          grep -Fq "localhost/bedoux-web@$candidate_digest" <<< "$canary_rendered"
+          if helm template bedoux charts/bedoux --set canary.enabled=true \
+            --set canary.weight=51 >/dev/null 2>&1; then
+            echo 'canary weight above the bounded 50% ceiling must fail closed' >&2
+            exit 1
+          fi
+          if helm template bedoux charts/bedoux --set migration.enabled=false | \
+            grep -q '^kind: Job$'; then
+            echo 'migration.enabled=false unexpectedly rendered a hook Job' >&2
+            exit 1
+          fi
+          cleanup_rendered="$(helm template bedoux charts/bedoux \
+            -f charts/bedoux/values-aws.yaml \
+            --set canary.enabled=false \
+            --set migration.enabled=false)"
+          grep -Fq '\"serviceName\":\"web\",\"servicePort\":8080,\"weight\":100' <<< "$cleanup_rendered"
+          if grep -Eq '^kind: Job$|web-canary|api-canary' <<< "$cleanup_rendered"; then
+            echo 'cleanup render retained a migration or canary object' >&2
+            exit 1
+          fi
+          bash -n scripts/p13-canary-gate.sh
+          bash -n scripts/p13-canary-rollout.sh
+          bash -n scripts/p13-alb-reconciliation-gate.sh
+          bash -n scripts/p13-alb-pod-readiness-gate.sh
+          bash -n scripts/test-p13-alb-reconciliation-gate.sh
+          bash -n scripts/test-p13-alb-pod-readiness-gate.sh
+          scripts/p13-canary-gate.sh --help >/dev/null
+          scripts/p13-canary-rollout.sh --help >/dev/null
+          scripts/p13-alb-reconciliation-gate.sh --help >/dev/null
+          scripts/p13-alb-pod-readiness-gate.sh --help >/dev/null
+          scripts/p13-alb-reconciliation-gate.sh \
+            --context bedoux \
+            --aws-region ca-central-1 \
+            --mode staged \
+            --expected-canary-weight 10 \
+            --dry-run >/dev/null
+          scripts/test-p13-alb-reconciliation-gate.sh
+          scripts/p13-alb-pod-readiness-gate.sh \
+            --context bedoux \
+            --dry-run >/dev/null
+          scripts/test-p13-alb-pod-readiness-gate.sh
+          scripts/p13-canary-gate.sh \
+            --context kind-bedoux \
+            --expected-api-image localhost/bedoux-api:candidate \
+            --expected-web-image localhost/bedoux-web:candidate \
+            --dry-run >/dev/null
+          scripts/p13-canary-rollout.sh \
+            --context kind-bedoux \
+            --stable-api-image localhost/bedoux-api:stable \
+            --stable-web-image localhost/bedoux-web:stable \
+            --candidate-api-image localhost/bedoux-api:candidate \
+            --candidate-web-image localhost/bedoux-web:candidate \
+            --values charts/bedoux/values.yaml \
+            --dry-run >/dev/null
 
   container-security:
     name: Container build and scan
