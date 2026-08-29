@@ -191,8 +191,12 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   `77a0273803ca29faa826ecbe09ee2100174c6c03f813e96dbf8c57acf5da21f9`. Terraform destroyed its
   exact 15 resources, the helper deleted the captured temporary cluster OIDC provider, and the
   16:49 Edmonton sweep returned zero temporary resources. P13.1 remains in progress and T-1301 is
-  not claimed; next implement and locally verify durable managed-node tag propagation before a
-  fresh reviewed AWS plan. The retained Calico-backed kind node is
+  not claimed. Local repair `353e3f4` now gives both the default primary and P11 HA secondary node
+  groups dedicated launch templates with at-creation instance/volume tags and 20-GiB gp3 root
+  mappings; removes node-group `disk_size`; and manages both standard tags on each EKS-created ASG
+  with `propagate_at_launch=true`. Mocked default/P11-HA plans, all three offline validation
+  profiles, and repository checks pass. Obtain independent review before a fresh alarmed AWS plan;
+  PR #55 remains draft and unmerged. The retained Calico-backed kind node is
   stopped with its PVC preserved and the host inotify value restored to 128. The default kubeconfig
   context still points at the deleted EKS endpoint, so always use an explicit context.
 - Repository workflow skills are validated and published on `main` through merged PR #47

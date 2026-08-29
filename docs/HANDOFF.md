@@ -72,9 +72,9 @@ Current state as of 2026-08-28:
 
 The owner accepted ADR 0023 on 2026-08-28 against implementation `6cdb54c` as represented by
 checkpoint `791b0e4`. This permits PR and live-plan preparation, not merge or AWS execution.
-- Draft PR #55 targets `main` from `p13-1-canary` at exact head `efb3b06`; exact-head run
-  `33193213907` passed API, web, Terraform/Helm, and container
-  build/scan/SBOM/signature jobs. It remains draft and unmerged.
+- Draft PR #55 targets `main` from `p13-1-canary`. Exact-head run `33193213907` passed API, web,
+  Terraform/Helm, and container build/scan/SBOM/signature jobs before the stopped live attempt; the
+  PR remains draft and unmerged.
 - A bounded T-1301 session used a 19:00 Edmonton alarm and 17:45 teardown cutoff. Read-only
   preflight confirmed the non-root identity, pinned region, budget actual USD 5.915, forecast
   USD 6.603, a conservative four-hour estimate below USD 1, and zero temporary AWS resources.
@@ -98,15 +98,18 @@ checkpoint `791b0e4`. This permits PR and live-plan preparation, not merge or AW
 - Temporary infrastructure existed for less than one hour, with no ALB/NAT/RDS; conservative
   incremental cost is below USD 0.10 pending billing ingestion. P13.1 remains `IN PROGRESS`, and
   T-1301 is not claimed because required managed-node/root-volume tag propagation was absent.
+- Local repair `353e3f4` covers both default primary and P11 HA secondary node groups: dedicated
+  launch templates tag instances and volumes at creation and own the 20-GiB gp3 root mapping;
+  node-group `disk_size` is absent; and dedicated ASG-tag resources set both standard tags with
+  `propagate_at_launch=true`. Mocked default/P11-HA plans pass 2/2, all three credential-free
+  Terraform profile validations pass, and CI now enforces the mock tests plus the `disk_size`
+  absence check. No AWS API endpoint or remote state was reached for this local repair.
 
 Next action:
-1. Implement and locally verify the durable Terraform tagging repair for both the primary and
-   P11 HA secondary node groups: add launch-template tag specifications for `instance` and
-   `volume`; move the 20-GiB root-volume configuration into each launch template and remove
-   `disk_size` from the node-group resources; and apply both standard tags to each backing Auto
-   Scaling group with `propagate_at_launch=true`, covering the ASG itself and future workers.
-   Review a fresh exact AWS plan before any new apply. PR ready/merge, workflow dispatch, T-1301
-   completion, and P13.2 remain separately gated.
+1. Obtain independent review of local Terraform repair `353e3f4` in draft PR #55. After
+   acceptance, open a fresh alarmed AWS session, reconcile persistent state, and generate a new
+   exact plan for separate approval. PR ready/merge, workflow dispatch, T-1301 completion, and
+   P13.2 remain separately gated.
 
 Hard boundaries: USD 20/month; ca-central-1; bedoux-admin only; no NAT Gateway; same-day teardown;
 never record account IDs, secrets, personal email addresses, or registrar details. No AWS session

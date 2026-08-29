@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P13 — Delivery maturity |
 | Active task | P13.1 IN PROGRESS — review the merged deployment path, then implement and locally prove a staged/canary rollout with an automated health gate. |
-| Last verified | 2026-08-28T16:49:17-06:00 — approved exact destroy plan removed all 15 temporary Terraform resources; the captured temporary cluster OIDC provider was deleted and the full teardown inventory sweep returned zero temporary resources. |
+| Last verified | 2026-08-28T21:02:59-06:00 — local Terraform repair commit `353e3f4` passed mocked default/P11-HA node-tagging plans, all three credential-free profile validations, formatting, action-pin/docs, whitespace, and sensitive-data checks. No AWS API endpoint or remote state was reached. |
 | AWS resources currently live | Persistent allowlist only: one protected state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider, and the `bedoux.ca` public Route 53 zone with its issued ACM certificate and validation records. No temporary compute, network, storage, database, load-balancing, alias, or cluster-OIDC resource remains. |
 | Month-to-date estimated AWS spend | USD 5.915 budget actual and USD 6.603 forecast at the 2026-08-28 T-1301 preflight; the reviewed four-hour session shape remains below USD 1. |
-| Next operator action | Implement and locally verify the durable Terraform tagging repair for both the primary and P11 HA secondary node groups: launch-template tag specifications for `instance` and `volume`; a 20-GiB root-volume block in each launch template with node-group `disk_size` removed; and both standard tags on the backing Auto Scaling groups with `propagate_at_launch=true`, covering each ASG itself and future workers. Then obtain review of a fresh exact AWS plan. P13.1 remains active; T-1301 is not claimed, and PR ready/merge, workflow dispatch, and P13.2 remain separately gated. |
+| Next operator action | Obtain independent review of local Terraform repair `353e3f4` in draft PR #55. After acceptance, open a fresh alarmed AWS session, reconcile persistent state, and generate a new exact plan for separate approval. P13.1 remains active; T-1301 is not claimed, and PR ready/merge, workflow dispatch, and P13.2 remain separately gated. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -686,6 +686,34 @@ P13.1 is in progress with its local rehearsal complete and live T-1301 evidence 
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-28T21:02:59-06:00 — durable managed-node tagging repair locally proven — Codex
+
+- **Focused implementation:** commit `353e3f4` adds separate EC2 launch templates for the default
+  primary and opt-in P11 HA secondary node groups. Both templates tag `instance` and `volume` at
+  launch, own the `/dev/xvda` 20-GiB gp3 root-volume mapping, and carry the standard tags
+  themselves. Both EKS node groups reference the corresponding latest template version and no
+  longer configure `disk_size`, avoiding the EKS duplicate disk-size rejection.
+- **Backing ASGs:** dedicated `aws_autoscaling_group_tag` resources derive each EKS-created ASG
+  name from the node-group `resources` result and set `project` and `environment` with
+  `propagate_at_launch=true`. Launch-template tags cover initial workers and every root volume;
+  ASG tags cover the ASG itself and future workers.
+- **Fail-closed input/test contract:** the EKS module now refuses missing or empty standard tags.
+  Mocked Terraform plans prove the default path and the P11 two-AZ path: exact instance/volume tag
+  specifications and values, 20-GiB gp3 root mappings, both propagated ASG tags, and absence of the
+  secondary path from the default profile. PR validation now runs those tests and rejects any
+  reintroduced node-group `disk_size` assignment.
+- **Local evidence:** `terraform fmt -check -recursive` passed; the focused mocked test passed 2/2;
+  credential-free `terraform validate` passed for default, P11 HA, and P12 TLS profiles;
+  `make docs-check`, immutable-action checks, `git diff --check`, and the account-ID pattern scan
+  passed. The test uses provider mocks and inert non-account ARN placeholders.
+- **AWS:** none. No AWS API or remote Terraform state was reached, and no resource was created,
+  modified, or deleted. A provider-schema probe initially attempted credential validation but was
+  blocked locally at DNS before any endpoint connection; all successful validation used explicit
+  credential-free or mock-provider paths.
+- **Boundary/next action:** P13.1 remains `IN PROGRESS` and T-1301 remains unclaimed. Keep PR #55
+  draft and unmerged. Obtain independent review of `353e3f4`; only after acceptance open a fresh
+  alarmed session, reconcile persistent state, and generate a new exact plan for separate approval.
 
 ### 2026-08-28T16:49:17-06:00 — approved exact teardown complete; clean sweep — Codex
 
