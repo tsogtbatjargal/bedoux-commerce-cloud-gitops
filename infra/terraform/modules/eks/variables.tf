@@ -52,4 +52,11 @@ variable "disk_size_gib" {
 
 variable "tags" {
   type = map(string)
+
+  validation {
+    condition = alltrue([
+      for key in ["project", "environment"] : try(length(trimspace(var.tags[key])) > 0, false)
+    ])
+    error_message = "tags must include non-empty project and environment values."
+  }
 }

@@ -84,6 +84,11 @@ jobs:
           terraform -chdir=infra/terraform validate -var=skip_aws_credentials_validation=true
           terraform -chdir=infra/terraform validate -var=skip_aws_credentials_validation=true -var-file=terraform.tfvars.p11-ha.example
           terraform -chdir=infra/terraform validate -var=skip_aws_credentials_validation=true -var-file=terraform.tfvars.p12-tls.example
+          if grep -Eq '^[[:space:]]*disk_size[[:space:]]*=' infra/terraform/modules/eks/main.tf; then
+            echo 'EKS node-group disk_size must stay unset when launch templates own the root volume' >&2
+            exit 1
+          fi
+          terraform -chdir=infra/terraform test -filter=tests/eks_node_tagging.tftest.hcl -no-color
       - name: Lint and render all Helm profiles
         run: |
           set -euo pipefail
