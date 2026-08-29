@@ -150,19 +150,23 @@ checkpoint `791b0e4`. This permits PR and live-plan preparation, not merge or AW
   and the same direct target, not literal weight 100. The target retains the applied 30-second
   deregistration delay and is healthy. Stable pod ALB readiness, public health, disabled ordering,
   and the six-product catalog all pass.
-- Focused unpublished branch `fix/p13-alb-single-target-weight` starts at exact merged `main` and
-  accepts only a sole positive-weight stable target in cleanup mode. Exact staged 90/10 and
-  promotion 100/0 matching are unchanged. Live-weight-1, declared-weight-100, and zero-weight
-  fail-closed mocks pass; the patched read-only live cleanup gate passes.
+- Focused branch `fix/p13-alb-single-target-weight` starts at exact merged `main` and accepts only
+  a sole positive-weight stable target in cleanup mode. Exact staged 90/10 and promotion 100/0
+  matching are unchanged. Live-weight-1, declared-weight-100, and zero-weight fail-closed mocks
+  pass; the patched read-only live cleanup gate passes. Draft PR #56 is open and mergeable at
+  exact fix head `4dc20606fb0eeb000ebde6881be82149a680d976`; exact-head run `33277768187` passed
+  all four jobs. Independent review found no implementation blocker and accepted the fix
+  technically; stale checkpoint wording was its sole merge blocker.
 
 Next action:
-1. Independently review the focused cleanup-normalization repair, then obtain explicit owner
-   authorization before pushing and opening its fix PR. After exact-head CI and review, merge and
-   canary retry each require separate approval. Begin teardown by 17:45 Edmonton regardless.
+1. Verify and commit the documentation-only checkpoint reconciliation, then obtain explicit owner
+   authorization before pushing its new exact head to draft PR #56. Reconfirm exact-head CI and
+   review before requesting merge approval. Merge and canary retry each require separate approval.
+   Begin teardown by 17:45 Edmonton regardless.
 
 Hard boundaries: USD 20/month; ca-central-1; bedoux-admin only; no NAT Gateway; same-day teardown;
 never record account IDs, secrets, personal email addresses, or registrar details. A bounded
 T-1301 session is live until the 17:45 cutoff; temporary no-NAT EKS/VPC, application, and ALB
-resources are running. The focused fix is local and unpublished; retry is unauthorized. P13.1
-still awaits T-1301.
+resources are running. PR #56 remains draft and unmerged; its documentation-only follow-up is
+local and unpublished, and retry is unauthorized. P13.1 still awaits T-1301.
 ```

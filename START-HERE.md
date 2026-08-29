@@ -218,10 +218,14 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   `33277095118` failed closed before staging: AWS normalized the sole stable forward target to
   relative weight 1, while cleanup mode required literal 100. No canary object was created;
   stable ALB readiness, target health, public health, and the six-product catalog still pass.
-  Focused local branch `fix/p13-alb-single-target-weight` now accepts exactly one positive-weight
+  Focused branch `fix/p13-alb-single-target-weight` now accepts exactly one positive-weight
   stable target in cleanup mode, keeps staged/promotion weights exact, passes regression mocks,
-  and passes the current live stable-only gate read-only. It is not published; T-1301 remains
-  unclaimed and the 17:45 Edmonton teardown cutoff remains hard. The retained Calico-backed kind
+  and passes the current live stable-only gate read-only. Draft PR #56 is open and mergeable at
+  exact fix head `4dc20606fb0eeb000ebde6881be82149a680d976`; exact-head run `33277768187` passed
+  all four jobs. Independent review found no implementation blocker and accepted the fix
+  technically; this documentation-only checkpoint reconciliation addresses its sole finding.
+  T-1301 remains unclaimed, PR #56 remains draft/unmerged, and the 17:45 Edmonton teardown cutoff
+  remains hard. The retained Calico-backed kind
   node is stopped with its PVC preserved and the host inotify value restored to 128. The default
   kubeconfig context still points at the deleted EKS endpoint, so always use an explicit context.
 - Repository workflow skills are validated and published on `main` through merged PR #47
