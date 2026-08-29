@@ -213,11 +213,17 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   exact signed digests, and the one active stable target is healthy. The initial web pod predated
   its TargetGroupBinding; the runbook's one restart produced a replacement with an injected,
   `True` ALB target-health gate. One ALB/stable target group is live; no canary object exists.
-  Three local checkpoint commits await explicit branch-push authorization; PR #55 remains draft
-  and unmerged, and canary dispatch remains gated. The 17:45 Edmonton teardown cutoff remains
-  hard. The retained Calico-backed kind node is
-  stopped with its PVC preserved and the host inotify value restored to 128. The default kubeconfig
-  context still points at the deleted EKS endpoint, so always use an explicit context.
+  The three checkpoints were pushed, exact-head run `33268443132` passed all four jobs, and PR #55
+  merged exact head `8d21033` to `main` as `5bbf959`. Separately authorized T-1301 run
+  `33277095118` failed closed before staging: AWS normalized the sole stable forward target to
+  relative weight 1, while cleanup mode required literal 100. No canary object was created;
+  stable ALB readiness, target health, public health, and the six-product catalog still pass.
+  Focused local branch `fix/p13-alb-single-target-weight` now accepts exactly one positive-weight
+  stable target in cleanup mode, keeps staged/promotion weights exact, passes regression mocks,
+  and passes the current live stable-only gate read-only. It is not published; T-1301 remains
+  unclaimed and the 17:45 Edmonton teardown cutoff remains hard. The retained Calico-backed kind
+  node is stopped with its PVC preserved and the host inotify value restored to 128. The default
+  kubeconfig context still points at the deleted EKS endpoint, so always use an explicit context.
 - Repository workflow skills are validated and published on `main` through merged PR #47
   (`874305c`); P11.1 is complete with T-1101 evidence and P11.2 is complete with local
   PDB/topology evidence.
