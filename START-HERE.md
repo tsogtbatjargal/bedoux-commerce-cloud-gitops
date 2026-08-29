@@ -201,9 +201,14 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   Persistent state is reconciled. Exact saved plan
   `cdcc092e162d9b506d68ded8d41b283438da064e6c8c0a76364e7941b43256b4` has 28 creates, 11
   expected in-place updates, and zero deletes/replacements; the three new creates are exactly the
-  primary launch template and two propagated ASG tags. No NAT, optional service, website alias,
-  or secondary HA path is planned. Apply has not run and requires separate exact-hash approval
-  before the 17:45 Edmonton cutoff. The retained Calico-backed kind node is
+  primary launch template and two propagated ASG tags. The owner approved and Terraform applied
+  that exact binary: 28 added, 11 changed, 0 destroyed. EKS 1.34, one Ready Spot
+  `t3.medium` at 1/1/1, and both pinned add-ons are healthy. Live verification proves the launch
+  template's instance/volume tag specifications and 20-GiB gp3 mapping, standard tags on the
+  template, worker, and root volume, and both backing-ASG tags with propagation enabled. No NAT,
+  EIP, ALB, RDS, optional service, or website alias exists. Operator bootstrap and the older-P12
+  baseline dispatch now require explicit authorization; PR ready/merge and canary dispatch remain
+  separately gated. The 17:45 Edmonton teardown cutoff remains hard. The retained Calico-backed kind node is
   stopped with its PVC preserved and the host inotify value restored to 128. The default kubeconfig
   context still points at the deleted EKS endpoint, so always use an explicit context.
 - Repository workflow skills are validated and published on `main` through merged PR #47

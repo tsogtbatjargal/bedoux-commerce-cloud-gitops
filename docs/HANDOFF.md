@@ -121,18 +121,25 @@ checkpoint `791b0e4`. This permits PR and live-plan preparation, not merge or AW
   proves absent node-group `disk_size` and corresponding primary/secondary template references.
   It retains one Spot `t3.medium` at 1/1/1, pinned add-ons, five exact read-only ELBv2 actions,
   no-op Route 53/ACM, no aliases/NAT/EIP/optional service, and only the primary node path. Apply
-  has not run.
+  was separately approved and ran only that unchanged binary: 28 added, 11 changed, 0 destroyed.
+- EKS 1.34, its one Spot `t3.medium` node group, and both pinned add-ons are `ACTIVE`; the
+  explicit Kubernetes context reports one Ready v1.34 node. Live checks prove the launch-template
+  instance/volume tags and 20-GiB gp3 delete-on-termination mapping, standard tags on the template,
+  worker, and root volume, and both backing-ASG tags with propagation enabled. The GitHub access
+  group/namespace scope and five read-only ELBv2 actions are exact. No NAT, EIP, ALB, target group,
+  RDS, optional service, or website alias exists.
 
 Next action:
-1. Owner approves or rejects exact saved-plan SHA-256
-   `cdcc092e162d9b506d68ded8d41b283438da064e6c8c0a76364e7941b43256b4`. Apply only that
-   unchanged binary after explicit approval. If rejected or not approved with sufficient
-   execution/teardown margin, detach the persistent allowlist and remove temporary plan files by
-   the 17:45 Edmonton cutoff. PR ready/merge, workflow dispatch, T-1301 completion, and P13.2
-   remain separately gated.
+1. Owner explicitly authorizes T-1301 operator bootstrap and the older-P12 baseline dispatch
+   only. Apply the readiness-gate namespace and narrow target-group-binding RBAC, bootstrap
+   `gp3` and AWS Load Balancer Controller 3.4.3, refresh the GitHub deployment-role variable,
+   then dispatch existing `main` with `seed_catalog=true` and every optional input false.
+   PR ready/merge and canary dispatch remain separately gated. Begin teardown by the 17:45
+   Edmonton cutoff regardless of progress.
 
 Hard boundaries: USD 20/month; ca-central-1; bedoux-admin only; no NAT Gateway; same-day teardown;
 never record account IDs, secrets, personal email addresses, or registrar details. A bounded
-planning session is open until the 17:45 cutoff; no temporary AWS resource is live and apply is
-not authorized. P13.1 still awaits T-1301.
+T-1301 session is live until the 17:45 cutoff; temporary no-NAT EKS/VPC resources are running,
+while operator bootstrap, PR changes, and workflow dispatch remain unauthorized. P13.1 still
+awaits T-1301.
 ```

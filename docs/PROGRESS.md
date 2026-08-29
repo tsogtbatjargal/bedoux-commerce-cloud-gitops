@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P13 — Delivery maturity |
 | Active task | P13.1 IN PROGRESS — review the merged deployment path, then implement and locally prove a staged/canary rollout with an automated health gate. |
-| Last verified | 2026-08-29T11:49:48-06:00 — authorized read-only P13.1 preflight and state reconciliation passed at exact branch head `9fb1fc3`; exact saved plan `cdcc092e162d9b506d68ded8d41b283438da064e6c8c0a76364e7941b43256b4` has 28 creates, 11 in-place updates, and zero deletes/replacements. Apply has not run. |
-| AWS resources currently live | Persistent allowlist only: one protected state bucket, two ECR repositories, six persistent IAM roles, GitHub OIDC provider, and the `bedoux.ca` public Route 53 zone with its issued ACM certificate and validation records. No temporary compute, network, storage, database, load-balancing, alias, or cluster-OIDC resource remains. |
+| Last verified | 2026-08-29T12:09:17-06:00 — owner-approved saved plan `cdcc092e162d9b506d68ded8d41b283438da064e6c8c0a76364e7941b43256b4` applied exactly: 28 added, 11 changed, 0 destroyed. EKS 1.34, one Ready Spot `t3.medium`, pinned add-ons, launch-template instance/volume tags, root-volume tags, and propagated ASG tags all pass live verification. |
+| AWS resources currently live | Bounded T-1301 session: one no-NAT VPC with two public subnets/Internet Gateway, EKS 1.34, one Spot `t3.medium` managed node and 20-GiB gp3 root volume, one launch template/backing ASG, two pinned add-ons, access entries, and the temporary cluster OIDC provider. Persistent allowlist remains attached. No ALB/target group, EIP, NAT, RDS, optional service, or website alias exists. |
 | Month-to-date estimated AWS spend | USD 6.001 budget actual and USD 6.382 forecast at the 2026-08-29 T-1301 preflight; the refreshed four-hour session shape remains below USD 1. |
-| Next operator action | Owner approves or rejects exact saved-plan SHA-256 `cdcc092e162d9b506d68ded8d41b283438da064e6c8c0a76364e7941b43256b4`. Apply only that unchanged binary after explicit approval; otherwise detach persistent state and remove temporary plan evidence by the 17:45 Edmonton cutoff. PR ready/merge, workflow dispatch, T-1301 completion, and P13.2 remain separately gated. |
+| Next operator action | Owner explicitly authorizes T-1301 operator bootstrap and the older-P12 baseline dispatch only: apply the readiness-gate namespace and narrow target-group-binding RBAC, bootstrap `gp3` plus AWS Load Balancer Controller 3.4.3, refresh the GitHub deployment-role variable, then dispatch the existing `main` baseline with `seed_catalog=true` and every optional input false. PR ready/merge and canary dispatch remain separately gated. Begin teardown by 17:45 Edmonton regardless of progress. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -686,6 +686,43 @@ P13.1 is in progress with its local rehearsal complete and live T-1301 evidence 
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-29T12:09:17-06:00 — approved repaired plan applied; tag chain passes — Codex
+
+- **Exact approval/apply:** the owner approved saved-plan SHA-256
+  `cdcc092e162d9b506d68ded8d41b283438da064e6c8c0a76364e7941b43256b4`. Immediately before
+  apply, the binary still matched, Terraform source was unchanged from plan head `9fb1fc3`, the
+  caller remained non-root `bedoux-admin` in `ca-central-1`, forecast remained USD 6.382, the
+  temporary inventory was empty, and 21,050 seconds remained before cutoff. Terraform applied
+  only that binary: exactly 28 added, 11 changed, and 0 destroyed.
+- **Healthy infrastructure:** EKS 1.34 is `ACTIVE`; its one managed Spot `t3.medium` node group
+  is `ACTIVE` at desired/min/max `1/1/1`; and the explicit Kubernetes context reports exactly
+  one Ready v1.34 node. EBS CSI `v1.63.1-eksbuild.1` and VPC CNI
+  `v1.22.4-eksbuild.3` are both `ACTIVE` with zero health issues.
+- **Durable tag repair live proof:** the managed node group references the new launch template.
+  Its exact version defines `/dev/xvda` as 20-GiB gp3 with delete-on-termination and has
+  at-creation `instance` and `volume` tag specifications carrying both standard tags. The
+  launch template itself, the one running worker, and its one in-use root volume all carry
+  `project=bedoux-commerce-cloud` and `environment=learning`. The backing ASG has both exact
+  tags with `PropagateAtLaunch=true` and remains fixed at `1/1/1`. This closes the blocker from
+  the first T-1301 attempt.
+- **Access/scope proof:** the GitHub EKS access entry has only
+  `bedoux-ci-targetgroupbinding-reader`; its managed edit association is scoped only to namespace
+  `bedoux`. The live deployment policy contains exactly the five reviewed read-only ELBv2
+  actions and no ELB mutation.
+- **Negative inventory:** no NAT Gateway, EIP, ALB, target group, RDS instance, or website alias
+  exists. The project tag inventory has 18 resources and zero missing learning-environment tags.
+  No application namespace, Helm release, controller, ALB, PR state change, or workflow dispatch
+  has occurred.
+- **Authorization/deadline boundary:** the 19:00 alarm and 17:45 teardown cutoff remain active.
+  The exact-plan approval covered Terraform apply and read-only verification only. Operator
+  Kubernetes bootstrap, GitHub variable refresh, older-P12 baseline dispatch, PR ready/merge,
+  canary dispatch, and P13.2 remain separately gated.
+- **Next action:** owner explicitly authorizes operator bootstrap and the older-P12 baseline
+  dispatch only. Then apply the readiness-gate namespace and narrow RBAC, bootstrap `gp3` and
+  AWS Load Balancer Controller 3.4.3, refresh the deployment-role variable, and dispatch existing
+  `main` with `seed_catalog=true` and all optional inputs false. Do not make PR #55 ready or
+  merge it, and do not dispatch the canary without later explicit approval.
 
 ### 2026-08-29T11:50:10-06:00 — repaired T-1301 exact plan ready for approval — Codex
 
