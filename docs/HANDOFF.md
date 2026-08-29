@@ -126,20 +126,29 @@ checkpoint `791b0e4`. This permits PR and live-plan preparation, not merge or AW
   explicit Kubernetes context reports one Ready v1.34 node. Live checks prove the launch-template
   instance/volume tags and 20-GiB gp3 delete-on-termination mapping, standard tags on the template,
   worker, and root volume, and both backing-ASG tags with propagation enabled. The GitHub access
-  group/namespace scope and five read-only ELBv2 actions are exact. No NAT, EIP, ALB, target group,
-  RDS, optional service, or website alias exists.
+  group/namespace scope and five read-only ELBv2 actions are exact. No NAT, EIP, RDS, optional
+  service, or website alias exists.
+- Authorized operator bootstrap applied the readiness-gate namespace, dedicated get/list-only
+  TargetGroupBinding RBAC, `gp3`, and AWS Load Balancer Controller chart 3.4.3 with 2/2 Ready
+  replicas and IRSA. The GitHub deployment-role variable was refreshed without recording its
+  value.
+- Older-P12 baseline run `33267748556` passed in 4m42s on exact `main` SHA `386f66e`, with
+  only `seed_catalog=true`. The exact signed API/web digests are running; migration/seed passed;
+  the one PVC is Bound; public health and the six-product catalog pass; and ordering remains
+  disabled. After the one runbook-authorized web restart, the active stable web target is healthy
+  and `ALB_POD_READINESS_GATE pods=1 injected=true target_health=true` passes. One obsolete
+  pre-restart target is only draining under P12's default deregistration window. There is one
+  ALB/stable target group and no canary object.
 
 Next action:
-1. Owner explicitly authorizes T-1301 operator bootstrap and the older-P12 baseline dispatch
-   only. Apply the readiness-gate namespace and narrow target-group-binding RBAC, bootstrap
-   `gp3` and AWS Load Balancer Controller 3.4.3, refresh the GitHub deployment-role variable,
-   then dispatch existing `main` with `seed_catalog=true` and every optional input false.
-   PR ready/merge and canary dispatch remain separately gated. Begin teardown by the 17:45
-   Edmonton cutoff regardless of progress.
+1. Owner authorizes pushing the three local checkpoint commits through this baseline evidence to
+   `p13-1-canary` only. Keep PR #55 draft/unmerged and do not dispatch the canary. Wait for
+   exact-head CI to pass, then obtain separate explicit PR-ready/merge approval. Begin teardown
+   by the 17:45 Edmonton cutoff regardless of progress.
 
 Hard boundaries: USD 20/month; ca-central-1; bedoux-admin only; no NAT Gateway; same-day teardown;
 never record account IDs, secrets, personal email addresses, or registrar details. A bounded
-T-1301 session is live until the 17:45 cutoff; temporary no-NAT EKS/VPC resources are running,
-while operator bootstrap, PR changes, and workflow dispatch remain unauthorized. P13.1 still
+T-1301 session is live until the 17:45 cutoff; temporary no-NAT EKS/VPC, application, and ALB
+resources are running. PR push/ready/merge and canary dispatch remain unauthorized. P13.1 still
 awaits T-1301.
 ```

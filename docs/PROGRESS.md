@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P13 — Delivery maturity |
 | Active task | P13.1 IN PROGRESS — review the merged deployment path, then implement and locally prove a staged/canary rollout with an automated health gate. |
-| Last verified | 2026-08-29T12:09:17-06:00 — owner-approved saved plan `cdcc092e162d9b506d68ded8d41b283438da064e6c8c0a76364e7941b43256b4` applied exactly: 28 added, 11 changed, 0 destroyed. EKS 1.34, one Ready Spot `t3.medium`, pinned add-ons, launch-template instance/volume tags, root-volume tags, and propagated ASG tags all pass live verification. |
-| AWS resources currently live | Bounded T-1301 session: one no-NAT VPC with two public subnets/Internet Gateway, EKS 1.34, one Spot `t3.medium` managed node and 20-GiB gp3 root volume, one launch template/backing ASG, two pinned add-ons, access entries, and the temporary cluster OIDC provider. Persistent allowlist remains attached. No ALB/target group, EIP, NAT, RDS, optional service, or website alias exists. |
+| Last verified | 2026-08-29T12:26:22-06:00 — older-P12 baseline run `33267748556` passed on exact `main` SHA `386f66e`. Public health and six-product catalog pass; exact digest-pinned API/web images run; the stable TargetGroupBinding has one healthy active target; and the restarted stable web pod has an injected, `True` ALB readiness gate. |
+| AWS resources currently live | Bounded T-1301 session: no-NAT EKS/VPC shape plus `gp3`, AWS Load Balancer Controller 3.4.3, namespace/RBAC, one deployed `bedoux` Helm release with bound PostgreSQL PVC, and one public ALB/stable target group. Persistent allowlist remains attached. No EIP, NAT, RDS, optional service, website alias, or canary object exists. |
 | Month-to-date estimated AWS spend | USD 6.001 budget actual and USD 6.382 forecast at the 2026-08-29 T-1301 preflight; the refreshed four-hour session shape remains below USD 1. |
-| Next operator action | Owner explicitly authorizes T-1301 operator bootstrap and the older-P12 baseline dispatch only: apply the readiness-gate namespace and narrow target-group-binding RBAC, bootstrap `gp3` plus AWS Load Balancer Controller 3.4.3, refresh the GitHub deployment-role variable, then dispatch the existing `main` baseline with `seed_catalog=true` and every optional input false. PR ready/merge and canary dispatch remain separately gated. Begin teardown by 17:45 Edmonton regardless of progress. |
+| Next operator action | Owner authorizes pushing the three local checkpoint commits through the current baseline evidence to `p13-1-canary` only. Keep PR #55 draft/unmerged and do not dispatch the canary. Wait for exact-head CI to pass, then obtain separate explicit PR-ready/merge approval. Begin teardown by 17:45 Edmonton regardless of progress. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -686,6 +686,44 @@ P13.1 is in progress with its local rehearsal complete and live T-1301 evidence 
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-29T12:26:22-06:00 — older-P12 baseline healthy and ALB-ready — Codex
+
+- **Owner boundary:** the owner authorized T-1301 operator bootstrap and the older-P12 baseline
+  dispatch only, explicitly excluding PR ready/merge and canary dispatch. The 19:00 alarm and
+  17:45 teardown cutoff remain active.
+- **Operator bootstrap:** on the explicit temporary `bedoux` context, applied namespace
+  `bedoux` with `elbv2.k8s.aws/pod-readiness-gate-inject=enabled`, the dedicated
+  TargetGroupBinding reader Role/RoleBinding, and the `gp3` EBS CSI StorageClass. Installed
+  AWS Load Balancer Controller chart 3.4.3 with its Terraform-managed IRSA role and explicit VPC;
+  both controller replicas are Ready. The registered CRD proof confirms the dedicated group can
+  only `get/list` TargetGroupBindings, not create them or read Secrets.
+- **Dispatch boundary:** refreshed repository variable `AWS_DEPLOY_ROLE_ARN` from Terraform
+  output without recording its value. Verified `origin/main` remains the older P12 merge
+  `386f66ea8788010ada8c4f8ef535291c13121cc6` and PR #55 remains open, draft, mergeable, and
+  unmerged. Dispatched run `33267748556` with exactly `seed_catalog=true` and
+  `rollback_drill/use_rds/use_secrets_manager/use_s3_images/use_custom_domain=false`.
+- **Green older baseline:** run `33267748556` passed in 4m42s on exact SHA `386f66e`:
+  GitHub OIDC authentication, immutable image build/push, SPDX generation/upload, keyless signing,
+  namespace-scoped EKS access, atomic Helm deployment, and public ALB smoke all succeeded.
+  Helm revision 1 is deployed; API, web, and PostgreSQL are each 1/1 available; migration and seed
+  Jobs succeeded; and the one PostgreSQL PVC is Bound on `gp3`.
+- **Exact images/public proof:** running API digest
+  `sha256:ff44f44785d483b090f3fd04c03254fd4eb9e7b411700fcbe66f24def1c2958e` and web digest
+  `sha256:d8e2d43b724a162ad1cdb5828641c769ab1a0c4ddcae9f9758e631567b2ab606`
+  exactly match ECR tag `386f66e...`. Public `/api/health` returns `status=ok`, the catalog
+  contains six products, and the API deployment keeps `BEDOUX_ORDERS_ENABLED=false`.
+- **ALB readiness proof:** the initial web pod predated its controller-created TargetGroupBinding
+  and correctly lacked an injected gate. Per the runbook, restarted `deployment/web` exactly
+  once. The replacement rolled out only after target health, and the dedicated helper returned
+  `ALB_POD_READINESS_GATE pods=1 injected=true target_health=true`. The active web pod IP maps
+  to one healthy stable target. One obsolete pre-restart target remains only in AWS's P12 default
+  draining window; it is not an active endpoint. There is one ALB, one stable target group, and
+  zero canary Deployments, Services, Ingresses, or TargetGroupBindings.
+- **Boundary/next action:** P13.1 remains `IN PROGRESS` and T-1301 is not yet claimed. No PR
+  push/ready/merge or canary dispatch occurred. Three local checkpoint commits now await explicit
+  push authorization; publish them only to `p13-1-canary`, keep PR #55 draft, wait for exact-head
+  CI, and then obtain separate PR-ready/merge approval.
 
 ### 2026-08-29T12:09:17-06:00 — approved repaired plan applied; tag chain passes — Codex
 

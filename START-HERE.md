@@ -206,9 +206,16 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   `t3.medium` at 1/1/1, and both pinned add-ons are healthy. Live verification proves the launch
   template's instance/volume tag specifications and 20-GiB gp3 mapping, standard tags on the
   template, worker, and root volume, and both backing-ASG tags with propagation enabled. No NAT,
-  EIP, ALB, RDS, optional service, or website alias exists. Operator bootstrap and the older-P12
-  baseline dispatch now require explicit authorization; PR ready/merge and canary dispatch remain
-  separately gated. The 17:45 Edmonton teardown cutoff remains hard. The retained Calico-backed kind node is
+  EIP, RDS, optional service, or website alias exists. Authorized operator bootstrap installed the
+  readiness-gate namespace, narrow TargetGroupBinding RBAC, `gp3`, and AWS Load Balancer
+  Controller 3.4.3. Older-P12 baseline run `33267748556` passed on exact `main` SHA
+  `386f66e`: public health and the six-product catalog pass, running API/web images match the
+  exact signed digests, and the one active stable target is healthy. The initial web pod predated
+  its TargetGroupBinding; the runbook's one restart produced a replacement with an injected,
+  `True` ALB target-health gate. One ALB/stable target group is live; no canary object exists.
+  Three local checkpoint commits await explicit branch-push authorization; PR #55 remains draft
+  and unmerged, and canary dispatch remains gated. The 17:45 Edmonton teardown cutoff remains
+  hard. The retained Calico-backed kind node is
   stopped with its PVC preserved and the host inotify value restored to 128. The default kubeconfig
   context still points at the deleted EKS endpoint, so always use an explicit context.
 - Repository workflow skills are validated and published on `main` through merged PR #47
