@@ -13,15 +13,13 @@ Continue bedoux-commerce-cloud from
 Start with START-HERE.md, AGENTS.md, and docs/PROGRESS.md. The progress file is authoritative.
 Use the active worktree/branch recorded by Git and preserve unrelated changes.
 
-Current state as of 2026-08-30T12:08:19-06:00:
-- P0-P12 are complete and gate-approved. P13 is active. P13.1 and T-1301 are complete; P13.2
-  and T-1302 remain NOT STARTED pending explicit owner activation. Do not infer activation from
-  P13.1 completion.
-- The worktree is on branch `p13-1-t1301-closeout` from exact `origin/main` SHA
-  `68847978e25c0cce7ef0db757a6996004813ce41`, published in draft PR #57. Initial closeout head
-  `a2d53f64fc671d31d1c9504eccd25dce7b798164` passed all four jobs in exact-head run
-  `33291593862`. The documentation reconciliation creates a newer PR head that must be verified
-  live before merge. Never push `main` directly.
+Current state as of 2026-08-30T12:13:46-06:00:
+- P0-P12 are complete and gate-approved. P13 is active. P13.1 and T-1301 are complete. The owner
+  explicitly activated P13.2 on 2026-08-30; T-1302 is the single IN PROGRESS task.
+- PR #57 exact head `c58ca0bc24b1fcec1f203f405ef04a0179dae6da` passed all four jobs in run
+  `33327244984` and merged to `main` as `c815ecac09e05d44404f477a497e3361457e0833`.
+  The worktree is on focused branch `p13-2-blocked-canary` from that exact `origin/main` SHA.
+  Never push `main` directly.
 - ADR 0023 is Accepted. It keeps one Helm release and implements opt-in stable/canary API+web
   pairs, ALB/ingress-nginx weighting, exact image checks, direct/public health gates, ALB listener
   and target-health reconciliation, injected pod-readiness gates, reconciled 100/0 promotion,
@@ -65,11 +63,11 @@ Current state as of 2026-08-30T12:08:19-06:00:
   deleted EKS endpoint; always use an explicit context.
 
 Next action:
-1. Verify draft PR #57's current exact head, all four required CI jobs, and clean mergeability.
-2. Obtain explicit owner authorization before marking that exact head ready or merging it.
-3. After the closeout is merged, wait for explicit owner activation of P13.2. A later T-1302 AWS
-   drill requires a fresh alarmed session and its own approvals; no current authorization covers
-   it.
+1. Inspect ADR 0023's existing gate and abort cleanup path, then implement the smallest explicit
+   canary-only latency/error regression input without creating a competing deployment path.
+2. Prove locally that the gate blocks promotion and automatic cleanup restores stable-only state.
+3. Keep T-1302 incomplete until a separately approved alarmed AWS drill proves the behavior live;
+   no current authorization covers AWS, workflow dispatch, publication, or merge.
 
 Hard boundaries: USD 20/month; ca-central-1; bedoux-admin only; no NAT Gateway; same-day teardown;
 never record account IDs, secrets, personal email addresses, or registrar details. No temporary

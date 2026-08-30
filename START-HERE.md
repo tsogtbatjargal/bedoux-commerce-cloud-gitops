@@ -181,8 +181,9 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   exact owner-approved 18-resource Terraform destroy plan. The temporary cluster OIDC provider
   was deleted, the repeated authoritative sweep returned zero temporary resources, and exact
   T-1301 files were removed from `/tmp`. Budget actual was USD 6.002 and forecast USD 6.239 of
-  USD 20. Only the approved persistent allowlist remains. **P13.2 is `NOT STARTED` pending explicit
-  owner activation.** The retained Calico-backed kind node is stopped with its PVC preserved and
+  USD 20. Only the approved persistent allowlist remains. PR #57 merged the closeout as
+  `c815eca`; **the owner activated P13.2 on 2026-08-30, and T-1302 is now `IN PROGRESS` for
+  local-first design and implementation only.** The retained Calico-backed kind node is stopped with its PVC preserved and
   the host inotify value restored to 128. The default kubeconfig context still points at a deleted
   EKS endpoint, so always use an explicit context.
 - Repository workflow skills are validated and published on `main` through merged PR #47
@@ -226,7 +227,7 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   sweep found no temporary resource or dangling alias; budget actual was USD 5.384 of USD 20.
   Only the approved persistent allowlist remains. The owner approved the P12 gate on 2026-08-26,
   activating P13; PR #54 merged the focused checkpoint as `386f66e`. P13.1 and T-1301 are now
-  complete; P13.2 remains `NOT STARTED` pending explicit owner activation.
+  complete; P13.2/T-1302 are `IN PROGRESS` after explicit owner activation on 2026-08-30.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

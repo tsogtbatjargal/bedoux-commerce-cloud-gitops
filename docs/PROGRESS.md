@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P13 — Delivery maturity |
-| Active task | None — P13.1 COMPLETE; P13.2 NOT STARTED pending explicit owner activation. |
+| Active task | P13.2 IN PROGRESS — blocked-canary drill (injected regression, automatic rollback). |
 | Last verified | 2026-08-29T21:13:25-06:00 — T-1301 workflow run `33278906766` passed on exact `main` SHA `68847978e25c0cce7ef0db757a6996004813ce41`; the approved 18-resource Terraform destroy and temporary cluster-OIDC deletion completed, and the repeated authoritative sweep found zero temporary compute, network, storage, database, load-balancing, or cluster resources. |
 | AWS resources currently live | No temporary billed session resources. Only the approved persistent allowlist remains; no website alias is present. |
 | Month-to-date estimated AWS spend | USD 6.002 budget actual and USD 6.239 forecast at final T-1301 closeout, within the USD 20 limit. |
-| Next operator action | Review draft PR #57 at its current exact head and require green exact-head CI. Then obtain explicit owner authorization before marking that exact head ready and merging it. After the closeout is merged, the owner may explicitly activate P13.2; do not start T-1302 yet. |
+| Next operator action | Design the smallest fail-closed regression injection compatible with ADR 0023, implement it locally in the existing Helm/workflow path, and prove promotion is blocked with automatic stable-only rollback before proposing any live T-1302 session. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -663,7 +663,7 @@ Gate: T-1201..T-1203.
 - [x] P13.1 COMPLETE — staged/canary rollout reached exact 90/10, passed direct and public
       automated gates, promoted through reconciled 100/0, and cleaned back to stable-only.
       Evidence: T-1301 workflow run `33278906766` and the 2026-08-29 closeout entry below.
-- [ ] P13.2 NOT STARTED — blocked-canary drill (injected regression, automatic rollback).
+- [ ] P13.2 IN PROGRESS — blocked-canary drill (injected regression, automatic rollback).
 
 Gate: T-1301..T-1302.
 
@@ -678,7 +678,8 @@ Gate: T-1301..T-1302.
 Gate: T-1401..T-1404.
 
 **P10–P14 track bootstrapped 2026-08-09; P10, P11, and P12 are gate-approved. P13 is active;
-P13.1 and T-1301 are complete. P13.2 remains `NOT STARTED` pending explicit owner activation.**
+P13.1 and T-1301 are complete. The owner activated P13.2 on 2026-08-30; T-1302 is now the single
+active task and remains incomplete pending local-first and live evidence.**
 
 ## Blockers
 
@@ -688,6 +689,23 @@ P13.1 and T-1301 are complete. P13.2 remains `NOT STARTED` pending explicit owne
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-30T12:13:46-06:00 — PR #57 merged; P13.2 activated — Codex
+
+- **Exact merge:** owner-approved PR #57 head
+  `c58ca0bc24b1fcec1f203f405ef04a0179dae6da` passed all four required jobs in run
+  `33327244984` and merged to `main` as
+  `c815ecac09e05d44404f477a497e3361457e0833`. The local `origin/main` reference was fetched and
+  verified at that exact merge.
+- **Owner activation:** in direct response to the P13.2 activation boundary, the owner said
+  "go head". P13.2 is therefore the single `IN PROGRESS` task on focused branch
+  `p13-2-blocked-canary`, created from exact merged `main`.
+- **Execution boundary:** activation authorizes local design and implementation only. T-1302 is
+  not claimed, no AWS session is open, and no workflow dispatch, AWS mutation, Kubernetes
+  mutation, publication, or merge is authorized by this checkpoint.
+- **Next action:** inspect ADR 0023's existing gate/rollback path, add the smallest explicit
+  canary-only regression input and fail-closed automatic rollback proof, and validate it locally
+  before requesting review or any live session.
 
 ### 2026-08-30T12:08:19-06:00 — PR #57 publication reconciled — Codex
 
