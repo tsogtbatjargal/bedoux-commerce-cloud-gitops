@@ -177,6 +177,22 @@ podman exec <node> ctr --namespace=k8s.io images import \
 Delete the in-node and host archives during teardown. This workaround changes only the temporary
 node image store; it does not justify floating kind, Kubernetes, or application image versions.
 
+P13.2 found one retained-node restart wrinkle: `containerd-fuse-overlayfs.service` can remain
+inactive after the node container restarts even though `ctr plugins ls` reports the configured
+proxy snapshotter as `ok`. The first import then registers the image manifest but fails to unpack
+while dialing the absent `/run/containerd-fuse-overlayfs.sock`. Before retrying the same bounded
+import, verify and recover the existing node-local service explicitly:
+
+```bash
+podman exec <node> systemctl start containerd-fuse-overlayfs.service
+podman exec <node> systemctl is-active containerd-fuse-overlayfs.service
+podman exec <node> test -S /run/containerd-fuse-overlayfs.sock
+```
+
+Do not change containerd configuration or switch snapshotters. Re-import the preserved archive,
+verify the exact tag through `crictl images`, and remove any failed-attempt alias plus all
+drill-specific tags and archives during cleanup.
+
 ## NetworkPolicy-enforcing kind cluster (added P10.2)
 
 kind's default CNI, **kindnet, does not enforce `NetworkPolicy` at all** — the objects

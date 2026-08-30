@@ -189,9 +189,11 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   fix `f6b113a` now reserves status 20 for access-log-correlated HTTP errors after prerequisites
   pass and denies T-1302 evidence for unrelated failures. Independent review accepted that fix;
   follow-up `0b9bcee` also requires exactly one structured attribution marker with status 20 and
-  improves ordinary-rollout diagnostics. Real kind evidence is still pending explicit owner
-  authorization; no live T-1302 claim exists. The retained Calico-backed kind node is
-  stopped with its PVC preserved and
+  improves ordinary-rollout diagnostics. The separately authorized real local drill then passed:
+  both canaries were Ready, all 20 injected API samples produced correlated HTTP 404s, attributed
+  status 20 blocked promotion, exact stable images were restored automatically, all canary
+  objects disappeared, and stable health/catalog passed. This is local-first evidence only; live
+  T-1302 remains pending. The retained Calico-backed kind node is stopped with its PVC preserved and
   the host inotify value restored to 128. The default kubeconfig context still points at a deleted
   EKS endpoint, so always use an explicit context.
 - Repository workflow skills are validated and published on `main` through merged PR #47

@@ -13,7 +13,7 @@ Continue bedoux-commerce-cloud from
 Start with START-HERE.md, AGENTS.md, and docs/PROGRESS.md. The progress file is authoritative.
 Use the active worktree/branch recorded by Git and preserve unrelated changes.
 
-Current state as of 2026-08-30T16:11:09-06:00:
+Current state as of 2026-08-30T17:13:48-06:00:
 - P0-P12 are complete and gate-approved. P13 is active. P13.1 and T-1301 are complete. The owner
   explicitly activated P13.2 on 2026-08-30; T-1302 is the single IN PROGRESS task.
 - PR #57 exact head `c58ca0bc24b1fcec1f203f405ef04a0179dae6da` passed all four jobs in run
@@ -41,6 +41,16 @@ Current state as of 2026-08-30T16:11:09-06:00:
   attribution marker, and ordinary-rollout status-20 diagnostics accurately describe a blocked
   HTTP-error promotion outside an authorized drill. Mocks cover unattributed status 20 and the
   corrected normal-rollout path.
+- The owner-authorized real local P13.2 drill passed on explicit retained context `kind-bedoux`.
+  Helm revision 7 staged both Ready canaries at 10%; 20/20 injected API requests returned
+  access-log-correlated HTTP 404s; structured status 20 blocked promotion; revisions 8/9 restored
+  the exact captured stable images, held the five-second drain, and removed all canary objects.
+  `ROLLBACK_GATE` and `T1302_GATE` printed, no `PROMOTE:` occurred, and independent stable
+  health/catalog plus HPA/NetworkPolicy checks passed.
+- Local cleanup removed the candidate tags, failed-import aliases, archives, and evidence log.
+  The retained node is stopped (`Exited (137)`) with its PVC preserved, and the owner restored
+  host inotify from the temporary 1024 to its original 128. AWS: none. A retained-node restart
+  snapshotter-service finding and bounded recovery are recorded in `docs/local-tooling.md`.
 - `canary_regression_drill` is mutually exclusive with ordinary canary/rollback paths and requires
   every unrelated input false. The state-machine mocks prove expected-block, unrelated-block, and
   regression-escaped paths. Helm renders, shell/YAML syntax, full infrastructure CI commands,
@@ -84,12 +94,12 @@ Current state as of 2026-08-30T16:11:09-06:00:
   deleted EKS endpoint; always use an explicit context.
 
 Next action:
-1. With explicit owner authorization, run the bounded real kind drill in
-   `docs/runbooks/p13-2-blocked-canary-session.md`; temporarily raise host inotify only if needed
-   and restore it afterward.
-2. Keep T-1302 incomplete until both kind and a separately approved alarmed AWS drill prove the
-   behavior. No current authorization covers Kubernetes mutation, AWS, dispatch, publication, or
-   merge.
+1. Obtain owner authorization to push `p13-2-blocked-canary` and open a draft PR against `main`;
+   do not merge it.
+2. Require exact-head CI/review, then open a separately alarmed AWS session only through
+   read-only preflight, state reconciliation, and exact saved-plan generation before any apply.
+3. Keep T-1302 incomplete until the separately approved AWS drill also proves the behavior. No
+   current authorization covers publication, AWS, dispatch, or merge.
 
 Hard boundaries: USD 20/month; ca-central-1; bedoux-admin only; no NAT Gateway; same-day teardown;
 never record account IDs, secrets, personal email addresses, or registrar details. No temporary

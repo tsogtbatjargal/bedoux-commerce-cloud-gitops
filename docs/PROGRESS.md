@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P13 — Delivery maturity |
 | Active task | P13.2 IN PROGRESS — blocked-canary drill (injected regression, automatic rollback). |
-| Last verified | 2026-08-30T16:11:09-06:00 — independent review accepted `f6b113a`/`cc2d8e3`; follow-up `0b9bcee` requires exactly one structured attribution marker with status 20 and corrects normal-rollout diagnostics. Expected, unrelated, unattributed-20, normal-rollout regression, escaped-regression, real-gate, ALB/readiness, Helm, workflow syntax, whitespace, and sensitive-data checks pass. AWS state is unchanged from the clean 2026-08-29 T-1301 teardown sweep. |
+| Last verified | 2026-08-30T17:13:48-06:00 — the authorized real `kind-bedoux` P13.2 drill passed: Ready canaries produced 20/20 correlated HTTP 404s, attributed status 20 blocked promotion, automatic rollback restored both captured stable images, cleanup removed every canary object, and stable health/catalog passed. The node is stopped, drill artifacts are absent, and host inotify is restored to 128. AWS state is unchanged from the clean 2026-08-29 T-1301 teardown sweep. |
 | AWS resources currently live | No temporary billed session resources. Only the approved persistent allowlist remains; no website alias is present. |
 | Month-to-date estimated AWS spend | USD 6.002 budget actual and USD 6.239 forecast at final T-1301 closeout, within the USD 20 limit. |
-| Next operator action | Owner explicitly authorizes the bounded local kind drill, then temporarily raises `fs.inotify.max_user_instances` from 128 to 1024 if required. Use only the explicit retained kind context to prove real Ready canary errors, attributed gate block, automatic stable-only rollback, and cleanup; restore the host value afterward. |
+| Next operator action | Owner authorizes pushing the focused `p13-2-blocked-canary` branch and opening a draft PR against `main`. Keep it unmerged while exact-head CI/review are obtained and the older-`main` AWS baseline is later deployed in a separately alarmed, plan-approved session. No current authorization covers publication, AWS, merge, or workflow dispatch. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -689,6 +689,47 @@ active task and remains incomplete pending local-first and live evidence.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-30T17:13:48-06:00 — P13.2 real local blocked-canary drill passed and cleaned — Codex
+
+- **Authorization/deadline:** owner explicitly authorized the bounded P13.2 kind drill, set an
+  independent 19:00 Edmonton alarm with an 18:45 cutoff, and temporarily raised the documented
+  host `fs.inotify.max_user_instances` value from 128 to 1024. The drill and cleanup finished
+  well before cutoff; the owner restored the value to 128 and an independent read verified it.
+- **Recovered baseline:** started only retained Podman container `bedoux-control-plane`, restored
+  its validated `iptables-nft` alternative, and used only explicit context `kind-bedoux`. The
+  Kubernetes v1.36.1 node, Calico, CoreDNS, metrics-server, ingress-nginx, PostgreSQL, stable API,
+  and stable web all became Ready. Helm revision 6 used exact stable images
+  `localhost/bedoux-api:p13-candidate` and `localhost/bedoux-web:p13-candidate`; both HPAs, all
+  seven NetworkPolicies, public health, and a non-empty seeded catalog passed before injection.
+- **Bounded candidate preparation:** built distinct local `p13-2-candidate` API/web tags and
+  imported only those archives into the retained node. The first API unpack exposed a retained
+  restart finding: the configured `containerd-fuse-overlayfs.service` was inactive and its socket
+  absent even though the proxy plugin listed `ok`. Starting that existing node-local service and
+  verifying its socket allowed both preserved archives to import; no containerd configuration or
+  snapshotter selection changed. The recovery is recorded in `docs/local-tooling.md`.
+- **Real gate evidence:** the reviewed dry-run matched the approved command. Helm revision 7
+  staged one Ready API canary and one Ready web canary at ingress-nginx weight 10. The injected
+  web-canary API path returned 20/20 HTTP 404s, and access-log correlation proved all 20:
+  `CANARY_GATE attempts=20 errors=20 error_rate=1.0000 log_hits=20 http_errors=20`, followed by
+  `CANARY_GATE_RESULT prerequisites=passed reason=http-error-threshold public_http_errors=0
+  direct_http_errors=20`. No `PROMOTE:` line occurred.
+- **Automatic rollback/cleanup:** revision 8 restored the exact captured stable images at 100/0,
+  held the reviewed five-second drain, and revision 9 disabled canary with regression mode
+  `none`. The helper emitted
+  `ROLLBACK_GATE stable_images_restored=true canary_resources_absent=true` and
+  `T1302_GATE regression=http-error promotion=blocked rollback=stable-only`. Independent checks
+  confirmed both stable Deployments Ready on their captured images, no canary Deployment,
+  Service, ConfigMap, or Ingress, preserved HPAs/NetworkPolicies, and healthy public health plus
+  non-empty catalog.
+- **Local cleanup:** removed only the two candidate host/node tags, failed-import aliases, node
+  and host archives, and bounded evidence log; exact absence was verified while stable node images
+  remained. The retained node was stopped. Its ten-second graceful stop again fell back to
+  SIGKILL only after all workload recovery/evidence passed; final state is `Exited (137)`.
+- **Boundary/next action:** AWS: none; estimated AWS cost USD 0. No AWS endpoint, GitHub remote,
+  or workflow was contacted. This completes the required local-first proof but does not complete
+  T-1302 or P13.2; live AWS evidence remains separately gated. Obtain owner authorization before
+  pushing the focused branch/opening a draft PR. No merge or AWS action is authorized.
 
 ### 2026-08-30T16:11:09-06:00 — P13.2 independent review accepted; marker hardening folded in — Codex
 
