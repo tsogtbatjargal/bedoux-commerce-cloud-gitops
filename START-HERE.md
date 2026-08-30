@@ -187,8 +187,10 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   stable-image rollback assertion, workflow input, fail-closed mocks, and bounded runbook are
   implemented locally. The first independent review found a false-positive evidence path; local
   fix `f6b113a` now reserves status 20 for access-log-correlated HTTP errors after prerequisites
-  pass and denies T-1302 evidence for unrelated failures. Exact-head re-review and real kind
-  evidence are still pending; no live T-1302 claim exists. The retained Calico-backed kind node is
+  pass and denies T-1302 evidence for unrelated failures. Independent review accepted that fix;
+  follow-up `0b9bcee` also requires exactly one structured attribution marker with status 20 and
+  improves ordinary-rollout diagnostics. Real kind evidence is still pending explicit owner
+  authorization; no live T-1302 claim exists. The retained Calico-backed kind node is
   stopped with its PVC preserved and
   the host inotify value restored to 128. The default kubeconfig context still points at a deleted
   EKS endpoint, so always use an explicit context.

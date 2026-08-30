@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P13 — Delivery maturity |
 | Active task | P13.2 IN PROGRESS — blocked-canary drill (injected regression, automatic rollback). |
-| Last verified | 2026-08-30T16:00:42-06:00 — exact local fix `f6b113a` reserves gate status 20 for access-log-correlated HTTP errors after prerequisites pass; unrelated failure, expected block, escaped regression, Helm, ALB/readiness, workflow syntax, action-pin, docs, whitespace, and sensitive-data checks pass. AWS state is unchanged from the clean 2026-08-29 T-1301 teardown sweep. |
+| Last verified | 2026-08-30T16:11:09-06:00 — independent review accepted `f6b113a`/`cc2d8e3`; follow-up `0b9bcee` requires exactly one structured attribution marker with status 20 and corrects normal-rollout diagnostics. Expected, unrelated, unattributed-20, normal-rollout regression, escaped-regression, real-gate, ALB/readiness, Helm, workflow syntax, whitespace, and sensitive-data checks pass. AWS state is unchanged from the clean 2026-08-29 T-1301 teardown sweep. |
 | AWS resources currently live | No temporary billed session resources. Only the approved persistent allowlist remains; no website alias is present. |
 | Month-to-date estimated AWS spend | USD 6.002 budget actual and USD 6.239 forecast at final T-1301 closeout, within the USD 20 limit. |
-| Next operator action | Independently re-review exact local fix `f6b113acdddf96de710d331a4cca3628842601d5`. After acceptance, explicitly authorize a bounded local kind drill (including any temporary host inotify increase) to prove real Ready canary errors, attributed gate block, automatic stable-only rollback, and cleanup before proposing live T-1302. |
+| Next operator action | Owner explicitly authorizes the bounded local kind drill, then temporarily raises `fs.inotify.max_user_instances` from 128 to 1024 if required. Use only the explicit retained kind context to prove real Ready canary errors, attributed gate block, automatic stable-only rollback, and cleanup; restore the host value afterward. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -689,6 +689,32 @@ active task and remains incomplete pending local-first and live evidence.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-30T16:11:09-06:00 — P13.2 independent review accepted; marker hardening folded in — Codex
+
+- **Independent verdict:** reviewer accepted implementation `f6b113a` and checkpoint `cc2d8e3`
+  after independently rerunning the new/pre-existing mocks, docs/action-pin checks, Git state,
+  and the access-log regex against realistic nginx combined-format lines. The reviewer confirmed
+  that status 20 is reachable only after the intended prerequisites and attributed HTTP errors,
+  and that rollback evidence remains fail-closed under `set -e`.
+- **Requested hardening:** `p13-canary-rollout.sh` now captures the gate's bounded stdout and
+  requires exactly one complete
+  `CANARY_GATE_RESULT prerequisites=passed reason=http-error-threshold ...` marker in addition to
+  status 20 before drill success. Status 20 with zero or multiple matching markers rolls back and
+  fails without `T1302_GATE`, preventing a future helper exit-code change from silently weakening
+  the attribution contract.
+- **Diagnostic correction:** a correlated HTTP-error block during an ordinary rollout now says
+  promotion was blocked outside an authorized regression drill; it no longer labels status 20 a
+  non-regression reason. Behavior remains rollback plus non-zero exit and no T-1302 evidence.
+- **Proof:** the rollout mock now covers expected status 20 plus marker, unrelated status 1,
+  unattributed status 20, attributed status 20 outside drill mode, an escaped regression, rollback
+  ordering, cleanup, and absence of false `PROMOTE:`/`T1302_GATE` evidence. Real-gate
+  classification, ALB reconciliation/readiness mocks, shell syntax, all three Helm lints,
+  embedded workflow Bash syntax, `git diff --check`, and scoped sensitive-data checks pass.
+- **Boundary/next action:** AWS: none; no Kubernetes endpoint, GitHub remote, workflow, or branch
+  publication was touched. Follow-up is local commit
+  `0b9bcee64d7b34b3f01fbd118c16d3b92d4f87a0`. P13.2/T-1302 remain in progress; wait for explicit
+  owner authorization before starting or mutating the retained kind environment.
 
 ### 2026-08-30T16:00:42-06:00 — P13.2 false-positive gate evidence repaired — Codex
 
