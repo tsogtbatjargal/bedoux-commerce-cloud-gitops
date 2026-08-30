@@ -193,7 +193,9 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   both canaries were Ready, all 20 injected API samples produced correlated HTTP 404s, attributed
   status 20 blocked promotion, exact stable images were restored automatically, all canary
   objects disappeared, and stable health/catalog passed. This is local-first evidence only; live
-  T-1302 remains pending. The retained Calico-backed kind node is stopped with its PVC preserved and
+  T-1302 remains pending. Draft PR #58 is open and unmerged; published implementation/evidence
+  head `14aee657` passed all four jobs in run `33341436390`. The retained Calico-backed kind node
+  is stopped with its PVC preserved and
   the host inotify value restored to 128. The default kubeconfig context still points at a deleted
   EKS endpoint, so always use an explicit context.
 - Repository workflow skills are validated and published on `main` through merged PR #47

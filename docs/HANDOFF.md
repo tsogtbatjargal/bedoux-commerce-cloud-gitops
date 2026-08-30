@@ -13,7 +13,7 @@ Continue bedoux-commerce-cloud from
 Start with START-HERE.md, AGENTS.md, and docs/PROGRESS.md. The progress file is authoritative.
 Use the active worktree/branch recorded by Git and preserve unrelated changes.
 
-Current state as of 2026-08-30T17:13:48-06:00:
+Current state as of 2026-08-30T17:19:44-06:00:
 - P0-P12 are complete and gate-approved. P13 is active. P13.1 and T-1301 are complete. The owner
   explicitly activated P13.2 on 2026-08-30; T-1302 is the single IN PROGRESS task.
 - PR #57 exact head `c58ca0bc24b1fcec1f203f405ef04a0179dae6da` passed all four jobs in run
@@ -51,6 +51,11 @@ Current state as of 2026-08-30T17:13:48-06:00:
   The retained node is stopped (`Exited (137)`) with its PVC preserved, and the owner restored
   host inotify from the temporary 1024 to its original 128. AWS: none. A retained-node restart
   snapshotter-service finding and bounded recovery are recorded in `docs/local-tooling.md`.
+- The owner authorized feature-branch publication and a draft PR only. Draft PR #58 is open,
+  mergeable, and unmerged against exact base `c815ecac09e05d44404f477a497e3361457e0833`.
+  Published implementation/evidence head `14aee6577ad2828e80091ae034b4caa00ec32772`
+  passed all four required jobs in run `33341436390`. This publication-reconciliation checkpoint
+  necessarily follows that run and must receive its own live exact-head CI confirmation.
 - `canary_regression_drill` is mutually exclusive with ordinary canary/rollback paths and requires
   every unrelated input false. The state-machine mocks prove expected-block, unrelated-block, and
   regression-escaped paths. Helm renders, shell/YAML syntax, full infrastructure CI commands,
@@ -94,9 +99,9 @@ Current state as of 2026-08-30T17:13:48-06:00:
   deleted EKS endpoint; always use an explicit context.
 
 Next action:
-1. Obtain owner authorization to push `p13-2-blocked-canary` and open a draft PR against `main`;
-   do not merge it.
-2. Require exact-head CI/review, then open a separately alarmed AWS session only through
+1. Confirm all four live checks pass on the publication-reconciliation head, then obtain
+   independent technical review of unchanged draft PR #58; do not mark ready or merge it.
+2. After acceptance, open a separately alarmed AWS session only through
    read-only preflight, state reconciliation, and exact saved-plan generation before any apply.
 3. Keep T-1302 incomplete until the separately approved AWS drill also proves the behavior. No
    current authorization covers publication, AWS, dispatch, or merge.

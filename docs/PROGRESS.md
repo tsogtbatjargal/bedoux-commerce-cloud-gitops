@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P13 — Delivery maturity |
 | Active task | P13.2 IN PROGRESS — blocked-canary drill (injected regression, automatic rollback). |
-| Last verified | 2026-08-30T17:13:48-06:00 — the authorized real `kind-bedoux` P13.2 drill passed: Ready canaries produced 20/20 correlated HTTP 404s, attributed status 20 blocked promotion, automatic rollback restored both captured stable images, cleanup removed every canary object, and stable health/catalog passed. The node is stopped, drill artifacts are absent, and host inotify is restored to 128. AWS state is unchanged from the clean 2026-08-29 T-1301 teardown sweep. |
+| Last verified | 2026-08-30T17:19:44-06:00 — draft PR #58 is open and mergeable; published head `14aee6577ad2828e80091ae034b4caa00ec32772` passed all four required jobs in run `33341436390`. The real local drill, stopped node, absent artifacts, and restored host inotify remain verified. AWS state is unchanged from the clean 2026-08-29 T-1301 teardown sweep. |
 | AWS resources currently live | No temporary billed session resources. Only the approved persistent allowlist remains; no website alias is present. |
 | Month-to-date estimated AWS spend | USD 6.002 budget actual and USD 6.239 forecast at final T-1301 closeout, within the USD 20 limit. |
-| Next operator action | Owner authorizes pushing the focused `p13-2-blocked-canary` branch and opening a draft PR against `main`. Keep it unmerged while exact-head CI/review are obtained and the older-`main` AWS baseline is later deployed in a separately alarmed, plan-approved session. No current authorization covers publication, AWS, merge, or workflow dispatch. |
+| Next operator action | Confirm the publication-reconciliation commit's exact-head CI, then obtain independent technical review of unchanged draft PR #58. After acceptance, open a separately alarmed AWS session only through read-only preflight, persistent-state reconciliation, and exact saved-plan generation. Keep PR #58 draft/unmerged; no AWS apply, merge, or workflow dispatch is currently authorized. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -689,6 +689,26 @@ active task and remains incomplete pending local-first and live evidence.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-30T17:19:44-06:00 — P13.2 branch published; draft PR #58 exact implementation head green — Codex
+
+- **Owner authorization:** owner approved only pushing `p13-2-blocked-canary` and opening a
+  focused draft PR. No ready/merge, AWS, or workflow-dispatch authorization was inferred.
+- **Publication:** pushed the feature branch, never `main`, and opened draft PR #58 against exact
+  base `c815ecac09e05d44404f477a497e3361457e0833`. GitHub reported it open, draft, and mergeable
+  with published head `14aee6577ad2828e80091ae034b4caa00ec32772`.
+- **Exact implementation-head CI:** PR validation run `33341436390` passed API tests; web lint,
+  test, and build; Terraform and Helm validation; and container build, fixable-vulnerability scan,
+  SPDX generation, signing, and verification on exact head `14aee657`. The sole annotation is the
+  already-known non-blocking React Fast Refresh warning.
+- **PR boundary:** the body records scope, local evidence, risk/rollback, and the deliberately
+  deferred live T-1302 proof. PR #58 remains draft and unmerged; the older `main` baseline is
+  preserved for the later runbook sequence.
+- **Self-referential CI note/next action:** this documentation-only publication reconciliation
+  necessarily creates a successor head after run `33341436390`. Push it under the existing branch
+  authorization, require all four jobs green on that exact successor through live GitHub evidence,
+  then obtain independent review. AWS: none; no AWS or Kubernetes endpoint was contacted in this
+  publication step. No merge, AWS apply, or workflow dispatch is authorized.
 
 ### 2026-08-30T17:13:48-06:00 — P13.2 real local blocked-canary drill passed and cleaned — Codex
 
