@@ -78,6 +78,12 @@ case "${P13_GATE_RESULT:-expected}" in
     ;;
   expected)
     printf '%s\n' 'GATE_EXPECTED_HTTP_ERROR_BLOCK' >>"$P13_TEST_LOG"
+    printf '%s\n' \
+      'CANARY_GATE_RESULT prerequisites=passed reason=http-error-threshold public_http_errors=1 direct_http_errors=20'
+    exit 20
+    ;;
+  unattributed)
+    printf '%s\n' 'GATE_UNATTRIBUTED_STATUS_20' >>"$P13_TEST_LOG"
     exit 20
     ;;
   unrelated)
@@ -100,6 +106,7 @@ run_drill() {
   local result="$1"
   local log_file="$2"
   local output_file="$3"
+  local regression_mode="${4:-http-error}"
   (
     cd "$test_root"
     PATH="$test_root/bin:$PATH" \
@@ -113,7 +120,7 @@ run_drill() {
         --stable-web-image "$stable_web" \
         --candidate-api-image "$candidate_api" \
         --candidate-web-image "$candidate_web" \
-        --regression-mode http-error \
+        --regression-mode "$regression_mode" \
         --drain-seconds 0 \
         --execute
   ) >"$output_file" 2>&1
@@ -159,6 +166,36 @@ if grep -Fq 'T1302_GATE' "$unrelated_output"; then
 fi
 if grep -Fq 'PROMOTE:' "$unrelated_output"; then
   printf '%s\n' 'unrelated gate failure reached the promotion mutation' >&2
+  exit 1
+fi
+
+unattributed_log="$test_root/unattributed.log"
+unattributed_output="$test_root/unattributed.out"
+if run_drill unattributed "$unattributed_log" "$unattributed_output"; then
+  printf '%s\n' 'regression drill trusted an unattributed reserved status 20' >&2
+  exit 1
+fi
+grep -Fxq 'GATE_UNATTRIBUTED_STATUS_20' "$unattributed_log"
+grep -Fxq 'HELM_ABORT_100_0' "$unattributed_log"
+grep -Fxq 'HELM_CLEANUP_STABLE_ONLY' "$unattributed_log"
+grep -Fq 'reserved status 20 without exactly one attributed result marker' "$unattributed_output"
+if grep -Fq 'T1302_GATE' "$unattributed_output"; then
+  printf '%s\n' 'unattributed status 20 emitted false-positive T-1302 evidence' >&2
+  exit 1
+fi
+
+normal_regression_log="$test_root/normal-regression.log"
+normal_regression_output="$test_root/normal-regression.out"
+if run_drill expected "$normal_regression_log" "$normal_regression_output" none; then
+  printf '%s\n' 'normal rollout succeeded after a correlated HTTP-error gate block' >&2
+  exit 1
+fi
+grep -Fxq 'HELM_ABORT_100_0' "$normal_regression_log"
+grep -Fxq 'HELM_CLEANUP_STABLE_ONLY' "$normal_regression_log"
+grep -Fq 'canary HTTP-error gate blocked promotion outside an authorized regression drill' \
+  "$normal_regression_output"
+if grep -Fq 'T1302_GATE' "$normal_regression_output"; then
+  printf '%s\n' 'normal rollout emitted T-1302 drill evidence' >&2
   exit 1
 fi
 

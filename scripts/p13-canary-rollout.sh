@@ -440,18 +440,37 @@ if ! kubectl "${kubectl_args[@]}" rollout status deployment/api-canary --timeout
 fi
 
 gate_status=0
-scripts/p13-canary-gate.sh "${gate_args[@]}" --execute || gate_status=$?
+gate_output="$(scripts/p13-canary-gate.sh "${gate_args[@]}" --execute)" || gate_status=$?
+if [[ -n "$gate_output" ]]; then
+  printf '%s\n' "$gate_output"
+fi
+gate_result_count=0
+gate_result_pattern='^CANARY_GATE_RESULT prerequisites=passed reason=http-error-threshold public_http_errors=[0-9]+ direct_http_errors=[0-9]+$'
+while IFS= read -r gate_output_line; do
+  if [[ "$gate_output_line" =~ $gate_result_pattern ]]; then
+    ((gate_result_count += 1))
+  fi
+done <<<"$gate_output"
 if ((gate_status != 0)); then
   if [[ "$stage_succeeded" == true ]]; then
     abort_to_stable
   fi
-  if [[ "$regression_mode" == "http-error" && "$gate_status" == 20 ]]; then
+  if [[ "$regression_mode" == "http-error" && "$gate_status" == 20 && \
+        "$gate_result_count" == 1 ]]; then
     printf '%s\n' 'PASS: injected canary regression was blocked and automatic stable-only rollback completed.'
     printf '%s\n' 'T1302_GATE regression=http-error promotion=blocked rollback=stable-only'
     exit 0
   fi
-  printf 'BLOCK: canary gate failed for a non-regression reason (status=%d); rollback completed but T-1302 evidence is denied.\n' \
-    "$gate_status" >&2
+  if [[ "$gate_status" == 20 && "$gate_result_count" != 1 ]]; then
+    printf 'BLOCK: canary gate returned reserved status 20 without exactly one attributed result marker (markers=%d); rollback completed and T-1302 evidence is denied.\n' \
+      "$gate_result_count" >&2
+  elif [[ "$gate_status" == 20 ]]; then
+    printf '%s\n' \
+      'BLOCK: canary HTTP-error gate blocked promotion outside an authorized regression drill; rollback completed and T-1302 evidence is denied.' >&2
+  else
+    printf 'BLOCK: canary gate failed for an unrelated reason (status=%d); rollback completed and T-1302 evidence is denied.\n' \
+      "$gate_status" >&2
+  fi
   exit 1
 fi
 
