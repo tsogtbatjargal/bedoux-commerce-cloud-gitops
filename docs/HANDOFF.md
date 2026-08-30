@@ -13,7 +13,7 @@ Continue bedoux-commerce-cloud from
 Start with START-HERE.md, AGENTS.md, and docs/PROGRESS.md. The progress file is authoritative.
 Use the active worktree/branch recorded by Git and preserve unrelated changes.
 
-Current state as of 2026-08-30T12:23:08-06:00:
+Current state as of 2026-08-30T16:00:42-06:00:
 - P0-P12 are complete and gate-approved. P13 is active. P13.1 and T-1301 are complete. The owner
   explicitly activated P13.2 on 2026-08-30; T-1302 is the single IN PROGRESS task.
 - PR #57 exact head `c58ca0bc24b1fcec1f203f405ef04a0179dae6da` passed all four jobs in run
@@ -29,8 +29,14 @@ Current state as of 2026-08-30T12:23:08-06:00:
   `web-canary` API requests fail. The rollout succeeds in drill mode only after the existing gate
   blocks promotion and the ADR 0023 abort proves captured stable images plus absent canary objects.
   A gate that accepts the regression still triggers abort/cleanup and exits non-zero.
+- The first independent review found that generic composite-gate failures could be mistaken for
+  the injected regression. Exact local fix `f6b113acdddf96de710d331a4cca3628842601d5`
+  now emits reserved status 20 only when correlated access logs prove HTTP errors above the
+  allowance after image/readiness/weight and ALB prerequisites pass. Unrelated status 1 still
+  rolls back but exits failed without `T1302_GATE`. Real-gate mocks prove HTTP-error, tooling-error,
+  and pass classifications; rollout mocks prove unrelated failure cannot produce T-1302 evidence.
 - `canary_regression_drill` is mutually exclusive with ordinary canary/rollback paths and requires
-  every unrelated input false. The new state-machine mock proves both expected-block and
+  every unrelated input false. The state-machine mocks prove expected-block, unrelated-block, and
   regression-escaped paths. Helm renders, shell/YAML syntax, full infrastructure CI commands,
   action pins, docs checks, and whitespace checks pass. No AWS or Kubernetes endpoint was used.
 - PR #55 merged the P13.1 implementation and repaired EKS launch-template/ASG tagging path to
@@ -72,7 +78,8 @@ Current state as of 2026-08-30T12:23:08-06:00:
   deleted EKS endpoint; always use an explicit context.
 
 Next action:
-1. Independently review the focused P13.2 diff and fail-closed state transitions.
+1. Independently re-review exact local fix `f6b113acdddf96de710d331a4cca3628842601d5`
+   and its fail-closed gate-result attribution.
 2. With explicit owner authorization, run the bounded real kind drill in
    `docs/runbooks/p13-2-blocked-canary-session.md`; temporarily raise host inotify only if needed
    and restore it afterward.

@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P13 — Delivery maturity |
 | Active task | P13.2 IN PROGRESS — blocked-canary drill (injected regression, automatic rollback). |
-| Last verified | 2026-08-30T12:23:08-06:00 — P13.2's fail-closed injection render, workflow shell/YAML, rollout dry-run, and expected-block/escaped-regression rollback mocks passed locally. AWS state is unchanged from the clean 2026-08-29 T-1301 teardown sweep. |
+| Last verified | 2026-08-30T16:00:42-06:00 — exact local fix `f6b113a` reserves gate status 20 for access-log-correlated HTTP errors after prerequisites pass; unrelated failure, expected block, escaped regression, Helm, ALB/readiness, workflow syntax, action-pin, docs, whitespace, and sensitive-data checks pass. AWS state is unchanged from the clean 2026-08-29 T-1301 teardown sweep. |
 | AWS resources currently live | No temporary billed session resources. Only the approved persistent allowlist remains; no website alias is present. |
 | Month-to-date estimated AWS spend | USD 6.002 budget actual and USD 6.239 forecast at final T-1301 closeout, within the USD 20 limit. |
-| Next operator action | Obtain independent technical review of the local P13.2 implementation. Then explicitly authorize a bounded local kind drill (including any temporary host inotify increase) to prove real Ready canary errors, blocked promotion, automatic stable-only rollback, and cleanup before proposing live T-1302. |
+| Next operator action | Independently re-review exact local fix `f6b113acdddf96de710d331a4cca3628842601d5`. After acceptance, explicitly authorize a bounded local kind drill (including any temporary host inotify increase) to prove real Ready canary errors, attributed gate block, automatic stable-only rollback, and cleanup before proposing live T-1302. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -689,6 +689,34 @@ active task and remains incomplete pending local-first and live evidence.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-30T16:00:42-06:00 — P13.2 false-positive gate evidence repaired — Codex
+
+- **Independent finding accepted:** exact head `b1eb85c` treated every composite-gate failure as
+  the expected injected regression. A wrong image, readiness/weight/reconciliation failure,
+  missing public canary traffic, or tooling error could therefore roll back and still emit false
+  `T1302_GATE` success evidence.
+- **Attribution contract:** `p13-canary-gate.sh` now correlates unique public/direct probes with
+  `web-canary` access-log status codes. Only errors fully attributable to HTTP responses above the
+  allowance, after image/readiness/weight and any ALB reconciliation/target-health prerequisites,
+  emit `CANARY_GATE_RESULT prerequisites=passed reason=http-error-threshold` and reserved exit
+  status 20. All unrelated blocks remain status 1.
+- **Rollout behavior:** `p13-canary-rollout.sh` captures the exact gate status. Every non-zero
+  result still invokes the same stable-image 100/0 abort and cleanup, but only status 20 in
+  explicit `http-error` mode may emit `T1302_GATE` and exit successfully. An unrelated failure
+  exits non-zero after rollback and explicitly denies T-1302 evidence.
+- **Automated proof:** new real-gate mocks distinguish logged HTTP 404s (status 20), a simulated
+  tooling failure with non-HTTP sample errors (status 1 and no structured regression result), and
+  a clean pass. The rollout state-machine mock separately proves unrelated status 1 rolls back,
+  cleans up, exits non-zero, and emits neither `T1302_GATE` nor `PROMOTE:`. Expected status 20 and
+  escaped-regression paths remain fail-closed.
+- **Validation:** shell syntax; all three Helm profile lints; normal, regression, and invalid-mode
+  renders; ALB reconciliation/readiness mocks; both regression mocks; workflow embedded Bash/YAML;
+  action pins (18); `make docs-check`; `git diff --check`; and a scoped sensitive-data scan passed.
+  The fix is local commit `f6b113acdddf96de710d331a4cca3628842601d5`.
+- **Boundary/next action:** AWS: none; no Kubernetes endpoint, workflow, GitHub publication, or
+  remote branch was touched. Obtain independent re-review of exact `f6b113a`; a real kind drill
+  still requires explicit owner authorization, and T-1302 remains incomplete.
 
 ### 2026-08-30T12:23:08-06:00 — P13.2 fail-closed regression path locally implemented — Codex
 

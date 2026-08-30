@@ -183,10 +183,13 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   T-1301 files were removed from `/tmp`. Budget actual was USD 6.002 and forecast USD 6.239 of
   USD 20. Only the approved persistent allowlist remains. PR #57 merged the closeout as
   `c815eca`; **the owner activated P13.2 on 2026-08-30, and T-1302 is now `IN PROGRESS`.** Its
-  disabled-by-default canary-only HTTP-error injection, expected gate-block semantics, exact
+  disabled-by-default canary-only HTTP-error injection, attributed gate-block semantics, exact
   stable-image rollback assertion, workflow input, fail-closed mocks, and bounded runbook are
-  implemented locally. Real kind evidence and independent review are still pending; no live T-1302
-  claim exists. The retained Calico-backed kind node is stopped with its PVC preserved and
+  implemented locally. The first independent review found a false-positive evidence path; local
+  fix `f6b113a` now reserves status 20 for access-log-correlated HTTP errors after prerequisites
+  pass and denies T-1302 evidence for unrelated failures. Exact-head re-review and real kind
+  evidence are still pending; no live T-1302 claim exists. The retained Calico-backed kind node is
+  stopped with its PVC preserved and
   the host inotify value restored to 128. The default kubeconfig context still points at a deleted
   EKS endpoint, so always use an explicit context.
 - Repository workflow skills are validated and published on `main` through merged PR #47
