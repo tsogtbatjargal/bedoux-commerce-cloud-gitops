@@ -13,7 +13,7 @@ Continue bedoux-commerce-cloud from
 Start with START-HERE.md, AGENTS.md, and docs/PROGRESS.md. The progress file is authoritative.
 Use the active worktree/branch recorded by Git and preserve unrelated changes.
 
-Current state as of 2026-08-30T12:13:46-06:00:
+Current state as of 2026-08-30T12:23:08-06:00:
 - P0-P12 are complete and gate-approved. P13 is active. P13.1 and T-1301 are complete. The owner
   explicitly activated P13.2 on 2026-08-30; T-1302 is the single IN PROGRESS task.
 - PR #57 exact head `c58ca0bc24b1fcec1f203f405ef04a0179dae6da` passed all four jobs in run
@@ -24,6 +24,15 @@ Current state as of 2026-08-30T12:13:46-06:00:
   pairs, ALB/ingress-nginx weighting, exact image checks, direct/public health gates, ALB listener
   and target-health reconciliation, injected pod-readiness gates, reconciled 100/0 promotion,
   bounded drain, and stable-only cleanup.
+- P13.2's local implementation was prepared after activation checkpoint `cc3f001`. The new
+  disabled-by-default `canary.regressionMode=http-error` keeps canary pods Ready while only
+  `web-canary` API requests fail. The rollout succeeds in drill mode only after the existing gate
+  blocks promotion and the ADR 0023 abort proves captured stable images plus absent canary objects.
+  A gate that accepts the regression still triggers abort/cleanup and exits non-zero.
+- `canary_regression_drill` is mutually exclusive with ordinary canary/rollback paths and requires
+  every unrelated input false. The new state-machine mock proves both expected-block and
+  regression-escaped paths. Helm renders, shell/YAML syntax, full infrastructure CI commands,
+  action pins, docs checks, and whitespace checks pass. No AWS or Kubernetes endpoint was used.
 - PR #55 merged the P13.1 implementation and repaired EKS launch-template/ASG tagging path to
   `main` as `5bbf959a689f46e20b7512b2be42c52a148b5c36`. Older-P12 baseline run `33267748556`
   proved the signed stable deployment, public health, six-product catalog, one healthy stable
@@ -63,11 +72,13 @@ Current state as of 2026-08-30T12:13:46-06:00:
   deleted EKS endpoint; always use an explicit context.
 
 Next action:
-1. Inspect ADR 0023's existing gate and abort cleanup path, then implement the smallest explicit
-   canary-only latency/error regression input without creating a competing deployment path.
-2. Prove locally that the gate blocks promotion and automatic cleanup restores stable-only state.
-3. Keep T-1302 incomplete until a separately approved alarmed AWS drill proves the behavior live;
-   no current authorization covers AWS, workflow dispatch, publication, or merge.
+1. Independently review the focused P13.2 diff and fail-closed state transitions.
+2. With explicit owner authorization, run the bounded real kind drill in
+   `docs/runbooks/p13-2-blocked-canary-session.md`; temporarily raise host inotify only if needed
+   and restore it afterward.
+3. Keep T-1302 incomplete until both kind and a separately approved alarmed AWS drill prove the
+   behavior. No current authorization covers Kubernetes mutation, AWS, dispatch, publication, or
+   merge.
 
 Hard boundaries: USD 20/month; ca-central-1; bedoux-admin only; no NAT Gateway; same-day teardown;
 never record account IDs, secrets, personal email addresses, or registrar details. No temporary

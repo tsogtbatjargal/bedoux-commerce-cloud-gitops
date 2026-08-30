@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P13 — Delivery maturity |
 | Active task | P13.2 IN PROGRESS — blocked-canary drill (injected regression, automatic rollback). |
-| Last verified | 2026-08-29T21:13:25-06:00 — T-1301 workflow run `33278906766` passed on exact `main` SHA `68847978e25c0cce7ef0db757a6996004813ce41`; the approved 18-resource Terraform destroy and temporary cluster-OIDC deletion completed, and the repeated authoritative sweep found zero temporary compute, network, storage, database, load-balancing, or cluster resources. |
+| Last verified | 2026-08-30T12:23:08-06:00 — P13.2's fail-closed injection render, workflow shell/YAML, rollout dry-run, and expected-block/escaped-regression rollback mocks passed locally. AWS state is unchanged from the clean 2026-08-29 T-1301 teardown sweep. |
 | AWS resources currently live | No temporary billed session resources. Only the approved persistent allowlist remains; no website alias is present. |
 | Month-to-date estimated AWS spend | USD 6.002 budget actual and USD 6.239 forecast at final T-1301 closeout, within the USD 20 limit. |
-| Next operator action | Design the smallest fail-closed regression injection compatible with ADR 0023, implement it locally in the existing Helm/workflow path, and prove promotion is blocked with automatic stable-only rollback before proposing any live T-1302 session. |
+| Next operator action | Obtain independent technical review of the local P13.2 implementation. Then explicitly authorize a bounded local kind drill (including any temporary host inotify increase) to prove real Ready canary errors, blocked promotion, automatic stable-only rollback, and cleanup before proposing live T-1302. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -689,6 +689,34 @@ active task and remains incomplete pending local-first and live evidence.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-30T12:23:08-06:00 — P13.2 fail-closed regression path locally implemented — Codex
+
+- **Narrow injection:** added disabled-by-default `canary.regressionMode`. Its only non-default
+  value, `http-error`, keeps both canary pods and the web root readiness path healthy while
+  pointing only `web-canary` API requests at a deliberately absent API route. Helm rejects any
+  unknown mode. Stable resources and the ordinary P13.1 path are unchanged.
+- **Existing rollback path extended, not replaced:** `p13-canary-rollout.sh` now recognizes the
+  explicit expected-block mode. A real gate failure invokes ADR 0023's existing stable-image,
+  reconciled-100/0, drain, and cleanup sequence; success requires exact captured stable images
+  and absent canary objects. If the injected error unexpectedly passes the gate, promotion is
+  still refused, the same abort runs, and the command fails.
+- **Workflow boundary:** added mutually exclusive `canary_regression_drill`. It requires
+  `seed_catalog=false`, `canary_rollout=false`, and every unrelated service/drill input false,
+  then invokes the same signed-image rollout helper with `--regression-mode http-error`. No
+  second release or deployment controller was added.
+- **Automated proof:** `scripts/test-p13-canary-regression-rollback.sh` mocks the real helper's
+  state transitions. It proves stage -> expected gate block -> 100/0 abort -> stable-only cleanup
+  ordering and separately proves a gate that accepts the regression still blocks promotion,
+  aborts, cleans up, and exits non-zero. Helm normal/error renders, unknown-mode refusal, helper
+  syntax/help/dry-run, embedded workflow shell syntax, the full infrastructure CI command block,
+  action-pin checks, docs checks, and `git diff --check` passed.
+- **Runbook:** `docs/runbooks/p13-2-blocked-canary-session.md` defines local and later AWS evidence,
+  exact workflow inputs, stop conditions, approval boundaries, and ordered teardown. T-1302 is
+  not claimed from static/mocked evidence.
+- **Boundary/next action:** no AWS or Kubernetes endpoint was contacted and no workflow was
+  dispatched. Obtain independent review, then owner authorization for a bounded real kind drill.
+  Publication, PR creation/merge, live AWS work, and T-1302 completion remain unauthorized.
 
 ### 2026-08-30T12:13:46-06:00 — PR #57 merged; P13.2 activated — Codex
 

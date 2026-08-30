@@ -171,6 +171,17 @@ jobs:
           grep -Fq '\"serviceName\":\"web-canary\",\"servicePort\":8080,\"weight\":10' <<< "$canary_rendered"
           grep -Fq "localhost/bedoux-api@$candidate_digest" <<< "$canary_rendered"
           grep -Fq "localhost/bedoux-web@$candidate_digest" <<< "$canary_rendered"
+          regression_rendered="$(helm template bedoux charts/bedoux \
+            -f charts/bedoux/values-aws.yaml \
+            --set canary.enabled=true \
+            --set canary.weight=10 \
+            --set canary.regressionMode=http-error)"
+          grep -Fq 'API_UPSTREAM: api-canary:8000/__p13-regression' <<< "$regression_rendered"
+          if helm template bedoux charts/bedoux --set canary.enabled=true \
+            --set canary.regressionMode=unknown >/dev/null 2>&1; then
+            echo 'unknown canary regression modes must fail closed' >&2
+            exit 1
+          fi
           if helm template bedoux charts/bedoux --set canary.enabled=true \
             --set canary.weight=51 >/dev/null 2>&1; then
             echo 'canary weight above the bounded 50% ceiling must fail closed' >&2
@@ -196,6 +207,7 @@ jobs:
           bash -n scripts/p13-alb-pod-readiness-gate.sh
           bash -n scripts/test-p13-alb-reconciliation-gate.sh
           bash -n scripts/test-p13-alb-pod-readiness-gate.sh
+          bash -n scripts/test-p13-canary-regression-rollback.sh
           scripts/p13-canary-gate.sh --help >/dev/null
           scripts/p13-canary-rollout.sh --help >/dev/null
           scripts/p13-alb-reconciliation-gate.sh --help >/dev/null
@@ -211,6 +223,7 @@ jobs:
             --context bedoux \
             --dry-run >/dev/null
           scripts/test-p13-alb-pod-readiness-gate.sh
+          scripts/test-p13-canary-regression-rollback.sh
           scripts/p13-canary-gate.sh \
             --context kind-bedoux \
             --expected-api-image localhost/bedoux-api:candidate \
@@ -224,6 +237,14 @@ jobs:
             --candidate-web-image localhost/bedoux-web:candidate \
             --values charts/bedoux/values.yaml \
             --dry-run >/dev/null
+          scripts/p13-canary-rollout.sh \
+            --context kind-bedoux \
+            --stable-api-image localhost/bedoux-api:stable \
+            --stable-web-image localhost/bedoux-web:stable \
+            --candidate-api-image localhost/bedoux-api:candidate \
+            --candidate-web-image localhost/bedoux-web:candidate \
+            --regression-mode http-error \
+            --dry-run | grep -Fq 'require the health gate to block promotion'
 
   container-security:
     name: Container build and scan

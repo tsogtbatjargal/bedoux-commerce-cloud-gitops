@@ -169,6 +169,10 @@ canary:
   enabled: false
   weight: 10
   replicas: 1
+  # P13.2 test-only injection. "http-error" keeps the canary pods Ready but
+  # sends their /api requests to a deliberately absent API path so the
+  # existing health/error gate, rather than pod readiness, must block it.
+  regressionMode: none
   api:
     image:
       repository: localhost/bedoux-api
@@ -181,7 +185,7 @@ canary:
       tag: p3
       digest: ""
       pullPolicy: IfNotPresent
-    # Reserved for P13.2's signed, narrowly scoped regression drill.
+    # Reserved for signed, narrowly scoped failure drills.
     command: []
 
 # Per ADR 0006: only the AWS session profile creates this (values-aws.yaml).
