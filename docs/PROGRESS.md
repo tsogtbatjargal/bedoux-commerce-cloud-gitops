@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | P13 — Delivery maturity |
 | Active task | P13.2 IN PROGRESS — blocked-canary drill (injected regression, automatic rollback). |
-| Last verified | 2026-08-30T17:19:44-06:00 — draft PR #58 is open and mergeable; published head `14aee6577ad2828e80091ae034b4caa00ec32772` passed all four required jobs in run `33341436390`. The real local drill, stopped node, absent artifacts, and restored host inotify remain verified. AWS state is unchanged from the clean 2026-08-29 T-1301 teardown sweep. |
+| Last verified | 2026-08-30T17:34:27-06:00 — independent technical review accepted draft PR #58 at exact head `f69e680a47f41068efdc135b9c729a8b7f0a0d84`; live GitHub evidence confirms it is open, draft, mergeable, and unmerged, with all four required jobs green in exact-head run `33341568312`. AWS state is unchanged from the clean 2026-08-29 T-1301 teardown sweep. |
 | AWS resources currently live | No temporary billed session resources. Only the approved persistent allowlist remains; no website alias is present. |
 | Month-to-date estimated AWS spend | USD 6.002 budget actual and USD 6.239 forecast at final T-1301 closeout, within the USD 20 limit. |
-| Next operator action | Confirm the publication-reconciliation commit's exact-head CI, then obtain independent technical review of unchanged draft PR #58. After acceptance, open a separately alarmed AWS session only through read-only preflight, persistent-state reconciliation, and exact saved-plan generation. Keep PR #58 draft/unmerged; no AWS apply, merge, or workflow dispatch is currently authorized. |
+| Next operator action | Set an independent Edmonton alarm and teardown cutoff, then explicitly authorize an AWS session only through read-only preflight, persistent-state reconciliation, and exact saved-plan generation. Keep PR #58 draft/unmerged; no AWS apply, merge, or workflow dispatch is currently authorized. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -689,6 +689,29 @@ active task and remains incomplete pending local-first and live evidence.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-30T17:34:27-06:00 — P13.2 exact-head review accepted; live evidence boundary made explicit — Codex
+
+- **Independent review:** reviewer accepted draft PR #58 at exact head
+  `f69e680a47f41068efdc135b9c729a8b7f0a0d84`. The status-20 contract, exactly-one structured
+  marker, three separated failure modes, real nginx combined-log correlation, atomic staging
+  failure behavior, and real kind rollback evidence were independently checked. Both prior
+  findings are closed; the only new observations were non-blocking log-order and CI-presentation
+  notes.
+- **Live GitHub reconciliation:** PR #58 is open, draft, mergeable, and unmerged against exact
+  base `c815ecac09e05d44404f477a497e3361457e0833`. Exact-head run `33341568312` completed all four
+  required jobs successfully. Local and remote feature heads match and the worktree was clean
+  before this documentation-only checkpoint.
+- **Evidence decision:** the kind drill satisfies the generic wording of T-1302, but final project
+  completion intentionally also requires the AWS ALB public-error branch. That branch must prove
+  real listener weighting, target health, public-to-canary error correlation, and stable-only ALB
+  cleanup; it has not yet run live on an error path. The runbook now records this stricter evidence
+  standard and warns that deliberate traffic-slice errors are suitable only for the temporary,
+  userless learning endpoint. This does not change ADR 0023 or the rollout architecture.
+- **AWS/next action:** AWS: none; no Kubernetes endpoint was contacted. Set an independent alarm
+  and teardown cutoff, then obtain explicit authorization only for read-only AWS preflight,
+  persistent-state reconciliation, and exact saved-plan generation. PR #58 stays draft/unmerged;
+  no apply, merge, or workflow dispatch is authorized.
 
 ### 2026-08-30T17:19:44-06:00 — P13.2 branch published; draft PR #58 exact implementation head green — Codex
 

@@ -4,6 +4,14 @@ Use this runbook for P13.2's local proof and later T-1302 AWS proof. ADR 0023 al
 the automatic pre-promotion abort path; this drill adds only a narrow canary error injection and
 must not introduce a second release or rollback mechanism.
 
+The local kind drill proves the generic T-1302 contract and the fail-closed classifier. This
+project deliberately withholds final T-1302 completion until the same drill also exercises the
+AWS-specific ALB public-error path: real weighted listener reconciliation, healthy target groups,
+public requests correlated to the failing canary, and stable-only ALB cleanup have otherwise been
+covered only by success-path live evidence or mocks. This is a stricter evidence standard, not a
+new architecture decision. The temporary learning endpoint has no users; deliberately returning
+errors to a traffic slice must not be copied unchanged into a production/customer session.
+
 ## Expected regression contract
 
 `canary.regressionMode=http-error` changes only `web-canary`'s API upstream to a deliberately

@@ -13,7 +13,7 @@ Continue bedoux-commerce-cloud from
 Start with START-HERE.md, AGENTS.md, and docs/PROGRESS.md. The progress file is authoritative.
 Use the active worktree/branch recorded by Git and preserve unrelated changes.
 
-Current state as of 2026-08-30T17:19:44-06:00:
+Current state as of 2026-08-30T17:34:27-06:00:
 - P0-P12 are complete and gate-approved. P13 is active. P13.1 and T-1301 are complete. The owner
   explicitly activated P13.2 on 2026-08-30; T-1302 is the single IN PROGRESS task.
 - PR #57 exact head `c58ca0bc24b1fcec1f203f405ef04a0179dae6da` passed all four jobs in run
@@ -53,9 +53,14 @@ Current state as of 2026-08-30T17:19:44-06:00:
   snapshotter-service finding and bounded recovery are recorded in `docs/local-tooling.md`.
 - The owner authorized feature-branch publication and a draft PR only. Draft PR #58 is open,
   mergeable, and unmerged against exact base `c815ecac09e05d44404f477a497e3361457e0833`.
-  Published implementation/evidence head `14aee6577ad2828e80091ae034b4caa00ec32772`
-  passed all four required jobs in run `33341436390`. This publication-reconciliation checkpoint
-  necessarily follows that run and must receive its own live exact-head CI confirmation.
+  Independent technical review accepted exact head
+  `f69e680a47f41068efdc135b9c729a8b7f0a0d84`; all four required jobs passed on that exact head in
+  run `33341568312`.
+- The local drill satisfies T-1302's generic wording, but project completion intentionally also
+  requires the AWS-specific ALB public-error path: real listener weighting and target health,
+  public-to-canary error correlation, and stable-only ALB cleanup. This stricter evidence boundary
+  and the warning against copying deliberate traffic-slice errors into a production/customer
+  session are explicit in the P13.2 runbook; ADR 0023 is unchanged.
 - `canary_regression_drill` is mutually exclusive with ordinary canary/rollback paths and requires
   every unrelated input false. The state-machine mocks prove expected-block, unrelated-block, and
   regression-escaped paths. Helm renders, shell/YAML syntax, full infrastructure CI commands,
@@ -99,10 +104,10 @@ Current state as of 2026-08-30T17:19:44-06:00:
   deleted EKS endpoint; always use an explicit context.
 
 Next action:
-1. Confirm all four live checks pass on the publication-reconciliation head, then obtain
-   independent technical review of unchanged draft PR #58; do not mark ready or merge it.
-2. After acceptance, open a separately alarmed AWS session only through
-   read-only preflight, state reconciliation, and exact saved-plan generation before any apply.
+1. Set an independent Edmonton alarm with at least 75 minutes reserved for teardown, then obtain
+   explicit authorization for an AWS session only through read-only preflight, persistent-state
+   reconciliation, and exact saved-plan generation before any apply.
+2. Keep PR #58 draft and unmerged while the older `main` baseline is deployed later.
 3. Keep T-1302 incomplete until the separately approved AWS drill also proves the behavior. No
    current authorization covers publication, AWS, dispatch, or merge.
 
