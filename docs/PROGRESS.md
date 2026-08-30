@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P13 — Delivery maturity |
-| Active task | P13.1 IN PROGRESS — review the merged deployment path, then implement and locally prove a staged/canary rollout with an automated health gate. |
-| Last verified | 2026-08-29T16:23:31-06:00 — draft PR #56 is open and mergeable at exact fix head `4dc20606fb0eeb000ebde6881be82149a680d976`; exact-head run `33277768187` passed all four jobs. Independent review found the ALB normalization fix technically acceptable and fail-closed, with stale checkpoint wording as the sole merge blocker. |
-| AWS resources currently live | Bounded T-1301 session: no-NAT EKS/VPC shape plus `gp3`, AWS Load Balancer Controller 3.4.3, namespace/RBAC, one deployed `bedoux` Helm release with bound PostgreSQL PVC, and one public ALB/stable target group. Persistent allowlist remains attached. No EIP, NAT, RDS, optional service, website alias, or canary object exists. |
-| Month-to-date estimated AWS spend | USD 6.001 budget actual and USD 6.382 forecast at the 2026-08-29 T-1301 preflight; the refreshed four-hour session shape remains below USD 1. |
-| Next operator action | Verify and commit the documentation-only checkpoint reconciliation, then obtain explicit authorization before pushing the resulting exact head to draft PR #56. Reconfirm exact-head CI and review before requesting merge approval. Merge and canary retry remain separately gated. Begin teardown by 17:45 Edmonton regardless of progress. |
+| Active task | None — P13.1 COMPLETE; P13.2 NOT STARTED pending explicit owner activation. |
+| Last verified | 2026-08-29T21:13:25-06:00 — T-1301 workflow run `33278906766` passed on exact `main` SHA `68847978e25c0cce7ef0db757a6996004813ce41`; the approved 18-resource Terraform destroy and temporary cluster-OIDC deletion completed, and the repeated authoritative sweep found zero temporary compute, network, storage, database, load-balancing, or cluster resources. |
+| AWS resources currently live | No temporary billed session resources. Only the approved persistent allowlist remains; no website alias is present. |
+| Month-to-date estimated AWS spend | USD 6.002 budget actual and USD 6.239 forecast at final T-1301 closeout, within the USD 20 limit. |
+| Next operator action | Verify and commit the focused P13.1 closeout checkpoint locally, then obtain explicit authorization before publishing its exact head. After that checkpoint is reviewed and merged, the owner may explicitly activate P13.2; do not start T-1302 yet. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -660,7 +660,9 @@ Gate: T-1201..T-1203.
 
 ### P13 — Delivery maturity
 
-- [ ] P13.1 IN PROGRESS — staged/canary rollout with an automated health gate.
+- [x] P13.1 COMPLETE — staged/canary rollout reached exact 90/10, passed direct and public
+      automated gates, promoted through reconciled 100/0, and cleaned back to stable-only.
+      Evidence: T-1301 workflow run `33278906766` and the 2026-08-29 closeout entry below.
 - [ ] P13.2 NOT STARTED — blocked-canary drill (injected regression, automatic rollback).
 
 Gate: T-1301..T-1302.
@@ -676,7 +678,7 @@ Gate: T-1301..T-1302.
 Gate: T-1401..T-1404.
 
 **P10–P14 track bootstrapped 2026-08-09; P10, P11, and P12 are gate-approved. P13 is active;
-P13.1 is in progress with its local rehearsal complete and live T-1301 evidence pending.**
+P13.1 and T-1301 are complete. P13.2 remains `NOT STARTED` pending explicit owner activation.**
 
 ## Blockers
 
@@ -686,6 +688,46 @@ P13.1 is in progress with its local rehearsal complete and live T-1301 evidence 
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-29T21:16:40-06:00 — T-1301 passed; same-session teardown clean — Codex
+
+- **Reviewed fix and exact merge:** PR #56 exact head
+  `5b48f81b4f0e7e177f8c066324302b51e50f8faa` passed all four jobs in run `33278575055`.
+  The owner approved only that head; it merged to `main` as
+  `68847978e25c0cce7ef0db757a6996004813ce41`. No retry ran until the owner separately
+  authorized the exact merge SHA and workflow inputs.
+- **T-1301 pass:** authorized run `33278906766` used `seed_catalog=false`,
+  `canary_rollout=true`, and every unrelated option false. The ALB gates proved stable-only
+  normalization, exact staged 90/10 with two healthy target groups and applied 30-second
+  deregistration, and exact promotion 100/0 before the 45-second drain. Pod-readiness injection
+  was healthy; `CANARY_GATE` passed 20/20 with zero errors; `PUBLIC_CANARY_GATE` passed 100/100
+  with zero errors and 13 correlated `web-canary` hits. Cleanup returned to one healthy
+  positive-weight stable target with no canary Deployment, Service, Ingress, or
+  TargetGroupBinding. Final public health and the six-product catalog passed.
+- **Immutable result:** final API digest
+  `sha256:a7de44f2362bc351601fccbff0294114fd2f9eeb13a7b4763e1d60009c83b3c5` and web digest
+  `sha256:c7fd1a05e2915a3fb968f98aeab658971ca45b1aa50bdd5a56c95e9ba61ca0e4` matched the exact
+  candidate images built from the authorized `main` revision. Helm revision 6 was deployed
+  before teardown, with only stable API/web/PostgreSQL workloads and the retained stable target
+  group present.
+- **Ordered teardown:** deleted the Ingress first and waited for zero ALBs and target groups,
+  then removed the Helm release, namespace/PVC, AWS Load Balancer Controller 3.4.3, and `gp3`.
+  Persistent state was detached through the guarded helper. The owner approved exact
+  temporary-only destroy plan SHA-256
+  `7f5174b04b66c54eaefdc2617f65599f1ede00b09c8d70007a3363cd919727c4`; its unchanged apply
+  destroyed 18 resources with 0 additions and 0 changes, and the helper deleted the captured
+  temporary cluster OIDC provider.
+- **Final evidence:** the 2026-08-29T21:13:25-06:00 authoritative sweep returned zero EKS
+  clusters, ALBs, target groups, NAT Gateways, EIPs, non-terminated instances, EBS volumes,
+  snapshots, RDS resources, active CloudFormation stacks, project ASGs, launch templates, VPCs,
+  and ENIs. Exact lookup proved the temporary cluster OIDC provider absent. The resource-tagging
+  index still listed one terminated worker, reconciled authoritatively as `terminated`; its root
+  volume returned `InvalidVolume.NotFound`, so this is non-billable indexing lag, not residue.
+  The approved persistent allowlist remains. Budget actual was USD 6.002, forecast USD 6.239 of
+  the USD 20 limit. All exact T-1301 files were removed from `/tmp` after evidence capture.
+- **Phase boundary:** P13.1 and T-1301 are complete. P13.2 and T-1302 remain `NOT STARTED` and
+  require explicit owner activation; this closeout does not authorize another AWS session,
+  regression injection, workflow dispatch, publication, or merge.
 
 ### 2026-08-29T16:23:31-06:00 — PR #56 published and independently reviewed — Codex
 
