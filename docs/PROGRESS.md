@@ -14,7 +14,7 @@ checked here and its evidence is recorded in the session log.
 | Last verified | 2026-08-29T21:13:25-06:00 — T-1301 workflow run `33278906766` passed on exact `main` SHA `68847978e25c0cce7ef0db757a6996004813ce41`; the approved 18-resource Terraform destroy and temporary cluster-OIDC deletion completed, and the repeated authoritative sweep found zero temporary compute, network, storage, database, load-balancing, or cluster resources. |
 | AWS resources currently live | No temporary billed session resources. Only the approved persistent allowlist remains; no website alias is present. |
 | Month-to-date estimated AWS spend | USD 6.002 budget actual and USD 6.239 forecast at final T-1301 closeout, within the USD 20 limit. |
-| Next operator action | Verify and commit the focused P13.1 closeout checkpoint locally, then obtain explicit authorization before publishing its exact head. After that checkpoint is reviewed and merged, the owner may explicitly activate P13.2; do not start T-1302 yet. |
+| Next operator action | Review draft PR #57 at its current exact head and require green exact-head CI. Then obtain explicit owner authorization before marking that exact head ready and merging it. After the closeout is merged, the owner may explicitly activate P13.2; do not start T-1302 yet. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -688,6 +688,19 @@ P13.1 and T-1301 are complete. P13.2 remains `NOT STARTED` pending explicit owne
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-30T12:08:19-06:00 — PR #57 publication reconciled — Codex
+
+- **Published state:** focused P13.1 closeout commit
+  `a2d53f64fc671d31d1c9504eccd25dce7b798164` is published on
+  `p13-1-t1301-closeout` in draft PR #57 against `main`. GitHub reports the PR open, cleanly
+  mergeable, and still draft.
+- **Exact-head validation:** PR validation run `33291593862` passed API tests, web
+  lint/test/build, Terraform/Helm validation, and container build/scan on that exact head.
+- **Owner boundary:** the owner authorized this documentation-only reconciliation and its push
+  to PR #57. The resulting new exact head must pass CI and receive separate explicit approval
+  before the PR is marked ready or merged. P13.2 and T-1302 remain `NOT STARTED`; no AWS or
+  Kubernetes endpoint was contacted.
 
 ### 2026-08-29T21:16:40-06:00 — T-1301 passed; same-session teardown clean — Codex
 

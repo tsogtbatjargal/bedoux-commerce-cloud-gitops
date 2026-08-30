@@ -13,13 +13,15 @@ Continue bedoux-commerce-cloud from
 Start with START-HERE.md, AGENTS.md, and docs/PROGRESS.md. The progress file is authoritative.
 Use the active worktree/branch recorded by Git and preserve unrelated changes.
 
-Current state as of 2026-08-29T21:16:40-06:00:
+Current state as of 2026-08-30T12:08:19-06:00:
 - P0-P12 are complete and gate-approved. P13 is active. P13.1 and T-1301 are complete; P13.2
   and T-1302 remain NOT STARTED pending explicit owner activation. Do not infer activation from
   P13.1 completion.
-- The worktree is on local branch `p13-1-t1301-closeout` from exact `origin/main` SHA
-  `68847978e25c0cce7ef0db757a6996004813ce41`. This closeout is local until the owner explicitly
-  authorizes publication. Never push `main` directly.
+- The worktree is on branch `p13-1-t1301-closeout` from exact `origin/main` SHA
+  `68847978e25c0cce7ef0db757a6996004813ce41`, published in draft PR #57. Initial closeout head
+  `a2d53f64fc671d31d1c9504eccd25dce7b798164` passed all four jobs in exact-head run
+  `33291593862`. The documentation reconciliation creates a newer PR head that must be verified
+  live before merge. Never push `main` directly.
 - ADR 0023 is Accepted. It keeps one Helm release and implements opt-in stable/canary API+web
   pairs, ALB/ingress-nginx weighting, exact image checks, direct/public health gates, ALB listener
   and target-health reconciliation, injected pod-readiness gates, reconciled 100/0 promotion,
@@ -63,10 +65,8 @@ Current state as of 2026-08-29T21:16:40-06:00:
   deleted EKS endpoint; always use an explicit context.
 
 Next action:
-1. Review and commit only START-HERE.md, docs/PROGRESS.md, and docs/HANDOFF.md using
-   `P13.1 complete: record T-1301 promotion and clean teardown`.
-2. Obtain explicit owner authorization before pushing the exact closeout commit or opening a
-   focused draft PR. Reconfirm exact-head CI/review before merge.
+1. Verify draft PR #57's current exact head, all four required CI jobs, and clean mergeability.
+2. Obtain explicit owner authorization before marking that exact head ready or merging it.
 3. After the closeout is merged, wait for explicit owner activation of P13.2. A later T-1302 AWS
    drill requires a fresh alarmed session and its own approvals; no current authorization covers
    it.
