@@ -439,15 +439,19 @@ if ! kubectl "${kubectl_args[@]}" rollout status deployment/api-canary --timeout
   exit 1
 fi
 
-if ! scripts/p13-canary-gate.sh "${gate_args[@]}" --execute; then
+gate_status=0
+scripts/p13-canary-gate.sh "${gate_args[@]}" --execute || gate_status=$?
+if ((gate_status != 0)); then
   if [[ "$stage_succeeded" == true ]]; then
     abort_to_stable
   fi
-  if [[ "$regression_mode" == "http-error" ]]; then
+  if [[ "$regression_mode" == "http-error" && "$gate_status" == 20 ]]; then
     printf '%s\n' 'PASS: injected canary regression was blocked and automatic stable-only rollback completed.'
     printf '%s\n' 'T1302_GATE regression=http-error promotion=blocked rollback=stable-only'
     exit 0
   fi
+  printf 'BLOCK: canary gate failed for a non-regression reason (status=%d); rollback completed but T-1302 evidence is denied.\n' \
+    "$gate_status" >&2
   exit 1
 fi
 

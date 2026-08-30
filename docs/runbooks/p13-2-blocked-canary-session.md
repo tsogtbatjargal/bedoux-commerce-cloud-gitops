@@ -13,9 +13,13 @@ HTTP errors. The existing direct/public gate must detect those errors before pro
 
 The rollout helper treats this as an expected-block drill only when invoked with
 `--regression-mode http-error`. A passing gate is a drill failure: the helper refuses promotion,
-runs the same ADR 0023 abort path, and exits non-zero. An actual gate block is successful only after
-the helper restores both captured stable images, holds reconciled 100/0, removes all canary
-resources, verifies stable-only routing, and emits both `ROLLBACK_GATE` and `T1302_GATE` evidence.
+runs the same ADR 0023 abort path, and exits non-zero. An unrelated prerequisite, infrastructure,
+or tooling failure also rolls back but exits non-zero and must not emit `T1302_GATE`. Only the
+gate's reserved status 20 proves that exact images, readiness, weight, ALB reconciliation, and
+target health passed before correlated access logs attributed the sample failures to HTTP error
+responses above the allowance. That expected block is successful only after the helper restores
+both captured stable images, holds reconciled 100/0, removes all canary resources, verifies
+stable-only routing, and emits both `ROLLBACK_GATE` and `T1302_GATE` evidence.
 
 ## Local-first proof
 
@@ -62,7 +66,8 @@ This is a local Kubernetes drill under [`aws-session.md`](aws-session.md); recor
 
    - both canary Deployments became Ready before the gate;
    - the rendered ingress split was 90/10 and the exact candidate images were staged;
-   - `CANARY_GATE` reported errors above the zero allowance;
+   - `CANARY_GATE` reported correlated HTTP errors above the zero allowance and
+     `CANARY_GATE_RESULT prerequisites=passed reason=http-error-threshold`;
    - no `PROMOTE:` mutation occurred;
    - `ROLLBACK_GATE stable_images_restored=true canary_resources_absent=true`;
    - `T1302_GATE regression=http-error promotion=blocked rollback=stable-only`;
@@ -106,15 +111,15 @@ Complete every **Before the session** item in [`aws-session.md`](aws-session.md)
 
 5. Require the workflow to prove exact staged 90/10, both healthy target groups, applied
    30-second deregistration, and Ready canary pods before the health/error sample. The sample must
-   block. Promotion must never begin. The abort must reconcile exact 100/0, hold the bounded drain,
+   block with the reserved, structured HTTP-error-threshold result—not a generic non-zero status.
+   Promotion must never begin. The abort must reconcile exact 100/0, hold the bounded drain,
    restore the captured stable digests, remove the canary target group and Kubernetes objects, and
    pass final public health/catalog smoke.
-6. Record sanitized `ALB_RECONCILIATION_GATE`, the blocking `PUBLIC_CANARY_GATE`, any
-   `CANARY_GATE` reached before a block, `ROLLBACK_GATE`, and `T1302_GATE` lines plus
-   Helm/Kubernetes evidence. The AWS gate samples public traffic before its direct sample, so an
-   expected public error block may deliberately stop before printing `CANARY_GATE`; the local kind
-   proof supplies that deterministic direct-gate evidence. Diagnose the injected failure from
-   these outputs alone; do not rely on console inspection.
+6. Record sanitized `ALB_RECONCILIATION_GATE`, `PUBLIC_CANARY_GATE`, `CANARY_GATE`,
+   `CANARY_GATE_RESULT`, `ROLLBACK_GATE`, and `T1302_GATE` lines plus Helm/Kubernetes evidence.
+   The AWS gate records public sampling first, then continues to the deterministic direct sample
+   so the reserved result requires correlated HTTP errors in both paths. Diagnose the injected
+   failure from these outputs alone; do not rely on console inspection.
 
 Stop and preserve canary resources for diagnosis if 100/0 reconciliation or stable target health
 cannot be proved. Stop the drill as failed if the gate passes, any promotion mutation occurs, the

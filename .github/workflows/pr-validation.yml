@@ -207,6 +207,7 @@ jobs:
           bash -n scripts/p13-alb-pod-readiness-gate.sh
           bash -n scripts/test-p13-alb-reconciliation-gate.sh
           bash -n scripts/test-p13-alb-pod-readiness-gate.sh
+          bash -n scripts/test-p13-canary-gate-results.sh
           bash -n scripts/test-p13-canary-regression-rollback.sh
           scripts/p13-canary-gate.sh --help >/dev/null
           scripts/p13-canary-rollout.sh --help >/dev/null
@@ -223,6 +224,7 @@ jobs:
             --context bedoux \
             --dry-run >/dev/null
           scripts/test-p13-alb-pod-readiness-gate.sh
+          scripts/test-p13-canary-gate-results.sh
           scripts/test-p13-canary-regression-rollback.sh
           scripts/p13-canary-gate.sh \
             --context kind-bedoux \

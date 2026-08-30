@@ -71,12 +71,21 @@ EOF
 cat >"$test_root/scripts/p13-canary-gate.sh" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-if [[ "${P13_GATE_RESULT:-block}" == "pass" ]]; then
-  printf '%s\n' 'GATE_UNEXPECTED_PASS' >>"$P13_TEST_LOG"
-  exit 0
-fi
-printf '%s\n' 'GATE_EXPECTED_BLOCK' >>"$P13_TEST_LOG"
-exit 1
+case "${P13_GATE_RESULT:-expected}" in
+  pass)
+    printf '%s\n' 'GATE_UNEXPECTED_PASS' >>"$P13_TEST_LOG"
+    exit 0
+    ;;
+  expected)
+    printf '%s\n' 'GATE_EXPECTED_HTTP_ERROR_BLOCK' >>"$P13_TEST_LOG"
+    exit 20
+    ;;
+  unrelated)
+    printf '%s\n' 'GATE_UNRELATED_BLOCK' >>"$P13_TEST_LOG"
+    exit 1
+    ;;
+esac
+exit 2
 EOF
 
 chmod +x "$test_root/bin/helm" "$test_root/bin/kubectl" "$test_root/bin/sleep" \
@@ -112,13 +121,13 @@ run_drill() {
 
 blocked_log="$test_root/blocked.log"
 blocked_output="$test_root/blocked.out"
-run_drill block "$blocked_log" "$blocked_output"
+run_drill expected "$blocked_log" "$blocked_output"
 grep -Fxq 'HELM_STAGE regression=http-error' "$blocked_log"
-grep -Fxq 'GATE_EXPECTED_BLOCK' "$blocked_log"
+grep -Fxq 'GATE_EXPECTED_HTTP_ERROR_BLOCK' "$blocked_log"
 grep -Fxq 'HELM_ABORT_100_0' "$blocked_log"
 grep -Fxq 'HELM_CLEANUP_STABLE_ONLY' "$blocked_log"
 blocked_stage_line="$(grep -nFx 'HELM_STAGE regression=http-error' "$blocked_log" | cut -d: -f1)"
-blocked_gate_line="$(grep -nFx 'GATE_EXPECTED_BLOCK' "$blocked_log" | cut -d: -f1)"
+blocked_gate_line="$(grep -nFx 'GATE_EXPECTED_HTTP_ERROR_BLOCK' "$blocked_log" | cut -d: -f1)"
 blocked_abort_line="$(grep -nFx 'HELM_ABORT_100_0' "$blocked_log" | cut -d: -f1)"
 blocked_cleanup_line="$(grep -nFx 'HELM_CLEANUP_STABLE_ONLY' "$blocked_log" | cut -d: -f1)"
 if ! ((blocked_stage_line < blocked_gate_line && blocked_gate_line < blocked_abort_line && \
@@ -130,6 +139,26 @@ grep -Fq 'ROLLBACK_GATE stable_images_restored=true canary_resources_absent=true
 grep -Fq 'T1302_GATE regression=http-error promotion=blocked rollback=stable-only' "$blocked_output"
 if grep -Fq 'PROMOTE:' "$blocked_output"; then
   printf '%s\n' 'regression drill attempted promotion after the expected gate block' >&2
+  exit 1
+fi
+
+unrelated_log="$test_root/unrelated.log"
+unrelated_output="$test_root/unrelated.out"
+if run_drill unrelated "$unrelated_log" "$unrelated_output"; then
+  printf '%s\n' 'regression drill succeeded after an unrelated gate failure' >&2
+  exit 1
+fi
+grep -Fxq 'GATE_UNRELATED_BLOCK' "$unrelated_log"
+grep -Fxq 'HELM_ABORT_100_0' "$unrelated_log"
+grep -Fxq 'HELM_CLEANUP_STABLE_ONLY' "$unrelated_log"
+grep -Fq 'ROLLBACK_GATE stable_images_restored=true canary_resources_absent=true' "$unrelated_output"
+grep -Fq 'T-1302 evidence is denied' "$unrelated_output"
+if grep -Fq 'T1302_GATE' "$unrelated_output"; then
+  printf '%s\n' 'unrelated gate failure emitted false-positive T-1302 evidence' >&2
+  exit 1
+fi
+if grep -Fq 'PROMOTE:' "$unrelated_output"; then
+  printf '%s\n' 'unrelated gate failure reached the promotion mutation' >&2
   exit 1
 fi
 
