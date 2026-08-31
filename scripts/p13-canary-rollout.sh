@@ -138,11 +138,6 @@ if ((weight < 1 || weight > 50 || attempts < 1 || public_attempts < 1 || public_
   printf '%s\n' 'REFUSING: require weight 1..50, attempts >= 1, public-attempts 1..200, max-errors < attempts, ALB timeout 1..600s, and poll 1..30s.' >&2
   exit 2
 fi
-if [[ "$stable_api_image" == "$candidate_api_image" || \
-      "$stable_web_image" == "$candidate_web_image" ]]; then
-  printf '%s\n' 'REFUSING: both candidate images must differ from the captured stable images.' >&2
-  exit 2
-fi
 case "$regression_mode" in
   none|http-error) ;;
   *)
@@ -150,6 +145,12 @@ case "$regression_mode" in
     exit 2
     ;;
 esac
+if [[ "$regression_mode" == "none" && \
+      ("$stable_api_image" == "$candidate_api_image" || \
+       "$stable_web_image" == "$candidate_web_image") ]]; then
+  printf '%s\n' 'REFUSING: ordinary canary candidate images must differ from the captured stable images.' >&2
+  exit 2
+fi
 
 for file in "${values_files[@]}"; do
   if [[ ! -f "$file" ]]; then

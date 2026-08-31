@@ -99,6 +99,11 @@ Complete every **Before the session** item in [`aws-session.md`](aws-session.md)
   exact SHA-256 before apply; and
 - no authorization is inferred for PR merge, workflow dispatch, or Terraform apply.
 
+On a clean retry, rebuilding the same exact reviewed `main` revision can produce candidate
+digests equal to the stable baseline. The explicit `http-error` drill may reuse those images
+because its candidate difference is the canary-only injected configuration. Ordinary canary mode
+must continue to refuse either candidate image matching stable.
+
 ## Baseline, merge, and regression dispatch
 
 1. Create the bounded temporary EKS/VPC session and bootstrap the same namespace readiness label,
