@@ -209,6 +209,7 @@ jobs:
           bash -n scripts/test-p13-alb-pod-readiness-gate.sh
           bash -n scripts/test-p13-canary-gate-results.sh
           bash -n scripts/test-p13-canary-regression-rollback.sh
+          bash -n scripts/test-terraform-session-destroy.sh
           scripts/p13-canary-gate.sh --help >/dev/null
           scripts/p13-canary-rollout.sh --help >/dev/null
           scripts/p13-alb-reconciliation-gate.sh --help >/dev/null
@@ -226,6 +227,7 @@ jobs:
           scripts/test-p13-alb-pod-readiness-gate.sh
           scripts/test-p13-canary-gate-results.sh
           scripts/test-p13-canary-regression-rollback.sh
+          scripts/test-terraform-session-destroy.sh
           scripts/p13-canary-gate.sh \
             --context kind-bedoux \
             --expected-api-image localhost/bedoux-api:candidate \
