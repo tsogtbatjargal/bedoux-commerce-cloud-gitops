@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 set -euo pipefail
+umask 077
 
 usage() {
   cat <<'EOF'
@@ -102,6 +103,7 @@ if [[ "$action" == "prepare" ]]; then
   fi
 
   printf '%s\n' "$cluster_oidc_provider_arn" > "$oidc_file"
+  chmod 600 "$oidc_file"
   unset cluster_oidc_provider_arn
   "$repo_root/scripts/terraform-persistent-state.sh" detach --execute
   if terraform -chdir="$terraform_dir" state list | grep -Fxq \
@@ -163,9 +165,10 @@ if [[ "$action" == "plan" ]]; then
 
   terraform -chdir="$terraform_dir" plan -destroy "${target_args[@]}" \
     "${product_images_var_args[@]}" "${secrets_manager_var_args[@]}" "${observability_var_args[@]}" -out="$plan_file"
+  chmod 600 "$plan_file"
 
   planned_deletes="$(terraform -chdir="$terraform_dir" show -json "$plan_file" | jq -r \
-    '.resource_changes[] | select(.change.actions == ["delete"]) | .address')"
+    '(.resource_changes // [])[] | select(.change.actions == ["delete"]) | .address')"
   for prefix in "${persistent_prefixes[@]}"; do
     if grep -Fq "${prefix}" <<<"$planned_deletes"; then
       printf 'REFUSING: saved destroy plan includes persistent address prefix %s\n' "$prefix" >&2

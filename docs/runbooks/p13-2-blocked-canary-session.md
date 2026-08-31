@@ -146,5 +146,13 @@ namespace/PVC, controller, and `gp3`; prepare persistent state; generate and sep
 exact temporary-only destroy-plan SHA-256; apply only the unchanged approved plan; delete the
 captured temporary cluster OIDC provider; and run the complete inventory sweep.
 
+For long Terraform apply or teardown mutations, follow the canonical resumable-process contract
+in [`aws-session.md`](aws-session.md): retain and poll the same process/session identifier through
+its real exit status. Capture output to a mode-0600 temporary log and inspect it only after the
+process exits; private redirection alone does not make the process resumable. If execution returns
+without a final summary, do not reuse the now-stale plan: prove whether the process and state lock
+remain, reconcile live objects to state, clear only a proven stale lock, and obtain separate owner
+approval for any fresh exact recovery plan.
+
 Only the approved persistent allowlist may remain. Record final cost, workflow/merge SHAs, clean
 AWS inventory, and local temporary-file cleanup before claiming T-1302.

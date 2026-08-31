@@ -36,6 +36,14 @@ environment. Slash commands: `/aws-session-start` walks "Before the session",
 - [ ] Capture learning evidence without recording secrets or account IDs.
 - [ ] Investigate unexpected resources before proceeding.
 
+For every long-running Terraform or teardown mutation, use an execution transport that returns a
+resumable process/session identifier before its display-yield limit. Retain that identifier and
+poll the same process until its real exit status is available. A private redirected log protects
+output but does **not** make a process resumable. Never launch a long mutation through a transport
+that can terminate it merely because output was yielded or capped. If the process ends without a
+final summary, do not reuse its saved plan: prove no Terraform/provider process remains, reconcile
+AWS and remote state, and generate a fresh exact recovery plan for separate approval.
+
 ## Kubernetes drill integration
 
 Use this section for both local kind drills and AWS/EKS drills so Kubernetes failure work does
