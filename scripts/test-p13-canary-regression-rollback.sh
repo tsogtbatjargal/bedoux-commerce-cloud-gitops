@@ -107,6 +107,13 @@ run_drill() {
   local log_file="$2"
   local output_file="$3"
   local regression_mode="${4:-http-error}"
+  local candidate_mode="${5:-distinct}"
+  local candidate_api_arg="$candidate_api"
+  local candidate_web_arg="$candidate_web"
+  if [[ "$candidate_mode" == "same" ]]; then
+    candidate_api_arg="$stable_api"
+    candidate_web_arg="$stable_web"
+  fi
   (
     cd "$test_root"
     PATH="$test_root/bin:$PATH" \
@@ -118,8 +125,8 @@ run_drill() {
         --context kind-p13-test \
         --stable-api-image "$stable_api" \
         --stable-web-image "$stable_web" \
-        --candidate-api-image "$candidate_api" \
-        --candidate-web-image "$candidate_web" \
+        --candidate-api-image "$candidate_api_arg" \
+        --candidate-web-image "$candidate_web_arg" \
         --regression-mode "$regression_mode" \
         --drain-seconds 0 \
         --execute
@@ -146,6 +153,33 @@ grep -Fq 'ROLLBACK_GATE stable_images_restored=true canary_resources_absent=true
 grep -Fq 'T1302_GATE regression=http-error promotion=blocked rollback=stable-only' "$blocked_output"
 if grep -Fq 'PROMOTE:' "$blocked_output"; then
   printf '%s\n' 'regression drill attempted promotion after the expected gate block' >&2
+  exit 1
+fi
+
+# A clean post-merge retry builds the same exact main SHA as its baseline. The
+# http-error drill is intentionally configuration-only, so identical image
+# digests must still exercise the attributed block and rollback contract.
+same_image_log="$test_root/same-image.log"
+same_image_output="$test_root/same-image.out"
+run_drill expected "$same_image_log" "$same_image_output" http-error same
+grep -Fxq 'HELM_STAGE regression=http-error' "$same_image_log"
+grep -Fxq 'HELM_ABORT_100_0' "$same_image_log"
+grep -Fxq 'HELM_CLEANUP_STABLE_ONLY' "$same_image_log"
+grep -Fq 'T1302_GATE regression=http-error promotion=blocked rollback=stable-only' \
+  "$same_image_output"
+
+# Ordinary progressive delivery still requires genuinely different candidate
+# references; only the explicitly authorized configuration regression may reuse
+# the captured stable digests.
+same_image_normal_log="$test_root/same-image-normal.log"
+same_image_normal_output="$test_root/same-image-normal.out"
+if run_drill expected "$same_image_normal_log" "$same_image_normal_output" none same; then
+  printf '%s\n' 'ordinary rollout accepted candidate images equal to stable' >&2
+  exit 1
+fi
+grep -Fq 'ordinary canary candidate images must differ' "$same_image_normal_output"
+if [[ -s "$same_image_normal_log" ]]; then
+  printf '%s\n' 'ordinary same-image refusal mutated the mocked release' >&2
   exit 1
 fi
 
