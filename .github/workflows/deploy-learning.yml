@@ -38,6 +38,11 @@ on:
         required: true
         default: false
         type: boolean
+      canary_regression_drill:
+        description: Inject canary-only HTTP errors; require gate-blocked automatic rollback.
+        required: true
+        default: false
+        type: boolean
 
 # The role trust policy admits only this repository's main branch. Keep this workflow
 # manually dispatched so a live AWS session is an intentional, time-bounded operation.
@@ -218,7 +223,7 @@ jobs:
 
       - name: Capture the immutable stable release for canary
         id: stable_release
-        if: ${{ inputs.canary_rollout }}
+        if: ${{ inputs.canary_rollout || inputs.canary_regression_drill }}
         shell: bash
         run: |
           set -euo pipefail
@@ -251,6 +256,7 @@ jobs:
           USE_S3_IMAGES: ${{ inputs.use_s3_images }}
           USE_CUSTOM_DOMAIN: ${{ inputs.use_custom_domain }}
           CANARY_ROLLOUT: ${{ inputs.canary_rollout }}
+          CANARY_REGRESSION_DRILL: ${{ inputs.canary_regression_drill }}
           STABLE_API_IMAGE: ${{ steps.stable_release.outputs.api_image }}
           STABLE_WEB_IMAGE: ${{ steps.stable_release.outputs.web_image }}
         shell: bash
@@ -281,8 +287,23 @@ jobs:
             echo 'canary_rollout and rollback_drill are separate evidence paths.' >&2
             exit 1
           fi
-          if [[ "$CANARY_ROLLOUT" == "true" && "$SEED_CATALOG" == "true" ]]; then
-            echo 'canary_rollout requires an existing seeded baseline; set seed_catalog=false.' >&2
+          if [[ "$CANARY_ROLLOUT" == "true" && "$CANARY_REGRESSION_DRILL" == "true" ]]; then
+            echo 'canary_rollout and canary_regression_drill are mutually exclusive.' >&2
+            exit 1
+          fi
+          if [[ "$CANARY_REGRESSION_DRILL" == "true" && "$ROLLBACK_DRILL" == "true" ]]; then
+            echo 'canary_regression_drill and rollback_drill are separate evidence paths.' >&2
+            exit 1
+          fi
+          if [[ ("$CANARY_ROLLOUT" == "true" || "$CANARY_REGRESSION_DRILL" == "true") && \
+                "$SEED_CATALOG" == "true" ]]; then
+            echo 'canary paths require an existing seeded baseline; set seed_catalog=false.' >&2
+            exit 1
+          fi
+          if [[ "$CANARY_REGRESSION_DRILL" == "true" && \
+                ("$USE_RDS" == "true" || "$USE_SECRETS_MANAGER" == "true" || \
+                 "$USE_S3_IMAGES" == "true" || "$USE_CUSTOM_DOMAIN" == "true") ]]; then
+            echo 'canary_regression_drill requires every unrelated deployment option false.' >&2
             exit 1
           fi
 
@@ -327,7 +348,7 @@ jobs:
             helm_extra_args+=(--set seed.enabled=true)
           fi
 
-          if [[ "$CANARY_ROLLOUT" == "true" ]]; then
+          if [[ "$CANARY_ROLLOUT" == "true" || "$CANARY_REGRESSION_DRILL" == "true" ]]; then
             rollout_args=(
               --context "$EKS_CLUSTER"
               --namespace "$KUBERNETES_NAMESPACE"
@@ -343,6 +364,9 @@ jobs:
               --drain-seconds 45
               --helm-set storageClass.create=false
             )
+            if [[ "$CANARY_REGRESSION_DRILL" == "true" ]]; then
+              rollout_args+=(--regression-mode http-error)
+            fi
             for ((index = 1; index < ${#profile_files[@]}; index += 2)); do
               rollout_args+=(--values "${profile_files[index]}")
             done

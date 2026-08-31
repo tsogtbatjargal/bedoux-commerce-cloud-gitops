@@ -32,7 +32,8 @@ web pod. It verifies exact images, one available pod per canary Deployment, the
 controller's staged weight, health JSON, a non-empty catalog, and the sampled error
 rate. For ALB it also requires the listener rule and both target groups to reconcile,
 then correlates bounded public requests with the canary web access log. It creates no
-Kubernetes or AWS resource.
+Kubernetes or AWS resource. Exit status 20 is reserved for a sampled HTTP-error
+threshold after every prerequisite passed; all other gate blocks use status 1.
 EOF
 }
 
@@ -182,6 +183,27 @@ assert_deployment api-canary "$expected_api_image"
 assert_deployment web-canary "$expected_web_image"
 assert_weight
 
+count_probe_statuses() {
+  local probe_key="$1"
+  PROBE_KEY="$probe_key" python -c '
+import os, re, sys
+key = os.environ["PROBE_KEY"]
+hits = errors = 0
+for line in sys.stdin:
+    if key not in line:
+        continue
+    hits += 1
+    match = re.search(r"\"\s+(\d{3})\s+", line)
+    if match and int(match.group(1)) >= 400:
+        errors += 1
+print(hits, errors)
+'
+}
+
+public_errors=0
+public_canary_hits=0
+public_canary_http_errors=0
+
 if [[ "$controller_kind" == "alb" ]]; then
   if [[ -z "$aws_region" ]]; then
     printf '%s\n' 'BLOCK: --aws-region is required before an ALB canary can be promoted.' >&2
@@ -218,22 +240,23 @@ if [[ "$controller_kind" == "alb" ]]; then
     fi
   done
   canary_logs="$(kubectl "${kubectl_args[@]}" logs deployment/web-canary --since=5m)"
-  canary_hits="$(PROBE_PREFIX="$probe_prefix" python -c '
-import os, sys
-print(sys.stdin.read().count("bedoux_canary_probe=" + os.environ["PROBE_PREFIX"] + "-"))
-' <<<"$canary_logs")"
-  printf 'PUBLIC_CANARY_GATE attempts=%d errors=%d canary_log_hits=%d\n' \
-    "$public_attempts" "$public_errors" "$canary_hits"
-  if ((public_errors > max_errors || canary_hits < 1)); then
-    printf '%s\n' 'BLOCK: public 90/10 sample failed or did not reach web-canary.' >&2
+  read -r public_canary_hits public_canary_http_errors < <(
+    count_probe_statuses "bedoux_canary_probe=$probe_prefix-" <<<"$canary_logs"
+  )
+  printf 'PUBLIC_CANARY_GATE attempts=%d errors=%d canary_log_hits=%d canary_http_errors=%d\n' \
+    "$public_attempts" "$public_errors" "$public_canary_hits" "$public_canary_http_errors"
+  if ((public_canary_hits < 1)); then
+    printf '%s\n' 'BLOCK: public 90/10 sample did not reach web-canary.' >&2
     exit 1
   fi
 fi
 
 errors=0
+printf -v direct_probe_prefix 'p13-direct-%05d-%05d' "$RANDOM" "$RANDOM"
 for ((attempt = 1; attempt <= attempts; attempt++)); do
   if health_json="$(kubectl "${kubectl_args[@]}" exec deployment/web-canary -- \
-    wget -qO- -T 10 http://127.0.0.1:8080/api/health)" && \
+    wget -qO- -T 10 \
+      "http://127.0.0.1:8080/api/health?bedoux_direct_canary_probe=$direct_probe_prefix-$attempt")" && \
     python -c 'import json, sys; assert json.load(sys.stdin).get("status") == "ok"' \
       <<<"$health_json"; then
     :
@@ -242,11 +265,37 @@ for ((attempt = 1; attempt <= attempts; attempt++)); do
   fi
 done
 
+direct_logs="$(kubectl "${kubectl_args[@]}" logs deployment/web-canary --since=5m)"
+read -r direct_log_hits direct_http_errors < <(
+  count_probe_statuses "bedoux_direct_canary_probe=$direct_probe_prefix-" <<<"$direct_logs"
+)
 error_rate="$(python -c 'import sys; print(f"{int(sys.argv[1]) / int(sys.argv[2]):.4f}")' \
   "$errors" "$attempts")"
-printf 'CANARY_GATE attempts=%d errors=%d error_rate=%s\n' "$attempts" "$errors" "$error_rate"
+printf 'CANARY_GATE attempts=%d errors=%d error_rate=%s log_hits=%d http_errors=%d\n' \
+  "$attempts" "$errors" "$error_rate" "$direct_log_hits" "$direct_http_errors"
+if ((direct_log_hits != attempts)); then
+  printf 'BLOCK: direct sample produced %d requests but only %d correlated access-log entries.\n' \
+    "$attempts" "$direct_log_hits" >&2
+  exit 1
+fi
 if ((errors > max_errors)); then
-  printf 'BLOCK: canary errors %d exceed allowed maximum %d.\n' "$errors" "$max_errors" >&2
+  if ((direct_http_errors == errors && direct_http_errors > max_errors)); then
+    if [[ "$controller_kind" == "alb" ]] && \
+       ((public_errors <= max_errors || public_canary_http_errors <= max_errors)); then
+      printf '%s\n' \
+        'BLOCK: direct HTTP errors were observed, but the public ALB sample did not prove a correlated canary HTTP error.' >&2
+      exit 1
+    fi
+    printf 'CANARY_GATE_RESULT prerequisites=passed reason=http-error-threshold public_http_errors=%d direct_http_errors=%d\n' \
+      "$public_canary_http_errors" "$direct_http_errors"
+    exit 20
+  fi
+  printf 'BLOCK: canary sample failures were not fully attributable to HTTP error responses (%d failures, %d HTTP errors).\n' \
+    "$errors" "$direct_http_errors" >&2
+  exit 1
+fi
+if ((public_errors > max_errors || public_canary_http_errors > max_errors)); then
+  printf '%s\n' 'BLOCK: public ALB sample failed without a matching direct canary HTTP-error threshold.' >&2
   exit 1
 fi
 

@@ -1,7 +1,11 @@
 {{- if .Values.canary.enabled }}
 {{- $weight := int .Values.canary.weight }}
+{{- $regressionMode := .Values.canary.regressionMode | default "none" }}
 {{- if or (lt $weight 0) (gt $weight 50) }}
 {{- fail "canary.weight must be between 0 and 50" }}
+{{- end }}
+{{- if not (has $regressionMode (list "none" "http-error")) }}
+{{- fail "canary.regressionMode must be none or http-error" }}
 {{- end }}
 apiVersion: apps/v1
 kind: Deployment
@@ -113,7 +117,14 @@ metadata:
   labels:
     {{- include "bedoux.labels" . | nindent 4 }}
 data:
+  {{- if eq $regressionMode "http-error" }}
+  # Keep nginx and its root readiness probe healthy while making only canary
+  # /api requests fail against a deliberately absent API route. ADR 0023's
+  # existing health gate must catch this before promotion.
+  API_UPSTREAM: api-canary:8000/__p13-regression
+  {{- else }}
   API_UPSTREAM: api-canary:8000
+  {{- end }}
 ---
 apiVersion: apps/v1
 kind: Deployment

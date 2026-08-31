@@ -33,6 +33,8 @@ Options:
   --alb-timeout-seconds N     ALB reconciliation deadline per state (default: 300).
   --alb-poll-seconds N        ALB reconciliation poll interval (default: 5).
   --drain-seconds N           100/0 hold before canary removal (default: 45).
+  --regression-mode MODE      Expected gate-block drill: none or http-error
+                              (default: none).
   --timeout DURATION          Helm timeout (default: 10m).
   --dry-run                   Print phases without contacting a cluster.
   --execute                   Perform the rollout against the explicit context.
@@ -44,6 +46,9 @@ ALB, the drain hold starts only after the listener is exactly 100/0 and stable p
 and targets are confirmed healthy. Every ALB Helm mutation pins the target-group
 deregistration delay to the project-proven 30-second bound, and each reconciliation
 gate verifies the controller-applied AWS attribute before proceeding.
+In http-error regression mode, Ready canary pods deliberately return API errors.
+The command succeeds only when the health gate blocks promotion and the existing
+abort path proves exact stable images plus stable-only cleanup.
 EOF
 }
 
@@ -63,6 +68,7 @@ aws_region=""
 alb_timeout_seconds=300
 alb_poll_seconds=5
 drain_seconds=45
+regression_mode="none"
 timeout="10m"
 execute=false
 declare -a values_files=()
@@ -70,7 +76,7 @@ declare -a helm_sets=()
 
 while (($#)); do
   case "$1" in
-    --context|--namespace|--release|--chart|--stable-api-image|--stable-web-image|--candidate-api-image|--candidate-web-image|--weight|--attempts|--public-attempts|--max-errors|--aws-region|--alb-timeout-seconds|--alb-poll-seconds|--drain-seconds|--timeout|--values|--helm-set)
+    --context|--namespace|--release|--chart|--stable-api-image|--stable-web-image|--candidate-api-image|--candidate-web-image|--weight|--attempts|--public-attempts|--max-errors|--aws-region|--alb-timeout-seconds|--alb-poll-seconds|--drain-seconds|--regression-mode|--timeout|--values|--helm-set)
       if (($# < 2)) || [[ "$2" == --* ]]; then
         usage >&2
         exit 2
@@ -92,6 +98,7 @@ while (($#)); do
         --alb-timeout-seconds) alb_timeout_seconds="$2" ;;
         --alb-poll-seconds) alb_poll_seconds="$2" ;;
         --drain-seconds) drain_seconds="$2" ;;
+        --regression-mode) regression_mode="$2" ;;
         --timeout) timeout="$2" ;;
         --values) values_files+=("$2") ;;
         --helm-set) helm_sets+=("$2") ;;
@@ -136,6 +143,13 @@ if [[ "$stable_api_image" == "$candidate_api_image" || \
   printf '%s\n' 'REFUSING: both candidate images must differ from the captured stable images.' >&2
   exit 2
 fi
+case "$regression_mode" in
+  none|http-error) ;;
+  *)
+    printf '%s\n' 'REFUSING: --regression-mode must be none or http-error.' >&2
+    exit 2
+    ;;
+esac
 
 for file in "${values_files[@]}"; do
   if [[ ! -f "$file" ]]; then
@@ -151,10 +165,18 @@ if [[ "$execute" == false ]]; then
   printf '%s\n' 'DRY RUN: for ALB, normalize and reconcile the stable-only action before staging.'
   printf '%s\n' 'DRY RUN: for ALB, pin and verify a 30-second target-group deregistration delay.'
   printf '%s\n' 'DRY RUN: stage weighted traffic; for ALB, prove exact 90/10 reconciliation and public canary handling.'
-  printf 'DRY RUN: promote candidate, prove ALB pod readiness and exact 100/0 reconciliation, hold %d seconds, then remove canary resources.\n' \
-    "$drain_seconds"
+  if [[ "$regression_mode" == "none" ]]; then
+    printf 'DRY RUN: promote candidate, prove ALB pod readiness and exact 100/0 reconciliation, hold %d seconds, then remove canary resources.\n' \
+      "$drain_seconds"
+  else
+    printf 'DRY RUN: require the health gate to block promotion, restore stable at reconciled 100/0, hold %d seconds, then remove canary resources.\n' \
+      "$drain_seconds"
+  fi
   printf '%s\n' 'DRY RUN: verify canary Deployments, Services, Ingresses, and weighted targets are removed.'
   printf '%s\n' 'DRY RUN: any pre-promotion failure restores stable through reconciled 100/0 before canary removal.'
+  if [[ "$regression_mode" == "http-error" ]]; then
+    printf '%s\n' 'DRY RUN: inject canary-only HTTP errors and prove exact stable-only rollback.'
+  fi
   exit 0
 fi
 
@@ -296,10 +318,24 @@ assert groups == {"web": 100}, groups
   kubectl "${kubectl_args[@]}" get ingress bedoux-web >/dev/null
 }
 
+verify_stable_images() {
+  local actual_api_image actual_web_image
+  actual_api_image="$(kubectl "${kubectl_args[@]}" get deployment api \
+    --output jsonpath='{.spec.template.spec.containers[0].image}')"
+  actual_web_image="$(kubectl "${kubectl_args[@]}" get deployment web \
+    --output jsonpath='{.spec.template.spec.containers[0].image}')"
+  if [[ "$actual_api_image" != "$stable_api_image" || \
+        "$actual_web_image" != "$stable_web_image" ]]; then
+    printf '%s\n' 'BLOCK: automatic rollback did not restore both captured stable images.' >&2
+    return 1
+  fi
+}
+
 abort_to_stable() {
   printf '%s\n' 'ABORT: restoring captured stable images and requesting 100/0 while retaining canary.' >&2
   helm "${helm_base[@]}" "${stable_values[@]}" "${canary_candidate_values[@]}" \
-    --set canary.enabled=true --set canary.weight=0 --set migration.enabled=false
+    --set canary.enabled=true --set canary.weight=0 \
+    --set-string "canary.regressionMode=$regression_mode" --set migration.enabled=false
   kubectl "${kubectl_args[@]}" rollout status deployment/api --timeout=5m
   kubectl "${kubectl_args[@]}" rollout status deployment/web --timeout=5m
   if [[ "$alb_rollout" == true ]]; then
@@ -320,10 +356,12 @@ abort_to_stable() {
   printf 'ABORT DRAIN: holding 100/0 for %d seconds before canary removal.\n' "$drain_seconds" >&2
   sleep "$drain_seconds"
   helm "${helm_base[@]}" "${stable_values[@]}" \
-    --set canary.enabled=false --set migration.enabled=false
+    --set canary.enabled=false --set canary.regressionMode=none --set migration.enabled=false
   kubectl "${kubectl_args[@]}" rollout status deployment/api --timeout=5m
   kubectl "${kubectl_args[@]}" rollout status deployment/web --timeout=5m
   verify_cleanup
+  verify_stable_images
+  printf '%s\n' 'ROLLBACK_GATE stable_images_restored=true canary_resources_absent=true'
 }
 
 alb_rollout=false
@@ -369,7 +407,8 @@ fi
 stage_succeeded=false
 printf 'STAGE: routing %d%% to the verified candidate.\n' "$weight"
 if helm "${helm_base[@]}" "${stable_values[@]}" "${canary_candidate_values[@]}" \
-  --set canary.enabled=true --set "canary.weight=$weight"; then
+  --set canary.enabled=true --set "canary.weight=$weight" \
+  --set-string "canary.regressionMode=$regression_mode"; then
   stage_succeeded=true
 else
   printf '%s\n' 'BLOCK: atomic canary stage failed; stable release remains authoritative.' >&2
@@ -393,17 +432,57 @@ if [[ -n "$aws_region" ]]; then
 fi
 
 if ! kubectl "${kubectl_args[@]}" rollout status deployment/api-canary --timeout=5m || \
-   ! kubectl "${kubectl_args[@]}" rollout status deployment/web-canary --timeout=5m || \
-   ! scripts/p13-canary-gate.sh "${gate_args[@]}" --execute; then
+   ! kubectl "${kubectl_args[@]}" rollout status deployment/web-canary --timeout=5m; then
   if [[ "$stage_succeeded" == true ]]; then
     abort_to_stable
   fi
   exit 1
 fi
 
+gate_status=0
+gate_output="$(scripts/p13-canary-gate.sh "${gate_args[@]}" --execute)" || gate_status=$?
+if [[ -n "$gate_output" ]]; then
+  printf '%s\n' "$gate_output"
+fi
+gate_result_count=0
+gate_result_pattern='^CANARY_GATE_RESULT prerequisites=passed reason=http-error-threshold public_http_errors=[0-9]+ direct_http_errors=[0-9]+$'
+while IFS= read -r gate_output_line; do
+  if [[ "$gate_output_line" =~ $gate_result_pattern ]]; then
+    ((gate_result_count += 1))
+  fi
+done <<<"$gate_output"
+if ((gate_status != 0)); then
+  if [[ "$stage_succeeded" == true ]]; then
+    abort_to_stable
+  fi
+  if [[ "$regression_mode" == "http-error" && "$gate_status" == 20 && \
+        "$gate_result_count" == 1 ]]; then
+    printf '%s\n' 'PASS: injected canary regression was blocked and automatic stable-only rollback completed.'
+    printf '%s\n' 'T1302_GATE regression=http-error promotion=blocked rollback=stable-only'
+    exit 0
+  fi
+  if [[ "$gate_status" == 20 && "$gate_result_count" != 1 ]]; then
+    printf 'BLOCK: canary gate returned reserved status 20 without exactly one attributed result marker (markers=%d); rollback completed and T-1302 evidence is denied.\n' \
+      "$gate_result_count" >&2
+  elif [[ "$gate_status" == 20 ]]; then
+    printf '%s\n' \
+      'BLOCK: canary HTTP-error gate blocked promotion outside an authorized regression drill; rollback completed and T-1302 evidence is denied.' >&2
+  else
+    printf 'BLOCK: canary gate failed for an unrelated reason (status=%d); rollback completed and T-1302 evidence is denied.\n' \
+      "$gate_status" >&2
+  fi
+  exit 1
+fi
+
+if [[ "$regression_mode" == "http-error" ]]; then
+  printf '%s\n' 'BLOCK: injected canary regression escaped the health gate; refusing promotion.' >&2
+  abort_to_stable
+  exit 1
+fi
+
 printf '%s\n' 'PROMOTE: gate passed; changing the split to stable candidate 100%, canary 0%.'
 if ! helm "${helm_base[@]}" "${candidate_values[@]}" "${canary_candidate_values[@]}" \
-  --set canary.enabled=true --set canary.weight=0; then
+  --set canary.enabled=true --set canary.weight=0 --set canary.regressionMode=none; then
   abort_to_stable
   exit 1
 fi
@@ -438,7 +517,7 @@ sleep "$drain_seconds"
 
 printf '%s\n' 'CLEANUP: removing zero-weight canary resources.'
 helm "${helm_base[@]}" "${candidate_values[@]}" \
-  --set canary.enabled=false --set migration.enabled=false
+  --set canary.enabled=false --set canary.regressionMode=none --set migration.enabled=false
 kubectl "${kubectl_args[@]}" rollout status deployment/api --timeout=5m
 kubectl "${kubectl_args[@]}" rollout status deployment/web --timeout=5m
 

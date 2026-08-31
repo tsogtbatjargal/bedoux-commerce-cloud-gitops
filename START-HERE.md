@@ -181,8 +181,22 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   exact owner-approved 18-resource Terraform destroy plan. The temporary cluster OIDC provider
   was deleted, the repeated authoritative sweep returned zero temporary resources, and exact
   T-1301 files were removed from `/tmp`. Budget actual was USD 6.002 and forecast USD 6.239 of
-  USD 20. Only the approved persistent allowlist remains. **P13.2 is `NOT STARTED` pending explicit
-  owner activation.** The retained Calico-backed kind node is stopped with its PVC preserved and
+  USD 20. Only the approved persistent allowlist remains. PR #57 merged the closeout as
+  `c815eca`; **the owner activated P13.2 on 2026-08-30, and T-1302 is now `IN PROGRESS`.** Its
+  disabled-by-default canary-only HTTP-error injection, attributed gate-block semantics, exact
+  stable-image rollback assertion, workflow input, fail-closed mocks, and bounded runbook are
+  implemented locally. The first independent review found a false-positive evidence path; local
+  fix `f6b113a` now reserves status 20 for access-log-correlated HTTP errors after prerequisites
+  pass and denies T-1302 evidence for unrelated failures. Independent review accepted that fix;
+  follow-up `0b9bcee` also requires exactly one structured attribution marker with status 20 and
+  improves ordinary-rollout diagnostics. The separately authorized real local drill then passed:
+  both canaries were Ready, all 20 injected API samples produced correlated HTTP 404s, attributed
+  status 20 blocked promotion, exact stable images were restored automatically, all canary
+  objects disappeared, and stable health/catalog passed. This is local-first evidence only; live
+  T-1302 remains pending because the project requires the AWS ALB public-error path in addition to
+  the generic local contract. Independent technical review accepted exact PR head `f69e680`; draft
+  PR #58 is open, mergeable, and unmerged, and all four jobs passed on that head in run
+  `33341568312`. The retained Calico-backed kind node is stopped with its PVC preserved and
   the host inotify value restored to 128. The default kubeconfig context still points at a deleted
   EKS endpoint, so always use an explicit context.
 - Repository workflow skills are validated and published on `main` through merged PR #47
@@ -226,7 +240,7 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   sweep found no temporary resource or dangling alias; budget actual was USD 5.384 of USD 20.
   Only the approved persistent allowlist remains. The owner approved the P12 gate on 2026-08-26,
   activating P13; PR #54 merged the focused checkpoint as `386f66e`. P13.1 and T-1301 are now
-  complete; P13.2 remains `NOT STARTED` pending explicit owner activation.
+  complete; P13.2/T-1302 are `IN PROGRESS` after explicit owner activation on 2026-08-30.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

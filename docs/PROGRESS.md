@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | P13 — Delivery maturity |
-| Active task | None — P13.1 COMPLETE; P13.2 NOT STARTED pending explicit owner activation. |
-| Last verified | 2026-08-29T21:13:25-06:00 — T-1301 workflow run `33278906766` passed on exact `main` SHA `68847978e25c0cce7ef0db757a6996004813ce41`; the approved 18-resource Terraform destroy and temporary cluster-OIDC deletion completed, and the repeated authoritative sweep found zero temporary compute, network, storage, database, load-balancing, or cluster resources. |
+| Active task | P13.2 IN PROGRESS — blocked-canary drill (injected regression, automatic rollback). |
+| Last verified | 2026-08-30T17:34:27-06:00 — independent technical review accepted draft PR #58 at exact head `f69e680a47f41068efdc135b9c729a8b7f0a0d84`; live GitHub evidence confirms it is open, draft, mergeable, and unmerged, with all four required jobs green in exact-head run `33341568312`. AWS state is unchanged from the clean 2026-08-29 T-1301 teardown sweep. |
 | AWS resources currently live | No temporary billed session resources. Only the approved persistent allowlist remains; no website alias is present. |
 | Month-to-date estimated AWS spend | USD 6.002 budget actual and USD 6.239 forecast at final T-1301 closeout, within the USD 20 limit. |
-| Next operator action | Review draft PR #57 at its current exact head and require green exact-head CI. Then obtain explicit owner authorization before marking that exact head ready and merging it. After the closeout is merged, the owner may explicitly activate P13.2; do not start T-1302 yet. |
+| Next operator action | Set an independent Edmonton alarm and teardown cutoff, then explicitly authorize an AWS session only through read-only preflight, persistent-state reconciliation, and exact saved-plan generation. Keep PR #58 draft/unmerged; no AWS apply, merge, or workflow dispatch is currently authorized. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -663,7 +663,7 @@ Gate: T-1201..T-1203.
 - [x] P13.1 COMPLETE — staged/canary rollout reached exact 90/10, passed direct and public
       automated gates, promoted through reconciled 100/0, and cleaned back to stable-only.
       Evidence: T-1301 workflow run `33278906766` and the 2026-08-29 closeout entry below.
-- [ ] P13.2 NOT STARTED — blocked-canary drill (injected regression, automatic rollback).
+- [ ] P13.2 IN PROGRESS — blocked-canary drill (injected regression, automatic rollback).
 
 Gate: T-1301..T-1302.
 
@@ -678,7 +678,8 @@ Gate: T-1301..T-1302.
 Gate: T-1401..T-1404.
 
 **P10–P14 track bootstrapped 2026-08-09; P10, P11, and P12 are gate-approved. P13 is active;
-P13.1 and T-1301 are complete. P13.2 remains `NOT STARTED` pending explicit owner activation.**
+P13.1 and T-1301 are complete. The owner activated P13.2 on 2026-08-30; T-1302 is now the single
+active task and remains incomplete pending local-first and live evidence.**
 
 ## Blockers
 
@@ -688,6 +689,189 @@ P13.1 and T-1301 are complete. P13.2 remains `NOT STARTED` pending explicit owne
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-08-30T17:34:27-06:00 — P13.2 exact-head review accepted; live evidence boundary made explicit — Codex
+
+- **Independent review:** reviewer accepted draft PR #58 at exact head
+  `f69e680a47f41068efdc135b9c729a8b7f0a0d84`. The status-20 contract, exactly-one structured
+  marker, three separated failure modes, real nginx combined-log correlation, atomic staging
+  failure behavior, and real kind rollback evidence were independently checked. Both prior
+  findings are closed; the only new observations were non-blocking log-order and CI-presentation
+  notes.
+- **Live GitHub reconciliation:** PR #58 is open, draft, mergeable, and unmerged against exact
+  base `c815ecac09e05d44404f477a497e3361457e0833`. Exact-head run `33341568312` completed all four
+  required jobs successfully. Local and remote feature heads match and the worktree was clean
+  before this documentation-only checkpoint.
+- **Evidence decision:** the kind drill satisfies the generic wording of T-1302, but final project
+  completion intentionally also requires the AWS ALB public-error branch. That branch must prove
+  real listener weighting, target health, public-to-canary error correlation, and stable-only ALB
+  cleanup; it has not yet run live on an error path. The runbook now records this stricter evidence
+  standard and warns that deliberate traffic-slice errors are suitable only for the temporary,
+  userless learning endpoint. This does not change ADR 0023 or the rollout architecture.
+- **AWS/next action:** AWS: none; no Kubernetes endpoint was contacted. Set an independent alarm
+  and teardown cutoff, then obtain explicit authorization only for read-only AWS preflight,
+  persistent-state reconciliation, and exact saved-plan generation. PR #58 stays draft/unmerged;
+  no apply, merge, or workflow dispatch is authorized.
+
+### 2026-08-30T17:19:44-06:00 — P13.2 branch published; draft PR #58 exact implementation head green — Codex
+
+- **Owner authorization:** owner approved only pushing `p13-2-blocked-canary` and opening a
+  focused draft PR. No ready/merge, AWS, or workflow-dispatch authorization was inferred.
+- **Publication:** pushed the feature branch, never `main`, and opened draft PR #58 against exact
+  base `c815ecac09e05d44404f477a497e3361457e0833`. GitHub reported it open, draft, and mergeable
+  with published head `14aee6577ad2828e80091ae034b4caa00ec32772`.
+- **Exact implementation-head CI:** PR validation run `33341436390` passed API tests; web lint,
+  test, and build; Terraform and Helm validation; and container build, fixable-vulnerability scan,
+  SPDX generation, signing, and verification on exact head `14aee657`. The sole annotation is the
+  already-known non-blocking React Fast Refresh warning.
+- **PR boundary:** the body records scope, local evidence, risk/rollback, and the deliberately
+  deferred live T-1302 proof. PR #58 remains draft and unmerged; the older `main` baseline is
+  preserved for the later runbook sequence.
+- **Self-referential CI note/next action:** this documentation-only publication reconciliation
+  necessarily creates a successor head after run `33341436390`. Push it under the existing branch
+  authorization, require all four jobs green on that exact successor through live GitHub evidence,
+  then obtain independent review. AWS: none; no AWS or Kubernetes endpoint was contacted in this
+  publication step. No merge, AWS apply, or workflow dispatch is authorized.
+
+### 2026-08-30T17:13:48-06:00 — P13.2 real local blocked-canary drill passed and cleaned — Codex
+
+- **Authorization/deadline:** owner explicitly authorized the bounded P13.2 kind drill, set an
+  independent 19:00 Edmonton alarm with an 18:45 cutoff, and temporarily raised the documented
+  host `fs.inotify.max_user_instances` value from 128 to 1024. The drill and cleanup finished
+  well before cutoff; the owner restored the value to 128 and an independent read verified it.
+- **Recovered baseline:** started only retained Podman container `bedoux-control-plane`, restored
+  its validated `iptables-nft` alternative, and used only explicit context `kind-bedoux`. The
+  Kubernetes v1.36.1 node, Calico, CoreDNS, metrics-server, ingress-nginx, PostgreSQL, stable API,
+  and stable web all became Ready. Helm revision 6 used exact stable images
+  `localhost/bedoux-api:p13-candidate` and `localhost/bedoux-web:p13-candidate`; both HPAs, all
+  seven NetworkPolicies, public health, and a non-empty seeded catalog passed before injection.
+- **Bounded candidate preparation:** built distinct local `p13-2-candidate` API/web tags and
+  imported only those archives into the retained node. The first API unpack exposed a retained
+  restart finding: the configured `containerd-fuse-overlayfs.service` was inactive and its socket
+  absent even though the proxy plugin listed `ok`. Starting that existing node-local service and
+  verifying its socket allowed both preserved archives to import; no containerd configuration or
+  snapshotter selection changed. The recovery is recorded in `docs/local-tooling.md`.
+- **Real gate evidence:** the reviewed dry-run matched the approved command. Helm revision 7
+  staged one Ready API canary and one Ready web canary at ingress-nginx weight 10. The injected
+  web-canary API path returned 20/20 HTTP 404s, and access-log correlation proved all 20:
+  `CANARY_GATE attempts=20 errors=20 error_rate=1.0000 log_hits=20 http_errors=20`, followed by
+  `CANARY_GATE_RESULT prerequisites=passed reason=http-error-threshold public_http_errors=0
+  direct_http_errors=20`. No `PROMOTE:` line occurred.
+- **Automatic rollback/cleanup:** revision 8 restored the exact captured stable images at 100/0,
+  held the reviewed five-second drain, and revision 9 disabled canary with regression mode
+  `none`. The helper emitted
+  `ROLLBACK_GATE stable_images_restored=true canary_resources_absent=true` and
+  `T1302_GATE regression=http-error promotion=blocked rollback=stable-only`. Independent checks
+  confirmed both stable Deployments Ready on their captured images, no canary Deployment,
+  Service, ConfigMap, or Ingress, preserved HPAs/NetworkPolicies, and healthy public health plus
+  non-empty catalog.
+- **Local cleanup:** removed only the two candidate host/node tags, failed-import aliases, node
+  and host archives, and bounded evidence log; exact absence was verified while stable node images
+  remained. The retained node was stopped. Its ten-second graceful stop again fell back to
+  SIGKILL only after all workload recovery/evidence passed; final state is `Exited (137)`.
+- **Boundary/next action:** AWS: none; estimated AWS cost USD 0. No AWS endpoint, GitHub remote,
+  or workflow was contacted. This completes the required local-first proof but does not complete
+  T-1302 or P13.2; live AWS evidence remains separately gated. Obtain owner authorization before
+  pushing the focused branch/opening a draft PR. No merge or AWS action is authorized.
+
+### 2026-08-30T16:11:09-06:00 — P13.2 independent review accepted; marker hardening folded in — Codex
+
+- **Independent verdict:** reviewer accepted implementation `f6b113a` and checkpoint `cc2d8e3`
+  after independently rerunning the new/pre-existing mocks, docs/action-pin checks, Git state,
+  and the access-log regex against realistic nginx combined-format lines. The reviewer confirmed
+  that status 20 is reachable only after the intended prerequisites and attributed HTTP errors,
+  and that rollback evidence remains fail-closed under `set -e`.
+- **Requested hardening:** `p13-canary-rollout.sh` now captures the gate's bounded stdout and
+  requires exactly one complete
+  `CANARY_GATE_RESULT prerequisites=passed reason=http-error-threshold ...` marker in addition to
+  status 20 before drill success. Status 20 with zero or multiple matching markers rolls back and
+  fails without `T1302_GATE`, preventing a future helper exit-code change from silently weakening
+  the attribution contract.
+- **Diagnostic correction:** a correlated HTTP-error block during an ordinary rollout now says
+  promotion was blocked outside an authorized regression drill; it no longer labels status 20 a
+  non-regression reason. Behavior remains rollback plus non-zero exit and no T-1302 evidence.
+- **Proof:** the rollout mock now covers expected status 20 plus marker, unrelated status 1,
+  unattributed status 20, attributed status 20 outside drill mode, an escaped regression, rollback
+  ordering, cleanup, and absence of false `PROMOTE:`/`T1302_GATE` evidence. Real-gate
+  classification, ALB reconciliation/readiness mocks, shell syntax, all three Helm lints,
+  embedded workflow Bash syntax, `git diff --check`, and scoped sensitive-data checks pass.
+- **Boundary/next action:** AWS: none; no Kubernetes endpoint, GitHub remote, workflow, or branch
+  publication was touched. Follow-up is local commit
+  `0b9bcee64d7b34b3f01fbd118c16d3b92d4f87a0`. P13.2/T-1302 remain in progress; wait for explicit
+  owner authorization before starting or mutating the retained kind environment.
+
+### 2026-08-30T16:00:42-06:00 — P13.2 false-positive gate evidence repaired — Codex
+
+- **Independent finding accepted:** exact head `b1eb85c` treated every composite-gate failure as
+  the expected injected regression. A wrong image, readiness/weight/reconciliation failure,
+  missing public canary traffic, or tooling error could therefore roll back and still emit false
+  `T1302_GATE` success evidence.
+- **Attribution contract:** `p13-canary-gate.sh` now correlates unique public/direct probes with
+  `web-canary` access-log status codes. Only errors fully attributable to HTTP responses above the
+  allowance, after image/readiness/weight and any ALB reconciliation/target-health prerequisites,
+  emit `CANARY_GATE_RESULT prerequisites=passed reason=http-error-threshold` and reserved exit
+  status 20. All unrelated blocks remain status 1.
+- **Rollout behavior:** `p13-canary-rollout.sh` captures the exact gate status. Every non-zero
+  result still invokes the same stable-image 100/0 abort and cleanup, but only status 20 in
+  explicit `http-error` mode may emit `T1302_GATE` and exit successfully. An unrelated failure
+  exits non-zero after rollback and explicitly denies T-1302 evidence.
+- **Automated proof:** new real-gate mocks distinguish logged HTTP 404s (status 20), a simulated
+  tooling failure with non-HTTP sample errors (status 1 and no structured regression result), and
+  a clean pass. The rollout state-machine mock separately proves unrelated status 1 rolls back,
+  cleans up, exits non-zero, and emits neither `T1302_GATE` nor `PROMOTE:`. Expected status 20 and
+  escaped-regression paths remain fail-closed.
+- **Validation:** shell syntax; all three Helm profile lints; normal, regression, and invalid-mode
+  renders; ALB reconciliation/readiness mocks; both regression mocks; workflow embedded Bash/YAML;
+  action pins (18); `make docs-check`; `git diff --check`; and a scoped sensitive-data scan passed.
+  The fix is local commit `f6b113acdddf96de710d331a4cca3628842601d5`.
+- **Boundary/next action:** AWS: none; no Kubernetes endpoint, workflow, GitHub publication, or
+  remote branch was touched. Obtain independent re-review of exact `f6b113a`; a real kind drill
+  still requires explicit owner authorization, and T-1302 remains incomplete.
+
+### 2026-08-30T12:23:08-06:00 — P13.2 fail-closed regression path locally implemented — Codex
+
+- **Narrow injection:** added disabled-by-default `canary.regressionMode`. Its only non-default
+  value, `http-error`, keeps both canary pods and the web root readiness path healthy while
+  pointing only `web-canary` API requests at a deliberately absent API route. Helm rejects any
+  unknown mode. Stable resources and the ordinary P13.1 path are unchanged.
+- **Existing rollback path extended, not replaced:** `p13-canary-rollout.sh` now recognizes the
+  explicit expected-block mode. A real gate failure invokes ADR 0023's existing stable-image,
+  reconciled-100/0, drain, and cleanup sequence; success requires exact captured stable images
+  and absent canary objects. If the injected error unexpectedly passes the gate, promotion is
+  still refused, the same abort runs, and the command fails.
+- **Workflow boundary:** added mutually exclusive `canary_regression_drill`. It requires
+  `seed_catalog=false`, `canary_rollout=false`, and every unrelated service/drill input false,
+  then invokes the same signed-image rollout helper with `--regression-mode http-error`. No
+  second release or deployment controller was added.
+- **Automated proof:** `scripts/test-p13-canary-regression-rollback.sh` mocks the real helper's
+  state transitions. It proves stage -> expected gate block -> 100/0 abort -> stable-only cleanup
+  ordering and separately proves a gate that accepts the regression still blocks promotion,
+  aborts, cleans up, and exits non-zero. Helm normal/error renders, unknown-mode refusal, helper
+  syntax/help/dry-run, embedded workflow shell syntax, the full infrastructure CI command block,
+  action-pin checks, docs checks, and `git diff --check` passed.
+- **Runbook:** `docs/runbooks/p13-2-blocked-canary-session.md` defines local and later AWS evidence,
+  exact workflow inputs, stop conditions, approval boundaries, and ordered teardown. T-1302 is
+  not claimed from static/mocked evidence.
+- **Boundary/next action:** no AWS or Kubernetes endpoint was contacted and no workflow was
+  dispatched. Obtain independent review, then owner authorization for a bounded real kind drill.
+  Publication, PR creation/merge, live AWS work, and T-1302 completion remain unauthorized.
+
+### 2026-08-30T12:13:46-06:00 — PR #57 merged; P13.2 activated — Codex
+
+- **Exact merge:** owner-approved PR #57 head
+  `c58ca0bc24b1fcec1f203f405ef04a0179dae6da` passed all four required jobs in run
+  `33327244984` and merged to `main` as
+  `c815ecac09e05d44404f477a497e3361457e0833`. The local `origin/main` reference was fetched and
+  verified at that exact merge.
+- **Owner activation:** in direct response to the P13.2 activation boundary, the owner said
+  "go head". P13.2 is therefore the single `IN PROGRESS` task on focused branch
+  `p13-2-blocked-canary`, created from exact merged `main`.
+- **Execution boundary:** activation authorizes local design and implementation only. T-1302 is
+  not claimed, no AWS session is open, and no workflow dispatch, AWS mutation, Kubernetes
+  mutation, publication, or merge is authorized by this checkpoint.
+- **Next action:** inspect ADR 0023's existing gate/rollback path, add the smallest explicit
+  canary-only regression input and fail-closed automatic rollback proof, and validate it locally
+  before requesting review or any live session.
 
 ### 2026-08-30T12:08:19-06:00 — PR #57 publication reconciled — Codex
 
