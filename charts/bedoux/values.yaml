@@ -51,10 +51,14 @@ api:
     presignExpiresSeconds: 900
   resources:
     requests:
+      # P14.1 retained 50m: P11 measured about 3m idle and 229m under the
+      # scale-out load, so this keeps the 60% HPA trigger at 30m.
       cpu: 50m
       memory: 64Mi
     limits:
-      cpu: 250m
+      # P11's measured ~229m peak consumed about 92% of the old 250m limit.
+      # 500m restores burst headroom without changing scheduler reservations.
+      cpu: 500m
       memory: 256Mi
 
 web:

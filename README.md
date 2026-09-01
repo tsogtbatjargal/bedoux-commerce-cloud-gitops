@@ -48,6 +48,7 @@ The first release does not process real payments or customer data.
 | [docs/HANDOFF.md](docs/HANDOFF.md) | Copy-paste prompt to continue in a fresh agent session |
 | [docs/architecture.md](docs/architecture.md) | Request/delivery/identity paths; MVP vs production profile |
 | [docs/cost-guardrails.md](docs/cost-guardrails.md) | Budget, alerts, prohibited resources, persistent allowlist |
+| [docs/resource-right-sizing.md](docs/resource-right-sizing.md) | P14.1 measured resource derivation, retained values, and rollback |
 | [docs/local-tooling.md](docs/local-tooling.md) | Workstation toolchain and pinned versions |
 | [docs/runbooks/aws-session.md](docs/runbooks/aws-session.md) | Before/during/teardown checklists for every AWS session |
 | [docs/workflows/](docs/workflows/) | Canonical phase and GitHub branch/PR operating workflows |

@@ -93,6 +93,8 @@ jobs:
         run: |
           set -euo pipefail
           helm lint charts/bedoux
+          bash -n scripts/test-p14-resource-right-sizing.sh
+          scripts/test-p14-resource-right-sizing.sh
           base_rendered="$(helm template bedoux charts/bedoux)"
           test "$(grep -c '^      terminationGracePeriodSeconds: 30$' <<< "$base_rendered")" -eq 2
           test "$(grep -c '^          lifecycle:$' <<< "$base_rendered")" -eq 0
