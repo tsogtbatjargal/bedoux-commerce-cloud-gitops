@@ -73,9 +73,9 @@ variable "public_subnet_cidrs" {
 }
 
 variable "node_instance_types" {
-  description = "Managed node group instance types."
+  description = "Managed node group instance types; Spot profiles should use same-shape alternatives."
   type        = list(string)
-  default     = ["t3.medium"]
+  default     = ["t3.medium", "t3a.medium"]
 }
 
 variable "node_capacity_type" {
