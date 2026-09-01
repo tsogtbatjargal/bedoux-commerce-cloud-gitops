@@ -89,6 +89,7 @@ jobs:
             exit 1
           fi
           terraform -chdir=infra/terraform test -filter=tests/eks_node_tagging.tftest.hcl -no-color
+          terraform -chdir=infra/terraform test -filter=tests/ecr_lifecycle.tftest.hcl -no-color
       - name: Lint and render all Helm profiles
         run: |
           set -euo pipefail

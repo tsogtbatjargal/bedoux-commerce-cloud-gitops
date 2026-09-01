@@ -24,12 +24,12 @@ resource "aws_ecr_lifecycle_policy" "this" {
     rules = [
       {
         rulePriority = 1
-        description  = "Keep the ten newest tagged images for the learning environment."
+        description  = "Keep the ten newest tagged images, including deployment commit-SHA tags."
         selection = {
-          tagStatus     = "tagged"
-          tagPrefixList = ["sha-"]
-          countType     = "imageCountMoreThan"
-          countNumber   = 10
+          tagStatus      = "tagged"
+          tagPatternList = ["*"]
+          countType      = "imageCountMoreThan"
+          countNumber    = 10
         }
         action = {
           type = "expire"
@@ -50,4 +50,3 @@ resource "aws_ecr_lifecycle_policy" "this" {
     ]
   })
 }
-
