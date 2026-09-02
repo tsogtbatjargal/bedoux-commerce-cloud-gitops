@@ -90,6 +90,8 @@ jobs:
           fi
           bash -n scripts/test-p14-spot-diversification.sh
           scripts/test-p14-spot-diversification.sh
+          bash -n scripts/test-p14-cost-report.sh
+          scripts/test-p14-cost-report.sh
           terraform -chdir=infra/terraform test -filter=tests/eks_node_tagging.tftest.hcl -no-color
           terraform -chdir=infra/terraform test -filter=tests/ecr_lifecycle.tftest.hcl -no-color
           terraform -chdir=infra/terraform test -filter=tests/spot_diversification.tftest.hcl -no-color
