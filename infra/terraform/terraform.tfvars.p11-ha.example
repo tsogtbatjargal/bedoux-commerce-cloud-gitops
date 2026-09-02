@@ -10,7 +10,9 @@ kubernetes_version = "1.34"
 # to have one Spot node per AZ while the aggregate node ceiling stays at two.
 availability_zones      = ["ca-central-1a", "ca-central-1b"]
 public_subnet_cidrs     = ["10.42.0.0/20", "10.42.16.0/20"]
-node_instance_types     = ["t3.medium"]
+# Keep each fixed one-node AZ group flexible without changing the two-node
+# aggregate ceiling. These x86_64 general-purpose types have the same shape.
+node_instance_types     = ["t3.medium", "t3a.medium"]
 node_capacity_type      = "SPOT"
 node_groups_per_az      = true
 node_desired_size       = 2

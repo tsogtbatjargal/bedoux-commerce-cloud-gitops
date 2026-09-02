@@ -8,7 +8,9 @@ separate persistent state bucket before migrating this root state to S3.
 
 - Region is pinned to `ca-central-1`.
 - The VPC has public subnets only and **no NAT Gateway resources**. The single
-  Spot node uses public IP addressing, matching the verified P5 profile.
+  Spot node uses public IP addressing, matching the verified P5 profile. Spot
+  profiles offer the same-shape `t3.medium` and `t3a.medium` instance types so
+  EKS can choose among more capacity pools without increasing the node ceiling.
 - EKS, its managed Spot node group, ECR repositories, cluster/node IAM roles,
   the EKS OIDC provider, the VPC CNI and EBS CSI IRSA roles/add-ons, and the ALB Controller
   IRSA role/policy are represented as code. Every project role has AWS-managed
@@ -112,7 +114,8 @@ sessions. It keeps the existing public, no-NAT VPC shape and fixes the aggregate
 Spot capacity at exactly two nodes (`desired = min = max = 2`). For P11.4 it sets
 `node_groups_per_az = true`, creating two one-node managed groups, each pinned to
 one configured subnet. This corrects P11.3's observed same-AZ placement without
-raising the node ceiling. Copy it to an ignored local `.tfvars` file only after
+raising the node ceiling. Each group uses the same-shape `t3.medium`/`t3a.medium`
+Spot pool. Copy it to an ignored local `.tfvars` file only after
 the owner opens the AWS session; never apply it as part of ordinary validation.
 
 ## P6.2 state migration

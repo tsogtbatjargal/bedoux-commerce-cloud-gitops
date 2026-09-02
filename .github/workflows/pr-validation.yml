@@ -88,8 +88,11 @@ jobs:
             echo 'EKS node-group disk_size must stay unset when launch templates own the root volume' >&2
             exit 1
           fi
+          bash -n scripts/test-p14-spot-diversification.sh
+          scripts/test-p14-spot-diversification.sh
           terraform -chdir=infra/terraform test -filter=tests/eks_node_tagging.tftest.hcl -no-color
           terraform -chdir=infra/terraform test -filter=tests/ecr_lifecycle.tftest.hcl -no-color
+          terraform -chdir=infra/terraform test -filter=tests/spot_diversification.tftest.hcl -no-color
       - name: Lint and render all Helm profiles
         run: |
           set -euo pipefail
