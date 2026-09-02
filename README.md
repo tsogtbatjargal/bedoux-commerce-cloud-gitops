@@ -48,6 +48,7 @@ The first release does not process real payments or customer data.
 | [docs/HANDOFF.md](docs/HANDOFF.md) | Copy-paste prompt to continue in a fresh agent session |
 | [docs/architecture.md](docs/architecture.md) | Request/delivery/identity paths; MVP vs production profile |
 | [docs/cost-guardrails.md](docs/cost-guardrails.md) | Budget, alerts, prohibited resources, persistent allowlist |
+| [docs/p10-p13-cost-report.md](docs/p10-p13-cost-report.md) | P14.4 actual P10–P13 usage, monthly-cap comparison, and cost drivers |
 | [docs/resource-right-sizing.md](docs/resource-right-sizing.md) | P14.1 measured resource derivation, retained values, and rollback |
 | [docs/spot-diversification.md](docs/spot-diversification.md) | P14.3 bounded Spot diversification and interruption-handling review |
 | [docs/local-tooling.md](docs/local-tooling.md) | Workstation toolchain and pinned versions |
