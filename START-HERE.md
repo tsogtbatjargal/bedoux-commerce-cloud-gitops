@@ -194,11 +194,100 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   status 20 blocked promotion, exact stable images were restored automatically, all canary
   objects disappeared, and stable health/catalog passed. This is local-first evidence only; live
   T-1302 remains pending because the project requires the AWS ALB public-error path in addition to
-  the generic local contract. Independent technical review accepted exact PR head `f69e680`; draft
-  PR #58 is open, mergeable, and unmerged, and all four jobs passed on that head in run
-  `33341568312`. The retained Calico-backed kind node is stopped with its PVC preserved and
+  the generic local contract. Independent technical review accepted exact PR head `f69e680`;
+  documentation-only exact head `107c019` passed all four jobs in run `33342279143` and merged
+  through owner-approved PR #58 as exact `main` SHA `263fb125`. No canary dispatch has run. The
+  separately authorized AWS preflight is now clean, persistent
+  state is reconciled, and exact plan
+  `ee48a1bd7a110bf66b1f570ee1dd50b1b98bbcbeb0db7dbcd156782ccfb7567f` applied unchanged with
+  28 added, 11 changed, and zero destroyed. Operator bootstrap and older-main baseline run
+  `33344400481` passed on exact main SHA `c815ecac`; EKS 1.34, both pinned add-ons, the one Ready
+  Spot `t3.medium` node at `1/1/1`, initial worker/root-volume tags, propagated ASG tags, API/web,
+  PostgreSQL, ALB, and the replacement web pod's injected True ALB readiness gate all pass.
+  No canary object exists. Ordered teardown removed Ingress/ALB/TGs, application, namespace/PVC,
+  controller, and `gp3`; the owner-approved temporary-only plan then applied unchanged with
+  18 destroyed and no create/update action. The captured temporary cluster OIDC provider is
+  absent, the full authoritative inventory sweep is clean, and only the approved persistent
+  allowlist remains. No regression workflow was dispatched, so T-1302 remains incomplete. The
+  P13.2 runbook now has a post-merge fresh-retry checklist: five-hour alarm, 75-minute teardown
+  reserve, minimum time-to-apply/dispatch gates, fresh temporary artifacts, explicit context,
+  TargetGroupBinding-aware readiness restart, early direct ALB verification, and authoritative
+  EC2 reconciliation for stale tagging-index results. The retry baseline uses exact merged
+  `main`, not the obsolete older-main/unmerged-PR path. Fresh 2026-08-31 preflight and guarded
+  state reconciliation passed. The owner-approved create plan established the intended no-NAT
+  EKS/VPC/one-Spot-node baseline, but capped output streaming returned before Terraform's summary,
+  leaving a stale lock and three already-live tail objects untracked. The lock is safely cleared,
+  state is reconciled. The owner-approved one-update recovery binary then failed closed as stale
+  before provider mutation because remote state had advanced; it was not retried. Fresh exact
+  mode-0600 plan SHA-256 `2685ba0ef277c6b78a533e6a07cc9bb7f73e170a9b5c58335996ffaeee75ef91`
+  is a true 0-create/update/delete/replace no-op. Live AWS and state confirm pinned EBS CSI is
+  `ACTIVE`, healthy, tagged, and carries both reviewed conflict settings, so no Terraform apply
+  remains. Authorized exact-main stable run `33415367340` then passed on SHA `263fb125`: signed
+  digest-pinned API/web, seeded six-product catalog, stable-only `web=100`, one healthy target,
+  and the once-restarted web pod's injected `True` ALB readiness gate all pass. The ordinary
+  baseline retains AWS's 300-second deregistration default; no unapproved normalization occurred.
+  Authorized regression run `33417072276` then failed closed before Helm mutation because rebuilding
+  the same exact post-merge SHA produced candidate digests equal to stable. Stable public health,
+  six-product catalog, and readiness remain good; no canary object exists and T-1302 is not
+  claimed. Local fix `acf2ccd` permits equal references only for the explicit configuration-error
+  drill while retaining ordinary-canary refusal, with both paths mocked. Independent technical
+  review accepted the exact fix. PR #59 exact head `eb337786` passed all four jobs in run
+  `33434986130` and merged to `main` as `587f4458c172e2474b31937b098fbb4f1375db75`.
+  The revised 14:00 dispatch boundary has passed, so no regression retry may run
+  today. Authorized ordered teardown removed the Ingress/ALB/target groups, application,
+  namespace/PVC, controller, and `gp3`. The owner-approved exact 18-delete plan then converged
+  despite its execution transport ending before a final summary: no stale-plan reuse occurred,
+  fresh Terraform refresh is a true no-op, exact cluster OIDC is absent, the authoritative sweep
+  reports zero temporary resources, and all exact session files are removed. Only the approved
+  persistent allowlist remains. T-1302 is not claimed. Local commit `012cdc6` now hardens private
+  file modes, accepts Terraform's null no-op representation, adds credential-free regression
+  tests to PR validation, and makes retained resumable process/session polling the canonical
+  long-mutation contract. Independent review accepted exact `012cdc6`; focused draft PR #60 now
+  carried that behavior at exact head `dc6c64ad5df634b426c720ed578124a5f0afed93`, with all four
+  jobs green in run `33441994664`. Independent review accepted the exact PR head and its
+  contextual runbook placement; it merged to `main` as
+  `69162e37d906404421d936cbd366edfdddb7e31d`. A fresh alarmed AWS retry remains separately gated.
+  The
+  retained Calico-backed kind node is stopped with its PVC preserved and
   the host inotify value restored to 128. The default kubeconfig context still points at a deleted
   EKS endpoint, so always use an explicit context.
+- **P13.2/T-1302 closeout 2026-09-01:** the owner-authorized retry from exact merged `main`
+  SHA `69162e37d906404421d936cbd366edfdddb7e31d` passed the live public/direct injected-error
+  gates, exact 90/10 staging, reconciled 100/0 promotion, stable-only rollback, canary cleanup,
+  and final health/catalog smoke in workflow run `33538736864`. The first attempt had failed on a
+  real Spot/AZ-bound PVC placement issue; recovery temporarily added a second Spot worker in the
+  volume's AZ without deleting the PVC. Ordered teardown then removed the Ingress/ALB, application,
+  namespace/PVC, controller, `gp3`, EKS, node group, and VPC. The owner-approved destroy plan
+  reported 18 destroyed, 0 added, and 0 changed; the temporary cluster OIDC provider is absent.
+  Final AWS inventory and `/tmp` cleanup are clean. P13.2 and T-1302 are complete. The owner
+  approved the P13 gate and activated P14 on 2026-09-01. **P14.1/T-1401 is complete locally:**
+  real P11 Metrics Server samples justify raising only the API CPU limit from 250m to 500m;
+  requests and values without retained measurements remain unchanged. Focused PR #61 exact head
+  `3f547a1` passed all four jobs in run `33559670780` and merged as `fd4cabb`. P14.2/T-1402 is
+  complete at focused commit `bdc5b1e` through merged PR #62 (`758a087`): the live wildcard ECR
+  lifecycle rule retained a real bare commit-SHA push in both repositories, and twelve older
+  tagged images per repository were marked for expiration in lifecycle previews. P14.3 is complete
+  locally at focused commit `0edafc9` from merged P14.2: same-shape `t3.medium`/`t3a.medium` Spot
+  pools preserve the one-node and two-node HA ceilings; the review also records EKS Capacity
+  Rebalancing, ordinary-profile 30-second/no-preStop shutdown behavior, and ADR 0019's explicit
+  AWS-HA exception. All five Terraform tests pass. Exact head `0edafc9` passed all four jobs in
+  run `33584953985` and merged through PR #63 as `aed6f5d`. Checkpoint reconciliation `f012225`
+  retains the ECR, tagging, and Spot test wiring so P14.4 cannot repeat the stale-base conflict.
+  **P14.4/T-1403 is complete locally at focused commit `511bf24`:** bounded read-only billing
+  evidence puts the conservative P10–P13 calendar envelope at USD 4.939738 in positive usage,
+  with final August whole-account usage at USD 8.373571 (41.9% of the USD 20 cap) and September
+  through day one at USD 0.501845 estimated. The indexed report records phase windows, service
+  drivers, credits, and daily-attribution limitations; its CI-wired arithmetic test rejects an
+  inflated fixture. Exact head `511bf24` passed all four jobs in run `33652892894` and merged
+  through PR #64 as `a8e9276`; checkpoint reconciliation `fab61a6` contains that merge.
+  **P14.5/T-1404 is complete locally at focused commit `e165332`:** the 1,289-word walkthrough
+  now incorporates P10–P14 evidence and remains within 15 minutes; a seventh optimization-track
+  diagram plus refreshed system/request/CI-CD pairs are editable and exported; the semantic timing
+  guard and `make docs-check` pass. Independent review accepted the exact focused commit after
+  reproducing its timing, fail-sensitive checks, evidence traceability, and visual inspection.
+  Exact commit `e165332` passed all four jobs in run `33681885076` and merged through PR #65 as
+  `80cd24c`; checkpoint reconciliation `4286baa` contains that merge. The P14 gate awaits explicit
+  owner approval.
 - Repository workflow skills are validated and published on `main` through merged PR #47
   (`874305c`); P11.1 is complete with T-1101 evidence and P11.2 is complete with local
   PDB/topology evidence.
@@ -239,8 +328,13 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   then removed both aliases before the ALB/application/EKS/VPC teardown. The 2026-08-26 final
   sweep found no temporary resource or dangling alias; budget actual was USD 5.384 of USD 20.
   Only the approved persistent allowlist remains. The owner approved the P12 gate on 2026-08-26,
-  activating P13; PR #54 merged the focused checkpoint as `386f66e`. P13.1 and T-1301 are now
-  complete; P13.2/T-1302 are `IN PROGRESS` after explicit owner activation on 2026-08-30.
+  activating P13; PR #54 merged the focused checkpoint as `386f66e`. P13.1/T-1301,
+  P13.2/T-1302, P14.1/T-1401, P14.2/T-1402, P14.3, and P14.4/T-1403 are complete locally. The P14.2
+  implementation is at `bdc5b1e` through merged PR #62 (`758a087`); focused P14.3 commit
+  `0edafc9` merged through PR #63 as `aed6f5d`; focused P14.4 commit `511bf24` merged through
+  PR #64 as `a8e9276`. P14.5/T-1404 exact head `e165332` passed all four jobs and merged through
+  PR #65 as `80cd24c`. All P14 tasks and tests are complete and merged; the P14 gate is not yet
+  owner-approved.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 
