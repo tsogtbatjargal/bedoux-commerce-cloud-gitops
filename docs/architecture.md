@@ -102,11 +102,15 @@ decision.
 
 - [System context](diagrams/system-context.drawio)
 - [Learning and delivery path](diagrams/learning-path.drawio)
-- [Runtime request path](diagrams/request-path.drawio) — the learning-profile ALB → web →
-  api → RDS/S3 path in detail, including the ADR 0008 nginx-proxy hop
+- [Runtime request path](diagrams/request-path.drawio) — the bounded ALB → web → api → RDS/S3
+  path, including ADR 0008's nginx-proxy hop plus the proven P12 TLS and P13 90/10 overlays
 - [CI/CD delivery path](diagrams/ci-cd.drawio) — the GitHub Actions PR-validation and
-  deploy-learning pipelines, including the OIDC exchange and Helm's atomic rollback
+  deploy-learning pipelines, including OIDC, SBOM/signature gates, Helm atomic rollback, and
+  P13's reconciled canary path
 - [VPC and network](diagrams/vpc-network.drawio) — the no-NAT public-subnet learning VPC and
   RDS's security-group-scoped (not network-scoped) isolation
 - [Identity boundaries](diagrams/identity.drawio) — all five distinct IAM identities with their
   exact trust conditions and permission scope
+- [P10–P14 optimization evidence](diagrams/optimization-track.drawio) — measured security,
+  availability, TLS, progressive-delivery, performance, and cost outcomes added after the P9
+  interview baseline
