@@ -1,167 +1,178 @@
-# P9.1 — 15-minute technical walkthrough script
+# P9.1/P14.5 — 15-minute technical walkthrough script
 
-Speaking notes for a timed technical tour of bedoux-commerce-cloud. Six sections, 15 minutes
-total, timed to the allocation in `docs/IMPLEMENTATION-PLAN.md`'s P9 goal. Every claim below cites
-real evidence already recorded in `docs/PROGRESS.md`'s session log or a named ADR — nothing here
-describes hypothetical capability. P9.3 times this against a clock and trims to fit; this draft
-runs slightly long on purpose so trimming has somewhere to come from.
-
----
-
-## 1. The problem (1 min)
-
-> I built bedoux-commerce-cloud to prove I can run a real workload on EKS the way a small team
-> actually would, under a hard constraint: USD 20 a month. That budget forced almost every
-> architectural decision — no NAT Gateway, one Spot node, same-day teardown as the default, and a
-> strict "prove it locally first, then in AWS" discipline. It's a small commerce app — catalog,
-> cart, orders — but the app itself was never the point. The point was the platform work around
-> it: identity boundaries, CI/CD, observability, and — the part most portfolios skip —
-> real incident response, including my own mistakes and how I recovered from them.
-
-## 2. Architecture and request path (3 min)
-
-> The stack is deliberately small: React/Vite frontend, FastAPI backend, PostgreSQL. [Show the
-> system-context diagram.] A request comes in through an internet-facing ALB, hits the frontend
-> pod, and — this is a real finding, not a design I planned from day one — the frontend's own
-> nginx proxies `/api/*` internally to the API Service. I originally expected the ALB to route
-> `/api` directly to the API target group, the way kind's nginx Ingress does after a rewrite. AWS
-> ALB Ingress has no path-rewrite annotation at all, so that shape doesn't exist on this ingress
-> controller. ADR 0008 documents the fix: route everything through the frontend and let its
-> already-built nginx reverse proxy — which existed for Compose since Phase 2 and was just
-> sitting dormant in Kubernetes — do the prefix-stripping instead. That's the theme of this whole
-> project: real infrastructure surfaces real constraints that a diagram drawn in advance won't
-> show you.
->
-> Data-wise, PostgreSQL is the system of record; product images are either bundled static assets
-> or, in the S3 profile (ADR 0011), served through API-generated presigned URLs from a
-> ServiceAccount-scoped IRSA role — never a public bucket, never an image proxy.
-
-## 3. Kubernetes and AWS responsibilities (3 min)
-
-> The split is deliberate and IAM-enforced, not just documented. EKS runs the workload: one Spot
-> `t3.medium` node, Helm-managed Deployments, a `gp3` StorageClass through the EBS CSI driver.
-> AWS supplies everything stateful and everything identity-related: RDS for the database,
-> Secrets Manager for credentials, IAM/IRSA for every workload identity.
->
-> The IAM boundary is the part I'd talk longest about if asked, because I found and closed a real
-> self-escalation hole in it. `bedoux-admin`'s scoped policy allowed `iam:*Policy*` on any
-> `bedoux-*`-named resource — which included the policy's own ARN, since the policy is itself
-> named `bedoux-iam-scoped`. That meant the constrained identity could rewrite its own
-> constraining policy: a real path to full account admin, not a theoretical one. ADR 0007 is the
-> fix — an explicit Deny scoped to exactly that one policy ARN — and I deliberately had the owner
-> apply it via console/root rather than through `bedoux-admin`'s own API access, so fixing the
-> hole never exercised the hole itself.
->
-> On the Kubernetes side, EKS access entries scope exactly who can do what: the GitHub Actions
-> deployment role gets `AmazonEKSEditPolicy` in the `bedoux` namespace only — not cluster-admin —
-> so a compromised CI run can't touch cluster-wide resources like the StorageClass or the ALB
-> controller. Those stay operator-only steps for exactly that reason.
-
-## 4. CI/CD and identity (3 min)
-
-> GitHub Actions authenticates via OIDC, not long-lived keys — the trust policy is bound to
-> `bedoux-tech/bedoux-commerce-cloud`'s `main` branch and, as a real finding, to this specific
-> repo's actual GitHub-emitted subject claim format, which I verified against a live token rather
-> than assuming the documented default (ADR 0009). PR-triggered workflows get zero AWS
-> credentials — `id-token: write` only exists on the manually-dispatched deploy workflow, so a
-> pull request literally cannot mint AWS access no matter what it changes.
->
-> The pipeline: PR validation runs API/Postgres tests, web lint/test/build, Terraform/Helm
-> validation, and a Trivy container scan on every PR. The deploy workflow builds commit-SHA-tagged
-> immutable images, pushes to ECR, and deploys via `helm upgrade --install --atomic`. That
-> `--atomic` flag isn't decorative — I proved it live in P8.3: I deployed a build with a
-> deliberately nonexistent image tag, watched the new pod hit `ImagePullBackOff` while the
-> previous release kept serving with zero downtime, and watched Helm's own timeout trigger an
-> automatic rollback with no manual intervention. `helm history` shows the exact sequence: revision
-> 2 `failed`, revision 3 `Rollback to 1`, `deployed`.
->
-> Branch protection on `main` is a real, disclosed limitation: this repo's GitHub plan can't
-> enforce server-side rulesets while private, so ADR 0010 documents a local pre-push guardrail as
-> an honest compensating control — I'm explicit in the docs that it protects this one clone, not
-> other clones or the GitHub web UI, rather than overstating what it does.
-
-## 5. Observability and troubleshooting (3 min)
-
-> The API emits one structured JSON completion event per request to stdout — timestamp, request
-> ID, method, path, status, duration — deliberately excluding bodies, headers, and credentials.
-> EKS's CloudWatch Observability add-on forwards that to a temporary Container Insights log group
-> through an IRSA role scoped to exactly the CloudWatch agent's ServiceAccount. A dashboard derives
-> 5xx rate from two metric filters and shows ALB unhealthy-target and RDS CPU alongside pod
-> restarts. All of it — log groups, dashboard, alarms — is session-temporary, three-day retention,
-> torn down same-day; there's no always-on observability cost.
->
-> P8.3 is where I'd spend the most time here, because it's real incident practice, not staged
-> demo content. Four drills, each induced, then diagnosed using only `kubectl`/`aws` CLI output —
-> no prior knowledge assumed:
-> - **Unhealthy ALB target**: scaled the frontend to zero, watched the ALB target go `draining`
->   via `describe-target-health`, confirmed the public `503`, then fixed and confirmed recovery.
-> - **Failed pod**: broke the API container's startup command, diagnosed purely from
->   `kubectl logs` showing the exact injected error, fixed via `rollout undo`.
-> - **DB connection error**: revoked the RDS security group's own ingress rule — the pod stuck at
->   `Init` phase with no log output by design, so I proved the cause two independent ways: a debug
->   pod's `pg_isready` timeout, and the security group's rule list coming back empty.
-> - **Failed rollout**: covered above under CI/CD — Helm's atomic rollback.
->
-> I'd also be honest here about a real mistake: an earlier P8.3 attempt hit a genuine
-> previously-undiscovered bug — Alembic's config parser choking on a `%`-encoded character in a
-> generated password — and while I was root-causing it, I lost track of the session clock and
-> overran the planned teardown by about three hours. I recorded that plainly in the project log
-> instead of hiding it, fixed the root cause, proved the fix with both a unit test and a real local
-> migration run, and on the next attempt armed an actual enforced background alarm instead of just
-> intending to watch the clock. That session finished under budget. I'd rather show that than
-> pretend nothing ever went wrong — the discipline is in how a mistake gets caught and closed out,
-> not in never making one.
-
-## 6. Cost and reliability trade-offs (2 min)
-
-> Every reliability shortcut here is a named, deliberate decision, not an oversight. One Spot
-> node and one replica per service — ADR 0006 accepts Spot interruption risk explicitly in
-> exchange for real cost savings, while still proving the storage/IAM setup (a genuine `gp3` PVC
-> through EBS CSI) that would carry over to a properly multi-node production profile. No NAT
-> Gateway — nodes sit in public subnets with `publicly_accessible=false` on RDS and
-> security-group-only access, which was itself a real P5.5 finding: eksctl silently defaults to
-> creating a NAT Gateway, and I only caught it because the teardown sweep's tag-based inventory
-> flagged it, not because I'd anticipated it. Same-day teardown, independently alarmed, is the
-> default for every session — not a nice-to-have, a hard rule with a background timer enforcing it
-> after the first time I broke it.
->
-> The honest trade-off: this profile trades availability for cost on purpose. Single-AZ RDS, one
-> node, no autoscaling — none of that is production-grade, and the docs say so explicitly
-> (`docs/architecture.md`'s MVP-vs-production table). What *is* production-shaped is everything
-> around it: the IAM boundaries, the OIDC trust, the atomic-rollback CI/CD, and the drill practice
-> — because those are the things that don't change much between a $20/month learning cluster and
-> a real production account. The infrastructure gets bigger; the discipline doesn't change.
+Speaking notes for a technical tour of bedoux-commerce-cloud. P14.5 extends the original P9
+walkthrough with measured P10–P14 security, reliability, TLS, delivery, performance, and cost
+evidence; it does not replace the original application/platform story. Every claim below points
+to a completed T-NNN gate, a named ADR, or evidence in `docs/PROGRESS.md`.
 
 ---
 
-## P9.3 timed dry-run (2026-08-07)
+## 1. Problem and operating model (1 min 30 sec)
 
-Target: 15:00. Measured by word count of the spoken lines per section (1,332 words total),
-against a realistic technical-presentation pace, plus overhead for diagram-pointing pauses (6
-diagram references × ~5s) and inter-section transitions (5 × ~3s) and a brief intro/outro
-settle (~15s) — 60s of overhead total.
+> I built bedoux-commerce-cloud to show that I can operate a real workload on EKS under a hard
+> constraint: USD 20 per calendar month. The application is intentionally small—React, FastAPI,
+> PostgreSQL, catalog and orders—because the portfolio is about the platform around it: identity,
+> networking, delivery, reliability, incident response, and cost control.
+>
+> The operating model is as important as the architecture. Every milestone works locally first.
+> AWS work happens only in an owner-approved, alarmed session with an exact scope and same-session
+> teardown. Configuration does not count as proof: the project records the observed result, the
+> failure path, and the final inventory. [Show the P10–P14 optimization-evidence diagram.] The
+> post-P9 track deliberately revisited the system with measurements instead of adding product
+> features: harden it, stress it, expose it through trusted TLS, prove progressive delivery, then
+> use the evidence to right-size and account for cost.
 
-| Pace | Raw reading time | + overhead | vs. 15:00 target |
-|---|---|---|---|
-| 100 wpm (slow, deliberate) | 13:19 | 14:19 | fits, ~40s margin |
-| 130 wpm (typical technical delivery) | 10:15 | 11:15 | fits, ~3:45 margin |
-| 150 wpm (brisk) | 8:53 | 9:53 | fits, ~5:07 margin |
+## 2. Architecture, request path, and public entry (2 min 15 sec)
 
-**Result: the script fits 15 minutes at every realistic delivery pace, with margin to spare —
-no cuts were needed.** This corrects an earlier, unmeasured guess in this file that assumed the
-draft ran long; a real word-count pass showed otherwise. Per-section word counts, for reference:
-problem 109, architecture/request-path 192, K8s/AWS responsibilities 211, CI/CD/identity 236,
-observability/troubleshooting 368 (the longest section, and still not the deciding factor since
-overall time comfortably fits), cost/reliability 216.
+> [Show system-context, then request-path.] A browser reaches `bedoux.ca` or `www.bedoux.ca`
+> through Route 53, an ACM certificate, and an internet-facing ALB. P12 proved trusted HTTPS and
+> the HTTP 301 redirect in both `curl` and a real Chrome session. The ALB and DNS aliases are
+> session-temporary; the explicitly approved hosted zone, certificate, and validation records
+> persist. Teardown verified that distinction instead of leaving a dangling hostname.
+>
+> The runtime path contains a useful real-world correction. I originally expected ALB Ingress to
+> route `/api` directly to FastAPI, like nginx Ingress does locally after a rewrite. AWS Load
+> Balancer Controller has no equivalent path-rewrite annotation. ADR 0008 therefore sends public
+> traffic to the web target; nginx serves React and proxies `/api/*` internally to the API Service
+> while stripping the prefix. FastAPI is never a public ALB target in the stable path.
+>
+> PostgreSQL is the system of record. The cheapest baseline keeps it in-cluster; bounded P7
+> sessions also proved Single-AZ RDS, Secrets Manager, and S3 product images through scoped IRSA.
+> The frontend stays storage-neutral because the API returns either a static path or a presigned
+> S3 URL. None of those temporary managed services is implied to be always running.
 
-**Practical notes for delivery, not cuts:**
-- Have all six `docs/diagrams/` diagrams exported and visible/ready before their referenced
-  section (system-context and learning-path before section 2; request-path also section 2;
-  ci-cd before section 4; vpc-network and identity before section 3).
-- The margin at a typical pace (~3:45–5:00) is better spent on natural pauses, audience
-  questions, and elaborating on a diagram than on rushing — this is a technical interview, not
-  a race to the shortest possible delivery.
-- If asked to go deeper on any one area, the natural extension points are: the IAM
-  self-escalation finding (ADR 0007) for identity questions, the P8.3 drills for
-  troubleshooting/SRE questions, and the two deadline-overrun incidents for questions about
-  working under pressure or operational discipline.
+## 3. Security and identity boundaries (2 min 30 sec)
+
+> [Show identity.] GitHub Actions uses OIDC, not repository access keys. The deploy role trusts
+> only this repository's `main` workflow subject, verified against a live token in ADR 0009. Pull
+> request jobs have no `id-token: write`, so they cannot mint AWS credentials. The deployment role
+> has namespace-scoped EKS edit access; cluster-wide add-ons and storage stay operator-only.
+>
+> The strongest IAM lesson came from finding two self-escalation paths rather than assuming a
+> `bedoux-*` naming condition was enough. First, the scoped policy could rewrite itself because its
+> own name matched that pattern. ADR 0007 added an explicit deny. P10 then found the second hop: a
+> delegated role could be created with broader permissions. ADR 0015 requires the reviewed
+> permissions boundary and denies creating or modifying a role without it. The owner applied the
+> policy change independently, and a bounded live test proved the forbidden path was denied.
+>
+> P10 also moved security into workload and supply-chain controls. Default-deny NetworkPolicies
+> plus explicit web-to-API and API-to-PostgreSQL allows were first proven with Calico on kind, then
+> repeated with EKS VPC CNI enforcement against an unauthorized pod. CI emits SPDX SBOMs and
+> keylessly signs immutable images; deployment verifies the exact workflow identity and digest
+> before Helm. Image rescans still disclose unfixed base-image CVEs rather than hiding them behind
+> a passing scan.
+
+## 4. Bounded scaling and failure tolerance (2 min 45 sec)
+
+> [Show vpc-network and the optimization evidence.] Reliability is deliberately bounded so it
+> cannot become an unbounded cost feature. The HPA target is 60 percent with `maxReplicas: 3`.
+> T-1101 proved scale-out and scale-in locally; the live load run reached the ceiling with zero
+> request failures. PDBs and soft topology spread complement an opt-in HA profile containing two
+> AZ-pinned one-node Spot groups—exactly two workers, not an autoscaling fleet.
+>
+> The node-loss drill is the result I would emphasize. One worker was cordoned and drained during
+> five minutes of traffic. Stateless workloads recovered in the surviving AZ, PostgreSQL was
+> explicitly excluded from the HA claim, and 33,507/33,507 requests succeeded. Measured p95 was
+> 155.35 ms against a two-second threshold. Earlier attempts had exposed two genuine design bugs:
+> invalid topology-spread semantics and an ALB deregistration race. ADRs 0018 and 0019 record the
+> corrections—soft failover placement, a measured deregistration bound, readiness gates, and a
+> shutdown sequence that the final drill actually exercised.
+>
+> P14 widens the eligible pool from only `t3.medium` to same-shape `t3.medium` and `t3a.medium`
+> while preserving one-node and two-node ceilings. EKS managed-node Capacity Rebalancing is best
+> effort, not a guarantee. The ordinary workloads retain a 30-second grace period and no long
+> preStop hook; the measured HA profile keeps its explicit exception. This is interruption-aware,
+> not a claim of PostgreSQL high availability.
+
+## 5. Delivery, rollback, and diagnosis (3 min 30 sec)
+
+> [Show ci-cd.] Pull requests run API/PostgreSQL tests, web lint/test/build, Terraform and Helm
+> validation, container scanning, SBOM generation, and ephemeral-key signature verification
+> without AWS access.
+> After an approved merge, the manually dispatched workflow obtains short-lived OIDC credentials,
+> pushes commit-SHA images to ECR, signs and verifies their digests, and deploys with Helm atomic
+> rollback. Branch protection is an honestly disclosed limitation: this private repository's plan
+> cannot enforce a server-side ruleset, so ADR 0010 documents the clone-local pre-push control as a
+> compensating guardrail, not as equivalent protection.
+>
+> P13 adds progressive delivery inside the same Helm release. The successful drill staged stable
+> and canary API/web pairs behind an exact ALB 90/10 action, required both target groups healthy,
+> sampled direct and public traffic, and correlated requests with canary logs. Only after the
+> listener reconciled to 100/0 and stable readiness was true did cleanup remove the canary. That is
+> stronger than checking Kubernetes rollout status while assuming the ALB caught up.
+>
+> The blocked-canary drill injected API 404s only into the canary nginx configuration, leaving the
+> pods Ready so that the application health gate—not a startup probe—had to catch it. The gate
+> attributed the observed errors, blocked promotion, reconciled back to stable 100/0, restored the
+> exact stable images, removed every canary object, and passed final public health and catalog
+> checks. A generic infrastructure failure cannot emit the T-1302 success marker.
+>
+> Earlier P8 drills remain the diagnosis foundation: unhealthy ALB target, failed pod, database
+> connection loss, and failed Helm rollout were induced, diagnosed from tooling output, recovered,
+> and torn down. One session overran while I diagnosed an Alembic percent-encoding bug; I recorded
+> it, fixed it locally, and replaced intention with an enforced background alarm. The useful story
+> is not that nothing failed—it is that each failure changed the system or runbook.
+
+## 6. Measured cost and performance decisions (2 min 30 sec)
+
+> [Return to the optimization-evidence diagram.] P14 closes the loop with measurements. During
+> P11 load, the API used about 229m CPU—roughly 92 percent of its old 250m limit. I kept the 50m
+> request so the HPA remains sensitive, raised only the API limit to 500m, and left memory, web,
+> and PostgreSQL unchanged because no retained measurement justified changing them. The stable and
+> canary renders are tested to inherit the same values.
+>
+> ECR exposed another evidence-versus-intent gap: images are tagged with a bare commit SHA, while
+> the lifecycle policy looked for `sha-`, so it matched nothing. P14 changed the tagged selector to
+> the documented wildcard, pushed real bare-SHA verification images, confirmed images beyond the
+> newest ten were expiration candidates, and removed the temporary tags.
+>
+> The conservative P10–P13 calendar envelope cost USD 4.939738 in positive usage. Final August
+> whole-account usage was USD 8.373571, or 41.9 percent of the USD 20 cap. EKS control planes were
+> 48.8 percent of track usage and Route 53 was 20.3 percent, so short sessions and teardown matter
+> more than shaving a few millicores. Credits offset the observed window, but the report evaluates
+> positive usage because promotional credit is not sustainable architecture.
+>
+> The honest boundary remains: the learning profile is inexpensive and production-shaped, not
+> production-sized. Multi-AZ databases, private nodes, more replicas, WAF, and durable monitoring
+> would cost more. What transfers is the discipline—least privilege, exact artifacts, measured
+> gates, automatic rollback, explicit trade-offs, and verified cleanup.
+
+---
+
+## Evidence map
+
+| Topic | Proof to cite | Primary artifact |
+|---|---|---|
+| P10 security | T-1001–T-1005: scan, NetworkPolicy, signing/SBOM, IAM review, live deny | ADRs 0015–0016 and `docs/PROGRESS.md` |
+| P11 reliability | T-1101–T-1104: bounded HPA, live load, zero-failure node loss, teardown | ADRs 0017–0019 and `docs/PROGRESS.md` |
+| P12 public entry | T-1201–T-1203: issued certificate, HTTPS/301, deliberate persistence | ADR 0022 and `docs/PROGRESS.md` |
+| P13 delivery | T-1301–T-1302: successful canary plus attributed block/rollback | ADR 0023 and `docs/PROGRESS.md` |
+| P14 decisions | T-1401–T-1403: measured resources, live ECR expiry, actual cost | `docs/resource-right-sizing.md`, `docs/spot-diversification.md`, `docs/p10-p13-cost-report.md` |
+
+## Timing verification
+
+The original P9.3 script was measured at 1,332 spoken words and fit in 14:19 at a deliberately
+slow 100 words per minute including 60 seconds of diagram and transition overhead. P14.5 retains
+the same conservative method: count only blockquoted speaking notes, then add 60 seconds for seven
+diagram references, five transitions, and opening/closing pauses.
+
+| Version | Spoken words | 100 wpm + 60 sec | 130 wpm + 60 sec | 15-minute result |
+|---|---:|---:|---:|---|
+| P9.3 baseline (2026-08-07) | 1,332 | 14:19 | 11:15 | Pass |
+| P14.5 extension (2026-09-02) | 1289 | 13:53 | 10:55 | Pass |
+
+P14.5 per-section spoken-word counts are 140, 193, 212, 215, 293, and 236. The allocated section
+times still total 15:00 and leave about 1:07 of whole-script margin at the deliberately slow pace.
+
+`scripts/test-p14-interview-package.sh` enforces a maximum of 1,400 spoken words, verifies that
+P10–P14 and their key measured outcomes remain in both the walkthrough and new diagram, and checks
+the editable/exported diagram pair. `make docs-check` remains the final T-1404 gate.
+
+Practical delivery notes:
+
+- Pre-open all seven SVGs. Use `optimization-track.svg` as the P10–P14 spine, then switch to the
+  detailed P9 diagrams only where the script calls for them.
+- If time is shortened, keep the P13 blocked-canary result, P11 zero-failure node drain, and P14
+  cost result; offer IAM, NetworkPolicy, and teardown details as follow-up depth.
+- If asked what is not production-ready, answer directly: PostgreSQL HA, private-node egress,
+  durable observability, and server-enforced branch protection remain outside this learning cap.

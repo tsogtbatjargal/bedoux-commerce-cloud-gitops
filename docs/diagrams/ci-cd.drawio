@@ -1,4 +1,4 @@
-<mxfile host="app.diagrams.net" modified="2026-08-07T00:00:00.000Z" agent="Claude" version="24.7.17" type="device">
+<mxfile host="app.diagrams.net" modified="2026-09-02T00:00:00.000Z" agent="Codex" version="24.7.17" type="device">
   <diagram id="bedoux-ci-cd" name="CI/CD">
     <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1900" pageHeight="700" math="0" shadow="0">
       <root>
@@ -10,7 +10,7 @@
         <mxCell id="pr" value="Pull request&#xa;opened against main" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;" vertex="1" parent="1">
           <mxGeometry x="40" y="240" width="180" height="80" as="geometry"/>
         </mxCell>
-        <mxCell id="prval" value="pr-validation.yml&#xa;API/Postgres tests, web lint/test/build,&#xa;Terraform/Helm validation, Trivy scan&#xa;— no id-token:write, cannot mint AWS creds" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+        <mxCell id="prval" value="pr-validation.yml&#xa;API/Postgres + web tests&#xa;Terraform/Helm + Trivy&#xa;SPDX + ephemeral-key sign/verify&#xa;no AWS credentials" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="270" y="220" width="240" height="120" as="geometry"/>
         </mxCell>
         <mxCell id="mainbranch" value="Merge to main&#xa;pre-push guardrail blocks&#xa;direct pushes (ADR 0010)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;" vertex="1" parent="1">
@@ -22,19 +22,19 @@
         <mxCell id="oidc" value="GitHub OIDC token exchanged&#xa;for short-lived AWS credentials&#xa;role trusts only bedoux-tech/bedoux-commerce-cloud&#xa;ref:refs/heads/main (ADR 0009)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;fontStyle=1;" vertex="1" parent="1">
           <mxGeometry x="1060" y="220" width="260" height="120" as="geometry"/>
         </mxCell>
-        <mxCell id="build" value="Build + push immutable images&#xa;tagged with the commit SHA&#xa;to ECR" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+        <mxCell id="build" value="Build + push commit-SHA images&#xa;generate SPDX; keylessly sign&#xa;exact ECR digests" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="1370" y="240" width="220" height="90" as="geometry"/>
         </mxCell>
-        <mxCell id="helm" value="helm upgrade --install --atomic&#xa;--wait --wait-for-jobs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+        <mxCell id="helm" value="Verify exact signatures + identity&#xa;deploy digests with Helm --atomic" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;fontStyle=1;" vertex="1" parent="1">
           <mxGeometry x="1370" y="400" width="220" height="80" as="geometry"/>
         </mxCell>
-        <mxCell id="rollout" value="kubectl rollout status&#xa;gates traffic on readiness" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+        <mxCell id="rollout" value="Optional P13 canary&#xa;exact 90/10 + ALB health/readiness&#xa;reconcile 100/0 before cleanup" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="1060" y="400" width="220" height="80" as="geometry"/>
         </mxCell>
         <mxCell id="smoke" value="Smoke test&#xa;/api/health + /api/products&#xa;through the public ALB" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontStyle=1;" vertex="1" parent="1">
           <mxGeometry x="770" y="400" width="220" height="90" as="geometry"/>
         </mxCell>
-        <mxCell id="rollback" value="On failure: Helm's own atomic&#xa;flag rolls the release back&#xa;automatically — no manual step&#xa;proven live, P8.3 failed-rollout drill" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;dashed=1;" vertex="1" parent="1">
+        <mxCell id="rollback" value="Failure paths proved live&#xa;P8: Helm atomic rollback&#xa;P13: attributed gate block → stable 100/0&#xa;+ canary cleanup" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;dashed=1;" vertex="1" parent="1">
           <mxGeometry x="1370" y="540" width="240" height="110" as="geometry"/>
         </mxCell>
         <mxCell id="e-pr-prval" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="pr" target="prval">
