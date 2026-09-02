@@ -286,8 +286,8 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   guard and `make docs-check` pass. Independent review accepted the exact focused commit after
   reproducing its timing, fail-sensitive checks, evidence traceability, and visual inspection.
   Exact commit `e165332` passed all four jobs in run `33681885076` and merged through PR #65 as
-  `80cd24c`; checkpoint reconciliation `4286baa` contains that merge. The P14 gate awaits explicit
-  owner approval.
+  `80cd24c`; checkpoint reconciliation `4286baa` contains that merge. The owner approved the P14
+  gate on 2026-09-02 and closed the P10–P14 optimization track. No later phase is active.
 - Repository workflow skills are validated and published on `main` through merged PR #47
   (`874305c`); P11.1 is complete with T-1101 evidence and P11.2 is complete with local
   PDB/topology evidence.
@@ -333,8 +333,8 @@ checked in `docs/PROGRESS.md` and its evidence is recorded in the session log.
   implementation is at `bdc5b1e` through merged PR #62 (`758a087`); focused P14.3 commit
   `0edafc9` merged through PR #63 as `aed6f5d`; focused P14.4 commit `511bf24` merged through
   PR #64 as `a8e9276`. P14.5/T-1404 exact head `e165332` passed all four jobs and merged through
-  PR #65 as `80cd24c`. All P14 tasks and tests are complete and merged; the P14 gate is not yet
-  owner-approved.
+  PR #65 as `80cd24c`. All P14 tasks and tests are complete and merged; the owner approved the
+  P14 gate and explicitly declined activation of an unplanned phase.
 - Safe stopping point: after any single task with its evidence recorded in `docs/PROGRESS.md`.
 - Standing gate: `make docs-check` must pass before any commit that touches docs or diagrams.
 

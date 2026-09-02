@@ -13,8 +13,9 @@ Continue bedoux-commerce-cloud from
 Start with START-HERE.md, AGENTS.md, and docs/PROGRESS.md. The progress file is authoritative.
 Use the active worktree/branch recorded by Git and preserve unrelated changes.
 
-Current state as of 2026-09-02T14:57:12-06:00:
-- P0-P13 are complete and gate-approved. P14 — Cost & performance capstone is active.
+Current state as of 2026-09-02T17:31:18-06:00:
+- P0–P14 are complete and gate-approved. The owner closed the P10–P14 optimization track and
+  explicitly instructed that no unplanned phase be activated.
 - P14.1/T-1401 is complete locally. Real P11 Metrics Server samples support increasing only the
   API CPU limit from 250m to 500m. Requests and values without retained measurements remain
   unchanged; the calculation and rollback are in `docs/resource-right-sizing.md`. The corrected
@@ -56,10 +57,9 @@ Current state as of 2026-09-02T14:57:12-06:00:
 - No temporary or hourly billed AWS resource is live. Only the approved persistent ECR/IAM,
   Route 53/ACM, and Terraform state-storage allowlist remains. Website aliases remain absent.
 - The owner approved the P13 gate on 2026-09-01 in standalone commit `8920173`, activating P14.
-- The active local checkpoint branch is `p14-1-resource-right-sizing` at reconciliation merge
-  `fab61a6`, which contains refreshed `origin/main` `a8e9276`. The clean P14.4 focused branch is
-  `publish/p14-4-cost-report` at exact local/remote commit `511bf24`. Local `main` is stale; never
-  push `main` directly.
+- The active local checkpoint branch is `p14-1-resource-right-sizing`; reconciliation commit
+  `4286baa` contains current `origin/main` `80cd24c`, and the standalone P14 gate checkpoint follows
+  it. Local `main` may be stale; never push `main` directly.
 - ADR 0023 is Accepted. It keeps one Helm release and implements opt-in stable/canary API+web
   pairs, weighted routing, exact image and target-health gates, ALB pod-readiness, reconciled
   promotion/abort, bounded drain, and stable-only cleanup.
@@ -76,9 +76,9 @@ Current state as of 2026-09-02T14:57:12-06:00:
   deleted EKS endpoint, so always select an explicit context.
 
 Next action:
-1. Owner reviews the complete, merged P14.1–P14.5 and T-1401–T-1404 evidence.
-2. Record an explicit owner P14 phase-gate approval or decline; do not infer it from PR #65's
-   merge.
+1. Stop safely; there is no active phase or checklist item.
+2. Before future implementation, the owner must approve a new scope and explicitly activate its
+   first checklist item. Do not infer a P15 or other continuation.
 
 Hard boundaries: USD 20/month; ca-central-1; bedoux-admin only; no NAT Gateway; same-day teardown;
 never record account IDs, secrets, personal email addresses, or registrar details.
