@@ -5,6 +5,9 @@ Execution state lives only in `docs/PROGRESS.md`. Agents may not start a later p
 every phase gate requires owner approval recorded as its own commit
 (`Phase N gate approved by owner; activate Phase N+1`).
 
+> **Status:** P0–P14 are complete and gate-approved. This file is the delivered historical plan,
+> not authorization to infer or begin P15.
+
 ## Goal
 
 Build a compact commerce system that demonstrates the skills expected from a cloud, platform,
@@ -52,7 +55,9 @@ multi-region recovery are later enhancements.
 - Created only for planned sessions and destroyed the same day.
 - One EKS cluster on a current standard-support Kubernetes version.
 - One small managed Spot worker node where capacity permits in the default baseline profile.
-- One shared ALB with path-based routing, reached by its **raw ALB DNS name over HTTP**.
+- One shared ALB with path-based routing, reached by its **raw ALB DNS name over HTTP** in the
+  default baseline. P12's opt-in profile proved `bedoux.ca`/`www.bedoux.ca`, ACM TLS, and HTTP to
+  HTTPS redirects before removing the temporary aliases and ALB.
 - One replica per application in the default baseline profile.
 - **In-cluster PostgreSQL** (same chart as kind) until P7; small Single-AZ RDS only during
   P7 database sessions.
@@ -72,8 +77,8 @@ bounded failover; it does not make PostgreSQL highly available or change the def
 - Autoscaling, longer telemetry retention, private AWS service access, stricter network
   policies, and WAF.
 
-The production target is documented and represented in infrastructure code, but it is not
-kept running on the learning budget.
+Individual production-oriented components were proven in bounded sessions, but the complete
+production target is not deployed or kept running on the learning budget.
 
 ## Deferred to production profile / later phases
 
@@ -81,19 +86,17 @@ Per [ADR 0002](decisions/0002-mvp-aws-service-deferrals.md):
 
 | Item | Learning MVP uses | Returns in |
 |---|---|---|
-| Route 53 + custom domain | raw ALB DNS name | production profile (documented only) |
-| ACM / TLS at the ALB | HTTP | production profile (documented only) |
+| Route 53 + custom domain | raw ALB DNS name | P12 opt-in `bedoux.ca` profile; zone retained by owner decision |
+| ACM / TLS at the ALB | HTTP | P12 opt-in profile; certificate retained, aliases removed after proof |
 | Amazon RDS | in-cluster PostgreSQL | P7 (short-lived Single-AZ sessions) |
 | S3 product images | static files in the frontend container | P7 (via ADR 0001 adapter) |
 | Secrets Manager | Kubernetes Secrets | P7 |
 | NAT Gateway | not used | never in the learning profile |
 
-## Pending owner-approved decisions (not yet implemented — do not miss these)
+## Resolved owner-approved decisions (historical)
 
-Decided in conversation on 2026-07-19, deliberately **held until their owning phase**
-starts rather than implemented early. Whichever agent/session opens that phase must
-implement these, not rediscover or re-litigate them. Each is flagged again inline at its
-phase below.
+These decisions were originally held for their owning phases. All required boundaries below were
+resolved during P3–P7; they remain here as planning history, not pending work.
 
 1. **P3.4 (Helm chart) — migrations via a Helm hook Job, seed as a separate opt-in
    Job. DONE 2026-07-19** — implemented in `charts/bedoux/`, per
@@ -111,7 +114,8 @@ phase below.
    bytes.
 
 3. **P5 — accept Spot-node interruption risk; still provision a real gp3 PVC via the
-   EBS CSI add-on.** Document explicitly rather than silently accepting: the PVC
+   EBS CSI add-on. DONE 2026-07-23** — ADR 0006 records the decision and P5.1 later proved the
+   EBS CSI/gp3 lifecycle live. The original boundary was: the PVC
    protects against pod replacement only; one Spot node has no availability guarantee;
    a node interruption may end the demo session; RDS durability/HA is intentionally
    deferred to P7. Do not engineer multi-node DB failover in P5 — the point of
@@ -119,7 +123,10 @@ phase below.
    EBS CSI driver also needs its own IRSA role — same identity pattern as the S3
    adapter above), not database resilience.
 
-4. **P5 — order-write kill switch + request bounds before any public ALB demo.**
+4. **P5 — order-write kill switch + request bounds before any public ALB demo. DONE
+   2026-07-23** — the switch, line/quantity/body bounds, and deliberate frontend disabled state
+   were proven locally before P5. The optional ALB inbound-CIDR restriction was not implemented
+   and remains a recorded learning-profile limitation. The original boundary was:
    `BEDOUX_ORDERS_ENABLED=false` by default in AWS, enabled only during the actual
    golden-path demonstration window. Also add: a max order line count, the existing
    per-line quantity limit, a request body-size limit, and an optional configurable ALB

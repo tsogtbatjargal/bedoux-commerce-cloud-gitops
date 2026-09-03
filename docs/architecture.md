@@ -1,19 +1,20 @@
 # Architecture
 
-## MVP profile vs production profile
+## Learning baseline, proven opt-in profiles, and production target
 
-The sections below describe the **production target**. The learning MVP deliberately defers
-several services per [ADR 0002](decisions/0002-mvp-aws-service-deferrals.md):
+ADR 0002 defined the P5–P6 baseline deferrals. Later phases proved selected components in
+bounded sessions without claiming that the complete production target was deployed:
 
-| Concern | Learning MVP (P5–P6) | Production profile |
-|---|---|---|
-| DNS / entry | raw ALB DNS name | Route 53 custom domain |
-| TLS | HTTP only | ACM certificate at the ALB |
-| Database | in-cluster PostgreSQL (same chart as kind) | Multi-AZ RDS, tested backups |
-| Product images | static files in the frontend container | S3 with scoped workload identity |
-| Secrets | Kubernetes Secrets | AWS Secrets Manager |
-| Nodes / replicas | 1 Spot node, 1 replica | private multi-AZ nodes, multiple replicas |
-| Egress | no NAT Gateway | NAT / private service access as required |
+| Concern | Default learning baseline | Proven opt-in session profile | Production target |
+|---|---|---|---|
+| DNS / entry | raw ALB DNS name | P12 Route 53 aliases for `bedoux.ca` and `www`; aliases removed after proof | durable Route 53 custom domain |
+| TLS | HTTP | P12 ACM TLS and HTTP→HTTPS redirects | ACM certificate at the ALB |
+| Database | in-cluster PostgreSQL | P7 short-lived Single-AZ RDS | Multi-AZ RDS with tested backups |
+| Product images | frontend-container static files | P7 S3 with scoped workload identity | durable S3 with lifecycle and recovery policy |
+| Secrets | Kubernetes Secret | P7 Secrets Manager with scoped workload identity | managed secret rotation |
+| Nodes / replicas | 1 Spot node, 1 replica | P11 two AZ-pinned Spot nodes and two stateless replicas | private multi-AZ nodes, multiple replicas, bounded autoscaling |
+| Delivery | Helm atomic rolling update | P13 controller-native 90/10 canary | controlled progressive delivery with production SLOs |
+| Egress | no NAT Gateway | no NAT Gateway in every learning profile | private service access or controlled NAT as required |
 
 ## Runtime request path
 
@@ -30,17 +31,19 @@ several services per [ADR 0002](decisions/0002-mvp-aws-service-deferrals.md):
    direct ALB target-group rule would (see
    [ADR 0008](decisions/0008-alb-no-rewrite-web-proxies-api.md)). The API is
    never directly reachable from the public ALB DNS name.
-6. The API reads product and order data from PostgreSQL.
-7. The API accesses product images in S3 through a narrowly scoped workload
-   identity.
+6. The API reads product and order data from in-cluster PostgreSQL in the baseline or Single-AZ
+   RDS in the bounded managed-data profile.
+7. The API returns frontend-static image URLs in the baseline or accesses S3 through a narrowly
+   scoped workload identity when the managed-image profile is enabled.
 
 ## Delivery path
 
 1. A pull request runs formatting, linting, tests, builds, security scans, SPDX SBOM generation,
    and a real `cosign` sign/verify proof against an ephemeral local registry. The PR job uses an
    ephemeral key and receives no GitHub OIDC token or AWS credential.
-2. A protected branch workflow exchanges GitHub's OIDC token for temporary AWS
-   credentials.
+2. The `main` deployment workflow exchanges GitHub's OIDC token for temporary AWS credentials.
+   Because the private-repository plan cannot enforce server-side branch protection, ADR 0010's
+   local guardrail and reviewed-PR discipline remain compensating controls.
 3. Immutable images tagged with the Git commit SHA are pushed to ECR.
 4. The workflow generates short-retention SPDX JSON artifacts and uses keyless `cosign` signing;
    the certificate identity is the exact `deploy-learning.yml` workflow on `main`.
@@ -53,8 +56,8 @@ several services per [ADR 0002](decisions/0002-mvp-aws-service-deferrals.md):
 
 ## Identity boundaries
 
-- **Human operator:** federated or role-based temporary AWS credentials; no
-  routine root use and no committed access keys.
+- **Human operator:** non-root `bedoux-admin` named profile with MFA; no routine root use and no
+  credentials committed to the repository.
 - **GitHub Actions:** dedicated OIDC role limited to required ECR, EKS, and
   deployment actions.
 - **AWS Load Balancer Controller:** dedicated workload identity limited to
@@ -65,9 +68,10 @@ several services per [ADR 0002](decisions/0002-mvp-aws-service-deferrals.md):
 
 ## Data design
 
-- PostgreSQL is the system of record for products, inventory counts, and
-  orders.
-- S3 stores product images; the bucket is not publicly writable.
+- PostgreSQL is the system of record for products, inventory counts, and orders; the baseline uses
+  in-cluster PostgreSQL and the bounded P7 profile used Single-AZ RDS.
+- The baseline serves static product images from the frontend container. The bounded P7 profile
+  stored them in a non-publicly-writable S3 bucket and returned presigned URLs.
 - The application stores no real payment-card or customer-sensitive data.
 - Development seed data is synthetic and repeatable.
 

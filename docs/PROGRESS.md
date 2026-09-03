@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | COMPLETE |
 | Active phase | None — P0–P14 are complete and gate-approved. |
 | Active task | No task active — the owner approved the P14 gate and closed the P10–P14 optimization track without activating an unplanned phase. |
-| Last verified | 2026-09-02T17:31:18-06:00 — owner explicitly approved the P14 phase gate after P14.1–P14.5, T-1401–T-1404, exact-head CI, independent review, merge, and clean AWS teardown evidence were reconciled. |
+| Last verified | 2026-09-02T18:15:59-06:00 — final PR #66 merge is on `main`; post-P14 documentation and Git hygiene removed stale current-state guidance and obsolete merged branches/worktrees without activating another phase. |
 | AWS resources currently live | No temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
-| Next operator action | Safe stopping point. Do not start more implementation unless the owner first approves a new scoped plan and explicitly activates its first checklist item. |
+| Next operator action | Review the local post-P14 hygiene commit, then separately authorize publication if accepted. Do not start more implementation unless the owner first approves a new scoped plan and explicitly activates its first checklist item. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -700,6 +700,27 @@ without activating an unplanned phase.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-09-02T18:15:59-06:00 — post-P14 repository hygiene prepared — Codex
+
+- **Owner direction:** perform bounded chore cleanup after project completion, including stale
+  repository documentation. This was treated as maintenance, not activation of a new phase.
+- **Documentation cleanup:** replaced the accumulated chronological `START-HERE.md` checkpoint and
+  stale worktree-specific `HANDOFF.md` with concise final-state entry points; added completion
+  banners to the README, implementation plan, and test plan; converted the plan's already-resolved
+  decision queue from pending to historical; reconciled the architecture profile with the
+  P7/P11/P12/P13 bounded proofs; and labeled the completed P10 IAM review as a historical
+  pre-remediation snapshot. The full execution chronology remains preserved in this file.
+- **Git cleanup:** fast-forwarded the clean local `main` to final merge `9a2fe59`; removed four
+  clean merged P14 publication worktrees, eight obsolete local branches, and five unused remote
+  branches after confirming no open PR referenced them. The retained workspace is detached at
+  final `main`; only local `main`, this hygiene branch, and `origin/main` remain referenced.
+- **Verification:** `docs-check` passed with 18 immutable Action references; all four P14 evidence
+  suites passed; `git diff --check` passed; no untracked or ignored generated artifact was found.
+- **Infrastructure boundary:** no AWS or Kubernetes endpoint was contacted and no cloud resource
+  changed. AWS: none.
+- **Next action:** review the focused local hygiene commit. Push/draft PR, merge, and any future
+  implementation scope remain separately owner-gated.
 
 ### 2026-09-02T17:31:18-06:00 — P14 gate approved; optimization track closed — Codex
 

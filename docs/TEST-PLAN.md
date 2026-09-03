@@ -3,6 +3,9 @@
 Test IDs are referenced from phase gates in `docs/IMPLEMENTATION-PLAN.md`. Evidence for every
 test lands in `docs/PROGRESS.md` (checklist line + session log), never in this file.
 
+> **Status:** T-001–T-1404 are complete for the delivered P0–P14 plan. New test IDs require a
+> separately owner-approved scope; this file does not imply a later phase.
+
 ## Test roles
 
 | Role | Responsibility |

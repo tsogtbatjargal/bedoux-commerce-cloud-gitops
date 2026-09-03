@@ -1,8 +1,13 @@
 # P10.4 IAM re-review
 
 Review date: 2026-08-10
-Status: **IN PROGRESS — ADR 0015 is accepted and its offline remediation is staged; live
-application and negative verification are still required before T-1004 can pass.**
+Status: **COMPLETE — T-1004 passed on 2026-08-11 after the owner-applied permissions-boundary
+policy, replacement workload identities, exact read-back, and bounded negative test were proven
+live.**
+
+This document preserves the review-time inventory and findings from 2026-08-10. Statements below
+using words such as “current,” “proposed,” or “still required” describe that pre-remediation
+snapshot; the final execution evidence is in `docs/PROGRESS.md` and ADR 0015.
 
 ## Scope and method
 
