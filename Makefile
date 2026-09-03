@@ -1,10 +1,17 @@
-.PHONY: tools-check actions-check docs-check
+.PHONY: tools-check actions-check docs-check helm-test
 
 tools-check:
 	./scripts/check-tools.sh
 
 actions-check:
 	./scripts/check-github-actions.sh
+
+# One local entry point for the same Helm render contracts enforced in CI.
+helm-test:
+	python3 -m py_compile scripts/test_helm_render.py
+	python3 scripts/test_helm_render.py
+	bash -n scripts/test-p14-resource-right-sizing.sh
+	./scripts/test-p14-resource-right-sizing.sh
 
 # docs-check gates every docs/diagram commit:
 #  1. every .drawio file is valid XML
