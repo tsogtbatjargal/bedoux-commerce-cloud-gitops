@@ -3,6 +3,9 @@
 > **New agent or returning after a break? Start at [START-HERE.md](START-HERE.md).**
 > Execution state lives only in [docs/PROGRESS.md](docs/PROGRESS.md); operating rules in
 > [AGENTS.md](AGENTS.md).
+>
+> **Project status:** P0–P14 are complete and gate-approved. No implementation phase is active;
+> temporary AWS infrastructure is torn down.
 
 Bedoux Commerce Cloud is a production-oriented reference implementation of a
 small commerce platform running on Amazon EKS. The application is intentionally
@@ -23,7 +26,7 @@ learning sessions. This keeps the monthly AWS target at **USD 20 or less**.
 
 The first release does not process real payments or customer data.
 
-## Proposed stack
+## Implemented stack and proven profiles
 
 - React, Vite, and TypeScript frontend
 - FastAPI backend
@@ -46,7 +49,7 @@ The first release does not process real payments or customer data.
 | [docs/IMPLEMENTATION-PLAN.md](docs/IMPLEMENTATION-PLAN.md) | Phases P0–P14 with gates, rollback, and per-session cost |
 | [docs/TEST-PLAN.md](docs/TEST-PLAN.md) | T-NNN test ids referenced by phase gates |
 | [docs/HANDOFF.md](docs/HANDOFF.md) | Copy-paste prompt to continue in a fresh agent session |
-| [docs/architecture.md](docs/architecture.md) | Request/delivery/identity paths; MVP vs production profile |
+| [docs/architecture.md](docs/architecture.md) | Request/delivery/identity paths; learning, proven opt-in, and production profiles |
 | [docs/cost-guardrails.md](docs/cost-guardrails.md) | Budget, alerts, prohibited resources, persistent allowlist |
 | [docs/p10-p13-cost-report.md](docs/p10-p13-cost-report.md) | P14.4 actual P10–P13 usage, monthly-cap comparison, and cost drivers |
 | [docs/resource-right-sizing.md](docs/resource-right-sizing.md) | P14.1 measured resource derivation, retained values, and rollback |
