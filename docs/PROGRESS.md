@@ -8,13 +8,13 @@ checked here and its evidence is recorded in the session log.
 
 | Field | Value |
 |---|---|
-| State | COMPLETE |
-| Active phase | None — P0–P14 are complete and gate-approved. |
-| Active task | No task active — the owner approved the P14 gate and closed the P10–P14 optimization track without activating an unplanned phase. |
-| Last verified | 2026-09-02T19:30:49-06:00 — PR #67 merged the post-P14 documentation cleanup as `6332959`; exact-head ancestry, green CI, final `main`, and the absence of any newly activated phase were verified. |
+| State | MAINTENANCE IN PROGRESS |
+| Active phase | Post-P14 maintenance — this is not P15; P0–P14 remain complete and gate-approved. |
+| Active task | M1 implemented locally and awaiting review — Helm render validation now lives in `scripts/test_helm_render.py` behind `make helm-test`. Unpushed on `maintenance/m1-helm-render-validation`. M2–M5 remain inactive. |
+| Last verified | 2026-09-03T14:24:52-06:00 — 16 named render contracts and 5 negative fixtures pass locally across 13 cached renders; all 43 previously inline workflow assertions were enumerated and matched one-to-one. |
 | AWS resources currently live | No temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
-| Next operator action | Safe stopping point. Optionally publish this final post-merge checkpoint and remove its merged branch/worktree; do not start implementation unless the owner first approves a new scoped plan and explicitly activates its first checklist item. |
+| Next operator action | Review the M1 branch, then decide whether to push and open a PR. Do not activate M2 until M1 is merged and its checkpoint recorded. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -692,6 +692,24 @@ and P13.2/T-1302 include clean same-session teardown; P14.1–P14.5 and T-1401�
 and merged. The owner approved the P14 gate on 2026-09-02 and closed the optimization track
 without activating an unplanned phase.**
 
+### Post-P14 maintenance — owner-approved, not P15
+
+- [x] M1 IMPLEMENTED (local, unpushed) — extracted the Helm chart-render assertions from GitHub
+      Actions YAML into `scripts/test_helm_render.py`, exposed as `make helm-test` and called by
+      the same one line in CI. Evidence: 16 named render contracts and 5 negative fixtures pass
+      across 13 cached renders (was 17 uncached `helm template` invocations); all 43 previously
+      inline assertions enumerated and matched one-to-one; failures now name the profile and the
+      contract instead of returning a bare step exit code. No AWS or Kubernetes endpoint was
+      contacted. Checkbox is recorded on merge, per the P0–P14 convention.
+- [ ] M2 NOT STARTED — decide and remove stable/canary pod-spec divergence.
+- [ ] M3 NOT STARTED — replace combinatorial deployment booleans with named session profiles.
+- [ ] M4 NOT STARTED — give AWS/Kubernetes assertions typed, visible error channels.
+- [ ] M5 NOT STARTED — isolate order pricing from import-time database/Secrets Manager setup.
+
+The owner approved this maintenance sequence on 2026-09-03 and activated M1 only. These items do
+not reopen or renumber the completed P0–P14 plan. Starting M2–M5 still requires explicit owner
+activation.
+
 ## Blockers
 
 - GitHub server-side branch protection remains unavailable while the repository is private
@@ -700,6 +718,52 @@ without activating an unplanned phase.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-09-03T14:24:52-06:00 — M1 implemented: Helm render validation extracted — Claude
+
+- **Starting state:** the M1 patch was half-applied. `.github/workflows/pr-validation.yml` had
+  already had 107 assertion lines removed and `Makefile` already called
+  `scripts/test_helm_render.py`, but that module did not exist — `make helm-test` and the CI job
+  would both have failed immediately. Completed the extraction.
+- **What changed:** added `scripts/test_helm_render.py` (standard library only). It renders each
+  profile once and caches it, replacing 17 `helm template` invocations with 13 cached renders.
+  Every assertion is named, so a failure reports the profile and the contract rather than a bare
+  step exit code.
+- **Fidelity:** all 43 assertions removed from the workflow were enumerated from the diff and
+  matched one-to-one against the new contracts, including the three fail-closed renders (TLS
+  outside the ALB profile, unknown canary regression mode, canary weight above the 50% ceiling).
+- **Fail sensitivity:** 5 negative fixtures copy the chart, break one template each, and require
+  the matching contract to reject it — covering topology spread, termination grace, the ALB
+  annotation action, canary object naming, and the M2-pending divergence contract. All 5 are
+  rejected, so no contract passes vacuously.
+- **M2-pending contract:** `ha-canary-topology-divergence-pending-m2` pins the current, unintended
+  divergence in place — on the HA profile `api` and `web` carry `topologySpreadConstraints` and
+  `api-canary`/`web-canary` do not. M1 changes no chart behaviour, so the contract records the
+  divergence and fails loudly when M2 resolves it.
+- **Verification:** `python3 scripts/test_helm_render.py` → 16 contracts + 5 fixtures pass;
+  `python3 -m py_compile` clean; `scripts/test-p14-resource-right-sizing.sh` passes;
+  `scripts/check-github-actions.sh` → 18 immutable action references; `pr-validation.yml` parses.
+  `make` is unavailable in this shell, so the `helm-test` target body was executed directly.
+- **Scope held:** no chart template, values file, deployment workflow behaviour, or application
+  code changed. M2–M5 remain inactive.
+- **Infrastructure boundary:** no AWS or Kubernetes endpoint was contacted. AWS: none.
+- **Next action:** owner review of the branch, then push/PR. Two assertions that grep bash and
+  Terraform *source text* (`pr-validation.yml` lines for `p13-canary-rollout.sh` and the OIDC
+  module) were deliberately left untouched — they are not render contracts and belong to a later
+  maintenance item.
+
+### 2026-09-03T13:59:03-06:00 — post-P14 maintenance plan approved; M1 activated — Codex
+
+- **Owner authorization:** approved the bounded M1–M5 post-P14 maintenance plan and explicitly
+  activated only M1: extract Helm render validation into a locally runnable module. M2–M5 remain
+  inactive, and this does not activate P15.
+- **Starting state:** clean `origin/main` at `edac0e9`; isolated branch
+  `maintenance/m1-helm-render-validation` created from that exact commit.
+- **Scope:** local CI/test refactoring only. No chart behavior, deployment workflow behavior, AWS
+  resource, or Kubernetes resource is authorized to change in M1.
+- **Infrastructure boundary:** no AWS or Kubernetes endpoint was contacted. AWS: none.
+- **Next action:** extract the existing workflow assertions, add a local Make target, preserve
+  current checks, and prove the module rejects deliberate chart regressions.
 
 ### 2026-09-02T19:30:49-06:00 — post-P14 hygiene PR merged — Codex
 

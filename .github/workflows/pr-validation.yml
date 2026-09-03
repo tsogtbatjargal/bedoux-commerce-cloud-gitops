@@ -100,117 +100,12 @@ jobs:
       - name: Lint and render all Helm profiles
         run: |
           set -euo pipefail
-          helm lint charts/bedoux
-          bash -n scripts/test-p14-resource-right-sizing.sh
-          scripts/test-p14-resource-right-sizing.sh
-          base_rendered="$(helm template bedoux charts/bedoux)"
-          test "$(grep -c '^      terminationGracePeriodSeconds: 30$' <<< "$base_rendered")" -eq 2
-          test "$(grep -c '^          lifecycle:$' <<< "$base_rendered")" -eq 0
-          aws_rendered="$(helm template bedoux charts/bedoux -f charts/bedoux/values-aws.yaml)"
-          grep -Fq '\"serviceName\":\"web\",\"servicePort\":8080,\"weight\":100' <<< "$aws_rendered"
-          grep -Fq 'name: use-annotation' <<< "$aws_rendered"
-          if grep -Fq 'serviceName\":\"web-canary' <<< "$aws_rendered"; then
-            echo 'stable AWS render unexpectedly retained a canary target' >&2
-            exit 1
-          fi
-          p13_aws_rendered="$(helm template bedoux charts/bedoux \
-            -f charts/bedoux/values-aws.yaml \
-            --set ingress.targetGroupDeregistrationDelaySeconds=30)"
-          grep -Fq 'alb.ingress.kubernetes.io/target-group-attributes: "deregistration_delay.timeout_seconds=30"' <<< "$p13_aws_rendered"
+          make helm-test
           grep -Fq 'helm_base+=(--set ingress.targetGroupDeregistrationDelaySeconds=30)' scripts/p13-canary-rollout.sh
           grep -Fq 'elasticloadbalancing:DescribeTargetGroupAttributes' infra/terraform/modules/github-actions-oidc/main.tf
-          aws_tls_rendered="$(helm template bedoux charts/bedoux \
-            -f charts/bedoux/values-aws.yaml \
-            -f charts/bedoux/values-aws-tls.yaml)"
-          grep -Fq "alb.ingress.kubernetes.io/listen-ports: '[{\"HTTP\":80},{\"HTTPS\":443}]'" <<< "$aws_tls_rendered"
-          grep -Fq 'alb.ingress.kubernetes.io/ssl-redirect: "443"' <<< "$aws_tls_rendered"
-          test "$(grep -c '^    - host: ".*bedoux.ca"$' <<< "$aws_tls_rendered")" -eq 2
-          test "$(grep -c '^        - ".*bedoux.ca"$' <<< "$aws_tls_rendered")" -eq 2
-          if grep -q 'alb.ingress.kubernetes.io/certificate-arn' <<< "$aws_tls_rendered"; then
-            echo 'P12 TLS render must use ACM discovery, not an account-bearing certificate ARN' >&2
-            exit 1
-          fi
           bash -n scripts/p12-tls-proof.sh
           scripts/p12-tls-proof.sh --help >/dev/null
           scripts/p12-tls-proof.sh --dry-run >/dev/null
-          if helm template bedoux charts/bedoux --set ingress.tls.enabled=true >/dev/null 2>&1; then
-            echo 'TLS must fail closed outside the ALB profile and without discovery hosts' >&2
-            exit 1
-          fi
-          helm template bedoux charts/bedoux -f charts/bedoux/values-kind-ha.yaml >/dev/null
-          helm template bedoux charts/bedoux -f charts/bedoux/values-aws.yaml -f charts/bedoux/values-aws-ha.yaml >/dev/null
-          helm template bedoux charts/bedoux -f charts/bedoux/values-aws.yaml -f charts/bedoux/values-aws-rds.yaml >/dev/null
-          kind_ha_rendered="$(helm template bedoux charts/bedoux -f charts/bedoux/values-kind-ha.yaml)"
-          test "$(grep -c '^kind: PodDisruptionBudget$' <<< "$kind_ha_rendered")" -eq 2
-          test "$(grep -c '^      topologySpreadConstraints:$' <<< "$kind_ha_rendered")" -eq 2
-          aws_ha_rendered="$(helm template bedoux charts/bedoux -f charts/bedoux/values-aws.yaml -f charts/bedoux/values-aws-ha.yaml)"
-          test "$(grep -c '^kind: PodDisruptionBudget$' <<< "$aws_ha_rendered")" -eq 2
-          test "$(grep -c '^      topologySpreadConstraints:$' <<< "$aws_ha_rendered")" -eq 2
-          test "$(grep -c '^          whenUnsatisfiable: ScheduleAnyway$' <<< "$aws_ha_rendered")" -eq 2
-          test "$(grep -c '^      terminationGracePeriodSeconds: 60$' <<< "$aws_ha_rendered")" -eq 2
-          test "$(grep -c '^          lifecycle:$' <<< "$aws_ha_rendered")" -eq 2
-          test "$(grep -c '^                  - \"sleep 45\"$' <<< "$aws_ha_rendered")" -eq 2
-          grep -q 'alb.ingress.kubernetes.io/target-group-attributes: "deregistration_delay.timeout_seconds=30"' <<< "$aws_ha_rendered"
-          digest="sha256:$(printf 'a%.0s' {1..64})"
-          rendered="$(helm template bedoux charts/bedoux \
-            --set-string "api.image.digest=$digest" \
-            --set-string "web.image.digest=$digest")"
-          grep -q "localhost/bedoux-api@$digest" <<< "$rendered"
-          grep -q "localhost/bedoux-web@$digest" <<< "$rendered"
-          if grep -q 'localhost/bedoux-api:p3\|localhost/bedoux-web:p3' <<< "$rendered"; then
-            echo 'digest-pinned render unexpectedly retained a mutable application tag' >&2
-            exit 1
-          fi
-          if grep -q '^  name: api-canary$\|^  name: web-canary$' <<< "$base_rendered"; then
-            echo 'canary resources must remain disabled in the base chart' >&2
-            exit 1
-          fi
-          candidate_digest="sha256:$(printf 'b%.0s' {1..64})"
-          canary_rendered="$(helm template bedoux charts/bedoux \
-            -f charts/bedoux/values-aws.yaml \
-            --set canary.enabled=true \
-            --set canary.weight=10 \
-            --set-string "api.image.digest=$digest" \
-            --set-string "web.image.digest=$digest" \
-            --set-string "canary.api.image.digest=$candidate_digest" \
-            --set-string "canary.web.image.digest=$candidate_digest")"
-          test "$(grep -c '^  name: api-canary$' <<< "$canary_rendered")" -eq 2
-          test "$(grep -c '^  name: web-canary$' <<< "$canary_rendered")" -eq 2
-          grep -Fq 'API_UPSTREAM: api-canary:8000' <<< "$canary_rendered"
-          grep -Fq '\"serviceName\":\"web\",\"servicePort\":8080,\"weight\":90' <<< "$canary_rendered"
-          grep -Fq '\"serviceName\":\"web-canary\",\"servicePort\":8080,\"weight\":10' <<< "$canary_rendered"
-          grep -Fq "localhost/bedoux-api@$candidate_digest" <<< "$canary_rendered"
-          grep -Fq "localhost/bedoux-web@$candidate_digest" <<< "$canary_rendered"
-          regression_rendered="$(helm template bedoux charts/bedoux \
-            -f charts/bedoux/values-aws.yaml \
-            --set canary.enabled=true \
-            --set canary.weight=10 \
-            --set canary.regressionMode=http-error)"
-          grep -Fq 'API_UPSTREAM: api-canary:8000/__p13-regression' <<< "$regression_rendered"
-          if helm template bedoux charts/bedoux --set canary.enabled=true \
-            --set canary.regressionMode=unknown >/dev/null 2>&1; then
-            echo 'unknown canary regression modes must fail closed' >&2
-            exit 1
-          fi
-          if helm template bedoux charts/bedoux --set canary.enabled=true \
-            --set canary.weight=51 >/dev/null 2>&1; then
-            echo 'canary weight above the bounded 50% ceiling must fail closed' >&2
-            exit 1
-          fi
-          if helm template bedoux charts/bedoux --set migration.enabled=false | \
-            grep -q '^kind: Job$'; then
-            echo 'migration.enabled=false unexpectedly rendered a hook Job' >&2
-            exit 1
-          fi
-          cleanup_rendered="$(helm template bedoux charts/bedoux \
-            -f charts/bedoux/values-aws.yaml \
-            --set canary.enabled=false \
-            --set migration.enabled=false)"
-          grep -Fq '\"serviceName\":\"web\",\"servicePort\":8080,\"weight\":100' <<< "$cleanup_rendered"
-          if grep -Eq '^kind: Job$|web-canary|api-canary' <<< "$cleanup_rendered"; then
-            echo 'cleanup render retained a migration or canary object' >&2
-            exit 1
-          fi
           bash -n scripts/p13-canary-gate.sh
           bash -n scripts/p13-canary-rollout.sh
           bash -n scripts/p13-alb-reconciliation-gate.sh
