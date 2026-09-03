@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | COMPLETE |
 | Active phase | None — P0–P14 are complete and gate-approved. |
 | Active task | No task active — the owner approved the P14 gate and closed the P10–P14 optimization track without activating an unplanned phase. |
-| Last verified | 2026-09-02T18:15:59-06:00 — final PR #66 merge is on `main`; post-P14 documentation and Git hygiene removed stale current-state guidance and obsolete merged branches/worktrees without activating another phase. |
+| Last verified | 2026-09-02T19:30:49-06:00 — PR #67 merged the post-P14 documentation cleanup as `6332959`; exact-head ancestry, green CI, final `main`, and the absence of any newly activated phase were verified. |
 | AWS resources currently live | No temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
-| Next operator action | Review the local post-P14 hygiene commit, then separately authorize publication if accepted. Do not start more implementation unless the owner first approves a new scoped plan and explicitly activates its first checklist item. |
+| Next operator action | Safe stopping point. Optionally publish this final post-merge checkpoint and remove its merged branch/worktree; do not start implementation unless the owner first approves a new scoped plan and explicitly activates its first checklist item. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -700,6 +700,22 @@ without activating an unplanned phase.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-09-02T19:30:49-06:00 — post-P14 hygiene PR merged — Codex
+
+- **Owner authorization:** owner approved marking PR #67 ready and merging exact head
+  `324517d70b9f5cbabb6bc3fa9f5b0cf1078ef7c6`; no branch deletion or later-phase activation was
+  inferred from that approval.
+- **Merge evidence:** PR #67 is `MERGED` as `6332959062fa7bf9bd5ce7d0ed54cf339ae4d904`.
+  Its parents are prior `main` `9a2fe59` and the exact approved head `324517d`; refreshed
+  `origin/main` points at the merge. Exact-head run `33699830437` passed all four jobs.
+- **State:** the concise entry/handoff docs, corrected architecture/profile descriptions, resolved
+  planning decisions, and completed IAM-review status are now on `main`. Repository execution
+  remains `COMPLETE`; no phase or task is active.
+- **Infrastructure boundary:** no AWS or Kubernetes endpoint was contacted and no cloud resource
+  changed. AWS: none.
+- **Next action:** safe stop. Publishing this one-commit post-merge checkpoint and deleting the
+  final merged hygiene branch/worktree require separate owner direction.
 
 ### 2026-09-02T18:15:59-06:00 — post-P14 repository hygiene prepared — Codex
 
