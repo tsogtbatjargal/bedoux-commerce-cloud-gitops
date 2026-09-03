@@ -13,105 +13,73 @@ Continue bedoux-commerce-cloud from
 Start with START-HERE.md, AGENTS.md, and docs/PROGRESS.md. The progress file is authoritative.
 Use the active worktree/branch recorded by Git and preserve unrelated changes.
 
-Current state as of 2026-08-30T17:34:27-06:00:
-- P0-P12 are complete and gate-approved. P13 is active. P13.1 and T-1301 are complete. The owner
-  explicitly activated P13.2 on 2026-08-30; T-1302 is the single IN PROGRESS task.
-- PR #57 exact head `c58ca0bc24b1fcec1f203f405ef04a0179dae6da` passed all four jobs in run
-  `33327244984` and merged to `main` as `c815ecac09e05d44404f477a497e3361457e0833`.
-  The worktree is on focused branch `p13-2-blocked-canary` from that exact `origin/main` SHA.
-  Never push `main` directly.
+Current state as of 2026-09-02T17:31:18-06:00:
+- P0–P14 are complete and gate-approved. The owner closed the P10–P14 optimization track and
+  explicitly instructed that no unplanned phase be activated.
+- P14.1/T-1401 is complete locally. Real P11 Metrics Server samples support increasing only the
+  API CPU limit from 250m to 500m. Requests and values without retained measurements remain
+  unchanged; the calculation and rollback are in `docs/resource-right-sizing.md`. The corrected
+  deployment-scoped test checks stable/canary inheritance and rejects a deliberately divergent
+  canary fixture.
+- Focused PR #61 targeted `main` at exact head `3f547a1`; all four jobs passed in run
+  `33559670780`, and it merged as `fd4cabb`. Its publication branch was deleted after merge.
+- P14.2/T-1402 is complete at merged commit `bdc5b1e` through PR #62 (`758a087`). The owner-approved
+  Terraform plan applied the wildcard `*` lifecycle rule to both persistent ECR repositories. A
+  real bare commit-SHA push was retained among the newest ten in both lifecycle previews; twelve
+  older tagged images per repository were marked `EXPIRE`. The temporary verification tags and all
+  session artifacts were removed. P14.3 is complete locally at focused commit `0edafc9` from
+  merged P14.2: same-shape `t3.medium`/`t3a.medium` Spot pools preserve the one-node and two-node
+  HA ceilings. The review records managed-node Capacity Rebalancing, ordinary-profile
+  30-second/no-preStop shutdown behavior, and ADR 0019's AWS-HA exception. All five Terraform
+  tests pass. Exact head `0edafc9` passed all four jobs in run `33584953985` and merged through
+  PR #63 as `aed6f5d`.
+- P14.4/T-1403 is complete at focused commit `511bf24`, based on exact prior merged `main`
+  `aed6f5d`. `docs/p10-p13-cost-report.md` records USD 4.939738 of conservative P10-P13-window
+  usage, final August whole-account usage of USD 8.373571 (41.9% of the USD 20 cap), September
+  through day one at USD 0.501845 estimated, dominant services, credits, and daily-attribution
+  limitations. Its CI-wired test sums the tables, enforces the cap, and rejects an inflated
+  fixture. All four jobs passed in run `33652892894`; PR #64 merged the exact head as `a8e9276`,
+  and checkpoint reconciliation `fab61a6` contains that merge.
+- P14.5/T-1404 is complete locally at focused commit `e165332`, based on merged `main` `a8e9276`.
+  The walkthrough extends the P9 story with P10–P14 evidence, measures 1,289 spoken words, and fits
+  13:53 at 100 wpm including overhead. A seventh optimization-track pair and refreshed
+  system-context/request-path/CI-CD pairs are visually clean; semantic and `docs-check` gates pass.
+  Independent review accepted the exact commit after reproducing timing arithmetic, fail-sensitive
+  checks, evidence traceability, diagram renders, CI wiring, and leakage checks. Exact commit
+  `e165332` passed all four jobs in exact-head run `33681885076` and merged through owner-approved
+  PR #65 as `80cd24c`. Checkpoint reconciliation `4286baa` contains the verified merge.
+- P13.1/T-1301 and P13.2/T-1302 passed their live AWS gates. The successful blocked-canary run
+  proved real ALB 90/10 staging, public and direct injected-error correlation, promotion blocked,
+  reconciled 100/0 rollback, stable-only cleanup, and final public health/catalog recovery.
+- P13 teardown completed in the required order. The owner-approved temporary-only destroy plan
+  removed 18 resources, the temporary cluster OIDC provider is absent, the authoritative AWS
+  inventory sweep is clean, and exact session artifacts were removed from `/tmp`.
+- No temporary or hourly billed AWS resource is live. Only the approved persistent ECR/IAM,
+  Route 53/ACM, and Terraform state-storage allowlist remains. Website aliases remain absent.
+- The owner approved the P13 gate on 2026-09-01 in standalone commit `8920173`, activating P14.
+- The active local checkpoint branch is `p14-1-resource-right-sizing`; reconciliation commit
+  `4286baa` contains current `origin/main` `80cd24c`, and the standalone P14 gate checkpoint follows
+  it. Local `main` may be stale; never push `main` directly.
 - ADR 0023 is Accepted. It keeps one Helm release and implements opt-in stable/canary API+web
-  pairs, ALB/ingress-nginx weighting, exact image checks, direct/public health gates, ALB listener
-  and target-health reconciliation, injected pod-readiness gates, reconciled 100/0 promotion,
-  bounded drain, and stable-only cleanup.
-- P13.2's local implementation was prepared after activation checkpoint `cc3f001`. The new
-  disabled-by-default `canary.regressionMode=http-error` keeps canary pods Ready while only
-  `web-canary` API requests fail. The rollout succeeds in drill mode only after the existing gate
-  blocks promotion and the ADR 0023 abort proves captured stable images plus absent canary objects.
-  A gate that accepts the regression still triggers abort/cleanup and exits non-zero.
-- The first independent review found that generic composite-gate failures could be mistaken for
-  the injected regression. Exact local fix `f6b113acdddf96de710d331a4cca3628842601d5`
-  now emits reserved status 20 only when correlated access logs prove HTTP errors above the
-  allowance after image/readiness/weight and ALB prerequisites pass. Unrelated status 1 still
-  rolls back but exits failed without `T1302_GATE`. Real-gate mocks prove HTTP-error, tooling-error,
-  and pass classifications; rollout mocks prove unrelated failure cannot produce T-1302 evidence.
-- Independent review accepted implementation `f6b113a` and checkpoint `cc2d8e3` after realistic
-  nginx-log regex verification. Follow-up `0b9bcee64d7b34b3f01fbd118c16d3b92d4f87a0`
-  folds in both review suggestions: rollout success now also requires exactly one structured
-  attribution marker, and ordinary-rollout status-20 diagnostics accurately describe a blocked
-  HTTP-error promotion outside an authorized drill. Mocks cover unattributed status 20 and the
-  corrected normal-rollout path.
-- The owner-authorized real local P13.2 drill passed on explicit retained context `kind-bedoux`.
-  Helm revision 7 staged both Ready canaries at 10%; 20/20 injected API requests returned
-  access-log-correlated HTTP 404s; structured status 20 blocked promotion; revisions 8/9 restored
-  the exact captured stable images, held the five-second drain, and removed all canary objects.
-  `ROLLBACK_GATE` and `T1302_GATE` printed, no `PROMOTE:` occurred, and independent stable
-  health/catalog plus HPA/NetworkPolicy checks passed.
-- Local cleanup removed the candidate tags, failed-import aliases, archives, and evidence log.
-  The retained node is stopped (`Exited (137)`) with its PVC preserved, and the owner restored
-  host inotify from the temporary 1024 to its original 128. AWS: none. A retained-node restart
-  snapshotter-service finding and bounded recovery are recorded in `docs/local-tooling.md`.
-- The owner authorized feature-branch publication and a draft PR only. Draft PR #58 is open,
-  mergeable, and unmerged against exact base `c815ecac09e05d44404f477a497e3361457e0833`.
-  Independent technical review accepted exact head
-  `f69e680a47f41068efdc135b9c729a8b7f0a0d84`; all four required jobs passed on that exact head in
-  run `33341568312`.
-- The local drill satisfies T-1302's generic wording, but project completion intentionally also
-  requires the AWS-specific ALB public-error path: real listener weighting and target health,
-  public-to-canary error correlation, and stable-only ALB cleanup. This stricter evidence boundary
-  and the warning against copying deliberate traffic-slice errors into a production/customer
-  session are explicit in the P13.2 runbook; ADR 0023 is unchanged.
-- `canary_regression_drill` is mutually exclusive with ordinary canary/rollback paths and requires
-  every unrelated input false. The state-machine mocks prove expected-block, unrelated-block, and
-  regression-escaped paths. Helm renders, shell/YAML syntax, full infrastructure CI commands,
-  action pins, docs checks, and whitespace checks pass. No AWS or Kubernetes endpoint was used.
-- PR #55 merged the P13.1 implementation and repaired EKS launch-template/ASG tagging path to
-  `main` as `5bbf959a689f46e20b7512b2be42c52a148b5c36`. Older-P12 baseline run `33267748556`
-  proved the signed stable deployment, public health, six-product catalog, one healthy stable
-  target, and an injected `True` ALB target-health readiness condition.
-- The first T-1301 run `33277095118` failed closed before staging because ALB normalized its sole
-  stable forward target to relative weight 1. No canary object was created and the baseline stayed
-  healthy. PR #56 exact head `5b48f81b4f0e7e177f8c066324302b51e50f8faa` preserved exact
-  staged/promotion matching while accepting only one positive-weight stable target during cleanup.
-  Exact-head run `33278575055` passed all four jobs; the owner approved that exact head and it
-  merged to `main` as `68847978e25c0cce7ef0db757a6996004813ce41`.
-- Separately authorized T-1301 run `33278906766` used `seed_catalog=false`,
-  `canary_rollout=true`, and every unrelated input false. It passed exact 90/10 staging with two
-  healthy target groups and applied 30-second deregistration, `CANARY_GATE` 20/20 with zero
-  errors, and `PUBLIC_CANARY_GATE` 100/100 with zero errors plus 13 correlated `web-canary` hits.
-  Promotion reconciled exact 100/0 and healthy ALB pod-readiness before the 45-second drain.
-  Cleanup retained one healthy stable target group and removed every canary Deployment, Service,
-  Ingress, and TargetGroupBinding. Final public health and the six-product catalog passed.
-- Final stable images matched the exact candidate digests recorded in docs/PROGRESS.md. Helm
-  revision 6 had only stable API/web/PostgreSQL workloads before teardown.
-- Ordered same-session teardown deleted the Ingress first and waited for zero ALBs/target groups,
-  then removed the release, namespace/PVC, AWS Load Balancer Controller 3.4.3, and `gp3`.
-  Persistent Terraform state was guarded and detached. The owner approved exact temporary-only
-  destroy plan SHA-256 `7f5174b04b66c54eaefdc2617f65599f1ede00b09c8d70007a3363cd919727c4`;
-  its unchanged apply destroyed 18 resources, added 0, changed 0, and deleted the captured
-  temporary cluster OIDC provider.
-- The repeated 21:13 Edmonton authoritative inventory returned zero EKS clusters, ALBs, target
-  groups, NAT Gateways, EIPs, non-terminated instances, EBS volumes/snapshots, RDS resources,
-  active stacks, project ASGs, launch templates, VPCs, and ENIs. Exact lookup proved the temporary
-  cluster OIDC provider absent. The tagging index's stale terminated-instance record was
-  authoritatively reconciled as terminated, with its root volume absent; it is indexing lag, not
-  billable residue.
-- Only the approved persistent allowlist remains. No website alias or temporary AWS resource is
-  live. Budget actual is USD 6.002 and forecast USD 6.239 of USD 20. All exact T-1301 files are
-  removed from `/tmp`. Persistent resources are detached from session Terraform state.
+  pairs, weighted routing, exact image and target-health gates, ALB pod-readiness, reconciled
+  promotion/abort, bounded drain, and stable-only cleanup.
+- The final P13.2 attempt exposed one durable operational lesson: an AZ-bound PostgreSQL EBS
+  volume can block recovery when the only Spot worker is replaced into another AZ. The successful
+  bounded recovery temporarily added a worker in the volume's AZ without deleting the PVC, then
+  teardown removed both workers and the volume.
+- Long Terraform mutations must retain a resumable process/session handle and private log, poll
+  to a real exit status, and never infer completion from a disconnected output stream. The
+  hardened destroy helper accepts Terraform's null no-op JSON and protects plan/OIDC files as
+  mode 0600.
 - The retained local Calico-backed kind node is stopped with its PVC preserved. The host
-  `fs.inotify.max_user_instances` value is restored to 128. The default kubeconfig points to a
-  deleted EKS endpoint; always use an explicit context.
+  `fs.inotify.max_user_instances` value is restored to 128. The default kubeconfig can point to a
+  deleted EKS endpoint, so always select an explicit context.
 
 Next action:
-1. Set an independent Edmonton alarm with at least 75 minutes reserved for teardown, then obtain
-   explicit authorization for an AWS session only through read-only preflight, persistent-state
-   reconciliation, and exact saved-plan generation before any apply.
-2. Keep PR #58 draft and unmerged while the older `main` baseline is deployed later.
-3. Keep T-1302 incomplete until the separately approved AWS drill also proves the behavior. No
-   current authorization covers publication, AWS, dispatch, or merge.
+1. Stop safely; there is no active phase or checklist item.
+2. Before future implementation, the owner must approve a new scope and explicitly activate its
+   first checklist item. Do not infer a P15 or other continuation.
 
 Hard boundaries: USD 20/month; ca-central-1; bedoux-admin only; no NAT Gateway; same-day teardown;
-never record account IDs, secrets, personal email addresses, or registrar details. No temporary
-AWS resource is currently live.
+never record account IDs, secrets, personal email addresses, or registrar details.
 ```
