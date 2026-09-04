@@ -49,9 +49,10 @@ identical to an oversight, which is exactly how it was produced.
 
 Stable and canary rendering is now provably equivalent except for the parameterised differences;
 `canary.yaml` drops from 197 lines to 87 and the ~70 duplicated lines are gone. Verification was a
-golden-render comparison across all 13 profiles: nine are byte-identical to the pre-refactor
-output, the canary profiles gain only YAML comments that the stable side already carried, and the
-HA-canary profile gains the intended spread blocks — no other semantic change.
+golden-render comparison across all 13 profiles: ten are byte-identical to the pre-refactor
+output, the two non-HA canary profiles gain only YAML comments that the stable side already
+carried, and the HA-canary profile gains the intended spread blocks — no other semantic change.
+Only the three canary-enabled profiles differ at all.
 
 `scripts/test_helm_render.py`'s M1 placeholder contract
 `ha-canary-topology-divergence-pending-m2`, which pinned the divergence in place, is replaced by
@@ -61,3 +62,16 @@ Runtime behaviour on the HA profile is unchanged at `canary.replicas: 1`. The ca
 PodDisruptionBudget, which remains correct for a single short-lived pod that the rollout script
 removes itself; that is not revisited here. Rollback is to restore the two independent templates,
 which also restores the divergence this ADR closes.
+
+## Correction (2026-09-03, post-merge review of PR #70)
+
+This record originally said **nine** profiles were byte-identical. The correct figure is **ten**:
+`aws-cleanup` sets `canary.enabled=false` and is unchanged, so only the three canary-enabled
+profiles differ out of thirteen. Found by the reviewer of PR #70, who re-rendered every profile
+independently rather than trusting the reported figure, and confirmed by re-deriving the counts
+against `521f3a3`.
+
+The decision this ADR records is unchanged, and the load-bearing evidence — **14 non-comment
+changed lines, all of them the two intended seven-line `topologySpreadConstraints` blocks** — was
+exact and remains so. The same miscount also reached `docs/PROGRESS.md` (corrected) and the commit
+message of `d9fde03`, which is immutable and still reads "nine".

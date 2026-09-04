@@ -165,7 +165,7 @@ after, and diff:
 
 | Result | Profiles |
 |---|---|
-| Byte-identical | 9 |
+| Byte-identical | 10 |
 | Comments only | `aws-canary`, `aws-canary-regression` |
 | Intended change | `aws-ha-canary` — spread on both canary Deployments |
 
@@ -208,12 +208,43 @@ reviewing prose about what a patch supposedly does.
 
 ---
 
+---
+
+## 9. A number retyped from output you have already seen is not verified
+
+**What happened.** M2's golden-render comparison printed a per-profile result list. Writing it up,
+the count of byte-identical profiles was reported as **nine**. It was **ten** — `aws-cleanup` sets
+`canary.enabled=false`, is unchanged, and sits in the output between the two changed canary
+entries, which is exactly where an eye skips.
+
+The wrong figure reached four places before anyone noticed: the commit message of `d9fde03`, ADR
+0024, the `docs/PROGRESS.md` session log, and the golden-render table in this document. It was
+caught by the reviewer of PR #70, who re-rendered all 13 profiles independently instead of
+trusting the reported number.
+
+**Why.** The script counted correctly and printed the evidence. The error was introduced by a
+human summarising machine output into prose — a step with no check on it. Every *load-bearing*
+claim was exact (14 non-comment changed lines, all of them the two intended blocks); the incorrect
+number was the incidental one, which is precisely why it survived several readings.
+
+**Rule.** *If a number appears in a commit message, an ADR, or a progress log, have the tooling
+emit it.* Print `len(identical)`; do not count a list by eye and retype the total. Where that is
+impractical, treat summary figures as unverified until someone re-derives them — which is what the
+reviewer did.
+
+**Corollary — some records are immutable.** ADR 0024 and `docs/PROGRESS.md` were corrected with an
+explicit note saying what they previously said and why it changed, following the P14.1 precedent
+of correcting the record visibly rather than quietly. The commit message of `d9fde03` cannot be
+changed and still reads "nine"; the ADR's correction section says so, so the discrepancy is
+explained rather than left to confuse the next reader. Prefer putting derived figures where they
+can be corrected.
+
 ## What these have in common
 
 Every failure above is the same shape: **something was believed to be verified when the
 verification could not have detected the problem.** The broken `sed`, the vacuous fixtures, the
-symmetric mutation, the suppressed stderr, the unread green check, the half-applied patch — none
-were logic errors in the system under test. They were gaps between what a check appeared to prove
+symmetric mutation, the suppressed stderr, the unread green check, the half-applied patch, the
+hand-counted total — none were logic errors in the system under test. They were gaps between what a check appeared to prove
 and what it actually proved.
 
 The practices that close that gap, in order of leverage:
@@ -223,6 +254,7 @@ The practices that close that gap, in order of leverage:
 3. Keep "wrong" and "unevaluable" on separate exit codes.
 4. Compare golden output when claiming behaviour is unchanged.
 5. Read the log once after changing how tests are invoked.
+6. Have the tooling emit any number you are going to write down.
 
 ## References
 
@@ -235,3 +267,4 @@ The practices that close that gap, in order of leverage:
 | §5 error channels | `scripts/p13-alb-reconciliation-gate.sh`; maintenance item M4 |
 | §6 golden render | M2 session log entry, `docs/PROGRESS.md` |
 | §7 reading CI logs | PR #69 and #70 "Terraform and Helm validation" job logs |
+| §9 hand-counted total | PR #70 post-merge review; correction note in ADR 0024 |
