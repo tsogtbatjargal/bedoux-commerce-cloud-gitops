@@ -4,7 +4,7 @@ Concrete failures this repository actually hit, why each one happened, and the r
 out of it. Every entry is traceable to a commit, a PR, or a CI log — nothing here is generic
 advice.
 
-Written during the post-P14 maintenance track (M1–M2). Ordered by how much trouble each one
+Written during the post-P14 maintenance track (M1, M2, M4). Ordered by how much trouble each one
 caused.
 
 ---
@@ -150,7 +150,10 @@ chart is wrong", exit 1) and `HarnessError` ("I could not evaluate this", exit 2
 keep immediately: during M2, three fixtures still pointed at template text the refactor had moved,
 and the run exited **2 with a named stale-anchor message** instead of reporting a chart failure.
 
-Generalising this to the ALB gates is maintenance item M4.
+Generalised to the ALB gates in M4: `scripts/lib/gate_checks.py` gives all 18 P12/P13 inline
+assertions the same split (`NotReady` / `HarnessError`), and the reconciliation gate's polling
+loop now aborts within one poll on a harness error instead of waiting out the deadline — see §10
+for the bug that nearly shipped in that generalisation.
 
 ---
 
@@ -239,6 +242,60 @@ changed and still reads "nine"; the ADR's correction section says so, so the dis
 explained rather than left to confuse the next reader. Prefer putting derived figures where they
 can be corrected.
 
+## 10. `!` before a command throws away the exit code you were about to check
+
+**What happened.** M4 replaced 18 inline `python -c` assertions with calls into
+`scripts/lib/gate_checks.py`, giving each one a three-way result: 0 (true), 1 (`NotReady` —
+expected while polling), or 2 (`HarnessError` — malformed input, abort immediately instead of
+retrying). The first draft wired every call site the obvious way:
+
+```bash
+if ! gate_check deregistration-delay --expected-seconds 30 <<<"$stable_attributes_json"; then
+  status=$?
+  ((status == 2)) && return 2
+  return 1
+fi
+```
+
+`status` was **always 0**, on every call, regardless of whether the check had returned 1 or 2.
+`!` negates a command's exit status to a boolean (0 or 1) *before* that becomes `$?` — by the
+time `status=$?` runs, the original 1-vs-2 distinction this whole rewrite existed to preserve was
+already gone. A second, independent instance of the identical trap was one level up, in the
+polling loop itself:
+
+```bash
+if verify_reconciliation_once; then
+  ...
+fi
+gate_status=$?
+```
+
+No `!` here, but the same erasure: per POSIX, an `if` with no `else` whose condition is false has
+exit status **0** — the `if` statement's own vacuous-success status, not the failed condition's.
+`gate_status=$?` read that 0, not `verify_reconciliation_once`'s real return code.
+
+Both were caught immediately by the new negative-fixture test: a mock that returns a genuinely
+malformed AWS response should make the gate exit 2 within one poll. Instead it exited 1 after
+looping out the full deadline (proven with a wall-clock assertion, not just the wrong exit code).
+
+**Why.** Two different bash idioms — negation and a bare `if`/`fi` — both discard exit-status
+detail the moment they're used for branching, in ways that are easy to miss because the *shape*
+of the code looks like it's checking the right thing. The file already contained the correct
+idiom throughout (`cmd || return 1`, used to exempt a command from `set -e` while preserving its
+exit code) — the bug was reaching for a different, wrong-shaped idiom instead of the one already
+proven in the same file.
+
+**Rule.** *To branch on an exit code, use `cmd || var=$?`, never `if ! cmd; then var=$?` and
+never a bare `if cmd; then ... fi` with no `else`.* `||` is the only one of the three that both
+exempts the command from `set -e` and leaves `$?` holding the command's real exit status for the
+very next statement to read.
+
+**Corollary.** This is lesson §2 (a test that has never failed is not known to work) applied to
+new code in the same session that wrote it, not to a defect discovered later. The fixture test
+existed *before* the bug shipped, because M4 required one for the exact behaviour it broke —
+which is the strongest argument in this whole document for writing the fail-sensitivity fixture
+before trusting the code it tests.
+
 ## What these have in common
 
 Every failure above is the same shape: **something was believed to be verified when the
@@ -255,6 +312,7 @@ The practices that close that gap, in order of leverage:
 4. Compare golden output when claiming behaviour is unchanged.
 5. Read the log once after changing how tests are invoked.
 6. Have the tooling emit any number you are going to write down.
+7. Branch on exit codes with `cmd || var=$?`; never `!`, never a bare `if` with no `else`.
 
 ## References
 
@@ -268,3 +326,4 @@ The practices that close that gap, in order of leverage:
 | §6 golden render | M2 session log entry, `docs/PROGRESS.md` |
 | §7 reading CI logs | PR #69 and #70 "Terraform and Helm validation" job logs |
 | §9 hand-counted total | PR #70 post-merge review; correction note in ADR 0024 |
+| §10 exit code erased by `!` | M4 in PR #72; `scripts/lib/gate_checks.py`, `scripts/test-p13-alb-reconciliation-gate.sh` |
