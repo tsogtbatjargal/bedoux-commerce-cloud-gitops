@@ -24,57 +24,7 @@ spec:
       labels:
         app: web
     spec:
-      terminationGracePeriodSeconds: {{ .Values.web.termination.gracePeriodSeconds }}
-      {{- if .Values.web.topologySpread.enabled }}
-      topologySpreadConstraints:
-        - maxSkew: {{ .Values.web.topologySpread.maxSkew }}
-          {{- if eq .Values.web.topologySpread.whenUnsatisfiable "DoNotSchedule" }}
-          minDomains: {{ .Values.web.topologySpread.minDomains }}
-          {{- end }}
-          topologyKey: {{ .Values.web.topologySpread.topologyKey | quote }}
-          whenUnsatisfiable: {{ .Values.web.topologySpread.whenUnsatisfiable }}
-          labelSelector:
-            matchLabels:
-              app: web
-      {{- end }}
-      containers:
-        - name: web
-          image: {{ include "bedoux.imageReference" .Values.web.image | quote }}
-          imagePullPolicy: {{ .Values.web.image.pullPolicy }}
-          {{- if gt (int .Values.web.termination.preStopSleepSeconds) 0 }}
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /bin/sh
-                  - -c
-                  - {{ printf "sleep %d" (int .Values.web.termination.preStopSleepSeconds) | quote }}
-          {{- end }}
-          {{- with .Values.web.command }}
-          command:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          ports:
-            - containerPort: 8080
-          envFrom:
-            - configMapRef:
-                name: web-config
-          resources:
-            {{- toYaml .Values.web.resources | nindent 12 }}
-          readinessProbe:
-            httpGet:
-              path: /
-              port: 8080
-            initialDelaySeconds: 3
-            periodSeconds: 5
-            timeoutSeconds: 3
-          livenessProbe:
-            httpGet:
-              path: /
-              port: 8080
-            initialDelaySeconds: 10
-            periodSeconds: 10
-            timeoutSeconds: 3
+      {{- include "bedoux.webPodSpec" (dict "ctx" . "app" "web" "image" .Values.web.image "configMap" "web-config" "command" .Values.web.command) | nindent 6 }}
 ---
 apiVersion: v1
 kind: Service

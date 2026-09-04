@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""M1: the Helm chart's render contracts, as one locally runnable module.
+"""The Helm chart's render contracts, as one locally runnable module (M1, extended by M2).
 
 Every assertion here previously lived as an anonymous ``grep``/``test`` line inside
 ``.github/workflows/pr-validation.yml``. That shell could not be run before pushing, and a
@@ -12,13 +12,15 @@ This module keeps the same contracts and changes only how they are expressed:
 * every assertion is **named**, so a failure says which profile and which contract broke;
 * a **fail-sensitivity** pass deliberately breaks the chart and requires the matching
   contract to reject it, so a vacuous assertion cannot pass unnoticed;
-* one contract records a **known divergence pending M2** rather than hiding it.
+* stable and canary render from one shared pod-spec module (M2, ADR 0024), and a contract
+  proves they stay equivalent apart from their parameters.
 
 Standard library only, no AWS or Kubernetes access. Run it with ``make helm-test``.
 """
 
 from __future__ import annotations
 
+import difflib
 import re
 import shutil
 import subprocess
@@ -93,7 +95,7 @@ PROFILES: dict[str, list[str]] = {
         "--set", "canary.enabled=false",
         "--set", "migration.enabled=false",
     ],
-    # M2-pending: the HA profile with a canary staged. See ha_canary_topology_divergence.
+    # The HA profile with a canary staged. See ha_canary_inherits_topology_spread (ADR 0024).
     "aws-ha-canary": [
         "-f", "values-aws.yaml",
         "-f", "values-aws-ha.yaml",
@@ -216,6 +218,19 @@ class Rendered:
                 raise ContractError(
                     self.profile, contract, f"forbidden line present: {line.strip()!r}"
                 )
+
+    def pod_spec(self, deployment: str) -> str | None:
+        """The rendered pod spec of one Deployment, as text, or None if absent."""
+        for document in self.text.split("\n---\n"):
+            lines = document.splitlines()
+            if not any(line == "kind: Deployment" for line in lines):
+                continue
+            if not any(line == f"  name: {deployment}" for line in lines):
+                continue
+            for index, line in enumerate(lines):
+                if line == "    spec:":  # pod spec inside template:
+                    return "\n".join(lines[index + 1:])
+        return None
 
     def deployments_with_topology_spread(self) -> set[str]:
         """Names of Deployments whose pod spec carries topologySpreadConstraints."""
@@ -387,30 +402,61 @@ def invalid_profiles_fail_closed(r: Renderer) -> None:
         r.expect_render_failure(profile, name)
 
 
-@contract("ha-canary-topology-divergence-pending-m2")
-def ha_canary_topology_divergence_pending_m2(r: Renderer) -> None:
-    """Records a KNOWN DIVERGENCE, not a desired state.
+@contract("ha-canary-inherits-topology-spread")
+def ha_canary_inherits_topology_spread(r: Renderer) -> None:
+    """ADR 0024: the canary renders the same soft spread as its stable counterpart.
 
-    On the HA profile the stable Deployments carry topologySpreadConstraints and the canary
-    Deployments do not, because canary.yaml is a copy of api.yaml/web.yaml that omitted the
-    block. With canary.replicas=1 and no canary PodDisruptionBudget, a canary window places
-    routed traffic on a single unspread pod.
-
-    M1 does not change chart behaviour, so this contract pins the divergence in place and
-    makes it visible. **M2 owns the decision.** When M2 resolves it, this contract will fail
-    and must be rewritten to assert the chosen behaviour.
+    Replaces M1's ha-canary-topology-divergence-pending-m2, which pinned the divergence in
+    place until M2 decided. A no-op at canary.replicas=1 by design — the contract exists so
+    the gap cannot reopen silently if replicas are ever raised.
     """
     spread = r.get("aws-ha-canary").deployments_with_topology_spread()
-    name = "ha-canary-topology-divergence-pending-m2"
-    expected = {"api", "web"}
+    name = "ha-canary-inherits-topology-spread"
+    expected = {"api", "web", "api-canary", "web-canary"}
     if spread != expected:
         raise ContractError(
             "aws-ha-canary",
             name,
-            "topology spread membership changed: expected the documented M2-pending set "
-            f"{sorted(expected)} but found {sorted(spread)}. If M2 intentionally changed "
-            "this, update this contract and record the decision.",
+            f"expected topology spread on {sorted(expected)} per ADR 0024, "
+            f"found {sorted(spread)}",
         )
+
+
+@contract("stable-and-canary-pod-specs-stay-equivalent")
+def stable_and_canary_pod_specs_stay_equivalent(r: Renderer) -> None:
+    """ADR 0024: the two pod specs differ only where a parameter makes them differ.
+
+    Both sides render from one shared module, so this compares the rendered pod specs after
+    normalising the intended differences away. Anything left is drift.
+    """
+    rendered = r.get("aws-canary")
+    name = "stable-and-canary-pod-specs-stay-equivalent"
+    for stable, canary in (("api", "api-canary"), ("web", "web-canary")):
+        stable_spec = rendered.pod_spec(stable)
+        canary_spec = rendered.pod_spec(canary)
+        if stable_spec is None or canary_spec is None:
+            raise ContractError(
+                "aws-canary", name, f"could not locate pod specs for {stable}/{canary}"
+            )
+        # Normalise the parameterised differences: pod label/selector, image, ConfigMap.
+        normalised = (
+            canary_spec.replace(f"app: {canary}", f"app: {stable}")
+            .replace(f"name: {canary}-config", f"name: {stable}-config")
+            .replace(_CANDIDATE_DIGEST, _DIGEST)
+        )
+        if normalised != stable_spec:
+            diff = "\n".join(
+                line
+                for line in difflib.unified_diff(
+                    stable_spec.splitlines(), normalised.splitlines(), lineterm="", n=0
+                )
+                if line.startswith(("+", "-")) and not line.startswith(("+++", "---"))
+            )
+            raise ContractError(
+                "aws-canary",
+                name,
+                f"{stable} and {canary} pod specs diverged beyond their parameters:\n{diff}",
+            )
 
 
 # --------------------------------------------------------------------------------------
@@ -437,15 +483,15 @@ FIXTURES: list[tuple[str, str, str, str, str]] = [
     # (description, template, old, new, contract that must reject it)
     (
         "stable API loses its topology spread",
-        "api.yaml",
-        "{{- if .Values.api.topologySpread.enabled }}",
+        "_helpers.tpl",
+        "{{- if $api.topologySpread.enabled }}",
         "{{- if false }}",
         "aws-ha-has-pdbs-spread-and-drain-window",
     ),
     (
         "termination grace period drifts off 30s",
-        "api.yaml",
-        "terminationGracePeriodSeconds: {{ .Values.api.termination.gracePeriodSeconds }}",
+        "_helpers.tpl",
+        "terminationGracePeriodSeconds: {{ $api.termination.gracePeriodSeconds }}",
         "terminationGracePeriodSeconds: 31",
         "base-graceful-termination",
     ),
@@ -463,19 +509,23 @@ FIXTURES: list[tuple[str, str, str, str, str]] = [
         "name: api-shadow",
         "canary-objects-and-weights",
     ),
+    # The next two reintroduce, one side at a time, exactly the class of drift ADR 0024
+    # closed. Both must be asymmetric: mutating the shared module symmetrically changes
+    # stable and canary together, which these contracts would correctly not flag.
     (
-        "canary inherits the stable topology spread",
-        "canary.yaml",
-        "      serviceAccountName: {{ .Values.api.serviceAccount.name }}",
-        "      serviceAccountName: {{ .Values.api.serviceAccount.name }}\n"
-        "      topologySpreadConstraints:\n"
-        "        - maxSkew: 1\n"
-        '          topologyKey: "topology.kubernetes.io/zone"\n'
-        "          whenUnsatisfiable: ScheduleAnyway\n"
-        "          labelSelector:\n"
-        "            matchLabels:\n"
-        "              app: api-canary",
-        "ha-canary-topology-divergence-pending-m2",
+        "canary loses the spread ADR 0024 gave it",
+        "_helpers.tpl",
+        "{{- if $api.topologySpread.enabled }}",
+        '{{- if and $api.topologySpread.enabled (eq .app "api") }}',
+        "ha-canary-inherits-topology-spread",
+    ),
+    (
+        "canary pod spec drifts from the stable one",
+        "_helpers.tpl",
+        "      initialDelaySeconds: 3\n      periodSeconds: 5",
+        '      initialDelaySeconds: {{ if eq .app "api" }}3{{ else }}4{{ end }}\n'
+        "      periodSeconds: 5",
+        "stable-and-canary-pod-specs-stay-equivalent",
     ),
 ]
 
