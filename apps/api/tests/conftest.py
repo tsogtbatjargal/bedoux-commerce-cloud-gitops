@@ -11,6 +11,9 @@ requires_db = pytest.mark.skipif(
 
 @pytest.fixture
 def db_engine():
+    # Builds its own Engine rather than app.db.get_engine(), which is @lru_cache'd
+    # process-wide (M5) -- a test needing a different database per test, not just
+    # per process, must bypass app.db the same way this fixture already does.
     from sqlalchemy import create_engine
 
     return create_engine(DATABASE_URL)
