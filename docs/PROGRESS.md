@@ -8,13 +8,13 @@ checked here and its evidence is recorded in the session log.
 
 | Field | Value |
 |---|---|
-| State | MAINTENANCE IN PROGRESS |
-| Active phase | Post-P14 maintenance — this is not P15; P0–P14 remain complete and gate-approved. |
-| Active task | M5 implemented locally and awaiting review — lazy database-engine construction plus isolated order pricing. Owner activated M5 directly ("move on next M5"), following M3 (`ff81bfc`) merged. M1/M2/M4/docs PR #71 also merged. |
-| Last verified | 2026-09-04T18:00:00-06:00 — M5: app/db.py's engine is now built lazily via @lru_cache (proved with a mocked create_engine: importing app.db/app.models no longer calls it). app/pricing.py's price_order() extracted with 7 new credential-free unit tests. Full pytest suite (36 tests) re-run against a real ephemeral Postgres, including the exact price-tampering security test this extraction targets. |
+| State | COMPLETE |
+| Active phase | None — P0–P14 and the post-P14 M1–M5 maintenance track are both complete and gate-approved/merged. |
+| Active task | No task active. M1 (`521f3a3`), M2 (`83b2eaa`), M3 (`ff81bfc`), M4 (`38cadaf`), M5 (`4e63213`), and docs PR #71 (`950775b`) are all merged to `main`. The owner-approved M1–M5 sequence is complete; any further work starts with its own new task, not a reopening of M1–M5. |
+| Last verified | 2026-09-04T20:15:28-06:00 — PR #76 (the M5 review's one non-blocking follow-up: a comment on conftest's db_engine fixture) merged as `0215668`. `main` synced to `0215668`; full local pytest suite (29 passed, 7 skipped without a database) and the repo's Helm/gate-checks/deploy-profile test suites all re-run clean on the merged tree. |
 | AWS resources currently live | No temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
-| Next operator action | Review the M5 branch, then decide on merge. This is the last item in the approved M1–M5 sequence; after M5 the post-P14 maintenance track is complete. |
+| Next operator action | Safe stopping point. The post-P14 M1–M5 maintenance track is closed out. Any further work starts with its own new task/decision, per this file's original guidance after the P14 gate. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -710,13 +710,17 @@ without activating an unplanned phase.**
 - [x] M4 COMPLETE — typed assertion diagnostics for the P12/P13 gates. Merged as `38cadaf` via
       PR #72 with four green checks; `scripts/lib/gate_checks.py`'s 54 fixture cases confirmed
       present in the CI log.
-- [ ] M5 IN PROGRESS — isolate order pricing from import-time database/Secrets Manager setup.
-      Local, unpushed at time of writing.
+- [x] M5 COMPLETE — lazy `app.db` engine construction (prerequisite, `@lru_cache`, following the
+      `image_storage.py` precedent) plus isolated order pricing (`app/pricing.py`). Merged as
+      `4e63213` via PR #75 with four green checks; the exact price-tampering security test this
+      extraction targets passed against CI's own Postgres service container, confirmed in the CI
+      log. One non-blocking review follow-up (a comment on conftest's `db_engine` fixture) merged
+      separately as `0215668` via PR #76.
 
-The owner approved this maintenance sequence on 2026-09-03 and activated M1 only; M2, M4, and M3
-were each explicitly activated and closed out in turn ("Lets build M3", 2026-09-04), and M5 was
-explicitly activated the same day ("move on next M5"). These items do not reopen or renumber the
-completed P0–P14 plan. M5 is the last item in the approved sequence.
+The owner approved this maintenance sequence on 2026-09-03 and activated M1 only; M2, M4, M3, and
+M5 were each explicitly activated and closed out in turn ("Lets build M3" and "move on next M5",
+both 2026-09-04). These items do not reopen or renumber the completed P0–P14 plan. **The M1–M5
+sequence is now complete.**
 
 ## Blockers
 
@@ -726,6 +730,34 @@ completed P0–P14 plan. M5 is the last item in the approved sequence.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-09-04T20:15:28-06:00 — M5 merged; M1–M5 maintenance track closed out — Claude
+
+- **M5 closed:** PR #75 marked ready and merged as `4e63213`. Four green checks; the CI log was
+  read directly and confirmed the exact price-tampering security test
+  (`test_order_price_cannot_be_tampered_by_client`) passed against GitHub's own Postgres service
+  container, independent of the local podman run already recorded in the prior entry.
+- **One non-blocking review follow-up, addressed rather than deferred:** the reviewer of #75
+  flagged that `get_engine()`/`get_session_factory()` being `@lru_cache`'d process-wide means a
+  future test wanting a different database per test, not just per process, would need to bypass
+  `app.db` the way `conftest.py`'s `db_engine` fixture already does — worth a one-line comment,
+  explicitly not worth holding up #75. Added as its own small PR #76, merged as `0215668`.
+- **Checkpoint reconciled:** `docs/PROGRESS.md`'s M5 checklist item and the overall-status table
+  were still describing M5 as "awaiting review" after its own merge — the same class of drift
+  found and fixed after M3's merge (2026-09-04T16:25:04-06:00 entry). Corrected here; every field
+  re-verified against the actual merged tree rather than assumed:
+  - `git log --oneline -1 origin/main` → `0215668`
+  - full local `pytest` suite → 29 passed, 7 skipped (no `BEDOUX_DATABASE_URL` in this shell)
+  - `scripts/test_helm_render.py` → 17 contracts, 6 fixtures, all pass
+  - `scripts/test_gate_checks.py` → 54 fixture cases, all pass
+  - `scripts/test_deploy_profile.py` → 256 combinations, all match exactly
+- **Track status:** M1–M5, the owner-approved post-P14 maintenance sequence, is complete. `State`
+  returns to `COMPLETE` and `Active phase` to `None`, matching the convention this file already
+  used after the P14 gate. Any further work starts with its own new task/decision, not a
+  reopening of M1–M5, per this file's own standing guidance.
+- **Scope:** documentation only. No chart, script, workflow, or application code changed in this
+  entry.
+- **Infrastructure boundary:** no AWS or Kubernetes endpoint was contacted. AWS: none.
 
 ### 2026-09-04T18:00:00-06:00 — M3 merged; M5 implemented: lazy engine + order pricing — Claude
 
