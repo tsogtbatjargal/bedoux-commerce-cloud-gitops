@@ -3,7 +3,7 @@ customers, prices, or inventory. Safe to run against any environment; it never
 touches orders.
 """
 
-from app.db import SessionLocal
+from app.db import get_session_factory
 from app.models import Product
 
 CATALOG = [
@@ -61,7 +61,7 @@ CATALOG = [
 def seed() -> int:
     """Insert any catalog rows missing by SKU. Returns the number inserted."""
     inserted = 0
-    with SessionLocal() as db:
+    with get_session_factory()() as db:
         existing_skus = {sku for (sku,) in db.query(Product.sku).all()}
         for item in CATALOG:
             if item["sku"] in existing_skus:

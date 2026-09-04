@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.db import get_db
 from app.models import Order, OrderItem, Product
+from app.pricing import ProductNotFound, price_order
 from app.schemas import OrderCreate, OrderItemOut, OrderOut
 
 router = APIRouter(prefix="/orders", tags=["orders"])
@@ -44,26 +45,21 @@ def create_order(payload: OrderCreate, db: Session = Depends(get_db)) -> OrderOu
     products = db.query(Product).filter(Product.id.in_(product_ids)).all()
     products_by_id = {p.id: p for p in products}
 
-    missing = product_ids - products_by_id.keys()
-    if missing:
-        raise HTTPException(
-            status_code=400,
-            detail=f"unknown product id(s): {', '.join(str(m) for m in missing)}",
-        )
+    try:
+        priced = price_order(payload, products_by_id)
+    except ProductNotFound as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    # Prices always come from the database, never the client — a submitted
-    # order can't be discounted by tampering with the request body.
     order_items = [
         OrderItem(
-            product_id=item.product_id,
-            quantity=item.quantity,
-            unit_price_cents=products_by_id[item.product_id].price_cents,
+            product_id=line.product_id,
+            quantity=line.quantity,
+            unit_price_cents=line.unit_price_cents,
         )
-        for item in payload.items
+        for line in priced.lines
     ]
-    total_cents = sum(oi.unit_price_cents * oi.quantity for oi in order_items)
 
-    order = Order(status="submitted", total_cents=total_cents, items=order_items)
+    order = Order(status="submitted", total_cents=priced.total_cents, items=order_items)
     db.add(order)
     db.commit()
     db.refresh(order)
