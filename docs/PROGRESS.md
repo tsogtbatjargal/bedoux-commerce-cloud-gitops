@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | MAINTENANCE IN PROGRESS |
 | Active phase | Post-P14 maintenance — this is not P15; P0–P14 remain complete and gate-approved. |
-| Active task | M1 implemented locally and awaiting review — Helm render validation now lives in `scripts/test_helm_render.py` behind `make helm-test`. Unpushed on `maintenance/m1-helm-render-validation`. M2–M5 remain inactive. |
-| Last verified | 2026-09-03T14:24:52-06:00 — 16 named render contracts and 5 negative fixtures pass locally across 13 cached renders; all 43 previously inline workflow assertions were enumerated and matched one-to-one. |
+| Active task | M2 IN PROGRESS — one shared pod spec for stable and canary (ADR 0024). M1 merged as `521f3a3` via PR #69. M3–M5 remain inactive. |
+| Last verified | 2026-09-03T15:40:00-06:00 — M1 merged (PR #69, `521f3a3`, four green checks with the module's output confirmed in the CI log). M2 refactor verified by golden-render comparison across all 13 profiles: 14 non-comment changed lines, all of them the intended canary spread blocks. |
 | AWS resources currently live | No temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
-| Next operator action | Review the M1 branch, then decide whether to push and open a PR. Do not activate M2 until M1 is merged and its checkpoint recorded. |
+| Next operator action | Review the M2 branch and decide on merge. M3–M5 each need their own branch and explicit activation; do not batch them. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -694,14 +694,12 @@ without activating an unplanned phase.**
 
 ### Post-P14 maintenance — owner-approved, not P15
 
-- [x] M1 IMPLEMENTED (local, unpushed) — extracted the Helm chart-render assertions from GitHub
-      Actions YAML into `scripts/test_helm_render.py`, exposed as `make helm-test` and called by
-      the same one line in CI. Evidence: 16 named render contracts and 5 negative fixtures pass
-      across 13 cached renders (was 17 uncached `helm template` invocations); all 43 previously
-      inline assertions enumerated and matched one-to-one; failures now name the profile and the
-      contract instead of returning a bare step exit code. No AWS or Kubernetes endpoint was
-      contacted. Checkbox is recorded on merge, per the P0–P14 convention.
-- [ ] M2 NOT STARTED — decide and remove stable/canary pod-spec divergence.
+- [x] M1 COMPLETE — Helm render validation extracted from GitHub Actions YAML into
+      `scripts/test_helm_render.py`, exposed as `make helm-test` and called by the same one line
+      in CI. Merged as `521f3a3` via PR #69 with four green checks; the module's contract output
+      was confirmed present in the CI log rather than inferred from the green check.
+- [ ] M2 IN PROGRESS — one shared pod spec for stable and canary (ADR 0024), closing the
+      topology-spread divergence M1 pinned in place. Local, unpushed at time of writing.
 - [ ] M3 NOT STARTED — replace combinatorial deployment booleans with named session profiles.
 - [ ] M4 NOT STARTED — give AWS/Kubernetes assertions typed, visible error channels.
 - [ ] M5 NOT STARTED — isolate order pricing from import-time database/Secrets Manager setup.
@@ -718,6 +716,38 @@ activation.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-09-03T15:40:00-06:00 — M1 merged; M2 shared pod spec implemented — Claude
+
+- **M1 closed:** PR #69 marked ready and merged as `521f3a3`. All four checks passed, and the CI
+  log was read directly to confirm `make helm-test` ran and printed all 16 contracts and 5
+  fixtures — not inferred from the green check alone. The Helm job also dropped to 43s.
+- **M2 decision:** ADR 0024 records both halves — one shared pod spec, and the canary inheriting
+  soft topology spread. The ADR states plainly that inheritance is a no-op at
+  `canary.replicas: 1`; it is adopted so the gap cannot reopen silently if replicas are raised,
+  not for a runtime effect it does not have.
+- **M2 implementation:** `bedoux.apiPodSpec` and `bedoux.webPodSpec` in `_helpers.tpl` now render
+  both the stable and the canary pod spec. `canary.yaml` drops from 197 to 87 lines and ~70
+  duplicated lines are gone.
+- **Verification — golden render comparison:** all 13 profiles were rendered from merged `main`
+  before the refactor and compared after. Nine are byte-identical. The canary profiles gain only
+  YAML comments the stable side already carried. The HA-canary profile gains the intended spread
+  blocks. Total non-comment changed lines across every profile: **14**, all of them the two
+  7-line `topologySpreadConstraints` blocks. No other semantic change.
+- **Contracts:** M1's placeholder `ha-canary-topology-divergence-pending-m2` is replaced by
+  `ha-canary-inherits-topology-spread`, plus a new
+  `stable-and-canary-pod-specs-stay-equivalent` that normalises the parameterised differences and
+  diffs what remains. 17 contracts and 6 negative fixtures now pass.
+- **Fixture correction:** two first-draft fixtures were wrong and were fixed before commit. One
+  mutated the shared module symmetrically, which changes stable and canary together and would not
+  have exercised the equivalence contract at all. Both are now asymmetric, reintroducing the
+  drift one side at a time.
+- **Harness channel proved itself:** when three fixtures still anchored on template text the
+  refactor had moved, the run exited **2 (HarnessError)**, not 1 — "I could not evaluate this"
+  stayed distinct from "the chart is wrong", which is exactly what M4 will generalise.
+- **Scope held:** no application code, values file, or deployment workflow behaviour changed.
+  M3–M5 remain inactive and were not started.
+- **Infrastructure boundary:** no AWS or Kubernetes endpoint was contacted. AWS: none.
 
 ### 2026-09-03T14:24:52-06:00 — M1 implemented: Helm render validation extracted — Claude
 

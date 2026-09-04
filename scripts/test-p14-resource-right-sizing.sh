@@ -97,13 +97,17 @@ assert_api_resources "$rendered" api-canary
 
 # Prove the assertion is sensitive to a real inheritance break, not merely to the
 # presence of resource-looking text elsewhere in the multi-document render.
+#
+# M2/ADR 0024 moved the pod spec into the shared bedoux.apiPodSpec helper, so stable and
+# canary now render from the same text. The break must therefore be asymmetric: editing
+# the shared helper symmetrically would change both sides together and prove nothing.
 fixture_dir="$(mktemp -d /tmp/bedoux-p14-resource-test.XXXXXX)"
 cp -a "$chart_dir" "$fixture_dir/bedoux"
 sed -i \
-  's/{{- toYaml \.Values\.api\.resources | nindent 12 }}/{{- toYaml .Values.web.resources | nindent 12 }}/' \
-  "$fixture_dir/bedoux/templates/canary.yaml"
-grep -Fq '{{- toYaml .Values.web.resources | nindent 12 }}' \
-  "$fixture_dir/bedoux/templates/canary.yaml"
+  's#{{- toYaml $api.resources | nindent 6 }}#{{- toYaml (ternary $api.resources $ctx.Values.web.resources (eq .app "api")) | nindent 6 }}#' \
+  "$fixture_dir/bedoux/templates/_helpers.tpl"
+grep -Fq '(ternary $api.resources $ctx.Values.web.resources (eq .app "api"))' \
+  "$fixture_dir/bedoux/templates/_helpers.tpl"
 
 divergent_render="$(helm template bedoux "$fixture_dir/bedoux" \
   -f "$fixture_dir/bedoux/values-aws.yaml" \
