@@ -717,6 +717,44 @@ activation.
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
 
+### 2026-09-03T16:40:00-06:00 — M2 merged; reviewer-found miscount corrected — Claude
+
+- **M2 merged:** PR #70 merged as `83b2eaa`. The reviewer independently re-rendered all 13 Helm
+  profiles rather than trusting the reported figures, read `_helpers.tpl` and all three call sites
+  directly, ran the suite, and confirmed the two new fixtures are non-tautological — including
+  that a symmetric mutation of the shared helper is correctly *not* flagged.
+- **Finding accepted:** the claim "nine byte-identical profiles" was wrong; the correct figure is
+  **ten**. `aws-cleanup` sets `canary.enabled=false`, is unchanged, and sits between the two
+  changed canary entries in the output. Only the three canary-enabled profiles differ out of 13.
+- **Independently re-derived** before correcting: rendered every profile from `521f3a3` and from
+  merged `main` and recounted — 10 byte-identical, 2 comments-only, 1 semantic, 14 non-comment
+  changed lines. The reviewer is right.
+- **Load-bearing evidence unaffected:** the 14 non-comment changed lines, all of them the two
+  intended seven-line `topologySpreadConstraints` blocks, was exact and remains so. No correctness
+  or behaviour claim changes.
+- **Corrected in:** ADR 0024 (amended with an explicit dated correction section — the decision is
+  unchanged, so this is a factual fix to supporting evidence, not a superseding decision), this
+  progress log, and `docs/verification-lessons.md`'s golden-render table.
+- **Not correctable:** the commit message of `d9fde03` is immutable and still reads "nine". ADR
+  0024's correction section records this so the discrepancy is explained rather than confusing.
+- **Lesson recorded:** added §9 to `docs/verification-lessons.md` — a number retyped from output
+  you have already seen is not verified; have the tooling emit it.
+- **Infrastructure boundary:** no AWS or Kubernetes endpoint was contacted. AWS: none.
+
+### 2026-09-03T16:05:00-06:00 — verification lessons documented — Claude
+
+- **What:** added `docs/verification-lessons.md` — eight concrete verification failures this
+  repository hit during P14 and the M1–M2 maintenance track, each with what happened, why, and the
+  rule that came out of it. Indexed from `README.md` and `START-HERE.md`.
+- **Why it is not generic advice:** every entry is traceable to a commit, PR, or CI log — the
+  P14.1 broken `sed` anchor (`7c2676a` / `3538989`), the two vacuous M2 fixtures, the symmetric
+  mutation that proved nothing once stable and canary shared a module, the suppressed stderr in
+  the ALB gate, the golden-render comparison, and the half-applied M1 patch.
+- **Scope:** documentation only. No chart, script, workflow, or application behaviour changed.
+- **Stacked on:** `maintenance/m2-canary-podspec` (PR #70), because it references M2's outcome
+  and shares `docs/PROGRESS.md`. Merge after #70.
+- **Infrastructure boundary:** no AWS or Kubernetes endpoint was contacted. AWS: none.
+
 ### 2026-09-03T15:40:00-06:00 — M1 merged; M2 shared pod spec implemented — Claude
 
 - **M1 closed:** PR #69 marked ready and merged as `521f3a3`. All four checks passed, and the CI
@@ -730,7 +768,8 @@ Append newest entries immediately below this heading. Never include secrets or A
   both the stable and the canary pod spec. `canary.yaml` drops from 197 to 87 lines and ~70
   duplicated lines are gone.
 - **Verification — golden render comparison:** all 13 profiles were rendered from merged `main`
-  before the refactor and compared after. Nine are byte-identical. The canary profiles gain only
+  before the refactor and compared after. Ten are byte-identical (corrected from "nine" — see the
+  2026-09-03T16:40:00-06:00 entry). The two non-HA canary profiles gain only
   YAML comments the stable side already carried. The HA-canary profile gains the intended spread
   blocks. Total non-comment changed lines across every profile: **14**, all of them the two
   7-line `topologySpreadConstraints` blocks. No other semantic change.
