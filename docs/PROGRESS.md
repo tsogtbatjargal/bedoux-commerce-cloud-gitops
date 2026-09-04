@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | MAINTENANCE IN PROGRESS |
 | Active phase | Post-P14 maintenance — this is not P15; P0–P14 remain complete and gate-approved. |
-| Active task | M4 implemented locally and awaiting review — typed assertion diagnostics for the P12/P13 gates. M1 (`521f3a3`), M2 (`83b2eaa`), and the docs PR #71 (`950775b`) merged. M3/M5 remain inactive. |
-| Last verified | 2026-09-04T16:19:37-06:00 — M1 (`521f3a3`) and M2 (`83b2eaa`) merged; M4 implemented locally: all 18 inline python -c assertions across 5 P12/P13 gate scripts replaced by scripts/lib/gate_checks.py (54 fixture-test cases pass); the ALB reconciliation polling loop now aborts within one poll on a malformed response instead of waiting out the full timeout, proven with a wall-clock assertion. Docs PR #71 (verification-lessons, including the M4 exit-code near-miss as §10) merged as `950775b`. |
+| Active task | No task active. M1 (`521f3a3`), M2 (`83b2eaa`), docs PR #71 (`950775b`), and M4 (`38cadaf`) are all merged to `main`. M3 and M5 remain inactive; neither is authorized to start without its own explicit activation. |
+| Last verified | 2026-09-04T16:25:04-06:00 — PR #72 (M4) merged as `38cadaf` with four green checks. `main` synced to `38cadaf`; `scripts/test_helm_render.py` (17 contracts, 6 fixtures) and `scripts/test_gate_checks.py` (54 cases) both re-run clean on the merged tree. |
 | AWS resources currently live | No temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
-| Next operator action | Review the M4 branch. M3 and M5 each still need their own branch and explicit activation. |
+| Next operator action | Safe stopping point. M1, M2, and M4 are merged and closed out. Starting M3 or M5 requires the owner to explicitly activate one — do not batch them or start either without that. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -698,16 +698,21 @@ without activating an unplanned phase.**
       `scripts/test_helm_render.py`, exposed as `make helm-test` and called by the same one line
       in CI. Merged as `521f3a3` via PR #69 with four green checks; the module's contract output
       was confirmed present in the CI log rather than inferred from the green check.
-- [ ] M2 IN PROGRESS — one shared pod spec for stable and canary (ADR 0024), closing the
-      topology-spread divergence M1 pinned in place. Local, unpushed at time of writing.
+- [x] M2 COMPLETE — one shared pod spec for stable and canary (ADR 0024), closing the
+      topology-spread divergence M1 pinned in place. Merged as `83b2eaa` via PR #70 with four
+      green checks; verified by golden-render comparison across all 13 profiles (10
+      byte-identical, 14 non-comment changed lines total, all of them the two intended spread
+      blocks — reviewer-caught and corrected miscount recorded in the 2026-09-03T16:40:00-06:00
+      session entry).
 - [ ] M3 NOT STARTED — replace combinatorial deployment booleans with named session profiles.
-- [ ] M4 IN PROGRESS — typed assertion diagnostics for the P12/P13 gates. Local, unpushed at
-      time of writing.
+- [x] M4 COMPLETE — typed assertion diagnostics for the P12/P13 gates. Merged as `38cadaf` via
+      PR #72 with four green checks; `scripts/lib/gate_checks.py`'s 54 fixture cases confirmed
+      present in the CI log.
 - [ ] M5 NOT STARTED — isolate order pricing from import-time database/Secrets Manager setup.
 
-The owner approved this maintenance sequence on 2026-09-03 and activated M1 only. These items do
-not reopen or renumber the completed P0–P14 plan. Starting M2–M5 still requires explicit owner
-activation.
+The owner approved this maintenance sequence on 2026-09-03 and activated M1 only; M2 and M4 were
+each explicitly activated and closed out in turn. These items do not reopen or renumber the
+completed P0–P14 plan. Starting M3 or M5 still requires its own explicit owner activation.
 
 ## Blockers
 
@@ -717,6 +722,34 @@ activation.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-09-04T16:25:04-06:00 — checkpoint reconciled: M1/M2/M4 and docs PR all merged — Claude
+
+- **Merges verified, not assumed:** PR #71 (docs/verification-lessons, including §10 recording
+  the near-miss below) merged as `950775b`; PR #72 (M4) merged as `38cadaf`, both with four green
+  checks each. `main` fetched and fast-forwarded to `38cadaf`; `scripts/test_helm_render.py` and
+  `scripts/test_gate_checks.py` re-run clean on the merged tree.
+- **Rebase conflict on `docs/PROGRESS.md`:** merging M4 required rebasing it onto `main` after
+  PR #71 landed, since both had independently appended session-log entries at the same insertion
+  point. Resolved by hand — reordered newest-first (M4 17:15 entry, then the M2 miscount
+  correction, then the lessons-documentation entry), and restored M4's own "Infrastructure
+  boundary" line, which the conflict had folded into a shared line with M2's.
+- **A second, quieter defect found while reconciling:** the overall-status table's "Last verified"
+  field still read M1/M2 content after that same conflict resolution, with no conflict marker
+  ever raised on it — a straight three-way auto-merge silently kept one side. Tracing it back:
+  the M4 branch's own original edit to that field had itself silently no-op'd earlier, because
+  the `str.replace` search string used `"the two intended canary spread blocks"` while the actual
+  text read `"the intended canary spread blocks"` (no "two") — a one-word mismatch that made the
+  replace a no-op with no error, and it was never verified by a read-back at the time. Both the
+  "Last verified" and "Active task" fields are corrected above to the true current state.
+- **Checklist corrected:** M2's and M4's checkboxes were still unchecked despite both being
+  merged — flipped to `[x]` with their merge commits and evidence.
+- **Why this matters enough to write up:** this is verification-lessons §9 (a number retyped from
+  output you have already seen is not verified) happening to this exact session's own
+  bookkeeping, one level up — a `str.replace` that silently did nothing is the code equivalent of
+  retyping a count by eye. Worth a candidate future addition to that document if this recurs.
+- **Scope:** documentation only. No chart, script, or application code changed in this entry.
+- **Infrastructure boundary:** no AWS or Kubernetes endpoint was contacted. AWS: none.
 
 ### 2026-09-03T17:15:00-06:00 — M4 implemented: typed assertion diagnostics for the P12/P13 gates — Claude
 
