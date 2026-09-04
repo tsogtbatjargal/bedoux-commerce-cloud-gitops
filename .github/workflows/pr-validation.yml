@@ -107,6 +107,16 @@ jobs:
             echo 'M4 requires every P12/P13 gate assertion to go through scripts/lib/gate_checks.py' >&2
             exit 1
           fi
+          python -m py_compile scripts/lib/deploy_profile.py scripts/test_deploy_profile.py
+          python scripts/test_deploy_profile.py
+          if grep -Fq 'index += 2' .github/workflows/deploy-learning.yml; then
+            echo 'M3 requires values-file selection to go through scripts/lib/deploy_profile.py, not the stride-2 profile_files re-parse' >&2
+            exit 1
+          fi
+          if ! grep -Fq 'scripts/lib/deploy_profile.py' .github/workflows/deploy-learning.yml; then
+            echo 'M3 requires deploy-learning.yml to resolve its deployment profile through scripts/lib/deploy_profile.py' >&2
+            exit 1
+          fi
           grep -Fq 'helm_base+=(--set ingress.targetGroupDeregistrationDelaySeconds=30)' scripts/p13-canary-rollout.sh
           grep -Fq 'elasticloadbalancing:DescribeTargetGroupAttributes' infra/terraform/modules/github-actions-oidc/main.tf
           bash -n scripts/p12-tls-proof.sh

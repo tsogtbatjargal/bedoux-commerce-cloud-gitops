@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | MAINTENANCE IN PROGRESS |
 | Active phase | Post-P14 maintenance — this is not P15; P0–P14 remain complete and gate-approved. |
-| Active task | No task active. M1 (`521f3a3`), M2 (`83b2eaa`), docs PR #71 (`950775b`), and M4 (`38cadaf`) are all merged to `main`. M3 and M5 remain inactive; neither is authorized to start without its own explicit activation. |
-| Last verified | 2026-09-04T16:25:04-06:00 — PR #72 (M4) merged as `38cadaf` with four green checks. `main` synced to `38cadaf`; `scripts/test_helm_render.py` (17 contracts, 6 fixtures) and `scripts/test_gate_checks.py` (54 cases) both re-run clean on the merged tree. |
+| Active task | M3 implemented locally and awaiting review — named deployment profiles replacing the combinatorial boolean logic in deploy-learning.yml. Owner activated M3 directly ("Lets build M3"). M1/M2/M4/docs PR #71 merged. M5 remains inactive. |
+| Last verified | 2026-09-04T17:05:00-06:00 — M3: scripts/lib/deploy_profile.py resolves the 8 workflow_dispatch booleans into one profile; scripts/test_deploy_profile.py checks all 2**8=256 combinations against an independent reference implementation (41 accepted, 215 refused, all matching exactly). The stride-2 profile_files re-parse is gone. |
 | AWS resources currently live | No temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
-| Next operator action | Safe stopping point. M1, M2, and M4 are merged and closed out. Starting M3 or M5 requires the owner to explicitly activate one — do not batch them or start either without that. |
+| Next operator action | Review the M3 branch, then decide on merge. M5 remains inactive and needs its own explicit activation; it is not authorized to start alongside M3. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -704,15 +704,17 @@ without activating an unplanned phase.**
       byte-identical, 14 non-comment changed lines total, all of them the two intended spread
       blocks — reviewer-caught and corrected miscount recorded in the 2026-09-03T16:40:00-06:00
       session entry).
-- [ ] M3 NOT STARTED — replace combinatorial deployment booleans with named session profiles.
+- [ ] M3 IN PROGRESS — replace combinatorial deployment booleans with named session profiles.
+      Local, unpushed at time of writing.
 - [x] M4 COMPLETE — typed assertion diagnostics for the P12/P13 gates. Merged as `38cadaf` via
       PR #72 with four green checks; `scripts/lib/gate_checks.py`'s 54 fixture cases confirmed
       present in the CI log.
 - [ ] M5 NOT STARTED — isolate order pricing from import-time database/Secrets Manager setup.
 
 The owner approved this maintenance sequence on 2026-09-03 and activated M1 only; M2 and M4 were
-each explicitly activated and closed out in turn. These items do not reopen or renumber the
-completed P0–P14 plan. Starting M3 or M5 still requires its own explicit owner activation.
+each explicitly activated and closed out in turn, and M3 was explicitly activated on 2026-09-04
+("Lets build M3"). These items do not reopen or renumber the completed P0–P14 plan. Starting M5
+still requires its own explicit owner activation.
 
 ## Blockers
 
@@ -722,6 +724,56 @@ completed P0–P14 plan. Starting M3 or M5 still requires its own explicit owner
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-09-04T17:05:00-06:00 — M3 implemented: named deployment profiles — Claude
+
+- **Owner authorization:** owner activated M3 directly ("Lets build M3"), following M1/M2/M4
+  and PR #71 all merged.
+- **What:** `deploy-learning.yml`'s "Deploy the Helm release" step read 8 `workflow_dispatch`
+  booleans (256 combinations) and interleaved 8 refusal checks with live-cluster preflight
+  kubectl calls and `profile_files` (values-file) construction, all in one 133-line inline
+  block. A stride-2 `for ((index = 1; index < ${#profile_files[@]}; index += 2))` loop then
+  re-parsed that array backwards to hand the canary path its values files, since there was no
+  first-class representation of a resolved profile.
+- **What changed:** `scripts/lib/deploy_profile.py` — a pure function, no AWS/Kubernetes access
+  — takes the same 8 booleans and returns one `DeployProfile`: mode (`helm`/`canary`), release
+  timeout, ordered values files (bare paths, no `-f` prefix), extra `--set`/`--set-json` args,
+  and declarative preflight facts (`exists`/`absent` + resource kind + name) the workflow step
+  must still check against the live cluster, since the module itself cannot. The stride-2 loop
+  is gone: `values_files` is a first-class list both the direct-`helm` and canary paths consume
+  directly.
+- **Verification — exhaustive, not sampled:** `scripts/test_deploy_profile.py` enumerates all
+  `2**8 = 256` combinations and checks each against `reference()`, a deliberately separate,
+  deliberately dumb line-for-line transcription of the original bash kept in the test file
+  (not imported from the module under test, so a shared bug could not hide). Result: 41 accepted
+  and matched exactly (mode, timeout, values files, extra args, preflight checks, all in order),
+  215 refused with an identical message. Proven fail-sensitive before trusting it: deliberately
+  broke `resolve()` (dropped the RDS values file) and confirmed the exhaustive check caught it
+  across all 24 affected combinations, then restored and re-ran clean.
+- **Two disclosed wording changes, not behaviour changes:** refusal messages now carry a
+  `REFUSING:` prefix, matching every other script in this repo (the prior workflow text did
+  not). The one existing "absent" preflight check's message is now generic
+  (`"%s/%s must not exist for this deployment profile"`) rather than hardcoded to its one
+  current case (rds-credentials while Secrets Manager is selected), so the same preflight
+  executor covers any future "absent" check without new bash. Neither changes which
+  combinations are accepted, refused, or what values files/args they produce — the exhaustive
+  test's message comparison is against the bare exception text, not the CLI's added prefix.
+- **CI guards, proven fail-sensitive against the actual pre-M3 file:** `pr-validation.yml` now
+  runs `python scripts/test_deploy_profile.py`, greps for a reintroduced `index += 2` (present
+  in the pre-M3 file, confirmed it would have failed the old build), and greps for a call to
+  `scripts/lib/deploy_profile.py` (absent in the pre-M3 file, confirmed it would have failed
+  too).
+- **Verification:** `bash -n` on every one of the workflow's 11 `run:` blocks (extracted via
+  YAML parsing, not regex) is clean, including the 10 untouched ones; `python -m py_compile`
+  clean; the exhaustive test and all pre-existing P13/terraform/M1/M2/M4 suites pass unchanged;
+  `check-github-actions.sh` unaffected (18 pins, no `uses:` references touched); docs-check
+  equivalent clean; `git diff --check` clean; no secrets/account IDs.
+- **Scope held:** no chart, values file, or application code changed. `deploy-learning.yml`'s
+  other 10 steps (image build/sign, OIDC, SBOM, drill capture, rollback verification, smoke
+  test) are untouched — only the "Deploy the Helm release" step's internals changed. No AWS
+  session was opened; this workflow is `workflow_dispatch`-only by design (real dispatch is a
+  separate, owner-authorized action). M5 remains inactive.
+- **Infrastructure boundary:** no AWS or Kubernetes endpoint was contacted. AWS: none.
 
 ### 2026-09-04T16:25:04-06:00 — checkpoint reconciled: M1/M2/M4 and docs PR all merged — Claude
 
