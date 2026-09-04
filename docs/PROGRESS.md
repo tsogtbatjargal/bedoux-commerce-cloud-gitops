@@ -717,6 +717,20 @@ activation.
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
 
+### 2026-09-03T16:05:00-06:00 — verification lessons documented — Claude
+
+- **What:** added `docs/verification-lessons.md` — eight concrete verification failures this
+  repository hit during P14 and the M1–M2 maintenance track, each with what happened, why, and the
+  rule that came out of it. Indexed from `README.md` and `START-HERE.md`.
+- **Why it is not generic advice:** every entry is traceable to a commit, PR, or CI log — the
+  P14.1 broken `sed` anchor (`7c2676a` / `3538989`), the two vacuous M2 fixtures, the symmetric
+  mutation that proved nothing once stable and canary shared a module, the suppressed stderr in
+  the ALB gate, the golden-render comparison, and the half-applied M1 patch.
+- **Scope:** documentation only. No chart, script, workflow, or application behaviour changed.
+- **Stacked on:** `maintenance/m2-canary-podspec` (PR #70), because it references M2's outcome
+  and shares `docs/PROGRESS.md`. Merge after #70.
+- **Infrastructure boundary:** no AWS or Kubernetes endpoint was contacted. AWS: none.
+
 ### 2026-09-03T15:40:00-06:00 — M1 merged; M2 shared pod spec implemented — Claude
 
 - **M1 closed:** PR #69 marked ready and merged as `521f3a3`. All four checks passed, and the CI

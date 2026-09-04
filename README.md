@@ -54,6 +54,7 @@ The first release does not process real payments or customer data.
 | [docs/p10-p13-cost-report.md](docs/p10-p13-cost-report.md) | P14.4 actual P10–P13 usage, monthly-cap comparison, and cost drivers |
 | [docs/resource-right-sizing.md](docs/resource-right-sizing.md) | P14.1 measured resource derivation, retained values, and rollback |
 | [docs/spot-diversification.md](docs/spot-diversification.md) | P14.3 bounded Spot diversification and interruption-handling review |
+| [docs/verification-lessons.md](docs/verification-lessons.md) | Verification failures this repo hit, why each happened, and the rule that came out of it |
 | [docs/local-tooling.md](docs/local-tooling.md) | Workstation toolchain and pinned versions |
 | [docs/runbooks/aws-session.md](docs/runbooks/aws-session.md) | Before/during/teardown checklists for every AWS session |
 | [docs/workflows/](docs/workflows/) | Canonical phase and GitHub branch/PR operating workflows |

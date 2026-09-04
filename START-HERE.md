@@ -41,6 +41,8 @@ This file is the entry point for a new Claude Code, Codex, OpenClaw, or human se
   and production-target distinctions.
 - `docs/p10-p13-cost-report.md`, `docs/resource-right-sizing.md`, and
   `docs/spot-diversification.md` — P14 capstone evidence.
+- `docs/verification-lessons.md` — concrete verification failures and the practices that closed
+  them; read before adding or changing a test or CI check.
 - `docs/runbooks/aws-session.md` — mandatory guardrail for any future AWS resource mutation.
 
 ## Completion verification
