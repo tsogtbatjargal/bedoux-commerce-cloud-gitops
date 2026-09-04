@@ -16,10 +16,15 @@ This file is the entry point for a new Claude Code, Codex, OpenClaw, or human se
 ## Current checkpoint
 
 - Repository state: **COMPLETE**. P0–P14 and T-001–T-1404 are complete and gate-approved.
-- Final closeout: PR #66 merged the focused P14 reconciliation and standalone owner gate commit
-  to `main` as `9a2fe597f79018a68bfbe53580acebf8d91b0248`.
-- Active phase/task: **none**. The owner closed the P10–P14 optimization track and explicitly did
-  not activate P15 or another unplanned phase.
+- P14 closeout: PR #66 merged the focused P14 reconciliation and standalone owner gate commit to
+  `main` as `9a2fe597f79018a68bfbe53580acebf8d91b0248`.
+- Post-P14 maintenance track (M1–M5, owner-approved, explicitly not P15) is also **complete**:
+  M1 Helm render validation (`521f3a3`), M2 shared canary pod spec / ADR 0024 (`83b2eaa`), M3
+  named deployment profiles (`ff81bfc`), M4 typed P12/P13 gate diagnostics (`38cadaf`), M5 lazy
+  `app.db` engine + isolated order pricing (`4e63213`), plus `docs/verification-lessons.md`
+  (`950775b`). Final merge: `40bb39d`.
+- Active phase/task: **none**. The owner closed the P10–P14 optimization track and, separately,
+  the M1–M5 maintenance track, without activating P15 or another unplanned phase.
 - AWS state: no temporary or hourly billed project resource is live. Only the owner-approved
   persistent ECR/IAM, Route 53/ACM, and Terraform state-storage allowlist remains; website aliases
   are absent.
