@@ -157,13 +157,7 @@ assert_weight() {
     controller_kind="alb"
     action="$(kubectl "${kubectl_args[@]}" get ingress bedoux \
       --output jsonpath='{.metadata.annotations.alb\.ingress\.kubernetes\.io/actions\.web}')"
-    EXPECTED_WEIGHT="$weight" python -c '
-import json, os, sys
-action = json.load(sys.stdin)
-groups = {item["serviceName"]: item["weight"] for item in action["forwardConfig"]["targetGroups"]}
-expected = int(os.environ["EXPECTED_WEIGHT"])
-assert groups == {"web": 100 - expected, "web-canary": expected}, groups
-' <<<"$action"
+    python scripts/lib/gate_checks.py alb-weight-matches --weight "$weight" <<<"$action"
     return
   fi
 
@@ -185,19 +179,7 @@ assert_weight
 
 count_probe_statuses() {
   local probe_key="$1"
-  PROBE_KEY="$probe_key" python -c '
-import os, re, sys
-key = os.environ["PROBE_KEY"]
-hits = errors = 0
-for line in sys.stdin:
-    if key not in line:
-        continue
-    hits += 1
-    match = re.search(r"\"\s+(\d{3})\s+", line)
-    if match and int(match.group(1)) >= 400:
-        errors += 1
-print(hits, errors)
-'
+  python scripts/lib/gate_checks.py count-probe-statuses --marker "$probe_key"
 }
 
 public_errors=0
@@ -232,8 +214,7 @@ if [[ "$controller_kind" == "alb" ]]; then
     if public_health_json="$(curl --fail --silent \
       --connect-timeout 2 --max-time 5 \
       "http://$alb_hostname/api/health?bedoux_canary_probe=$probe_prefix-$attempt")" && \
-      python -c 'import json, sys; assert json.load(sys.stdin).get("status") == "ok"' \
-        <<<"$public_health_json"; then
+      python scripts/lib/gate_checks.py health-status-ok <<<"$public_health_json"; then
       :
     else
       public_errors=$((public_errors + 1))
@@ -257,8 +238,7 @@ for ((attempt = 1; attempt <= attempts; attempt++)); do
   if health_json="$(kubectl "${kubectl_args[@]}" exec deployment/web-canary -- \
     wget -qO- -T 10 \
       "http://127.0.0.1:8080/api/health?bedoux_direct_canary_probe=$direct_probe_prefix-$attempt")" && \
-    python -c 'import json, sys; assert json.load(sys.stdin).get("status") == "ok"' \
-      <<<"$health_json"; then
+    python scripts/lib/gate_checks.py health-status-ok <<<"$health_json"; then
     :
   else
     errors=$((errors + 1))
@@ -269,8 +249,7 @@ direct_logs="$(kubectl "${kubectl_args[@]}" logs deployment/web-canary --since=5
 read -r direct_log_hits direct_http_errors < <(
   count_probe_statuses "bedoux_direct_canary_probe=$direct_probe_prefix-" <<<"$direct_logs"
 )
-error_rate="$(python -c 'import sys; print(f"{int(sys.argv[1]) / int(sys.argv[2]):.4f}")' \
-  "$errors" "$attempts")"
+error_rate="$(python scripts/lib/gate_checks.py error-rate "$errors" "$attempts")"
 printf 'CANARY_GATE attempts=%d errors=%d error_rate=%s log_hits=%d http_errors=%d\n' \
   "$attempts" "$errors" "$error_rate" "$direct_log_hits" "$direct_http_errors"
 if ((direct_log_hits != attempts)); then
@@ -301,7 +280,6 @@ fi
 
 catalog_json="$(kubectl "${kubectl_args[@]}" exec deployment/web-canary -- \
   wget -qO- -T 10 'http://127.0.0.1:8080/api/products?limit=1')"
-python -c 'import json, sys; products = json.load(sys.stdin); assert len(products) >= 1, products' \
-  <<<"$catalog_json"
+python scripts/lib/gate_checks.py catalog-nonempty <<<"$catalog_json"
 
 printf '%s\n' 'PASS: exact canary images, reconciled staged weight, health/error sample, and catalog gate passed.'

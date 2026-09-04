@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | MAINTENANCE IN PROGRESS |
 | Active phase | Post-P14 maintenance — this is not P15; P0–P14 remain complete and gate-approved. |
-| Active task | M2 IN PROGRESS — one shared pod spec for stable and canary (ADR 0024). M1 merged as `521f3a3` via PR #69. M3–M5 remain inactive. |
-| Last verified | 2026-09-03T15:40:00-06:00 — M1 merged (PR #69, `521f3a3`, four green checks with the module's output confirmed in the CI log). M2 refactor verified by golden-render comparison across all 13 profiles: 14 non-comment changed lines, all of them the intended canary spread blocks. |
+| Active task | M4 implemented locally and awaiting review — typed assertion diagnostics for the P12/P13 gates. M1 (`521f3a3`), M2 (`83b2eaa`), and the docs PR #71 (`950775b`) merged. M3/M5 remain inactive. |
+| Last verified | 2026-09-04T16:19:37-06:00 — M1 (`521f3a3`) and M2 (`83b2eaa`) merged; M4 implemented locally: all 18 inline python -c assertions across 5 P12/P13 gate scripts replaced by scripts/lib/gate_checks.py (54 fixture-test cases pass); the ALB reconciliation polling loop now aborts within one poll on a malformed response instead of waiting out the full timeout, proven with a wall-clock assertion. Docs PR #71 (verification-lessons, including the M4 exit-code near-miss as §10) merged as `950775b`. |
 | AWS resources currently live | No temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
-| Next operator action | Review the M2 branch and decide on merge. M3–M5 each need their own branch and explicit activation; do not batch them. |
+| Next operator action | Review the M4 branch. M3 and M5 each still need their own branch and explicit activation. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -701,7 +701,8 @@ without activating an unplanned phase.**
 - [ ] M2 IN PROGRESS — one shared pod spec for stable and canary (ADR 0024), closing the
       topology-spread divergence M1 pinned in place. Local, unpushed at time of writing.
 - [ ] M3 NOT STARTED — replace combinatorial deployment booleans with named session profiles.
-- [ ] M4 NOT STARTED — give AWS/Kubernetes assertions typed, visible error channels.
+- [ ] M4 IN PROGRESS — typed assertion diagnostics for the P12/P13 gates. Local, unpushed at
+      time of writing.
 - [ ] M5 NOT STARTED — isolate order pricing from import-time database/Secrets Manager setup.
 
 The owner approved this maintenance sequence on 2026-09-03 and activated M1 only. These items do
@@ -716,6 +717,56 @@ activation.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-09-03T17:15:00-06:00 — M4 implemented: typed assertion diagnostics for the P12/P13 gates — Claude
+
+- **What:** all 18 inline `python -c` assertions across `p13-alb-reconciliation-gate.sh` (8),
+  `p13-canary-gate.sh` (6), `p13-canary-rollout.sh` (2), `p13-alb-pod-readiness-gate.sh` (1), and
+  `p12-tls-proof.sh` (1) replaced by named functions in `scripts/lib/gate_checks.py`. Every
+  function raises `NotReady` (the condition is false in an expected, poll-again way — exit 1,
+  silent, matching today's retry UX) or `HarnessError` (malformed response or a violated
+  invariant — exit 2, diagnosed on stderr). Two byte-identical duplicate snippets collapsed to
+  one function each.
+- **The headline fix:** `p13-alb-reconciliation-gate.sh`'s 300-second polling loop now
+  distinguishes the two. A malformed AWS/Kubernetes response used to look identical to "not
+  reconciled yet" and the operator waited out the full deadline for a timeout that explained
+  nothing. It now aborts within one poll with the diagnostic visible. Proven, not asserted: the
+  existing mock test gained a case that feeds a genuinely malformed target-group-attributes
+  response and asserts both the exit code (2, not 1) and the wall-clock time (well under the 10s
+  deadline used for the test).
+- **Near-miss caught by the fixture test itself:** the first-draft rewrite used
+  `if ! gate_check ...; then status=$?; ...` throughout. That is a real bash trap — `!` converts
+  a command's exit status to a boolean (0 or 1) before `$?` sees it, so `status` was always 0
+  regardless of whether the underlying check returned 1 or 2. The new negative-fixture test
+  caught it immediately (wrong exit code, and 16-19s wall time instead of near-instant). A second,
+  identical instance of the same trap was in the outer polling loop's
+  `if verify_reconciliation_once; then ... fi` with no `else` — per POSIX, an `if` with no `else`
+  whose condition is false has exit status *0*, not the condition's. Both fixed with the file's
+  own existing `cmd || status=$?` idiom. Documented as verification-lessons §10 (pending merge of
+  PR #71 at the time of this entry) — this is the same shape as that doc's own thesis, caught in
+  real time.
+- **One-shot call sites unchanged in control flow:** the other four files have no retry loop, so
+  their existing pass/fail behavior (guard clause, `&&`-chain, or bare `set -e` propagation) was
+  preserved exactly — only the assertion itself now runs through the tested module, so its
+  diagnostic is visible instead of silently suppressed.
+- **Fidelity exception:** `p12-tls-proof.sh`'s health check does *exact* dict equality
+  (`response == {"status": "ok", "orders_enabled": false}`), not the tolerant "status is ok" check
+  the other two probes use. Given a separate `health_response_exact` function rather than
+  reusing `health_status_ok` and silently loosening the live TLS proof's assertion.
+- **CI guard:** the "Lint and render all Helm profiles" step now runs
+  `python scripts/test_gate_checks.py` (54 cases) and greps for any reintroduced `python -c` in
+  the five touched scripts, failing the build if one appears. Verified fail-sensitive: the guard
+  was proven to actually reject a reintroduced `python -c` line before being relied on, and a
+  false-positive against its own explanatory comments (which contained the literal string
+  "python -c") was found and fixed before commit.
+- **Verification:** `bash -n` clean on all 25 scripts; `python -m py_compile` clean on the new
+  and existing Python modules; `python scripts/test_gate_checks.py` (54 cases) and
+  `python scripts/test_helm_render.py` (17 contracts, 6 fixtures) both pass; all five existing
+  P13/terraform mock suites pass unchanged; `check-github-actions.sh` unaffected (18 pins);
+  docs-check equivalent clean; `git diff --check` clean; no secrets/account IDs.
+- **Scope held:** no application code, chart, or values file changed. M3 and M5 remain inactive
+  and were not started.
+- **Infrastructure boundary:** no AWS or Kubernetes endpoint was contacted. AWS: none.
 
 ### 2026-09-03T16:40:00-06:00 — M2 merged; reviewer-found miscount corrected — Claude
 
@@ -753,7 +804,6 @@ Append newest entries immediately below this heading. Never include secrets or A
 - **Scope:** documentation only. No chart, script, workflow, or application behaviour changed.
 - **Stacked on:** `maintenance/m2-canary-podspec` (PR #70), because it references M2's outcome
   and shares `docs/PROGRESS.md`. Merge after #70.
-- **Infrastructure boundary:** no AWS or Kubernetes endpoint was contacted. AWS: none.
 
 ### 2026-09-03T15:40:00-06:00 — M1 merged; M2 shared pod spec implemented — Claude
 

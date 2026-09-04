@@ -267,15 +267,7 @@ get_service_target_group_arn() {
   local bindings_json
   bindings_json="$(kubectl "${kubectl_args[@]}" get targetgroupbindings.elbv2.k8s.aws \
     --output json)" || return 1
-  SERVICE_NAME="$service" python -c '
-import json, os, sys
-matches = [item["spec"]["targetGroupARN"]
-           for item in json.load(sys.stdin).get("items", [])
-           if item.get("spec", {}).get("serviceRef", {}).get("name") == os.environ["SERVICE_NAME"]]
-if len(matches) != 1:
-    raise SystemExit(1)
-print(matches[0])
-' <<<"$bindings_json"
+  python scripts/lib/gate_checks.py service-target-group-arn --service "$service" <<<"$bindings_json"
 }
 
 verify_cleanup() {
@@ -292,13 +284,7 @@ verify_cleanup() {
   if kubectl "${kubectl_args[@]}" get ingress bedoux >/dev/null 2>&1; then
     action="$(kubectl "${kubectl_args[@]}" get ingress bedoux \
       --output jsonpath='{.metadata.annotations.alb\.ingress\.kubernetes\.io/actions\.web}')"
-    python -c '
-import json, sys
-action = json.load(sys.stdin)
-groups = {item["serviceName"]: item["weight"]
-          for item in action["forwardConfig"]["targetGroups"]}
-assert groups == {"web": 100}, groups
-' <<<"$action"
+    python scripts/lib/gate_checks.py cleanup-action-is-stable-only <<<"$action"
     if [[ -z "$aws_region" ]]; then
       printf '%s\n' 'BLOCK: --aws-region is required to verify ALB cleanup reconciliation.' >&2
       return 1

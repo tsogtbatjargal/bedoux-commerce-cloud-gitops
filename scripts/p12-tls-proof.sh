@@ -34,8 +34,8 @@ esac
 for domain in bedoux.ca www.bedoux.ca; do
   health_json="$(curl --fail --silent --show-error --connect-timeout 10 --max-time 30 \
     "https://${domain}/api/health")"
-  python -c 'import json, sys; response = json.load(sys.stdin); assert response == {"status": "ok", "orders_enabled": False}, response' \
-    <<<"$health_json"
+  python scripts/lib/gate_checks.py health-response-exact \
+    --expected-json '{"status": "ok", "orders_enabled": false}' <<<"$health_json"
 
   headers="$(curl --silent --show-error --head --connect-timeout 10 --max-time 30 \
     "http://${domain}/" | tr -d '\r')"
