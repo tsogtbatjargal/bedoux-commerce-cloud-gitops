@@ -273,82 +273,56 @@ jobs:
           done
           printf '%s\n' 'Verified both main-branch image signatures before Helm rollout.'
 
-          release_timeout="10m"
-          if [[ "$ROLLBACK_DRILL" == "true" ]]; then
-            # Keep both verified image digests. Only the web command is overridden,
-            # exercising a real rollout failure without bypassing signature policy.
-            release_timeout="3m"
-          fi
-          if [[ "$USE_CUSTOM_DOMAIN" == "true" && "$ROLLBACK_DRILL" == "true" ]]; then
-            echo 'P12 custom-domain proof and the rollback drill must run in separate sessions.' >&2
-            exit 1
-          fi
-          if [[ "$CANARY_ROLLOUT" == "true" && "$ROLLBACK_DRILL" == "true" ]]; then
-            echo 'canary_rollout and rollback_drill are separate evidence paths.' >&2
-            exit 1
-          fi
-          if [[ "$CANARY_ROLLOUT" == "true" && "$CANARY_REGRESSION_DRILL" == "true" ]]; then
-            echo 'canary_rollout and canary_regression_drill are mutually exclusive.' >&2
-            exit 1
-          fi
-          if [[ "$CANARY_REGRESSION_DRILL" == "true" && "$ROLLBACK_DRILL" == "true" ]]; then
-            echo 'canary_regression_drill and rollback_drill are separate evidence paths.' >&2
-            exit 1
-          fi
-          if [[ ("$CANARY_ROLLOUT" == "true" || "$CANARY_REGRESSION_DRILL" == "true") && \
-                "$SEED_CATALOG" == "true" ]]; then
-            echo 'canary paths require an existing seeded baseline; set seed_catalog=false.' >&2
-            exit 1
-          fi
-          if [[ "$CANARY_REGRESSION_DRILL" == "true" && \
-                ("$USE_RDS" == "true" || "$USE_SECRETS_MANAGER" == "true" || \
-                 "$USE_S3_IMAGES" == "true" || "$USE_CUSTOM_DOMAIN" == "true") ]]; then
-            echo 'canary_regression_drill requires every unrelated deployment option false.' >&2
-            exit 1
-          fi
-
-          profile_files=(
-            -f charts/bedoux/values.yaml
-            -f charts/bedoux/values-aws.yaml
+          # M3: scripts/lib/deploy_profile.py resolves the 8 dispatch booleans into one
+          # named deployment profile -- mode, release timeout, ordered Helm values files,
+          # extra --set args, and the live-cluster preflight facts this step must check.
+          # It is pure (no AWS/Kubernetes access) and checked exhaustively over all 256
+          # combinations in scripts/test_deploy_profile.py against an independently
+          # written reference. This replaces 8 refusal checks interleaved with values-file
+          # construction; the stride-2 loop that used to re-parse profile_files backwards
+          # for the canary path is gone, because values_files is now a first-class list
+          # both paths consume directly.
+          resolve_args=(
+            --seed-catalog "$SEED_CATALOG"
+            --rollback-drill "$ROLLBACK_DRILL"
+            --use-rds "$USE_RDS"
+            --use-secrets-manager "$USE_SECRETS_MANAGER"
+            --use-s3-images "$USE_S3_IMAGES"
+            --use-custom-domain "$USE_CUSTOM_DOMAIN"
+            --canary-rollout "$CANARY_ROLLOUT"
+            --canary-regression-drill "$CANARY_REGRESSION_DRILL"
           )
-          helm_extra_args=()
-          if [[ "$ROLLBACK_DRILL" == "true" ]]; then
-            helm_extra_args+=(--set-json 'web.command=["sh","-c","echo signed rollback drill failure >&2; exit 1"]')
-          fi
-          if [[ "$USE_SECRETS_MANAGER" == "true" && "$USE_RDS" != "true" ]]; then
-            echo 'use_secrets_manager requires use_rds=true' >&2
-            exit 1
-          fi
-          if [[ "$USE_SECRETS_MANAGER" == "true" && "$USE_S3_IMAGES" == "true" ]]; then
-            echo 'P7.2 S3 and P7.3 Secrets Manager identities are separate; run those proofs independently.' >&2
-            exit 1
-          fi
-          if [[ "$USE_RDS" == "true" ]]; then
-            profile_files+=(-f charts/bedoux/values-aws-rds.yaml)
-          fi
-          if [[ "$USE_SECRETS_MANAGER" == "true" ]]; then
-            kubectl -n "$KUBERNETES_NAMESPACE" get serviceaccount bedoux-api-secrets >/dev/null
-            if kubectl -n "$KUBERNETES_NAMESPACE" get secret rds-credentials >/dev/null 2>&1; then
-              echo 'refusing to deploy Secrets Manager mode while rds-credentials Kubernetes Secret exists' >&2
-              exit 1
-            fi
-            profile_files+=(-f charts/bedoux/values-aws-secrets.yaml)
-          elif [[ "$USE_RDS" == "true" ]]; then
-            kubectl -n "$KUBERNETES_NAMESPACE" get secret rds-credentials >/dev/null
-          fi
-          if [[ "$USE_S3_IMAGES" == "true" ]]; then
-            kubectl -n "$KUBERNETES_NAMESPACE" get serviceaccount bedoux-api >/dev/null
-            kubectl -n "$KUBERNETES_NAMESPACE" get configmap bedoux-image-storage >/dev/null
-            profile_files+=(-f charts/bedoux/values-aws-s3.yaml)
-          fi
-          if [[ "$USE_CUSTOM_DOMAIN" == "true" ]]; then
-            profile_files+=(-f charts/bedoux/values-aws-tls.yaml)
-          fi
-          if [[ "$SEED_CATALOG" == "true" ]]; then
-            helm_extra_args+=(--set seed.enabled=true)
-          fi
+          deploy_mode="$(python scripts/lib/deploy_profile.py mode "${resolve_args[@]}")"
+          release_timeout="$(python scripts/lib/deploy_profile.py release-timeout "${resolve_args[@]}")"
+          mapfile -t values_files < <(python scripts/lib/deploy_profile.py values-files "${resolve_args[@]}")
+          mapfile -t helm_extra_args < <(python scripts/lib/deploy_profile.py helm-extra-args "${resolve_args[@]}")
+          mapfile -t preflight_checks < <(python scripts/lib/deploy_profile.py preflight-checks "${resolve_args[@]}")
 
-          if [[ "$CANARY_ROLLOUT" == "true" || "$CANARY_REGRESSION_DRILL" == "true" ]]; then
+          # Execute the resolved preflight facts against the live cluster.
+          # deploy_profile.py can only say what must be true; only this step, with
+          # cluster access, can check it.
+          for check in "${preflight_checks[@]}"; do
+            read -r kind resource name <<<"$check"
+            case "$kind" in
+              exists)
+                kubectl -n "$KUBERNETES_NAMESPACE" get "$resource" "$name" >/dev/null
+                ;;
+              absent)
+                if kubectl -n "$KUBERNETES_NAMESPACE" get "$resource" "$name" >/dev/null 2>&1; then
+                  printf 'REFUSING: %s/%s must not exist for this deployment profile.\n' \
+                    "$resource" "$name" >&2
+                  exit 1
+                fi
+                ;;
+            esac
+          done
+
+          profile_files=()
+          for values_file in "${values_files[@]}"; do
+            profile_files+=(-f "$values_file")
+          done
+
+          if [[ "$deploy_mode" == "canary" ]]; then
             rollout_args=(
               --context "$EKS_CLUSTER"
               --namespace "$KUBERNETES_NAMESPACE"
@@ -367,8 +341,8 @@ jobs:
             if [[ "$CANARY_REGRESSION_DRILL" == "true" ]]; then
               rollout_args+=(--regression-mode http-error)
             fi
-            for ((index = 1; index < ${#profile_files[@]}; index += 2)); do
-              rollout_args+=(--values "${profile_files[index]}")
+            for values_file in "${values_files[@]}"; do
+              rollout_args+=(--values "$values_file")
             done
             scripts/p13-canary-rollout.sh "${rollout_args[@]}" --execute
           else
