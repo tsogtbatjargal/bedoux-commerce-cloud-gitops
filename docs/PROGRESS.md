@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | MAINTENANCE IN PROGRESS |
 | Active phase | Post-P14 maintenance — this is not P15; P0–P14 remain complete and gate-approved. |
-| Active task | M3 implemented locally and awaiting review — named deployment profiles replacing the combinatorial boolean logic in deploy-learning.yml. Owner activated M3 directly ("Lets build M3"). M1/M2/M4/docs PR #71 merged. M5 remains inactive. |
-| Last verified | 2026-09-04T17:05:00-06:00 — M3: scripts/lib/deploy_profile.py resolves the 8 workflow_dispatch booleans into one profile; scripts/test_deploy_profile.py checks all 2**8=256 combinations against an independent reference implementation (41 accepted, 215 refused, all matching exactly). The stride-2 profile_files re-parse is gone. |
+| Active task | M5 implemented locally and awaiting review — lazy database-engine construction plus isolated order pricing. Owner activated M5 directly ("move on next M5"), following M3 (`ff81bfc`) merged. M1/M2/M4/docs PR #71 also merged. |
+| Last verified | 2026-09-04T18:00:00-06:00 — M5: app/db.py's engine is now built lazily via @lru_cache (proved with a mocked create_engine: importing app.db/app.models no longer calls it). app/pricing.py's price_order() extracted with 7 new credential-free unit tests. Full pytest suite (36 tests) re-run against a real ephemeral Postgres, including the exact price-tampering security test this extraction targets. |
 | AWS resources currently live | No temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
-| Next operator action | Review the M3 branch, then decide on merge. M5 remains inactive and needs its own explicit activation; it is not authorized to start alongside M3. |
+| Next operator action | Review the M5 branch, then decide on merge. This is the last item in the approved M1–M5 sequence; after M5 the post-P14 maintenance track is complete. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -704,17 +704,19 @@ without activating an unplanned phase.**
       byte-identical, 14 non-comment changed lines total, all of them the two intended spread
       blocks — reviewer-caught and corrected miscount recorded in the 2026-09-03T16:40:00-06:00
       session entry).
-- [ ] M3 IN PROGRESS — replace combinatorial deployment booleans with named session profiles.
-      Local, unpushed at time of writing.
+- [x] M3 COMPLETE — replaced combinatorial deployment booleans with named session profiles.
+      Merged as `ff81bfc` via PR #74 with four green checks; the exhaustive 256-combination
+      comparison's output confirmed present in the CI log.
 - [x] M4 COMPLETE — typed assertion diagnostics for the P12/P13 gates. Merged as `38cadaf` via
       PR #72 with four green checks; `scripts/lib/gate_checks.py`'s 54 fixture cases confirmed
       present in the CI log.
-- [ ] M5 NOT STARTED — isolate order pricing from import-time database/Secrets Manager setup.
+- [ ] M5 IN PROGRESS — isolate order pricing from import-time database/Secrets Manager setup.
+      Local, unpushed at time of writing.
 
-The owner approved this maintenance sequence on 2026-09-03 and activated M1 only; M2 and M4 were
-each explicitly activated and closed out in turn, and M3 was explicitly activated on 2026-09-04
-("Lets build M3"). These items do not reopen or renumber the completed P0–P14 plan. Starting M5
-still requires its own explicit owner activation.
+The owner approved this maintenance sequence on 2026-09-03 and activated M1 only; M2, M4, and M3
+were each explicitly activated and closed out in turn ("Lets build M3", 2026-09-04), and M5 was
+explicitly activated the same day ("move on next M5"). These items do not reopen or renumber the
+completed P0–P14 plan. M5 is the last item in the approved sequence.
 
 ## Blockers
 
@@ -724,6 +726,50 @@ still requires its own explicit owner activation.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-09-04T18:00:00-06:00 — M3 merged; M5 implemented: lazy engine + order pricing — Claude
+
+- **M3 closed:** PR #74 marked ready and merged as `ff81bfc`. Four green checks; the CI log was
+  read directly and confirmed it printed the exhaustive comparison's own summary line — not
+  inferred from the green check alone. `docs/PROGRESS.md`'s M3 checklist item, left at
+  "IN PROGRESS" through the merge, is corrected to COMPLETE in this same entry.
+- **M5 activated:** owner activated M5 directly ("move on next M5"), following M3's merge.
+- **Step 1 — lazy engine, done first as its own prerequisite:** `app/db.py` built a SQLAlchemy
+  `Engine` at module import time. In secrets-manager mode `resolve_database_url()` makes a live
+  Secrets Manager call, so importing anything that transitively imports `app.db` — including
+  `app.models` (imported by every route handler and by Alembic's `migrations/env.py`) — paid for
+  that call regardless of whether the caller ever touched the database. Alembic's own `env.py`
+  already calls `resolve_database_url()` and builds its own engine via `engine_from_config`; the
+  eager engine in `app.db` ran before that, unused — migrations were making the Secrets Manager
+  call twice.
+- **Fix:** `get_engine()` / `get_session_factory()` are now `@lru_cache`-wrapped accessors,
+  following the lazy-singleton pattern already established in this codebase
+  (`app/image_storage.py`'s `get_image_url_resolver()`) rather than inventing a new one. Proved
+  with a mocked `create_engine`: importing `app.db` or `app.models` no longer calls it; calling
+  `get_engine()` still does, on first use.
+- **Step 2 — order pricing, built on the now-safe-to-import module:** `app/pricing.py` extracts
+  `price_order(payload, products_by_id)` from `routers/orders.py`'s `create_order` — pure, no
+  database, no HTTP framework. "Prices always come from the catalog, never the client" is the
+  rule this API's security depends on most; it previously had five tests, all `@requires_db`,
+  because the rule lived inline in the route handler beside the query that resolved the catalog.
+  `products_by_id` is a plain dict — the router still does the SQLAlchemy query and hands
+  `price_order` the result, so the module has no ORM dependency at all: two adapters (a real
+  query result, a literal dict in tests) at one seam.
+- **Seven new fast unit tests** in `tests/test_pricing.py`, no `BEDOUX_DATABASE_URL` needed.
+  Proven fail-sensitive before trusting them (same discipline as M1/M2/M3's negative fixtures):
+  deliberately hardcoded a wrong unit price (3 tests caught it), deliberately removed the
+  missing-product-id refusal (2 tests caught it, via an uncaught `KeyError`), then restored both.
+- **Verified end-to-end, not just at the unit level:** started an ephemeral Postgres via podman,
+  ran `alembic upgrade head` against it with the lazy-engine module, then ran the full pytest
+  suite (36 tests, up from 22 local/29 with skips) against it. Every previously-`@requires_db`
+  order test passed for real, including `test_catalog_happy_path_and_order_confirmation` and
+  `test_order_price_cannot_be_tampered_by_client` — the exact rule this extraction targets,
+  proven through the real HTTP path, the real router, and a real database, not mocked. Container
+  torn down after.
+- **Scope held:** 5 files, all under `apps/api`. No chart, script, or workflow file touched —
+  confirmed via `git status --short` before committing, not assumed.
+- **Infrastructure boundary:** no AWS endpoint was contacted; the Postgres container was local
+  and ephemeral (podman, torn down). AWS: none.
 
 ### 2026-09-04T17:05:00-06:00 — M3 implemented: named deployment profiles — Claude
 
