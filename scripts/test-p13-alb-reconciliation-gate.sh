@@ -64,8 +64,14 @@ case "$operation" in
     fi
     ;;
   describe-target-group-attributes)
-    printf '{"Attributes":[{"Key":"deregistration_delay.timeout_seconds","Value":"%s"}]}\n' \
-      "${MOCK_DEREGISTRATION_DELAY_SECONDS:-30}"
+    if [[ "${MOCK_ATTRIBUTES_MODE:-}" == "malformed" ]]; then
+      # A shape AWS should never actually return -- proves a harness error, not a
+      # target group that simply hasn't reconciled its attribute yet.
+      printf '%s\n' '{"NotAttributes":[]}'
+    else
+      printf '{"Attributes":[{"Key":"deregistration_delay.timeout_seconds","Value":"%s"}]}\n' \
+        "${MOCK_DEREGISTRATION_DELAY_SECONDS:-30}"
+    fi
     ;;
   describe-target-health)
     printf '%s\n' '{"TargetHealthDescriptions":[{"TargetHealth":{"State":"healthy"}}]}'
@@ -172,6 +178,42 @@ if PATH="$fixture_dir:$PATH" MOCK_MODE=promotion MOCK_DEREGISTRATION_DELAY_SECON
     --poll-seconds 1 \
     --execute >/dev/null 2>&1; then
   printf '%s\n' 'expected default 300s deregistration delay to block promotion cleanup' >&2
+  exit 1
+fi
+
+# M4: a malformed AWS response is a harness error (exit 2), not "not yet reconciled"
+# (exit 1) -- and the gate must abort on the first poll instead of waiting out the
+# deadline. Give it a deadline generous enough (10s) that only an immediate abort
+# could finish this fast; a script that fell back to polling would still be sleeping
+# when the wall-clock check below runs.
+started_at="$(date +%s)"
+gate_status=0
+gate_output="$(PATH="$fixture_dir:$PATH" MOCK_MODE=promotion MOCK_ATTRIBUTES_MODE=malformed \
+  scripts/p13-alb-reconciliation-gate.sh \
+    --context mock-eks \
+    --aws-region ca-central-1 \
+    --mode promotion \
+    --expected-canary-weight 0 \
+    --timeout-seconds 10 \
+    --poll-seconds 1 \
+    --execute 2>&1)" || gate_status=$?
+elapsed=$(( $(date +%s) - started_at ))
+
+if ((gate_status != 2)); then
+  printf 'expected a malformed AWS response to exit 2 (harness error), got %d\n' "$gate_status" >&2
+  exit 1
+fi
+if ((elapsed >= 5)); then
+  printf 'expected the gate to abort on the first poll, not retry for the full 10s deadline (took %ds)\n' \
+    "$elapsed" >&2
+  exit 1
+fi
+if ! grep -Fq 'HARNESS ERROR' <<<"$gate_output"; then
+  printf 'expected a HARNESS ERROR diagnostic in the gate output, got:\n%s\n' "$gate_output" >&2
+  exit 1
+fi
+if ! grep -Fq 'refusing to keep polling' <<<"$gate_output"; then
+  printf 'expected the gate to say it is refusing to keep polling, got:\n%s\n' "$gate_output" >&2
   exit 1
 fi
 

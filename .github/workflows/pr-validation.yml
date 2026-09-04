@@ -101,6 +101,12 @@ jobs:
         run: |
           set -euo pipefail
           make helm-test
+          python -m py_compile scripts/lib/gate_checks.py scripts/test_gate_checks.py
+          python scripts/test_gate_checks.py
+          if grep -rn 'python -c' scripts/p12-tls-proof.sh scripts/p13-*.sh; then
+            echo 'M4 requires every P12/P13 gate assertion to go through scripts/lib/gate_checks.py' >&2
+            exit 1
+          fi
           grep -Fq 'helm_base+=(--set ingress.targetGroupDeregistrationDelaySeconds=30)' scripts/p13-canary-rollout.sh
           grep -Fq 'elasticloadbalancing:DescribeTargetGroupAttributes' infra/terraform/modules/github-actions-oidc/main.tf
           bash -n scripts/p12-tls-proof.sh

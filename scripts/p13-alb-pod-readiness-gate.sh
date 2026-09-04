@@ -72,30 +72,13 @@ fi
 command -v kubectl >/dev/null
 command -v python >/dev/null
 
+# M4: scripts/lib/gate_checks.py replaces this file's inline embedded-Python assertion. This
+# is a one-shot check with no retry loop, so the module's own stderr diagnostic (printed
+# on any failure now that nothing suppresses it) is the whole win -- no exit-code
+# branching is needed here the way the polling p13-alb-reconciliation-gate.sh needs it.
 pods_json="$(kubectl --context "$context" --namespace "$namespace" get pods \
   --selector "$selector" --output json)"
-active_count="$(python -c '
-import json, sys
-
-items = [item for item in json.load(sys.stdin).get("items", [])
-         if not item.get("metadata", {}).get("deletionTimestamp")]
-if not items:
-    raise SystemExit(1)
-
-prefix = "target-health.elbv2.k8s.aws/"
-for item in items:
-    if item.get("status", {}).get("phase") != "Running":
-        raise SystemExit(1)
-    gates = [gate.get("conditionType") for gate in item.get("spec", {}).get("readinessGates", [])
-             if gate.get("conditionType", "").startswith(prefix)]
-    if not gates:
-        raise SystemExit(1)
-    conditions = {condition.get("type"): condition.get("status")
-                  for condition in item.get("status", {}).get("conditions", [])}
-    if conditions.get("Ready") != "True" or any(conditions.get(gate) != "True" for gate in gates):
-        raise SystemExit(1)
-print(len(items))
-' <<<"$pods_json")" || {
+active_count="$(python scripts/lib/gate_checks.py pod-readiness-gate <<<"$pods_json")" || {
   printf '%s\n' 'BLOCK: active stable web pods lack a healthy ALB target-health readiness gate.' >&2
   exit 1
 }

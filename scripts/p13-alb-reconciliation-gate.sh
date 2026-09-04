@@ -139,11 +139,22 @@ command -v python >/dev/null
 kubectl_args=(--context "$context" --namespace "$namespace")
 aws_args=(--region "$aws_region" --no-cli-pager)
 
+# M4: scripts/lib/gate_checks.py replaces this file's inline embedded-Python assertions. Every
+# check returns 0 (true), 1 (not yet true -- expected while polling, keep trying), or 2
+# (the check could not be evaluated -- malformed AWS/Kubernetes response or a violated
+# invariant, diagnosed on stderr). verify_reconciliation_once propagates that same
+# three-way result so the polling loop below can stop immediately on a 2 instead of
+# retrying a broken assertion for the full timeout.
+gate_check() {
+  python scripts/lib/gate_checks.py "$@"
+}
+
 verify_reconciliation_once() {
-  local ingress_class alb_hostname tgb_json load_balancers_json alb_arn
+  local ingress_class alb_hostname tgb_json load_balancers_json alb_arn_value
   local listeners_json rules_json stable_attributes_json canary_attributes_json
   local stable_health_json canary_health_json
   local stable_target_group_arn canary_target_group_arn listener_arn
+  local target_group_output status
   local -a target_group_arns=() listener_arns=()
 
   ingress_class="$(kubectl "${kubectl_args[@]}" get ingress "$ingress" \
@@ -155,142 +166,96 @@ verify_reconciliation_once() {
 
   tgb_json="$(kubectl "${kubectl_args[@]}" get targetgroupbindings.elbv2.k8s.aws \
     --output json 2>/dev/null)" || return 1
-  mapfile -t target_group_arns < <(
-    STABLE_SERVICE="$stable_service" \
-    CANARY_SERVICE="$canary_service" \
-    EXPECTED_MODE="$mode" \
-      python -c '
-import json, os, sys
-items = json.load(sys.stdin).get("items", [])
-stable = [item["spec"]["targetGroupARN"] for item in items
-          if item.get("spec", {}).get("serviceRef", {}).get("name") == os.environ["STABLE_SERVICE"]]
-canary = [item["spec"]["targetGroupARN"] for item in items
-          if item.get("spec", {}).get("serviceRef", {}).get("name") == os.environ["CANARY_SERVICE"]]
-mode = os.environ["EXPECTED_MODE"]
-canary_required = mode in {"staged", "promotion"}
-if len(stable) != 1 or (canary_required and len(canary) != 1) or (not canary_required and canary):
-    raise SystemExit(1)
-print(stable[0])
-if canary_required:
-    print(canary[0])
-' <<<"$tgb_json" 2>/dev/null
-  )
+  status=0
+  target_group_output="$(gate_check target-group-arns \
+    --stable-service "$stable_service" --canary-service "$canary_service" --mode "$mode" \
+    <<<"$tgb_json")" || status=$?
+  if ((status != 0)); then
+    ((status == 2)) && return 2
+    return 1
+  fi
+  mapfile -t target_group_arns <<<"$target_group_output"
   if [[ "$mode" != "cleanup" ]]; then
-    ((${#target_group_arns[@]} == 2)) || return 1
     canary_target_group_arn="${target_group_arns[1]}"
   else
-    ((${#target_group_arns[@]} == 1)) || return 1
     canary_target_group_arn=""
   fi
   stable_target_group_arn="${target_group_arns[0]}"
 
   load_balancers_json="$(aws elbv2 describe-load-balancers "${aws_args[@]}" \
     --output json 2>/dev/null)" || return 1
-  alb_arn="$(ALB_HOSTNAME="$alb_hostname" python -c '
-import json, os, sys
-matches = [lb for lb in json.load(sys.stdin).get("LoadBalancers", [])
-           if lb.get("DNSName") == os.environ["ALB_HOSTNAME"]
-           and lb.get("Type") == "application"
-           and lb.get("State", {}).get("Code") == "active"]
-if len(matches) != 1:
-    raise SystemExit(1)
-print(matches[0]["LoadBalancerArn"])
-' <<<"$load_balancers_json" 2>/dev/null)" || return 1
-  [[ -n "$alb_arn" ]] || return 1
+  status=0
+  alb_arn_value="$(gate_check alb-arn --hostname "$alb_hostname" <<<"$load_balancers_json")" || status=$?
+  if ((status != 0)); then
+    ((status == 2)) && return 2
+    return 1
+  fi
 
   listeners_json="$(aws elbv2 describe-listeners "${aws_args[@]}" \
-    --load-balancer-arn "$alb_arn" --output json 2>/dev/null)" || return 1
-  mapfile -t listener_arns < <(python -c '
-import json, sys
-for listener in json.load(sys.stdin).get("Listeners", []):
-    print(listener["ListenerArn"])
-' <<<"$listeners_json" 2>/dev/null)
+    --load-balancer-arn "$alb_arn_value" --output json 2>/dev/null)" || return 1
+  status=0
+  target_group_output="$(gate_check listener-arns <<<"$listeners_json")" || status=$?
+  if ((status != 0)); then
+    ((status == 2)) && return 2
+    return 1
+  fi
+  mapfile -t listener_arns <<<"$target_group_output"
   ((${#listener_arns[@]} >= 1)) || return 1
 
   local matching_rule=false
   for listener_arn in "${listener_arns[@]}"; do
     rules_json="$(aws elbv2 describe-rules "${aws_args[@]}" \
       --listener-arn "$listener_arn" --output json 2>/dev/null)" || return 1
-    if STABLE_TARGET_GROUP_ARN="$stable_target_group_arn" \
-       CANARY_TARGET_GROUP_ARN="$canary_target_group_arn" \
-       EXPECTED_CANARY_WEIGHT="$expected_canary_weight" \
-       EXPECTED_MODE="$mode" \
-       python -c '
-import json, os, sys
-stable = os.environ["STABLE_TARGET_GROUP_ARN"]
-canary = os.environ["CANARY_TARGET_GROUP_ARN"]
-weight = int(os.environ["EXPECTED_CANARY_WEIGHT"])
-mode = os.environ["EXPECTED_MODE"]
-expected = {stable: 100 - weight}
-if mode != "cleanup":
-    expected[canary] = weight
-for rule in json.load(sys.stdin).get("Rules", []):
-    for action in rule.get("Actions", []):
-        if action.get("Type") != "forward":
-            continue
-        groups = action.get("ForwardConfig", {}).get("TargetGroups", [])
-        if mode == "cleanup":
-            direct = action.get("TargetGroupArn")
-            if (len(groups) == 1
-                    and groups[0].get("TargetGroupArn") == stable
-                    and isinstance(groups[0].get("Weight"), int)
-                    and groups[0]["Weight"] > 0
-                    and direct in {None, stable}):
-                raise SystemExit(0)
-            continue
-        actual = {group.get("TargetGroupArn"): group.get("Weight") for group in groups}
-        if actual == expected:
-            raise SystemExit(0)
-raise SystemExit(1)
-' <<<"$rules_json" 2>/dev/null; then
+    status=0
+    gate_check rule-weight-matches \
+      --stable "$stable_target_group_arn" --canary "$canary_target_group_arn" \
+      --weight "$expected_canary_weight" --mode "$mode" <<<"$rules_json" || status=$?
+    if ((status == 0)); then
       matching_rule=true
       break
     fi
+    ((status == 2)) && return 2
   done
   [[ "$matching_rule" == true ]] || return 1
 
   stable_attributes_json="$(aws elbv2 describe-target-group-attributes "${aws_args[@]}" \
     --target-group-arn "$stable_target_group_arn" --output json 2>/dev/null)" || return 1
-  EXPECTED_DEREGISTRATION_DELAY_SECONDS=30 python -c '
-import json, os, sys
-attributes = {item.get("Key"): item.get("Value")
-              for item in json.load(sys.stdin).get("Attributes", [])}
-if attributes.get("deregistration_delay.timeout_seconds") != os.environ["EXPECTED_DEREGISTRATION_DELAY_SECONDS"]:
-    raise SystemExit(1)
-' <<<"$stable_attributes_json" 2>/dev/null || return 1
+  status=0
+  gate_check deregistration-delay --expected-seconds 30 <<<"$stable_attributes_json" || status=$?
+  if ((status != 0)); then
+    ((status == 2)) && return 2
+    return 1
+  fi
 
   if [[ "$mode" != "cleanup" ]]; then
     canary_attributes_json="$(aws elbv2 describe-target-group-attributes "${aws_args[@]}" \
       --target-group-arn "$canary_target_group_arn" --output json 2>/dev/null)" || return 1
-    EXPECTED_DEREGISTRATION_DELAY_SECONDS=30 python -c '
-import json, os, sys
-attributes = {item.get("Key"): item.get("Value")
-              for item in json.load(sys.stdin).get("Attributes", [])}
-if attributes.get("deregistration_delay.timeout_seconds") != os.environ["EXPECTED_DEREGISTRATION_DELAY_SECONDS"]:
-    raise SystemExit(1)
-' <<<"$canary_attributes_json" 2>/dev/null || return 1
+    status=0
+    gate_check deregistration-delay --expected-seconds 30 <<<"$canary_attributes_json" || status=$?
+    if ((status != 0)); then
+      ((status == 2)) && return 2
+      return 1
+    fi
   fi
 
   stable_health_json="$(aws elbv2 describe-target-health "${aws_args[@]}" \
     --target-group-arn "$stable_target_group_arn" --output json 2>/dev/null)" || return 1
-  python -c '
-import json, sys
-states = [item.get("TargetHealth", {}).get("State")
-          for item in json.load(sys.stdin).get("TargetHealthDescriptions", [])]
-if not states or any(state != "healthy" for state in states):
-    raise SystemExit(1)
-' <<<"$stable_health_json" 2>/dev/null || return 1
+  status=0
+  gate_check target-health <<<"$stable_health_json" || status=$?
+  if ((status != 0)); then
+    ((status == 2)) && return 2
+    return 1
+  fi
 
   if [[ "$mode" == "staged" ]]; then
     canary_health_json="$(aws elbv2 describe-target-health "${aws_args[@]}" \
       --target-group-arn "$canary_target_group_arn" --output json 2>/dev/null)" || return 1
-    python -c '
-import json, sys
-states = [item.get("TargetHealth", {}).get("State")
-          for item in json.load(sys.stdin).get("TargetHealthDescriptions", [])]
-if not states or any(state != "healthy" for state in states):
-    raise SystemExit(1)
-' <<<"$canary_health_json" 2>/dev/null || return 1
+    status=0
+    gate_check target-health <<<"$canary_health_json" || status=$?
+    if ((status != 0)); then
+      ((status == 2)) && return 2
+      return 1
+    fi
   fi
 }
 
@@ -298,7 +263,14 @@ deadline=$((SECONDS + timeout_seconds))
 poll=0
 while ((SECONDS <= deadline)); do
   poll=$((poll + 1))
-  if verify_reconciliation_once; then
+  # Not `if verify_reconciliation_once; then ... fi` -- when the condition of an `if`
+  # with no `else` is false, the *if statement's own* exit status is 0 per POSIX, which
+  # would silently discard the distinction between "not yet" (1) and "harness error" (2)
+  # this whole rewrite exists to preserve. `&&`/`||` instead, so $? always reflects
+  # verify_reconciliation_once's real return code.
+  gate_status=0
+  verify_reconciliation_once || gate_status=$?
+  if ((gate_status == 0)); then
     if [[ "$mode" == "staged" ]]; then
       printf 'ALB_RECONCILIATION_GATE mode=staged weight=%d target_groups=2 deregistration_delay=30 healthy=true\n' \
         "$expected_canary_weight"
@@ -309,6 +281,10 @@ while ((SECONDS <= deadline)); do
     fi
     printf '%s\n' 'PASS: ALB listener action, deregistration delay, and target health are fully reconciled.'
     exit 0
+  fi
+  if ((gate_status == 2)); then
+    printf 'BLOCK: a reconciliation check could not be evaluated (see the HARNESS ERROR diagnostic above); refusing to keep polling.\n' >&2
+    exit 2
   fi
   if ((SECONDS + poll_seconds > deadline)); then
     break
