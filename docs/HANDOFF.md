@@ -21,9 +21,10 @@ Current state:
   deployment profiles (ff81bfc), M4 typed P12/P13 gate diagnostics (38cadaf), M5 lazy app.db
   engine + isolated order pricing (4e63213), plus docs/verification-lessons.md (950775b). Final
   merge: 40bb39d.
-- Post-track housekeeping H1 and H2 are complete locally. H2 exposes the merged M1-M5 local
-  verification commands consistently in START-HERE.md and this handoff and awaits
-  review/publication. H3-H5 remain inactive.
+- Post-track housekeeping H1-H3 are complete. H2 exposes the merged M1-M5 local verification
+  commands consistently in START-HERE.md and this handoff. H3 removed 12 fully merged remote
+  maintenance/documentation branches and the clean H1/H2 local worktrees; its checkpoint awaits
+  review/publication. H4-H5 remain inactive.
 - The owner closed the P10–P14 optimization track and, separately, the M1-M5 maintenance track,
   without activating P15 or another unplanned phase.
 - No temporary or hourly billed AWS resource is live. Only the approved persistent ECR/IAM,
@@ -45,7 +46,7 @@ Resume checks:
    identity, cost, deadline, teardown, and evidence gates.
 
 Next action:
-- Review/publish H2's focused documentation change. H3-H5 require separate continuation in
+- Review/publish H3's focused cleanup checkpoint. H4-H5 require separate continuation in
   sequence. Do not infer a P15, or an M6+ continuation of the closed M1-M5 track, from the
   historical plan or logs.
 
