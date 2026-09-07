@@ -8,13 +8,13 @@ checked here and its evidence is recorded in the session log.
 
 | Field | Value |
 |---|---|
-| State | IN PROGRESS |
-| Active phase | Post-track housekeeping — not P15; P0–P14 and M1–M5 remain complete. |
-| Active task | No item active — H4 is complete locally and awaiting review/publication. H5 remains NOT STARTED. |
-| Last verified | 2026-09-07T14:08:48-06:00 — fresh pinned-Trivy scan of rebuilt API image: zero fixable HIGH/CRITICAL findings; 54 unfixed package records representing 18 unique CVEs; artifacts removed. |
+| State | COMPLETE |
+| Active phase | None — P0–P14, M1–M5, and post-track housekeeping H1–H5 are complete. |
+| Active task | None. |
+| Last verified | 2026-09-07T14:28:21-06:00 — H5 verified the retained local kind/PVC state, removed the cluster/PVC/network, and confirmed no kind cluster remains. |
 | AWS resources currently live | No temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
-| Next operator action | Review and publish the focused H4 evidence refresh. Keep H5 inactive. |
+| Next operator action | None. Stop unless the owner explicitly activates a new bounded task or phase. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -737,11 +737,14 @@ sequence is now complete.**
 - [x] H4 COMPLETE — rebuilt the current API image from a forced base pull, refreshed Trivy's DB,
       proved the zero-fixable blocking gate, recorded full unfixed/unique counts, and removed all
       temporary artifacts. Evidence: 2026-09-07T14:08:48-06:00 session entry.
-- [ ] H5 NOT STARTED — verify the retained local kind/PVC state and clean it up if still wanted.
+- [x] H5 COMPLETE — verified the retained `bedoux` kind node and 1 GiB bound PostgreSQL PVC,
+      confirmed 46 MiB of PostgreSQL 16 data, then removed the cluster, exact backing volume,
+      empty kind network, kubeconfig entry, and temporary kubeconfig. Evidence:
+      2026-09-07T14:28:21-06:00 session entry.
 
 The owner approved working through these items one at a time on 2026-09-07. They are bounded
-housekeeping tasks, not a new product or infrastructure phase. H1–H3 are merged; H4 is complete
-locally and awaiting review/publication; H5 remains inactive.
+housekeeping tasks, not a new product or infrastructure phase. H1–H5 are complete; no follow-on
+phase is active.
 
 ## Blockers
 
@@ -751,6 +754,43 @@ locally and awaiting review/publication; H5 remains inactive.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-09-07T14:28:21-06:00 — H5 local kind/PVC cleanup complete — Codex
+
+- **Pre-delete ownership proof:** Podman/kind reported exactly one cluster, `bedoux`, backed by
+  stopped node `bedoux-control-plane` with the expected kind cluster/role labels. Its sole
+  `/var` volume carried label `bedoux-control-plane=true` and contained local-path directory
+  `bedoux/postgres-data`.
+- **Retained-state proof:** an explicit temporary kubeconfig targeted only
+  `https://127.0.0.1:32855` as context `kind-bedoux`. After starting the node, Kubernetes
+  reported it Ready and reported `bedoux/postgres-data` Bound at 1 GiB. The backing directory
+  contained 46 MiB of PostgreSQL data with `PG_VERSION` 16. The week-old workload containers
+  remained exited/Unknown after node restart, so this proves PVC/storage preservation rather than
+  application health.
+- **Deletion:** `kind delete cluster --name bedoux` with the explicit Podman provider removed the
+  node and exact PVC backing volume. The now-empty, unattached `kind` network and private
+  temporary kubeconfig were also removed. This permanently deleted the retained 46 MiB database.
+- **Post-delete proof:** kind reports no clusters; the node container and labeled volume are
+  absent; the kind network is absent; `kind-bedoux` is absent from the default kubeconfig;
+  historical EKS contexts remain with no current context selected; host
+  `fs.inotify.max_user_instances` remains 128.
+- **Scope:** unrelated Podman containers/volumes and reusable cached images were not removed.
+  No AWS or cloud Kubernetes endpoint was contacted. AWS: none.
+- **State:** H1–H5 are complete. P0–P14 and M1–M5 remain complete. No new phase is active.
+
+### 2026-09-07T14:17:54-06:00 — H4 merged; H5 activated — Codex
+
+- **H4 closed:** owner approved exact head
+  `78cac4bbc9254fc209cb0c7d845d97c8c1efc8d0`; PR #82 was marked ready and merged as
+  `cede56c7ef908f8b8f86484724b560f7a4822284` after exact-head run `34158458126`
+  passed all four jobs. Local `main` was fast-forwarded, then the clean merged H4
+  worktree and local/remote branch were removed.
+- **Owner authorization:** proceed with H5. This is the final bounded housekeeping item, not P15.
+- **H5 safety contract:** inventory the stopped local `bedoux` kind node, its explicit
+  kubeconfig/context, and preserved PVC before mutation. Remove only resources proven to belong
+  to this repository; do not touch unrelated Podman containers or volumes.
+- **Infrastructure boundary:** local Podman/kind/Kubernetes state only. No AWS or cloud Kubernetes
+  endpoint will be contacted. AWS: none.
 
 ### 2026-09-07T14:08:48-06:00 — H4 API vulnerability evidence refreshed — Codex
 
