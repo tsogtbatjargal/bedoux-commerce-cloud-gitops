@@ -15,7 +15,8 @@ This module keeps the same contracts and changes only how they are expressed:
 * stable and canary render from one shared pod-spec module (M2, ADR 0024), and a contract
   proves they stay equivalent apart from their parameters.
 
-Standard library only, no AWS or Kubernetes access. Run it with ``make helm-test``.
+Standard library only, no AWS or Kubernetes access. From this workstation, run it with
+``toolbox run -c bedoux-aws /usr/bin/make helm-test``.
 """
 
 from __future__ import annotations

@@ -11,7 +11,7 @@ checked here and its evidence is recorded in the session log.
 | State | COMPLETE |
 | Active phase | None — P0–P14, M1–M5, and post-track housekeeping H1–H6 are complete. |
 | Active task | None. |
-| Last verified | 2026-09-07T15:04:56-06:00 — H6 reconciled current local-tooling guidance and passed the toolbox prerequisite and documentation gates. |
+| Last verified | 2026-09-07T15:17:01-06:00 — H6 review defect repaired in Claude operational commands and permissions; local gates passed. |
 | AWS resources currently live | No temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
 | Next operator action | Review the local H6 documentation commit; publication requires separate owner authorization. Do not activate a new phase. |
@@ -744,7 +744,7 @@ sequence is now complete.**
 - [x] H6 COMPLETE — reconciled current-facing local-tooling documentation with the verified
       Silverblue 44 host, Fedora 43 toolbox, toolbox-only `make` invocation, and direct host CLI
       installations without rewriting historical evidence. Evidence:
-      2026-09-07T15:04:56-06:00 session entry.
+      2026-09-07T15:04:56-06:00 and 2026-09-07T15:17:01-06:00 session entries.
 
 The owner approved H1–H5 one at a time and separately authorized H6 on 2026-09-07. They are
 bounded housekeeping tasks, not a new product or infrastructure phase. H1–H6 are complete; no
@@ -758,6 +758,25 @@ follow-on phase is active.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-09-07T15:17:01-06:00 — H6 Claude command-path review defect repaired — Codex
+
+- **Review defect accepted:** exact head `5cbef8b3aca61b6690a527bc57c5465aca28e440`
+  correctly updated the human-facing tooling docs but missed current operational references in
+  `.claude/commands/catchup.md`, `.claude/commands/closeout.md`, and
+  `.claude/settings.json`. Because host `make` is absent, both commands could fail and their
+  obsolete permission patterns did not cover the canonical toolbox invocation.
+- **Repair:** both operational commands now run
+  `toolbox run -c bedoux-aws /usr/bin/make docs-check`; the matching Claude permission patterns
+  allow the canonical toolbox-run `docs-check` and `tools-check` commands and no longer allow
+  the obsolete bare forms. The Helm render module's current local-run instruction now uses the
+  toolbox-run `helm-test` target as well.
+- **Verification:** parsed `.claude/settings.json`; searched current-facing non-historical
+  sources for obsolete bare command paths; reran toolbox `tools-check`, `docs-check`, and
+  `helm-test` (17 render contracts, 6 fail-sensitivity fixtures, and P14.1 resource assertions);
+  `git diff --check` passed. AWS and Kubernetes endpoints were not contacted; AWS: none.
+- **State:** H6 remains complete, no phase is active, and publication still requires separate
+  owner authorization.
 
 ### 2026-09-07T15:04:56-06:00 — H6 local-tooling documentation reconciled — Codex
 
