@@ -23,16 +23,16 @@ This file is the entry point for a new Claude Code, Codex, OpenClaw, or human se
   named deployment profiles (`ff81bfc`), M4 typed P12/P13 gate diagnostics (`38cadaf`), M5 lazy
   `app.db` engine + isolated order pricing (`4e63213`), plus `docs/verification-lessons.md`
   (`950775b`). Final merge: `40bb39d`.
-- Active phase/task: **none**. The owner closed the P10–P14 optimization track and, separately,
-  the M1–M5 maintenance track, without activating P15 or another unplanned phase.
+- Active phase/task: **none**. Post-track housekeeping H1 and H2 are complete locally; H2 awaits
+  review/publication and H3–H5 remain inactive. P0–P14 and M1–M5 remain complete; this is not P15.
 - AWS state: no temporary or hourly billed project resource is live. Only the owner-approved
   persistent ECR/IAM, Route 53/ACM, and Terraform state-storage allowlist remains; website aliases
   are absent.
 - Local state: the retained Calico-backed kind node is stopped with its PVC preserved; the host
   inotify setting is restored to 128. A default kubeconfig may point to a deleted EKS endpoint, so
   always select an explicit context before Kubernetes work.
-- Next action: safe stop. Future implementation requires a new owner-approved scope and explicit
-  activation of its first checklist item.
+- Next action: review and publish H2's focused entry/handoff verification-command update. H3–H5
+  remain inactive until separately continued in sequence.
 
 ## Evidence map
 
@@ -65,6 +65,26 @@ git diff --check
 
 These checks verify the final documentation/action pins and P14 evidence. They do not authorize a
 new phase or contact AWS/Kubernetes endpoints.
+
+The post-P14 M1–M5 maintenance checks are also locally runnable from the repository root:
+
+```text
+# M1/M2: named Helm render contracts and shared stable/canary pod-spec parity
+toolbox run -c bedoux-aws /usr/bin/make helm-test
+
+# M3: all 256 legacy deployment-input combinations match the named-profile resolver
+python3 scripts/test_deploy_profile.py
+
+# M4: all typed P12/P13 gate-result fixtures and error channels
+python3 scripts/test_gate_checks.py
+
+# M5: isolated pricing and database-credential boundary (API dev dependencies required)
+(cd apps/api && python3 -m pytest -q tests/test_pricing.py tests/test_database_credentials.py)
+```
+
+These are local, read-only checks. The M5 command assumes `apps/api`'s `.[dev]` dependencies are
+installed in the active Python environment; CI runs the full API suite against its own ephemeral
+PostgreSQL service.
 
 ## Non-negotiable boundaries
 

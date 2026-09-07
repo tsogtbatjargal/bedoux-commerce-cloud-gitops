@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | Post-track housekeeping — not P15; P0–P14 and M1–M5 remain complete. |
-| Active task | No item active — H1 is complete locally and awaiting publication review. H2–H5 remain NOT STARTED. |
-| Last verified | 2026-09-07T13:06:26-06:00 — H1 reconciled exact PR #77/#78 merge ancestry and green exact-head checks through clean current `origin/main` `d3d0779`. |
+| Active task | No item active — H2 is complete locally and awaiting review/publication. H3–H5 remain NOT STARTED. |
+| Last verified | 2026-09-07T13:23:49-06:00 — H2 entry/handoff commands passed locally from clean merged `main` `bcc94cf`; no AWS/Kubernetes endpoint contacted. |
 | AWS resources currently live | No temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
-| Next operator action | Review and publish the focused H1 checkpoint commit. Keep H2 inactive until H1 is merged, preserving the one-at-a-time sequence. |
+| Next operator action | Review and publish the focused H2 documentation change. Keep H3–H5 inactive. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -727,14 +727,15 @@ sequence is now complete.**
 - [x] H1 COMPLETE — reconciled authoritative checkpoint metadata through PR #77/#78; exact merge
       ancestry, exact-head checks, clean current `main`, and local docs verification recorded in
       the 2026-09-07T13:06:26-06:00 session entry.
-- [ ] H2 NOT STARTED — add M1–M5 verification commands to the entry and handoff documents.
+- [x] H2 COMPLETE — M1–M5 verification commands are present and consistent in the entry and
+      handoff documents; local evidence is recorded in the 2026-09-07T13:23:49-06:00 entry.
 - [ ] H3 NOT STARTED — verify and remove merged remote maintenance/documentation branches.
 - [ ] H4 NOT STARTED — refresh the API base-image vulnerability evidence.
 - [ ] H5 NOT STARTED — verify the retained local kind/PVC state and clean it up if still wanted.
 
 The owner approved working through these items one at a time on 2026-09-07. They are bounded
-housekeeping tasks, not a new product or infrastructure phase. H1 is complete locally; H2–H5
-remain inactive.
+housekeeping tasks, not a new product or infrastructure phase. H1 is merged; H2 is complete
+locally and awaiting review/publication; H3–H5 remain inactive.
 
 ## Blockers
 
@@ -744,6 +745,38 @@ remain inactive.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-09-07T13:23:49-06:00 — H2 entry/handoff verification commands completed — Codex
+
+- **Changed:** `START-HERE.md` and `docs/HANDOFF.md` now expose the same locally runnable M1–M5
+  smoke commands instead of leaving them discoverable only inside CI: `make helm-test` for
+  M1/M2, the exhaustive deployment-profile comparison for M3, typed gate fixtures for M4, and
+  focused pricing/database-credential tests for M5. The API dependency prerequisite and full-CI
+  boundary are explicit.
+- **Verification:** the exact documented commands passed on current merged `main` `bcc94cf`:
+  M1/M2 reported 17 render contracts and 6 negative fixtures across 13 cached renders; M3 checked
+  all 256 combinations (41 accepted, 215 refused) with exact matches; M4 passed all 54 fixtures;
+  M5 passed 14 focused tests. `docs-check` also passed with 18 immutable Action references.
+- **Environment:** M5 was verified in an isolated temporary Python environment populated from
+  `apps/api[dev]`; no repository dependency or generated file was added.
+- **Infrastructure boundary:** no AWS or Kubernetes endpoint was contacted. AWS: none.
+- **State:** H2 is complete locally and awaits review/publication. H3–H5 remain inactive; this
+  does not activate P15 or reopen M1–M5.
+- **Next action:** review and publish this focused H2 documentation change.
+
+### 2026-09-07T13:18:18-06:00 — H1 merged; H2 activated — Codex
+
+- **H1 closed:** owner approved exact head `b9ce6aca611cb886295cd79d476f90919c712a60`;
+  PR #79 was marked ready and merged as current `main`
+  `bcc94cfc65831f2969c85d785821dbbb0948b096` after all four exact-head checks passed.
+- **Owner authorization:** continue H2 only. Add the M1–M5 verification commands to the entry
+  and handoff documents; H3–H5 remain inactive. This is housekeeping, not P15.
+- **Starting state:** isolated branch `chore/h2-verification-commands` starts from clean
+  `origin/main` `bcc94cf`.
+- **Infrastructure boundary:** documentation and local verification only. No AWS or Kubernetes
+  endpoint will be contacted. AWS: none.
+- **Next action:** update both entry paths with one consistent, locally runnable M1–M5 command
+  set, prove it on the current tree, and record the result here.
 
 ### 2026-09-07T13:06:26-06:00 — H1 authoritative checkpoint reconciled — Codex
 
