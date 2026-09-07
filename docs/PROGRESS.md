@@ -8,13 +8,13 @@ checked here and its evidence is recorded in the session log.
 
 | Field | Value |
 |---|---|
-| State | COMPLETE |
-| Active phase | None — P0–P14 and the post-P14 M1–M5 maintenance track are both complete and gate-approved/merged. |
-| Active task | No task active. M1 (`521f3a3`), M2 (`83b2eaa`), M3 (`ff81bfc`), M4 (`38cadaf`), M5 (`4e63213`), and docs PR #71 (`950775b`) are all merged to `main`. The owner-approved M1–M5 sequence is complete; any further work starts with its own new task, not a reopening of M1–M5. |
-| Last verified | 2026-09-04T20:15:28-06:00 — PR #76 (the M5 review's one non-blocking follow-up: a comment on conftest's db_engine fixture) merged as `0215668`. `main` synced to `0215668`; full local pytest suite (29 passed, 7 skipped without a database) and the repo's Helm/gate-checks/deploy-profile test suites all re-run clean on the merged tree. |
+| State | IN PROGRESS |
+| Active phase | Post-track housekeeping — not P15; P0–P14 and M1–M5 remain complete. |
+| Active task | No item active — H1 is complete locally and awaiting publication review. H2–H5 remain NOT STARTED. |
+| Last verified | 2026-09-07T13:06:26-06:00 — H1 reconciled exact PR #77/#78 merge ancestry and green exact-head checks through clean current `origin/main` `d3d0779`. |
 | AWS resources currently live | No temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
-| Next operator action | Safe stopping point. The post-P14 M1–M5 maintenance track is closed out. Any further work starts with its own new task/decision, per this file's original guidance after the P14 gate. |
+| Next operator action | Review and publish the focused H1 checkpoint commit. Keep H2 inactive until H1 is merged, preserving the one-at-a-time sequence. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -722,6 +722,20 @@ M5 were each explicitly activated and closed out in turn ("Lets build M3" and "m
 both 2026-09-04). These items do not reopen or renumber the completed P0–P14 plan. **The M1–M5
 sequence is now complete.**
 
+### Post-track housekeeping — not P15
+
+- [x] H1 COMPLETE — reconciled authoritative checkpoint metadata through PR #77/#78; exact merge
+      ancestry, exact-head checks, clean current `main`, and local docs verification recorded in
+      the 2026-09-07T13:06:26-06:00 session entry.
+- [ ] H2 NOT STARTED — add M1–M5 verification commands to the entry and handoff documents.
+- [ ] H3 NOT STARTED — verify and remove merged remote maintenance/documentation branches.
+- [ ] H4 NOT STARTED — refresh the API base-image vulnerability evidence.
+- [ ] H5 NOT STARTED — verify the retained local kind/PVC state and clean it up if still wanted.
+
+The owner approved working through these items one at a time on 2026-09-07. They are bounded
+housekeeping tasks, not a new product or infrastructure phase. H1 is complete locally; H2–H5
+remain inactive.
+
 ## Blockers
 
 - GitHub server-side branch protection remains unavailable while the repository is private
@@ -730,6 +744,36 @@ sequence is now complete.**
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-09-07T13:06:26-06:00 — H1 authoritative checkpoint reconciled — Codex
+
+- **PR #77:** exact head `0572eb451f6e9d520579834fefd43b824ba839a5` merged onto prior
+  `main` `02156685ae9a20312cc3bc7cf1545b298d724b95` as
+  `40bb39ddc0d5cdcab166df2722bf0e58b3bce56e`. Exact-head run `33915464797` passed all
+  four jobs.
+- **PR #78:** exact head `5f8cd573adf8ccffc7a7b42c958325ae36871178` merged onto
+  `40bb39d` as current `main` `d3d0779f0c87d0ba63b80ab33e7c3284dcde042a`. Exact-head
+  run `33917702915` passed all four jobs.
+- **Local verification:** local `main` was clean and byte-identical to `origin/main` before
+  the isolated H1 branch was created; `docs-check` passes with 18 immutable external Action
+  references and `git diff --check` passes.
+- **State correction:** the authoritative `Last verified` field no longer ends at PR #76.
+  P0–P14 and M1–M5 remain complete; this reconciliation does not change implementation state.
+- **Infrastructure boundary:** no AWS or Kubernetes endpoint was contacted. AWS: none.
+- **Next action:** review and publish this focused H1 checkpoint. H2–H5 remain inactive until H1
+  is merged.
+
+### 2026-09-07T13:04:47-06:00 — post-track housekeeping approved; H1 activated — Codex
+
+- **Owner authorization:** complete the five reviewed housekeeping items one at a time. H1 is
+  active; H2–H5 remain inactive. This does not activate P15 or reopen M1–M5.
+- **Starting state:** local `main` is clean and exactly matches `origin/main` at `d3d0779`.
+  PR #77 and PR #78 are both merged, but the authoritative `Last verified` field still ends at
+  PR #76/`0215668`.
+- **Scope:** documentation state reconciliation only. No application, chart, workflow,
+  AWS resource, or Kubernetes resource change is part of H1.
+- **Next action:** record exact PR #77/#78 merge ancestry and re-run bounded local documentation
+  verification before closing H1.
 
 ### 2026-09-04T20:15:28-06:00 — M5 merged; M1–M5 maintenance track closed out — Claude
 
