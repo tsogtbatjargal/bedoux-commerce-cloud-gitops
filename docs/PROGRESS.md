@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | Post-track housekeeping — not P15; P0–P14 and M1–M5 remain complete. |
-| Active task | No item active — H4 is complete locally and awaiting review/publication. H5 remains NOT STARTED. |
-| Last verified | 2026-09-07T14:08:48-06:00 — fresh pinned-Trivy scan of rebuilt API image: zero fixable HIGH/CRITICAL findings; 54 unfixed package records representing 18 unique CVEs; artifacts removed. |
+| Active task | H5 IN PROGRESS — verify the retained local kind/PVC state, then remove only the confirmed Bedoux-owned local cluster artifacts. |
+| Last verified | 2026-09-07T14:17:54-06:00 — PR #82 merged at exact reviewed head after four green checks; H4 branch/worktree removed; H5 activated. |
 | AWS resources currently live | No temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
-| Next operator action | Review and publish the focused H4 evidence refresh. Keep H5 inactive. |
+| Next operator action | Inventory the stopped `bedoux` kind node and preserved PVC using explicit local context; clean confirmed Bedoux-owned artifacts only. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -737,11 +737,10 @@ sequence is now complete.**
 - [x] H4 COMPLETE — rebuilt the current API image from a forced base pull, refreshed Trivy's DB,
       proved the zero-fixable blocking gate, recorded full unfixed/unique counts, and removed all
       temporary artifacts. Evidence: 2026-09-07T14:08:48-06:00 session entry.
-- [ ] H5 NOT STARTED — verify the retained local kind/PVC state and clean it up if still wanted.
+- [ ] H5 IN PROGRESS — verify the retained local kind/PVC state and clean it up if still wanted.
 
 The owner approved working through these items one at a time on 2026-09-07. They are bounded
-housekeeping tasks, not a new product or infrastructure phase. H1–H3 are merged; H4 is complete
-locally and awaiting review/publication; H5 remains inactive.
+housekeeping tasks, not a new product or infrastructure phase. H1–H4 are merged; H5 is active.
 
 ## Blockers
 
@@ -751,6 +750,20 @@ locally and awaiting review/publication; H5 remains inactive.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-09-07T14:17:54-06:00 — H4 merged; H5 activated — Codex
+
+- **H4 closed:** owner approved exact head
+  `78cac4bbc9254fc209cb0c7d845d97c8c1efc8d0`; PR #82 was marked ready and merged as
+  `cede56c7ef908f8b8f86484724b560f7a4822284` after exact-head run `34158458126`
+  passed all four jobs. Local `main` was fast-forwarded, then the clean merged H4
+  worktree and local/remote branch were removed.
+- **Owner authorization:** proceed with H5. This is the final bounded housekeeping item, not P15.
+- **H5 safety contract:** inventory the stopped local `bedoux` kind node, its explicit
+  kubeconfig/context, and preserved PVC before mutation. Remove only resources proven to belong
+  to this repository; do not touch unrelated Podman containers or volumes.
+- **Infrastructure boundary:** local Podman/kind/Kubernetes state only. No AWS or cloud Kubernetes
+  endpoint will be contacted. AWS: none.
 
 ### 2026-09-07T14:08:48-06:00 — H4 API vulnerability evidence refreshed — Codex
 
