@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | Post-track housekeeping — not P15; P0–P14 and M1–M5 remain complete. |
-| Active task | No item active — H3 is complete and awaiting checkpoint review/publication. H4–H5 remain NOT STARTED. |
-| Last verified | 2026-09-07T13:56:01-06:00 — H3 removed 12 fully merged remote branches plus two clean merged local worktrees; only `origin/main`, local `main`, and the active H3 worktree remain. |
+| Active task | No item active — H4 is complete locally and awaiting review/publication. H5 remains NOT STARTED. |
+| Last verified | 2026-09-07T14:08:48-06:00 — fresh pinned-Trivy scan of rebuilt API image: zero fixable HIGH/CRITICAL findings; 54 unfixed package records representing 18 unique CVEs; artifacts removed. |
 | AWS resources currently live | No temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
-| Next operator action | Review and publish the focused H3 cleanup checkpoint. Keep H4–H5 inactive. |
+| Next operator action | Review and publish the focused H4 evidence refresh. Keep H5 inactive. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -88,14 +88,16 @@ check can't miss them:
 
 ## Known open issues (not blockers, revisit when fixable)
 
-- **17 unfixed OS-level CVEs on the API image's `python:3.12-slim` (Debian 13) base**,
-  re-scanned 2026-08-20 after applying current runtime package updates — 13 HIGH and 4 CRITICAL,
-  all with empty `FixedVersion`; the required `--ignore-unfixed` blocking scan reports zero.
-  PR #48 initially exposed 36 newly fixable HIGH findings across nine `util-linux` packages;
-  the runtime `apt-get upgrade` installed Debian's fixed `2.41.5-0+deb13u1` packages and removed
-  all 36. The web image (`nginx-unprivileged` on Alpine) remains clean. Re-scan opportunistically
-  (P14 capstone at the latest, or sooner if the base image tag changes) and fix remaining findings
-  when upstream packages become available.
+- **54 unfixed HIGH/CRITICAL OS package records on the API image's `python:3.12-slim`
+  (Debian 13.6) base**, refreshed 2026-09-07 after a forced base pull and runtime package upgrade:
+  51 HIGH and 3 CRITICAL records, representing 18 unique CVEs (15 HIGH, 3 CRITICAL) across 19
+  packages. Every record has an empty `FixedVersion` (51 `affected`, 3 `fix_deferred`); the
+  CI-equivalent `--ignore-unfixed` blocking scan reports zero, and the Python package layer reports
+  zero HIGH/CRITICAL findings. This supersedes the 2026-08-20 count of 17 records; package records
+  are not unique-CVE counts because one CVE can affect several installed packages. PR #48's
+  runtime `apt-get upgrade` remains effective—the fresh build had zero available package upgrades.
+  The web image was not rescanned in H4; its last recorded scan was clean. Refresh again when the
+  base or scanner pin changes, or when Debian publishes fixed versions.
 
 ## Phase checklist
 
@@ -732,12 +734,14 @@ sequence is now complete.**
 - [x] H3 COMPLETE — removed 12 remote branches only after proving each tip was an ancestor of
       `origin/main` and confirming zero open PRs; also removed the clean merged H1/H2 local
       worktrees and branches. Evidence: 2026-09-07T13:56:01-06:00 session entry.
-- [ ] H4 NOT STARTED — refresh the API base-image vulnerability evidence.
+- [x] H4 COMPLETE — rebuilt the current API image from a forced base pull, refreshed Trivy's DB,
+      proved the zero-fixable blocking gate, recorded full unfixed/unique counts, and removed all
+      temporary artifacts. Evidence: 2026-09-07T14:08:48-06:00 session entry.
 - [ ] H5 NOT STARTED — verify the retained local kind/PVC state and clean it up if still wanted.
 
 The owner approved working through these items one at a time on 2026-09-07. They are bounded
-housekeeping tasks, not a new product or infrastructure phase. H1–H3 are complete; H3 awaits
-checkpoint review/publication; H4–H5 remain inactive.
+housekeeping tasks, not a new product or infrastructure phase. H1–H3 are merged; H4 is complete
+locally and awaiting review/publication; H5 remains inactive.
 
 ## Blockers
 
@@ -747,6 +751,49 @@ checkpoint review/publication; H4–H5 remain inactive.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-09-07T14:08:48-06:00 — H4 API vulnerability evidence refreshed — Codex
+
+- **Build identity:** forced a fresh pull of `python:3.12-slim`, then rebuilt the unmodified API
+  Dockerfile as temporary image `localhost/bedoux-api:h4-20260907`, image ID
+  `319da53e27e3f8bd5e505949200ba78fc36c97f23585007042a578c11be76ece`. The runtime package step
+  reported zero available upgrades. Runtime checks confirmed Debian 13 and uid/gid 10001.
+- **Scanner identity:** repository-pinned Trivy 0.72.0 with vulnerability DB v2 updated
+  `2026-09-07T19:06:01Z` and downloaded `2026-09-07T20:06:05Z`. The image was exported and scanned
+  through `--input`, matching `docs/local-tooling.md`'s daemon-independent method.
+- **Blocking result:** the CI-equivalent HIGH/CRITICAL scan with `--ignore-unfixed --exit-code 1`
+  exited zero and reported no fixable OS or Python findings.
+- **Informational result:** the full HIGH/CRITICAL JSON report contains 54 Debian package records
+  (51 HIGH, 3 CRITICAL), all with empty `FixedVersion`; 51 are `affected` and 3 are
+  `fix_deferred`. Deduplicating by `VulnerabilityID` yields 18 unique CVEs (15 HIGH, 3 CRITICAL).
+  Nineteen installed OS packages are affected. The Python package target contains zero findings.
+- **Count correction:** records and unique CVEs are now stated separately. The prior 17-record
+  snapshot was accurate for its 2026-08-20 database but is not current evidence.
+- **Cleanup:** removed the exact temporary image tag/layers, tar archive, and JSON report; verified
+  the image tag and both files are absent. The pulled shared base was not deleted because its
+  pre-session ownership was not established.
+- **Infrastructure boundary:** local image build/scan and documentation only. No AWS or Kubernetes
+  endpoint was contacted. AWS: none.
+- **State:** H4 is complete locally and awaits review/publication. H5 remains inactive; this does
+  not activate P15.
+- **Next action:** review and publish this focused H4 evidence refresh.
+
+### 2026-09-07T14:02:45-06:00 — H3 merged; H4 activated — Codex
+
+- **H3 closed:** owner approved exact head `36bf147f0fad3e79fc436cb3a291a104126ed81d`;
+  PR #81 was marked ready and merged as current `main`
+  `70e48046cbe1f5a563939471e8f6bdd870db4c66` after exact-head run `34157588572`
+  passed all four jobs. Local `main` was fast-forwarded cleanly; the merged H3 remote branch,
+  worktree, and local branch were then removed.
+- **Owner authorization:** proceed through H4 and H5 one at a time. H4 is active now; H5 remains
+  inactive. This is housekeeping, not P15.
+- **H4 scope:** rebuild the current API image, run the repository's blocking and informational
+  vulnerability scans, and replace the dated 2026-08-20 known-issue count with reproducible
+  current evidence. Do not change application dependencies merely to alter scan counts.
+- **Infrastructure boundary:** local container build/scan and documentation only. No AWS or
+  Kubernetes endpoint will be contacted. AWS: none.
+- **Next action:** inspect the pinned CI build/scan commands, reproduce them locally, and record
+  scanner/database timestamps, severity totals, fix availability, and image identity.
 
 ### 2026-09-07T13:56:01-06:00 — H3 merged branch cleanup completed — Codex
 

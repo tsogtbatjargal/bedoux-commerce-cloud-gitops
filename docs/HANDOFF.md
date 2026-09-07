@@ -21,10 +21,11 @@ Current state:
   deployment profiles (ff81bfc), M4 typed P12/P13 gate diagnostics (38cadaf), M5 lazy app.db
   engine + isolated order pricing (4e63213), plus docs/verification-lessons.md (950775b). Final
   merge: 40bb39d.
-- Post-track housekeeping H1-H3 are complete. H2 exposes the merged M1-M5 local verification
-  commands consistently in START-HERE.md and this handoff. H3 removed 12 fully merged remote
-  maintenance/documentation branches and the clean H1/H2 local worktrees; its checkpoint awaits
-  review/publication. H4-H5 remain inactive.
+- Post-track housekeeping H1-H4 are complete. H2 exposes the merged M1-M5 local verification
+  commands consistently in START-HERE.md and this handoff. H3 removed the merged maintenance
+  branches/worktrees. H4 refreshed the current API image scan: zero fixable HIGH/CRITICAL
+  findings, 54 unfixed package records representing 18 unique CVEs; its checkpoint awaits
+  review/publication. H5 remains inactive.
 - The owner closed the P10–P14 optimization track and, separately, the M1-M5 maintenance track,
   without activating P15 or another unplanned phase.
 - No temporary or hourly billed AWS resource is live. Only the approved persistent ECR/IAM,
@@ -46,8 +47,8 @@ Resume checks:
    identity, cost, deadline, teardown, and evidence gates.
 
 Next action:
-- Review/publish H3's focused cleanup checkpoint. H4-H5 require separate continuation in
-  sequence. Do not infer a P15, or an M6+ continuation of the closed M1-M5 track, from the
+- Review/publish H4's focused vulnerability-evidence refresh. H5 requires separate continuation
+  in sequence. Do not infer a P15, or an M6+ continuation of the closed M1-M5 track, from the
   historical plan or logs.
 
 Hard boundaries: USD 20/month; ca-central-1; bedoux-admin only; standard project tags; no NAT
