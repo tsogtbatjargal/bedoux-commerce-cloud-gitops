@@ -10,11 +10,11 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | Post-track housekeeping — not P15; P0–P14 and M1–M5 remain complete. |
-| Active task | No item active — H2 is complete locally and awaiting review/publication. H3–H5 remain NOT STARTED. |
-| Last verified | 2026-09-07T13:23:49-06:00 — H2 entry/handoff commands passed locally from clean merged `main` `bcc94cf`; no AWS/Kubernetes endpoint contacted. |
+| Active task | No item active — H3 is complete and awaiting checkpoint review/publication. H4–H5 remain NOT STARTED. |
+| Last verified | 2026-09-07T13:56:01-06:00 — H3 removed 12 fully merged remote branches plus two clean merged local worktrees; only `origin/main`, local `main`, and the active H3 worktree remain. |
 | AWS resources currently live | No temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
-| Next operator action | Review and publish the focused H2 documentation change. Keep H3–H5 inactive. |
+| Next operator action | Review and publish the focused H3 cleanup checkpoint. Keep H4–H5 inactive. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -729,13 +729,15 @@ sequence is now complete.**
       the 2026-09-07T13:06:26-06:00 session entry.
 - [x] H2 COMPLETE — M1–M5 verification commands are present and consistent in the entry and
       handoff documents; local evidence is recorded in the 2026-09-07T13:23:49-06:00 entry.
-- [ ] H3 NOT STARTED — verify and remove merged remote maintenance/documentation branches.
+- [x] H3 COMPLETE — removed 12 remote branches only after proving each tip was an ancestor of
+      `origin/main` and confirming zero open PRs; also removed the clean merged H1/H2 local
+      worktrees and branches. Evidence: 2026-09-07T13:56:01-06:00 session entry.
 - [ ] H4 NOT STARTED — refresh the API base-image vulnerability evidence.
 - [ ] H5 NOT STARTED — verify the retained local kind/PVC state and clean it up if still wanted.
 
 The owner approved working through these items one at a time on 2026-09-07. They are bounded
-housekeeping tasks, not a new product or infrastructure phase. H1 is merged; H2 is complete
-locally and awaiting review/publication; H3–H5 remain inactive.
+housekeeping tasks, not a new product or infrastructure phase. H1–H3 are complete; H3 awaits
+checkpoint review/publication; H4–H5 remain inactive.
 
 ## Blockers
 
@@ -745,6 +747,45 @@ locally and awaiting review/publication; H3–H5 remain inactive.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-09-07T13:56:01-06:00 — H3 merged branch cleanup completed — Codex
+
+- **Pre-delete proof:** refreshed/pruned remote refs, confirmed GitHub had zero open PRs, and
+  required each candidate tip to satisfy `git merge-base --is-ancestor <candidate> origin/main`.
+  All 12 candidates passed; no unmerged or ambiguous ref entered the delete set.
+- **Remote cleanup:** deleted `chore/h1-authoritative-checkpoint`,
+  `chore/h2-verification-commands`, `chore/m1-m2-m4-checkpoint-reconcile`,
+  `chore/m1-m5-track-closeout`, `docs/db-engine-fixture-note`,
+  `docs/refresh-checkpoint-handoff`, `docs/verification-lessons`, and the five
+  `maintenance/m1-*` through `maintenance/m5-*` branches. A fresh fetch shows only
+  `origin/main` (plus the symbolic `origin/HEAD`).
+- **Local cleanup:** confirmed the H1 and H2 worktrees were clean and their branches fully merged,
+  then removed only `/tmp/bedoux-h1-authoritative-checkpoint` and
+  `/tmp/bedoux-h2-verification-commands` plus those two local branches. Local state now contains
+  the primary `main` worktree and this active H3 checkpoint worktree only.
+- **Recovery:** every deleted tip remains reachable through its merged PR and `main`; no source
+  commit was rewritten or removed from merged history.
+- **Infrastructure boundary:** Git/GitHub branch refs and documentation only. No AWS or Kubernetes
+  endpoint was contacted. AWS: none.
+- **State:** H3 is complete and awaits checkpoint review/publication. H4–H5 remain inactive; this
+  does not activate P15.
+- **Next action:** review and publish this focused H3 checkpoint.
+
+### 2026-09-07T13:53:48-06:00 — H2 merged; H3 activated — Codex
+
+- **H2 closed:** owner approved exact head `e995410d2dfda69b7b7e4deefee027febcebb341`;
+  PR #80 was marked ready and merged as current `main`
+  `57ffe96d0856e8f0cd824e3389ef9fa01adea774` after exact-head run `34156980301`
+  passed all four jobs. Local `main` was fast-forwarded cleanly to the same SHA.
+- **Owner authorization:** proceed through H3–H5 one at a time. H3 is active now; H4 and H5
+  remain inactive. This is housekeeping, not P15.
+- **H3 safety contract:** enumerate candidates from remote refs, verify each is fully merged into
+  current `origin/main`, and verify no open PR uses it before deletion. Do not delete an
+  unmerged, active, or ambiguous branch.
+- **Infrastructure boundary:** Git/GitHub branch metadata and repository documentation only. No
+  AWS or Kubernetes endpoint will be contacted. AWS: none.
+- **Next action:** produce the exact safe-delete set, remove only that set, prune remote-tracking
+  refs, and record before/after evidence.
 
 ### 2026-09-07T13:23:49-06:00 — H2 entry/handoff verification commands completed — Codex
 

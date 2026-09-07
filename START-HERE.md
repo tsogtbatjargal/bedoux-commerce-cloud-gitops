@@ -23,16 +23,16 @@ This file is the entry point for a new Claude Code, Codex, OpenClaw, or human se
   named deployment profiles (`ff81bfc`), M4 typed P12/P13 gate diagnostics (`38cadaf`), M5 lazy
   `app.db` engine + isolated order pricing (`4e63213`), plus `docs/verification-lessons.md`
   (`950775b`). Final merge: `40bb39d`.
-- Active phase/task: **none**. Post-track housekeeping H1 and H2 are complete locally; H2 awaits
-  review/publication and H3–H5 remain inactive. P0–P14 and M1–M5 remain complete; this is not P15.
+- Active phase/task: **none**. Post-track housekeeping H1–H3 are complete; H3 awaits
+  review/publication and H4–H5 remain inactive. P0–P14 and M1–M5 remain complete; this is not P15.
 - AWS state: no temporary or hourly billed project resource is live. Only the owner-approved
   persistent ECR/IAM, Route 53/ACM, and Terraform state-storage allowlist remains; website aliases
   are absent.
 - Local state: the retained Calico-backed kind node is stopped with its PVC preserved; the host
   inotify setting is restored to 128. A default kubeconfig may point to a deleted EKS endpoint, so
   always select an explicit context before Kubernetes work.
-- Next action: review and publish H2's focused entry/handoff verification-command update. H3–H5
-  remain inactive until separately continued in sequence.
+- Next action: review and publish H3's focused merged-branch cleanup checkpoint. H4–H5 remain
+  inactive until separately continued in sequence.
 
 ## Evidence map
 
