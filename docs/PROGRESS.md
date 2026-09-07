@@ -8,13 +8,13 @@ checked here and its evidence is recorded in the session log.
 
 | Field | Value |
 |---|---|
-| State | COMPLETE |
-| Active phase | None — P0–P14, M1–M5, and post-track housekeeping H1–H5 are complete. |
-| Active task | None. |
-| Last verified | 2026-09-07T14:28:21-06:00 — H5 verified the retained local kind/PVC state, removed the cluster/PVC/network, and confirmed no kind cluster remains. |
+| State | IN PROGRESS |
+| Active phase | None — P0–P14 and M1–M5 remain complete; bounded post-track documentation housekeeping is active. |
+| Active task | H6 — reconcile current local-tooling documentation with the verified host/toolbox command paths. |
+| Last verified | 2026-09-07T14:58:55-06:00 — owner authorized the bounded tooling-document reconciliation after the toolbox prerequisite check passed. |
 | AWS resources currently live | No temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
-| Next operator action | None. Stop unless the owner explicitly activates a new bounded task or phase. |
+| Next operator action | Complete H6 locally; do not publish or activate a new phase without separate owner authorization. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -741,10 +741,13 @@ sequence is now complete.**
       confirmed 46 MiB of PostgreSQL 16 data, then removed the cluster, exact backing volume,
       empty kind network, kubeconfig entry, and temporary kubeconfig. Evidence:
       2026-09-07T14:28:21-06:00 session entry.
+- [ ] H6 IN PROGRESS — reconcile current-facing local-tooling documentation with the verified
+      Silverblue 44 host, Fedora 43 toolbox, toolbox-only `make` invocation, and direct host CLI
+      installations without rewriting historical evidence.
 
-The owner approved working through these items one at a time on 2026-09-07. They are bounded
-housekeeping tasks, not a new product or infrastructure phase. H1–H5 are complete; no follow-on
-phase is active.
+The owner approved H1–H5 one at a time and separately authorized H6 on 2026-09-07. They are
+bounded housekeeping tasks, not a new product or infrastructure phase. H1–H5 are complete; H6
+is active; no follow-on phase is active.
 
 ## Blockers
 
@@ -754,6 +757,20 @@ phase is active.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-09-07T14:58:55-06:00 — H6 local-tooling documentation reconciliation activated — Codex
+
+- **Owner authorization:** update the related documentation after reviewing the current host and
+  `docs/local-tooling.md`; this is bounded documentation housekeeping, not P15 or a reopened
+  maintenance phase.
+- **Observed drift:** the host is Fedora Silverblue 44 while `bedoux-aws` remains a Fedora 43
+  toolbox; the historical host `~/.local/bin/make` wrapper is absent, so current commands must
+  invoke `/usr/bin/make` through the toolbox; the vendor-installed host CLIs remain under
+  `~/.local/bin`, although this agent session resolves `kind` through an earlier `mise` shim.
+- **Baseline evidence:** `toolbox run -c bedoux-aws /usr/bin/make tools-check` reported every
+  prerequisite available. AWS and Kubernetes endpoints were not contacted; AWS: none.
+- **Next action:** reconcile only current-facing tooling guidance, preserve historical progress
+  evidence, then run the toolbox documentation gate and scoped diff checks.
 
 ### 2026-09-07T14:28:21-06:00 — H5 local kind/PVC cleanup complete — Codex
 
