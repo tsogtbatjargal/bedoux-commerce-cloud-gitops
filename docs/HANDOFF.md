@@ -21,7 +21,9 @@ Current state:
   deployment profiles (ff81bfc), M4 typed P12/P13 gate diagnostics (38cadaf), M5 lazy app.db
   engine + isolated order pricing (4e63213), plus docs/verification-lessons.md (950775b). Final
   merge: 40bb39d.
-- Repository execution state is COMPLETE. No phase or checklist item is active.
+- Post-track housekeeping H1 and H2 are complete locally. H2 exposes the merged M1-M5 local
+  verification commands consistently in START-HERE.md and this handoff and awaits
+  review/publication. H3-H5 remain inactive.
 - The owner closed the P10–P14 optimization track and, separately, the M1-M5 maintenance track,
   without activating P15 or another unplanned phase.
 - No temporary or hourly billed AWS resource is live. Only the approved persistent ECR/IAM,
@@ -32,14 +34,20 @@ Current state:
 Resume checks:
 1. Run git status --short and git log --oneline -5.
 2. Run toolbox run -c bedoux-aws /usr/bin/make docs-check.
-3. Do not contact AWS/Kubernetes or change files merely to reconfirm a completed phase.
-4. If future AWS work is explicitly approved, open docs/runbooks/aws-session.md first and obey its
+3. Run the maintenance checks that match the area being resumed:
+   - M1/M2: toolbox run -c bedoux-aws /usr/bin/make helm-test
+   - M3: python3 scripts/test_deploy_profile.py
+   - M4: python3 scripts/test_gate_checks.py
+   - M5: (cd apps/api && python3 -m pytest -q tests/test_pricing.py
+     tests/test_database_credentials.py) with apps/api's .[dev] dependencies installed.
+4. These are local checks. Do not contact AWS/Kubernetes merely to reconfirm completed work.
+5. If future AWS work is explicitly approved, open docs/runbooks/aws-session.md first and obey its
    identity, cost, deadline, teardown, and evidence gates.
 
 Next action:
-- Stop safely. Future implementation requires a newly owner-approved scope and explicit
-  activation of its first checklist item. Do not infer a P15, or an M6+ continuation of the
-  closed M1-M5 track, from the historical plan or logs.
+- Review/publish H2's focused documentation change. H3-H5 require separate continuation in
+  sequence. Do not infer a P15, or an M6+ continuation of the closed M1-M5 track, from the
+  historical plan or logs.
 
 Hard boundaries: USD 20/month; ca-central-1; bedoux-admin only; standard project tags; no NAT
 Gateway without a reviewed exception; same-day teardown; never record secrets, account IDs,
