@@ -18,7 +18,8 @@ pre-push hook into server-enforced branch protection.
 ## Implement and review locally
 
 1. Make small reversible changes and run the checklist item's required tests.
-2. Run `make docs-check` for documentation or diagram changes.
+2. Run `toolbox run -c bedoux-aws /usr/bin/make docs-check` for documentation or diagram
+   changes.
 3. Review `git diff --check`, `git diff --stat`, the full scoped diff, and `git status --short`.
 4. Update `docs/PROGRESS.md` with truthful local evidence before publishing a completion claim.
 5. Commit only the intended paths using the repository convention. Do not include secrets,

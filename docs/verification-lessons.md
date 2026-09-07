@@ -31,8 +31,9 @@ canary P14.1 assertions passed." That claim was false, and only an independent r
 without opening a pull request, so nobody did.
 
 **Rule.** *CI must invoke the same command a human can run.* M1 moved the render contracts into
-`scripts/test_helm_render.py` behind `make helm-test`; the workflow step is now one line that
-calls it. If a check cannot be run locally, treat its "passing" status as unverified.
+`scripts/test_helm_render.py` behind the `helm-test` Make target; locally it runs as
+`toolbox run -c bedoux-aws /usr/bin/make helm-test`, and the workflow step calls the same target.
+If a check cannot be run locally, treat its "passing" status as unverified.
 
 **Corollary.** In rendered Kubernetes YAML, resource names and container names are different
 namespaces at different indent levels. Locate objects structurally — by `kind` plus
@@ -199,7 +200,8 @@ zero. It does not mean the step did what you think.
 
 **What happened.** The M1 patch arrived half-applied: 107 assertion lines had been removed from
 `pr-validation.yml` and the `Makefile` already called `scripts/test_helm_render.py` — but that file
-was never created. `make helm-test` and the CI job would both have failed immediately.
+was never created. The `helm-test` Make target and the CI job would both have failed
+immediately.
 
 **Why.** A multi-file change that deletes in one file and adds in another is only coherent when
 every part lands. Deletions apply cleanly on their own; the new file is what goes missing.

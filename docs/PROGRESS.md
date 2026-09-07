@@ -9,12 +9,12 @@ checked here and its evidence is recorded in the session log.
 | Field | Value |
 |---|---|
 | State | COMPLETE |
-| Active phase | None — P0–P14, M1–M5, and post-track housekeeping H1–H5 are complete. |
+| Active phase | None — P0–P14, M1–M5, and post-track housekeeping H1–H6 are complete. |
 | Active task | None. |
-| Last verified | 2026-09-07T14:28:21-06:00 — H5 verified the retained local kind/PVC state, removed the cluster/PVC/network, and confirmed no kind cluster remains. |
+| Last verified | 2026-09-07T15:17:01-06:00 — H6 review defect repaired in Claude operational commands and permissions; local gates passed. |
 | AWS resources currently live | No temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
-| Next operator action | None. Stop unless the owner explicitly activates a new bounded task or phase. |
+| Next operator action | Review the local H6 documentation commit; publication requires separate owner authorization. Do not activate a new phase. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -741,10 +741,14 @@ sequence is now complete.**
       confirmed 46 MiB of PostgreSQL 16 data, then removed the cluster, exact backing volume,
       empty kind network, kubeconfig entry, and temporary kubeconfig. Evidence:
       2026-09-07T14:28:21-06:00 session entry.
+- [x] H6 COMPLETE — reconciled current-facing local-tooling documentation with the verified
+      Silverblue 44 host, Fedora 43 toolbox, toolbox-only `make` invocation, and direct host CLI
+      installations without rewriting historical evidence. Evidence:
+      2026-09-07T15:04:56-06:00 and 2026-09-07T15:17:01-06:00 session entries.
 
-The owner approved working through these items one at a time on 2026-09-07. They are bounded
-housekeeping tasks, not a new product or infrastructure phase. H1–H5 are complete; no follow-on
-phase is active.
+The owner approved H1–H5 one at a time and separately authorized H6 on 2026-09-07. They are
+bounded housekeeping tasks, not a new product or infrastructure phase. H1–H6 are complete; no
+follow-on phase is active.
 
 ## Blockers
 
@@ -754,6 +758,59 @@ phase is active.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-09-07T15:17:01-06:00 — H6 Claude command-path review defect repaired — Codex
+
+- **Review defect accepted:** exact head `5cbef8b3aca61b6690a527bc57c5465aca28e440`
+  correctly updated the human-facing tooling docs but missed current operational references in
+  `.claude/commands/catchup.md`, `.claude/commands/closeout.md`, and
+  `.claude/settings.json`. Because host `make` is absent, both commands could fail and their
+  obsolete permission patterns did not cover the canonical toolbox invocation.
+- **Repair:** both operational commands now run
+  `toolbox run -c bedoux-aws /usr/bin/make docs-check`; the matching Claude permission patterns
+  allow the canonical toolbox-run `docs-check` and `tools-check` commands and no longer allow
+  the obsolete bare forms. The Helm render module's current local-run instruction now uses the
+  toolbox-run `helm-test` target as well.
+- **Verification:** parsed `.claude/settings.json`; searched current-facing non-historical
+  sources for obsolete bare command paths; reran toolbox `tools-check`, `docs-check`, and
+  `helm-test` (17 render contracts, 6 fail-sensitivity fixtures, and P14.1 resource assertions);
+  `git diff --check` passed. AWS and Kubernetes endpoints were not contacted; AWS: none.
+- **State:** H6 remains complete, no phase is active, and publication still requires separate
+  owner authorization.
+
+### 2026-09-07T15:04:56-06:00 — H6 local-tooling documentation reconciled — Codex
+
+- **Current environment:** recorded Fedora Silverblue 44 on the host and retained Fedora 43 for
+  the `bedoux-aws` toolbox. Updated observed Python to 3.14.7 and distinguished host
+  Node/npm 24.11.0/11.6.1 from toolbox Node/npm 22.22.2/10.9.7.
+- **Command contract:** removed the current-facing claim that a host `~/.local/bin/make`
+  wrapper exists. The canonical local invocation is now
+  `toolbox run -c bedoux-aws /usr/bin/make <target>` in the tooling and workflow guidance;
+  historical P1 evidence and the wrapper-recursion lesson remain intact.
+- **Host CLI provenance:** documented the vendor-installed host CLIs under `~/.local/bin`,
+  accurately distinguished the AWS bundled installer from static release binaries, and noted
+  that some sessions resolve an equivalent `kind` v0.32.0 mise shim before the canonical direct
+  binary.
+- **Verification:** toolbox `tools-check` reported every prerequisite available; toolbox
+  `docs-check` passed with 18 immutable external Action references; `git diff --check` passed.
+  AWS and Kubernetes endpoints were not contacted; AWS: none.
+- **State:** H6 and all previously completed work remain complete. No phase is active.
+- **Next action:** review this focused local documentation commit. Do not publish it or activate
+  a new phase without separate owner authorization.
+
+### 2026-09-07T14:58:55-06:00 — H6 local-tooling documentation reconciliation activated — Codex
+
+- **Owner authorization:** update the related documentation after reviewing the current host and
+  `docs/local-tooling.md`; this is bounded documentation housekeeping, not P15 or a reopened
+  maintenance phase.
+- **Observed drift:** the host is Fedora Silverblue 44 while `bedoux-aws` remains a Fedora 43
+  toolbox; the historical host `~/.local/bin/make` wrapper is absent, so current commands must
+  invoke `/usr/bin/make` through the toolbox; the vendor-installed host CLIs remain under
+  `~/.local/bin`, although this agent session resolves `kind` through an earlier `mise` shim.
+- **Baseline evidence:** `toolbox run -c bedoux-aws /usr/bin/make tools-check` reported every
+  prerequisite available. AWS and Kubernetes endpoints were not contacted; AWS: none.
+- **Next action:** reconcile only current-facing tooling guidance, preserve historical progress
+  evidence, then run the toolbox documentation gate and scoped diff checks.
 
 ### 2026-09-07T14:28:21-06:00 — H5 local kind/PVC cleanup complete — Codex
 

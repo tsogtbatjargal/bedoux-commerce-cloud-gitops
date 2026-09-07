@@ -166,7 +166,8 @@ times still total 15:00 and leave about 1:07 of whole-script margin at the delib
 
 `scripts/test-p14-interview-package.sh` enforces a maximum of 1,400 spoken words, verifies that
 P10–P14 and their key measured outcomes remain in both the walkthrough and new diagram, and checks
-the editable/exported diagram pair. `make docs-check` remains the final T-1404 gate.
+the editable/exported diagram pair. The toolbox-run `docs-check` Make target remains the final
+T-1404 gate.
 
 Practical delivery notes:
 

@@ -8,7 +8,7 @@ Catch the operator up on bedoux-commerce-cloud. Do exactly this:
    the active phase in `docs/IMPLEMENTATION-PLAN.md`.
 2. Run read-only staleness checks and compare with what PROGRESS claims:
    - `git status --short` and `git log --oneline -5`
-   - `make docs-check`
+   - `toolbox run -c bedoux-aws /usr/bin/make docs-check`
    - if AWS credentials are configured (`aws sts get-caller-identity` succeeds):
      `aws eks list-clusters` and `aws elbv2 describe-load-balancers` — anything live must
      match the "AWS resources currently live" row in PROGRESS.

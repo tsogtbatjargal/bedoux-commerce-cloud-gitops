@@ -14,7 +14,7 @@ Close out the current work session per the closeout section of
 3. Refresh the "Current checkpoint" block in `START-HERE.md` (state, active phase, next
    action).
 4. Regenerate the fenced prompt in `docs/HANDOFF.md` to match the new state.
-5. Run `make docs-check`; fix anything it reports.
+5. Run `toolbox run -c bedoux-aws /usr/bin/make docs-check`; fix anything it reports.
 6. Show the operator a proposed commit message using the convention
    (`<TaskID> complete: ...` / gate / `Fix ...`) and commit once confirmed.
 

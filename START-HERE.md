@@ -23,7 +23,7 @@ This file is the entry point for a new Claude Code, Codex, OpenClaw, or human se
   named deployment profiles (`ff81bfc`), M4 typed P12/P13 gate diagnostics (`38cadaf`), M5 lazy
   `app.db` engine + isolated order pricing (`4e63213`), plus `docs/verification-lessons.md`
   (`950775b`). Final merge: `40bb39d`.
-- Active phase/task: **none**. Post-track housekeeping H1–H5 is complete. P0–P14 and M1–M5
+- Active phase/task: **none**. Post-track housekeeping H1–H6 is complete. P0–P14 and M1–M5
   remain complete; no P15 or other phase is active.
 - AWS state: no temporary or hourly billed project resource is live. Only the owner-approved
   persistent ECR/IAM, Route 53/ACM, and Terraform state-storage allowlist remains; website aliases
@@ -32,7 +32,8 @@ This file is the entry point for a new Claude Code, Codex, OpenClaw, or human se
   kubeconfig entry remains. The host inotify setting is restored to 128. Historical EKS contexts
   remain with no current context selected; always choose an explicit context before Kubernetes
   work.
-- Next action: none. Stop unless the owner explicitly activates a new bounded task or phase.
+- Next action: review the local H6 documentation commit. Publication requires separate owner
+  authorization; do not activate a new phase.
 
 ## Evidence map
 
