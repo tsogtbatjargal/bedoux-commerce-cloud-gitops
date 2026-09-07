@@ -46,8 +46,9 @@ Do not pass conclusions or expected answers into an independent validation task.
 
 ## Close out
 
-1. Run the task's stated checks and the standing `make docs-check` gate when documentation or
-   diagrams changed.
+1. Run the task's stated checks and the standing
+   `toolbox run -c bedoux-aws /usr/bin/make docs-check` gate when documentation or diagrams
+   changed.
 2. Review `git diff --check`, the scoped diff, and `git status --short`.
 3. Update the checklist and prepend an ISO 8601 session entry to `docs/PROGRESS.md`, including
    commands, results, exact next action, and `AWS: none` when no AWS system was touched.

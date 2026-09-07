@@ -2,7 +2,7 @@
 
 ## Workstation
 
-- Fedora Silverblue 43 (immutable/atomic host)
+- Fedora Silverblue 44 (immutable/atomic host)
 - Host container engine: Podman (rootless)
 - Toolbox container: `bedoux-aws` (Fedora Toolbox 43) — holds `make` and any other
   dnf-only package this project needs. A pre-existing unrelated `admin` toolbox is left
@@ -11,43 +11,44 @@
 Silverblue stays clean: nothing is layered onto the OS image with `rpm-ostree`. Two
 installation methods are used instead, chosen per tool:
 
-- **Static official binaries** (aws, kubectl, eksctl, kind, helm, terraform) are installed
-  directly to `~/.local/bin` on the **host**. This is the standard atomic-Fedora pattern for
-  single-binary CLIs — no toolbox, no container-in-container networking, and `kind` gets
-  direct access to the host's real Podman.
-- **dnf-only packages** (`make`, plus `node`/`npm` as a fallback if the editor-bundled Node
-  ever isn't on `PATH`) live in the `bedoux-aws` toolbox.
+- **Vendor-provided standalone installations** (aws, kubectl, eksctl, kind, helm, terraform,
+  trivy) live directly under `~/.local/bin` on the **host**. AWS CLI uses its official bundled
+  installer and a launcher symlink; the other CLIs are vendor release binaries. This is the
+  atomic-Fedora pattern used here — no toolbox or container-in-container networking for these
+  tools, and `kind` gets direct access to the host's real Podman.
+- **dnf-only packages** (`make`, `node`/`npm`, and a presence-check-only `podman`) live in
+  the `bedoux-aws` toolbox.
 
-### The `make` wrapper
+### Running `make` through the toolbox
 
-Because `make` is toolbox-only but this project's docs describe `make <target>` as a plain
-host command, `~/.local/bin/make` is a small wrapper:
+There is no host `make` binary or `~/.local/bin/make` wrapper now. Invoke every project
+`Makefile` target through the toolbox and use the absolute path to its binary:
 
 ```bash
-exec toolbox run -c bedoux-aws /usr/bin/make "$@"
+toolbox run -c bedoux-aws /usr/bin/make <target>
 ```
 
-**It calls `/usr/bin/make` by absolute path, not by name.** The toolbox shares this same
-`$HOME` (and therefore `~/.local/bin`) on its `PATH`, so a bare `make` inside the toolbox
-would resolve back to this same wrapper and recurse — this was hit once during setup (P1.1)
-and exhausted the process/fork limit before the fix. Do not "simplify" this wrapper to
-`exec toolbox run -c bedoux-aws make "$@"`.
+The absolute path preserves the lesson from the former wrapper. During P1.1,
+`~/.local/bin/make` called `toolbox run -c bedoux-aws make "$@"`; because the toolbox shares
+the host's `$HOME`, bare `make` resolved back to that wrapper and recursed until it exhausted
+the process/fork limit. The wrapper has since been removed. Do not recreate it or replace
+`/usr/bin/make` with a bare command in toolbox invocations.
 
 `podman` is also installed as a package *inside* `bedoux-aws` (dnf, not host-mounted) purely
-so `command -v podman` succeeds there too and `make tools-check` reports cleanly regardless
-of which shell it's invoked from. **Real Podman/kind/Compose work must run from the host
-shell**, not inside the toolbox — nested Podman there is not a functioning container runtime,
-only a presence check.
+so `command -v podman` succeeds and the toolbox-run `tools-check` reports cleanly.
+**Real Podman/kind/Compose work must run from the host shell**, not inside the toolbox — nested
+Podman there is not a functioning container runtime, only a presence check.
 
-## Pinned versions (installed 2026-07-18)
+## Pinned and observed versions (verified 2026-09-07)
 
 | Tool | Version | Location | Install method |
 |---|---|---|---|
 | git | host default | `/usr/bin/git` | Fedora base image |
-| make | GNU Make 4.4.1 | toolbox `bedoux-aws` → `/usr/bin/make`, wrapped at host `~/.local/bin/make` | `dnf install make` in toolbox |
+| make | GNU Make 4.4.1 | toolbox `bedoux-aws` → `/usr/bin/make` | `dnf install make` in toolbox |
 | xmllint | host default (libxml2) | `/usr/bin/xmllint` | Fedora base image |
-| python3 | 3.14.6 | `/usr/bin/python3` | Fedora base image |
-| node / npm | 24.11.0 / 11.6.1 | editor-bundled (see note) | pre-existing |
+| python3 | 3.14.7 | `/usr/bin/python3` | Fedora base image |
+| node / npm (host) | 24.11.0 / 11.6.1 | editor-bundled (see note) | pre-existing |
+| node / npm (toolbox) | 22.22.2 / 10.9.7 | toolbox `bedoux-aws` → `/usr/bin/node`, `/usr/bin/npm` | Fedora `nodejs` package |
 | podman | 5.8.4 | `/usr/bin/podman` (host) | Fedora base image |
 | aws-cli | 2.36.2 | `~/.local/bin/aws` | official installer, `~/.local/aws-cli` |
 | kubectl | v1.36.2 (client) | `~/.local/bin/kubectl` | official static binary (`stable.txt` channel) |
@@ -59,6 +60,12 @@ only a presence check.
 | Calico | v3.32.1 | in-cluster manifest, not a host binary | official manifest (added P10.2, NetworkPolicy enforcement on kind — see below) |
 | Metrics Server | v0.9.0 | installed by `scripts/install-metrics-server.sh` | official release manifest, SHA-256 pinned (added P11.1 for HPA metrics; compatible with Kubernetes 1.31+) |
 
+The canonical `kind` installation remains the direct `~/.local/bin/kind` v0.32.0 binary.
+Some host sessions prepend `~/.local/share/mise/shims` to `PATH` and therefore report a
+matching mise-managed v0.32.0 first. Use `~/.local/bin/kind` explicitly whenever exact binary
+provenance matters, especially when constructing a restricted `sudo env`; do not rely on a
+shim surviving privilege or environment boundaries.
+
 P10.3's supply-chain tools run only on GitHub-hosted runners; they are not workstation
 prerequisites. The workflow pins `cosign-installer` v4.1.2 by immutable commit and explicitly
 selects cosign v3.0.6; pins `sbom-action` v0.24.0 by immutable commit and explicitly selects Syft
@@ -69,19 +76,18 @@ All JavaScript GitHub Actions now use releases whose official manifests declare 
 `checkout` v7.0.1, `setup-python` v7.0.0, `setup-node` v7.0.0,
 `setup-terraform` v4.0.1, `setup-helm` v5.0.1, and
 `configure-aws-credentials` v6.2.3. Every external action reference is pinned to its immutable
-40-character commit SHA. Run `make actions-check` to reject mutable tags before push;
-`make docs-check` includes the same check.
+40-character commit SHA. Run
+`toolbox run -c bedoux-aws /usr/bin/make actions-check` to reject mutable tags before push;
+the toolbox-run `docs-check` target includes the same check.
 
-`node`/`npm` currently resolve to a Zed-editor-bundled install
-(`~/.local/share/zed/node/...`), which is outside this project's control. If that ever
-disappears from `PATH`, install `nodejs`/`npm` into the `bedoux-aws` toolbox the same way as
-`make`.
+On the host, `node`/`npm` currently resolve to a Zed-editor-bundled install
+(`~/.local/share/zed/node/...`), which is outside this project's control. The toolbox has its
+own Fedora-packaged Node/npm pair, which is what `tools-check` sees when run canonically.
 
-Run the prerequisite check from the project root (works transparently from a plain host
-shell via the `make` wrapper above):
+Run the prerequisite check from the project root:
 
 ```bash
-make tools-check
+toolbox run -c bedoux-aws /usr/bin/make tools-check
 ```
 
 ## Rootless kind + cgroup delegation (fixed 2026-07-19)
@@ -281,10 +287,11 @@ rm /tmp/image.tar   # don't leave scan tarballs lying around
 
 ## Installation approach (completed in P1.1)
 
-Tool versions above were pinned by checking current official releases at install time
-(2026-07-18). No AWS credentials were created and no AWS account was contacted — `aws`,
-`kubectl`, and `eksctl` were installed and version-checked only; `eksctl create cluster` was
-not run.
+The vendor CLI versions were pinned from official releases when installed (initially
+2026-07-18; Trivy followed in P2.5). Host-base and toolbox package versions are observed values
+and can move with their respective Fedora updates. No AWS credentials were created and no AWS
+account was contacted during P1.1 — `aws`, `kubectl`, and `eksctl` were installed and
+version-checked only; `eksctl create cluster` was not run.
 
 ## AWS CLI identity: always `--profile bedoux-admin` (added P4.1)
 
