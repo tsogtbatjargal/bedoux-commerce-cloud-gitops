@@ -11,10 +11,10 @@ checked here and its evidence is recorded in the session log.
 | State | COMPLETE |
 | Active phase | None — P0–P14, M1–M5, and post-track housekeeping H1–H6 are complete. |
 | Active task | None. |
-| Last verified | 2026-09-07T15:17:01-06:00 — H6 review defect repaired in Claude operational commands and permissions; local gates passed. |
+| Last verified | 2026-09-08T09:47:42-06:00 — PR #84 merge and exact-head CI verified; merged H6 branch/worktree cleanup completed. |
 | AWS resources currently live | No temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
-| Next operator action | Review the local H6 documentation commit; publication requires separate owner authorization. Do not activate a new phase. |
+| Next operator action | None. Stop unless the owner explicitly activates a new bounded task or phase. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -744,7 +744,9 @@ sequence is now complete.**
 - [x] H6 COMPLETE — reconciled current-facing local-tooling documentation with the verified
       Silverblue 44 host, Fedora 43 toolbox, toolbox-only `make` invocation, and direct host CLI
       installations without rewriting historical evidence. Evidence:
-      2026-09-07T15:04:56-06:00 and 2026-09-07T15:17:01-06:00 session entries.
+      2026-09-07T15:04:56-06:00, 2026-09-07T15:17:01-06:00, and
+      2026-09-08T09:47:42-06:00 session entries; exact head `e207efc` passed all four jobs in
+      run `34163029641` and merged through PR #84 as `0635b35`.
 
 The owner approved H1–H5 one at a time and separately authorized H6 on 2026-09-07. They are
 bounded housekeeping tasks, not a new product or infrastructure phase. H1–H6 are complete; no
@@ -758,6 +760,24 @@ follow-on phase is active.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-09-08T09:47:42-06:00 — H6 merge reconciled and merged branch cleaned — Codex
+
+- **GitHub verification:** PR #84 is merged and was no longer draft at merge. Its unchanged exact
+  head was `e207efcddcafed97790520c058c2974cc6823380`; PR-validation run
+  `34163029641` completed successfully on that exact head with API tests, web lint/test/build,
+  Terraform/Helm validation, and container build/scan all passing. The merge commit is
+  `0635b35dc67a27ad8e630284cadbe77f76ff743f`, and local `main` matches `origin/main`.
+- **Tree verification:** the merged H6 paths are byte-identical to the independently accepted
+  exact head. Local toolbox `tools-check`, `docs-check`, and `helm-test` passed from merged
+  `main`; the Helm suite reported 17 render contracts and 6 fail-sensitivity fixtures.
+- **Cleanup:** after proving the H6 head was an ancestor of `main` and its worktree was clean,
+  removed `/tmp/bedoux-h6-local-tooling-docs`, local branch
+  `chore/h6-local-tooling-docs`, and its remote branch. No open pull request remained before
+  preparing this checkpoint.
+- **Scope:** no AWS or Kubernetes endpoint was contacted; AWS: none.
+- **State:** H6 and all prior work remain complete. No phase or task is active.
+- **Next action:** none. Stop unless the owner explicitly activates a new bounded task or phase.
 
 ### 2026-09-07T15:17:01-06:00 — H6 Claude command-path review defect repaired — Codex
 
