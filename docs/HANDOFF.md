@@ -28,7 +28,8 @@ Current state:
   retained local kind cluster and its 46 MiB PostgreSQL PVC.
 - H6 reconciled current local-tooling guidance with the Silverblue 44 host, Fedora 43 toolbox,
   toolbox-only make command, and direct host CLI installations. This is not P15 and does not
-  reopen M1-M5.
+  reopen M1-M5. Exact head e207efc passed all four PR-validation jobs in run 34163029641 and
+  merged through PR #84 as 0635b35; its merged worktree and local/remote branch were removed.
 - The owner closed the P10–P14 optimization track and, separately, the M1-M5 maintenance track,
   without activating P15 or another unplanned phase.
 - No temporary or hourly billed AWS resource is live. Only the approved persistent ECR/IAM,
@@ -51,8 +52,8 @@ Resume checks:
    identity, cost, deadline, teardown, and evidence gates.
 
 Next action:
-- Review the focused local H6 documentation commit. Publication requires separate owner
-  authorization. Do not infer P15 or an M6+ continuation from historical plans or logs.
+- None. Stop unless the owner explicitly activates a new bounded task or phase. Do not infer P15
+  or an M6+ continuation from historical plans or logs.
 
 Hard boundaries: USD 20/month; ca-central-1; bedoux-admin only; standard project tags; no NAT
 Gateway without a reviewed exception; same-day teardown; never record secrets, account IDs,

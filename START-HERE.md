@@ -25,6 +25,9 @@ This file is the entry point for a new Claude Code, Codex, OpenClaw, or human se
   (`950775b`). Final merge: `40bb39d`.
 - Active phase/task: **none**. Post-track housekeeping H1–H6 is complete. P0–P14 and M1–M5
   remain complete; no P15 or other phase is active.
+- H6 closeout: exact head `e207efc` passed all four jobs in PR-validation run
+  `34163029641` and merged through PR #84 as `0635b35`; its merged local/remote branch and
+  worktree were removed.
 - AWS state: no temporary or hourly billed project resource is live. Only the owner-approved
   persistent ECR/IAM, Route 53/ACM, and Terraform state-storage allowlist remains; website aliases
   are absent.
@@ -32,8 +35,7 @@ This file is the entry point for a new Claude Code, Codex, OpenClaw, or human se
   kubeconfig entry remains. The host inotify setting is restored to 128. Historical EKS contexts
   remain with no current context selected; always choose an explicit context before Kubernetes
   work.
-- Next action: review the local H6 documentation commit. Publication requires separate owner
-  authorization; do not activate a new phase.
+- Next action: none. Stop unless the owner explicitly activates a new bounded task or phase.
 
 ## Evidence map
 
