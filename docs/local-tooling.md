@@ -39,6 +39,26 @@ so `command -v podman` succeeds and the toolbox-run `tools-check` reports cleanl
 **Real Podman/kind/Compose work must run from the host shell**, not inside the toolbox — nested
 Podman there is not a functioning container runtime, only a presence check.
 
+### Reproducing this set
+
+`mise.toml` in the repo root declares the same versions as the table below, and
+`mise.lock` pins each one to a URL and SHA-256 per platform. On a new machine:
+
+```bash
+mise install          # from the repo root
+```
+
+That replaces fetching each tool by hand from its own installer. The table stays
+the human-readable record; `mise.toml` is the executable one, and they are
+expected to agree — if they drift, the table is what a person reads and the
+lockfile is what actually runs, so fix both.
+
+These pins live here rather than in the workstation dotfiles repo because they
+are project tooling. A machine that never touches this project has no reason to
+carry an AWS CLI, and keeping the versions beside the code avoids two repos
+disagreeing about one — `kind` was pinned in both places for a while and only
+happened to agree.
+
 ## Pinned and observed versions (verified 2026-09-07)
 
 | Tool | Version | Location | Install method |

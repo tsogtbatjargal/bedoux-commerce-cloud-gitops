@@ -1,0 +1,28 @@
+# Workstation toolchain for this project.
+#
+# These are the versions docs/local-tooling.md already pins; this file makes
+# that table executable rather than descriptive, so `mise install` reproduces
+# the documented set on any machine instead of each tool being fetched by hand
+# from its own installer.
+#
+# Why here and not in the workstation repo: these are project tools, not host
+# tools. A machine that never touches this project has no reason to carry an AWS
+# CLI. Keeping the pins beside the code that needs them is also what stops two
+# repos disagreeing about a version -- `kind` was pinned in both places for a
+# while, and they only happened to agree.
+#
+# kind stays listed because this project drives it directly. If the workstation
+# ever bumps its own kind pin, an activated mise shell inside this directory
+# resolves to the version below, which is the correct precedence.
+
+[settings]
+lockfile = true
+
+[tools]
+awscli    = "2.36.2"
+kubectl   = "1.36.2"
+eksctl    = "0.229.0"
+kind      = "0.32.0"
+helm      = "3.21.3"
+terraform = "1.15.8"
+trivy     = "0.72.0"
