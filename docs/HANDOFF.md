@@ -1,8 +1,8 @@
 # Cross-computer handoff
 
-Copy the fenced prompt below into the next agent's session. The owner authorized consolidating
-the planning package into `main` through checked PRs, followed by merged-branch cleanup.
-Verify the merge checkpoint before choosing the source branch; do not depend on a deleted branch.
+Copy the fenced prompt below into the next agent's session. PR #87 merged the planning package
+into `main` as `e40912d`; PR #86's toolchain work is included. Both old local branch refs and
+the remote planning branch are removed. Fetch updated `main`, including the closeout checkpoint.
 This handoff does not activate GitOps/hosting implementation or accept either Proposed ADR.
 `docs/PROGRESS.md` remains the only authoritative execution state.
 
@@ -14,14 +14,16 @@ REPOSITORY AND TRANSFER CHECK
 - Repository: bedoux-tech/bedoux-commerce-cloud. Locate its clone on THIS computer.
   Previous path: /var/home/tsogtb/git-projects/bedoux/bedoux-commerce-cloud.
   Do not assume that path or its toolchain exists here.
-- The owner authorized publication and subsequently PR-based consolidation into main on
-  2026-09-08. Package commit 768ef734f063b3f752a52d2cc01f92e52fcb0ed6 was published first;
-  later checkpoints record integration/merge status. Planning merge does not accept an ADR.
-- Fetch origin and inspect origin/main for this package and its merge checkpoint. After verified
-  consolidation, use main; the temporary docs/production-hosting-assessment branch may be deleted.
+- PR #87 merged the planning package as e40912d864d14f79e58076d2a4f3e05833005807 after all four
+  CI jobs passed on exact head 555647a47f99eae6494aa480db8b9cdea3b3a042 (run 34309225980).
+  The owner authorized consolidation/cleanup, NOT design acceptance or implementation.
+- Fetch origin and use main, including the subsequent closeout checkpoint. The old
+  docs/production-hosting-assessment and chore/declare-local-toolchain refs are removed;
+  their commits remain in main. Do not try to fetch a deleted feature branch to recover the plan.
   On a clean existing clone: git fetch origin --prune, git switch main, git pull --ff-only.
   Preserve local work first; if fast-forward fails, compare histories rather than resetting.
-  If consolidation is still pending, inspect the planning PR/branch instead; do not assume merge.
+  If the files below are absent, inspect fetched main/history and report the discrepancy rather
+  than reconstructing the package or claiming to be caught up.
 - Confirm these 12 planning/checkpoint files are present on the retrieved branch:
     README.md
     START-HERE.md
