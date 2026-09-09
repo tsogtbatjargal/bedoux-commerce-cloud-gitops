@@ -1,61 +1,141 @@
-# Handoff
+# Cross-computer handoff
 
-Paste the fenced block into a fresh Claude Code, Codex, OpenClaw, or human-operator session.
-`docs/PROGRESS.md` remains authoritative if this summary ever disagrees with it.
-
----
+Copy the fenced prompt below into the next agent's session. The owner authorized consolidating
+the planning package into `main` through checked PRs, followed by merged-branch cleanup.
+Verify the merge checkpoint before choosing the source branch; do not depend on a deleted branch.
+This handoff does not activate GitOps/hosting implementation or accept either Proposed ADR.
+`docs/PROGRESS.md` remains the only authoritative execution state.
 
 ```text
-Continue bedoux-commerce-cloud from
-/var/home/tsogtb/git-projects/bedoux/bedoux-commerce-cloud.
+Resume bedoux-commerce-cloud on this computer. First reconcile the transferred planning
+package and summarize the next decision for me; do not begin implementation automatically.
 
-Read AGENTS.md and START-HERE.md first, then read the overall status and newest session entry in
-docs/PROGRESS.md. Preserve unrelated changes and never push main directly.
+REPOSITORY AND TRANSFER CHECK
+- Repository: bedoux-tech/bedoux-commerce-cloud. Locate its clone on THIS computer.
+  Previous path: /var/home/tsogtb/git-projects/bedoux/bedoux-commerce-cloud.
+  Do not assume that path or its toolchain exists here.
+- The owner authorized publication and subsequently PR-based consolidation into main on
+  2026-09-08. Package commit 768ef734f063b3f752a52d2cc01f92e52fcb0ed6 was published first;
+  later checkpoints record integration/merge status. Planning merge does not accept an ADR.
+- Fetch origin and inspect origin/main for this package and its merge checkpoint. After verified
+  consolidation, use main; the temporary docs/production-hosting-assessment branch may be deleted.
+  On a clean existing clone: git fetch origin --prune, git switch main, git pull --ff-only.
+  Preserve local work first; if fast-forward fails, compare histories rather than resetting.
+  If consolidation is still pending, inspect the planning PR/branch instead; do not assume merge.
+- Confirm these 12 planning/checkpoint files are present on the retrieved branch:
+    README.md
+    START-HERE.md
+    docs/HANDOFF.md
+    docs/IMPLEMENTATION-PLAN.md
+    docs/PROGRESS.md
+    docs/architecture.md
+    docs/decisions/README.md
+    docs/decisions/0025-catalog-first-production-hosting.md
+    docs/decisions/0026-two-repository-argocd-delivery.md
+    docs/gitops-expansion-plan.md
+    docs/production-hosting-plan.md
+    docs/runbooks/gitops-recovery.md
+- If files are missing or stale, ask me for the package before claiming to be caught up.
+  Do not reconstruct detailed plans or evidence from this summary. Compare local changes
+  and ancestry before integrating; never overwrite a newer clone or reset it to the old base.
+- Toolchain commit 4e1790c is already merged through PR #86 as
+  614912d2202b236801b733f4ff5f3c9a34c527ba; its remote feature branch was already deleted.
+  Preserve the merged mise.toml, mise.lock and updated docs/local-tooling.md. Read these before
+  setting up a new host; installation is not automatically authorized by a catch-up request.
 
-Current state:
-- P0–P14 and T-001–T-1404 are complete and gate-approved.
-- PR #66 merged the final P14 reconciliation and standalone owner gate commit to main as
-  9a2fe597f79018a68bfbe53580acebf8d91b0248.
-- The owner-approved post-P14 maintenance track (M1-M5, explicitly not P15) is also complete:
-  M1 Helm render validation (521f3a3), M2 shared canary pod spec / ADR 0024 (83b2eaa), M3 named
-  deployment profiles (ff81bfc), M4 typed P12/P13 gate diagnostics (38cadaf), M5 lazy app.db
-  engine + isolated order pricing (4e63213), plus docs/verification-lessons.md (950775b). Final
-  merge: 40bb39d.
-- Post-track housekeeping H1-H6 is complete. H2 exposes the merged M1-M5 local verification
-  commands consistently in START-HERE.md and this handoff. H3 removed the merged maintenance
-  branches/worktrees. H4 refreshed the current API image scan: zero fixable HIGH/CRITICAL
-  findings, 54 unfixed package records representing 18 unique CVEs. H5 verified and removed the
-  retained local kind cluster and its 46 MiB PostgreSQL PVC.
-- H6 reconciled current local-tooling guidance with the Silverblue 44 host, Fedora 43 toolbox,
-  toolbox-only make command, and direct host CLI installations. This is not P15 and does not
-  reopen M1-M5. Exact head e207efc passed all four PR-validation jobs in run 34163029641 and
-  merged through PR #84 as 0635b35; its merged worktree and local/remote branch were removed.
-- The owner closed the P10–P14 optimization track and, separately, the M1-M5 maintenance track,
-  without activating P15 or another unplanned phase.
-- No temporary or hourly billed AWS resource is live. Only the approved persistent ECR/IAM,
-  Route 53/ACM, and Terraform state-storage allowlist remains; website aliases are absent.
-- No kind cluster, Bedoux kind node/PVC volume, kind network, or `kind-bedoux` kubeconfig entry
-  remains. The host inotify value is 128. Historical EKS contexts remain with no current context
-  selected; use an explicit context.
+READ FIRST
+1. AGENTS.md and START-HERE.md, then docs/PROGRESS.md (authoritative state and session log).
+2. docs/gitops-expansion-plan.md and Proposed ADR 0026.
+3. docs/runbooks/gitops-recovery.md (proposed, not a runtime-tested procedure).
+4. docs/production-hosting-plan.md and Proposed ADR 0025 for the deferred hosting assessment.
+5. Applicable repository skills/workflows and docs/local-tooling.md before task/tool execution.
+Run git status --short, git branch --show-current, and git log --oneline -5. Reconcile
+disagreements with the checkpoint; a clean clone does not prove it has the planning changes.
 
-Resume checks:
-1. Run git status --short and git log --oneline -5.
-2. Run toolbox run -c bedoux-aws /usr/bin/make docs-check.
-3. Run the maintenance checks that match the area being resumed:
-   - M1/M2: toolbox run -c bedoux-aws /usr/bin/make helm-test
-   - M3: python3 scripts/test_deploy_profile.py
-   - M4: python3 scripts/test_gate_checks.py
-   - M5: (cd apps/api && python3 -m pytest -q tests/test_pricing.py
-     tests/test_database_credentials.py) with apps/api's .[dev] dependencies installed.
-4. These are local checks. Do not contact AWS/Kubernetes merely to reconfirm completed work.
-5. If future AWS work is explicitly approved, open docs/runbooks/aws-session.md first and obey its
-   identity, cost, deadline, teardown, and evidence gates.
+CURRENT STATE
+- P0-P14, maintenance M1-M5, and housekeeping H1-H6 are complete. No P15 exists.
+- PH-A hosting assessment and GO-A GitOps planning deliverables are complete LOCALLY,
+  awaiting review. Planning completion is not architecture acceptance or implementation.
+- ADRs 0025 and 0026 remain Proposed. GO-1 through GO-8 and PH-1 through PH-5 are NOT STARTED.
+- No implementation phase, AWS session, repository creation, or migration is active.
+- The owner prioritized GitOps planning before hosting implementation. Domain: bedoux.ca,
+  not bedoux.com; Shopify is no longer the intended hosting platform.
+- Hosting's catalog-first S3/CloudFront option is a recommendation, not an accepted launch scope.
+  Its dated estimates are not current billing evidence. Production Kubernetes is NOT decided.
 
-Next action:
-- None. Stop unless the owner explicitly activates a new bounded task or phase. Do not infer P15
-  or an M6+ continuation from historical plans or logs.
+OWNER-CONFIRMED GITOPS CHOICES — DO NOT REPEAT THE DESIGN INTERVIEW
+- Purpose: GitOps learning/interview evidence plus future reuse for bedoux.ca.
+- Reuse this repository for both API and web, preserving history. Add ONE environment repo;
+  bedoux-commerce-env is the working name. No third app repository or frozen duplicate.
+- Use Argo CD. Start with one local kind cluster, separate dev/staging namespaces AND databases,
+  then temporary EKS. These are learning environments, not production.
+- Ordinary PR CI tests changes. An explicit Prepare release action produces verified immutable
+  artifacts and proposes an env PR; no automatic ECR publication on every app-main merge.
+- Owner reviews/merges env PRs; Argo reconciles Git state in an authorized running cluster.
+  The container runtime pulls images, not Argo CD itself. Merge does not open/extend a session.
+- Self-heal Argo-owned configuration, initially disable automatic pruning/deletion, protect
+  database/PVC resources, and respect fields owned by other controllers.
+- Progressive delivery comes AFTER basic GitOps and recovery proof. Argo Rollouts is the
+  proposed integration, not yet installed or fully designed.
+- Failed canary: automatically return traffic to stable. Separately repair Git through a reviewed
+  revert/fix-forward PR. NO automatic Git revert or rejected-candidate retry. Traffic recovery
+  does not restore the database. Document and prove these as separate steps.
+- Detailed technical proposals beyond these choices still need review and ADR acceptance.
 
-Hard boundaries: USD 20/month; ca-central-1; bedoux-admin only; standard project tags; no NAT
-Gateway without a reviewed exception; same-day teardown; never record secrets, account IDs,
-personal email addresses, or raw identity output.
+NEXT ELIGIBLE TASK — GO-1 DESIGN CONTRACT, ONLY AFTER EXPLICIT ACTIVATION
+First review the existing package and report concrete blockers or readiness. Catch-up alone
+does not authorize creating the env repository or installing anything.
+GO-1 must resolve these documented gates before dependent implementation:
+- Bind child Application chart/app revision and env values to the same reviewed release;
+  root/child templates must not silently mix revisions.
+- Argo renders Helm; it does not preserve helm --atomic behavior. Design DB/Secret prerequisites,
+  ordered release-specific migration jobs and readiness; no automatic schema downgrade.
+- Select/pin supported controllers and a deployment-time image-signature verifier. CI-only
+  signature checks are insufficient; define scoped platform exceptions and fail-closed tests.
+- Preserve paired API/web releases and P13 ALB reconciliation, healthy targets, drain and
+  attributed-error evidence; two independent Rollouts do not automatically guarantee this.
+- Define bootstrap and outside-Git secret/session bindings without committing account IDs in
+  ECR URLs. Recovery requires Git PLUS bindings/secrets, not Git alone.
+- Protect rejected releases across sync/restart and fresh-cluster recovery. Suspend root AND
+  child reconciliation before teardown; pruning disabled does not remove obsolete resources.
+Later sequence: GO-2 env scaffold, GO-3 local reconciliation, GO-4 immutable release/promotion,
+GO-5 recovery, GO-6 progressive delivery, GO-7 bounded EKS proof, GO-8 ownership handover and
+closeout. Each has evidence and activation gates in the plan.
+Never let old push-deploy helpers and Argo simultaneously own the same resources. Keep
+Terraform ownership/state in place until the separately authorized handover.
+
+VERIFICATION AND PUBLICATION
+- Prior planning checks: docs-check passed (18 immutable Action references), 89 local Markdown
+  links resolved, proposed evidence IDs/ADR status checked, whitespace and added-text identifier/
+  key scans passed. These are LOCAL documentation checks, not CI or live GitOps proof.
+- Re-run relevant local checks here. On the original workstation docs-check was:
+    toolbox run -c bedoux-aws /usr/bin/make docs-check
+  Inspect tooling first; do not assume toolbox, host make, paths, credentials, kubeconfig
+  contexts or inotify settings transferred. Report missing prerequisites; do not auto-install
+  software or start a cluster just to complete handoff verification.
+- Run git diff --check; also check new/untracked documents, which that command omits.
+- Update docs/PROGRESS.md before ending a work session. Preserve historical evidence and
+  accepted ADRs. Do not silently accept Proposed ADRs or activate later tasks.
+- The owner authorized checking and merging the existing planning branch, updating this handoff,
+  and cleaning proven-merged branches afterward. This is repository consolidation only, not a
+  combined implementation authorization. Later work needs its own scoped approval and focused
+  PRs. Never push main directly. Check recorded exact-head CI and actual merge evidence;
+  neither a published branch nor a Proposed ADR proves runtime readiness.
+
+SAFETY AND HONEST EVIDENCE
+- No AWS account API or Kubernetes endpoint was contacted in this planning work.
+- Last recorded clean AWS inventory is historical, NOT a current check. Only the persistent
+  allowlist remained. Original-machine local cleanup is not evidence about this computer.
+- No old alarm, plan hash, apply, merge or dispatch authorization carries into this session.
+- Future cloud/drill work follows docs/runbooks/aws-session.md and the applicable guardrail
+  skill: independent owner alarm, cutoff, exact-plan approvals and verified teardown.
+- USD 20/month cap, USD 16 forecast stop; ca-central-1; bedoux-admin, never root; standard tags
+  project=bedoux-commerce-cloud and environment=learning; no NAT without a reviewed exception;
+  local proof before AWS, same-day teardown under the persistent allowlist.
+- Never record secrets, private keys, tokens, AWS account IDs, personal emails or raw identities.
+  Do not transfer credentials, Terraform state/plans, kubeconfigs or temporary artifacts as
+  part of this documentation package. Credentials/bootstrap require separate secure setup.
+
+Your first response should state whether the transferred files are present, summarize the agreed
+direction and outstanding GO-1 gates, and identify the next owner decision. Stay planning-only.
 ```

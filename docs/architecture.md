@@ -1,5 +1,13 @@
 # Architecture
 
+The separate [production-hosting assessment](production-hosting-plan.md) evaluates a lower-cost
+catalog launch for bedoux.ca. ADR 0025 is Proposed; the implemented paths and earlier production
+target below are unchanged. No persistent hosting has been deployed by that assessment.
+
+The [GitOps expansion plan](gitops-expansion-plan.md) and Proposed ADR 0026 describe a future
+app/environment repository split with Argo CD and Argo Rollouts. They do not describe the current
+push-based runtime as already migrated; implementation and live evidence remain pending.
+
 ## Learning baseline, proven opt-in profiles, and production target
 
 ADR 0002 defined the P5–P6 baseline deferrals. Later phases proved selected components in

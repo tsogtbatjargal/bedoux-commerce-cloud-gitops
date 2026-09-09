@@ -32,6 +32,8 @@ and flip the old one's status to `Superseded by NNNN`.
 | [0022](0022-use-bedoux-ca-apex-and-retire-shopify.md) | Use the bedoux.ca apex for P12 and retire Shopify | Accepted | 2026-08-24 |
 | [0023](0023-controller-native-weighted-canary.md) | Controller-native weighted canary extends the existing Helm deployment path | Accepted | 2026-08-27 |
 | [0024](0024-shared-pod-spec-and-canary-topology-spread.md) | One shared pod spec; the canary inherits soft topology spread | Accepted | 2026-09-03 |
+| [0025](0025-catalog-first-production-hosting.md) | Start bedoux.ca with a static catalog hosting profile | Proposed | 2026-09-08 |
+| [0026](0026-two-repository-argocd-delivery.md) | Separate application and environment repositories with Argo CD delivery | Proposed | 2026-09-08 |
 
 ## Template
 

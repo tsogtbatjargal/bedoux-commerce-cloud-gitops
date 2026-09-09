@@ -47,6 +47,9 @@ The first release does not process real payments or customer data.
 | [AGENTS.md](AGENTS.md) | Canonical tool-agnostic operating rules (Claude Code / Codex / human) |
 | [docs/PROGRESS.md](docs/PROGRESS.md) | **Only authoritative execution state** + session log |
 | [docs/IMPLEMENTATION-PLAN.md](docs/IMPLEMENTATION-PLAN.md) | Phases P0–P14 with gates, rollback, and per-session cost |
+| [docs/production-hosting-plan.md](docs/production-hosting-plan.md) | Planning-only bedoux.ca hosting assessment: architecture options, cost comparison, Proposed ADR 0025 and future implementation gates |
+| [docs/gitops-expansion-plan.md](docs/gitops-expansion-plan.md) | Proposed two-repository Argo CD/Argo Rollouts track: agreed behavior, ownership, migration gates and GO-1–GO-8 evidence |
+| [docs/runbooks/gitops-recovery.md](docs/runbooks/gitops-recovery.md) | Proposed traffic abort, separate Git repair, data recovery and reconciliation-aware teardown procedure |
 | [docs/TEST-PLAN.md](docs/TEST-PLAN.md) | T-NNN test ids referenced by phase gates |
 | [docs/HANDOFF.md](docs/HANDOFF.md) | Copy-paste prompt to continue in a fresh agent session |
 | [docs/architecture.md](docs/architecture.md) | Request/delivery/identity paths; learning, proven opt-in, and production profiles |
