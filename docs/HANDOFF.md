@@ -1,8 +1,8 @@
 # Cross-computer handoff
 
-Copy the fenced prompt below into the next agent's session. The owner has authorized committing
-and pushing this complete planning package to `docs/production-hosting-assessment`.
-Check the publication evidence in PROGRESS and retrieve that branch, not just `main`.
+Copy the fenced prompt below into the next agent's session. The complete planning package was
+published as `768ef73` on `docs/production-hosting-assessment`, followed by this checkpoint.
+Retrieve the latest branch tip, not just `main`; publication evidence is in PROGRESS.
 This handoff does not authorize PR creation, merge, repository creation, or implementation.
 `docs/PROGRESS.md` remains the only authoritative execution state.
 
@@ -17,7 +17,8 @@ REPOSITORY AND TRANSFER CHECK
 - Source branch: docs/production-hosting-assessment, based on
   0c1c2855ad2d3f6dbb6d2f3dc6270ec927f4e629 (PR #85 merge).
 - The owner authorized committing/pushing all planning files on 2026-09-08 for this handoff.
-  Check the newest PROGRESS entry and remote branch before claiming publication succeeded.
+  Package commit 768ef734f063b3f752a52d2cc01f92e52fcb0ed6 was pushed and verified remotely;
+  retrieve the latest branch tip to include the subsequent publication checkpoint too.
   From a clean clone, fetch origin, then switch to a local branch tracking
   origin/docs/production-hosting-assessment. If that branch already exists locally, compare
   histories and preserve changes rather than resetting it. Main alone lacks this package.

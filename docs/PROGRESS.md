@@ -8,13 +8,13 @@ checked here and its evidence is recorded in the session log.
 
 | Field | Value |
 |---|---|
-| State | IN PROGRESS |
+| State | COMPLETE |
 | Active phase | None — P0–P14, M1–M5, and post-track housekeeping H1–H6 are complete. |
-| Active task | Commit and push the complete planning/handoff documentation package on docs/production-hosting-assessment, explicitly authorized by owner. No PR or implementation. |
-| Last verified | 2026-09-08T21:45:06-06:00 — portable handoff checked against local branch/HEAD and the 12-file planning package; docs-check and git diff --check passed; no live account verification. |
+| Active task | None — complete planning package committed and pushed for cross-computer handoff. GO-A awaits review; GO-1–GO-8 and PH-1–PH-5 NOT STARTED. |
+| Last verified | 2026-09-08T21:48:43-06:00 — planning-package push succeeded; remote feature branch confirmed at 768ef734f063b3f752a52d2cc01f92e52fcb0ed6. Local docs-check, staged whitespace and sensitive-data checks passed; no AWS verification. |
 | AWS resources currently live | Last recorded inventory, not refreshed by PH-A: no temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
-| Next operator action | Verify the authorized branch push, then retrieve it on the receiving computer and review the GitOps plan, Proposed ADR 0026 and recovery procedure. GO-1 requires explicit activation; PR creation, implementation and AWS work are not authorized. Hosting remains deferred. |
+| Next operator action | Fetch docs/production-hosting-assessment on the receiving computer, read docs/HANDOFF.md and review the GitOps plan, Proposed ADR 0026 and recovery procedure. GO-1 requires explicit activation; PR creation, implementation and AWS work are not authorized. Hosting remains deferred. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -776,6 +776,24 @@ follow-on phase is active.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-09-08T21:48:43-06:00 — Planning package published for cross-computer handoff — Codex
+
+- **Published:** commit `768ef734f063b3f752a52d2cc01f92e52fcb0ed6`, all 12 planning/checkpoint
+  files, pushed to `origin/docs/production-hosting-assessment` with upstream tracking. Push
+  completed successfully; independent `git ls-remote --heads` returned that exact SHA.
+- **Verification:** toolbox `docs-check` passed (18 immutable Action references), staged
+  `git diff --cached --check` covered all 12 files including the five newly tracked documents,
+  and the added-text sensitive-data scan passed. No remote CI result is claimed.
+- **Reconciliation:** HANDOFF/START-HERE now direct the next computer to the published feature
+  branch. Earlier uncommitted/unpushed entries describe prior state, not the current package.
+  This follow-up checkpoint is included in the same authorized commit/push scope; its own
+  final SHA is verified externally after push rather than embedded self-referentially here.
+- **Boundaries:** no PR opened or merged; main unchanged by this work. ADRs 0025/0026 remain
+  Proposed, all implementation tasks inactive. AWS: none; no Kubernetes endpoint contacted.
+- **Next action:** fetch the branch on the other computer and use `docs/HANDOFF.md`; review
+  the proposal before separately activating GO-1. No manual documentation transfer is needed
+  once the published branch has been retrieved successfully.
 
 ### 2026-09-08T21:48:11-06:00 — Owner-authorized planning-package publication prepared — Codex
 
