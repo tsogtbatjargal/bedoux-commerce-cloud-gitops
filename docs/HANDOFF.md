@@ -2,7 +2,11 @@
 
 Copy the fenced prompt below into the next agent's session. PR #87 merged the planning package
 into `main` as `e40912d`; PR #86's toolchain work is included. Both old local branch refs and
-the remote planning branch are removed. Fetch updated `main`, including the closeout checkpoint.
+the remote planning branch are removed. PR #88 merged the closeout as `6b97979`.
+The receiving workstation is `nomad`; its checkout must be updated as described below.
+The owner authorized publishing these Nomad-specific additions through a checked PR and then
+fast-forwarding the clean receiving clone. See PROGRESS for actual merge/update evidence;
+authorization alone does not prove that either operation completed.
 This handoff does not activate GitOps/hosting implementation or accept either Proposed ADR.
 `docs/PROGRESS.md` remains the only authoritative execution state.
 
@@ -11,9 +15,17 @@ Resume bedoux-commerce-cloud on this computer. First reconcile the transferred p
 package and summarize the next decision for me; do not begin implementation automatically.
 
 REPOSITORY AND TRANSFER CHECK
-- Repository: bedoux-tech/bedoux-commerce-cloud. Locate its clone on THIS computer.
-  Previous path: /var/home/tsogtb/git-projects/bedoux/bedoux-commerce-cloud.
-  Do not assume that path or its toolchain exists here.
+- Receiving workstation: nomad (SSH alias from the original workstation).
+  Owner-selected projects directory: /var/home/tsogtb/src/github.com/bedoux-tech/.
+  Existing app clone: /var/home/tsogtb/src/github.com/bedoux-tech/bedoux-commerce-cloud.
+  Planned env clone: /var/home/tsogtb/src/github.com/bedoux-tech/bedoux-commerce-env.
+  These are sibling repositories, not nested repos, submodules or linked Git worktrees.
+  Keep the app clone in place; do not move/copy it into a new app repository.
+- Read-only SSH verification on 2026-09-09 found the app clone clean on main at
+  0c1c2855ad2d3f6dbb6d2f3dc6270ec927f4e629 and the env directory absent. Its origin/main was
+  equally stale; a clean tracking status did not mean it had fetched GitHub's current main.
+  No remote fetch, pull, files or directories were changed by the inspection.
+  Creating/cloning the env repo belongs to separately activated GO-2, not this handoff.
 - PR #87 merged the planning package as e40912d864d14f79e58076d2a4f3e05833005807 after all four
   CI jobs passed on exact head 555647a47f99eae6494aa480db8b9cdea3b3a042 (run 34309225980).
   The owner authorized consolidation/cleanup, NOT design acceptance or implementation.
@@ -21,6 +33,9 @@ REPOSITORY AND TRANSFER CHECK
   docs/production-hosting-assessment and chore/declare-local-toolchain refs are removed;
   their commits remain in main. Do not try to fetch a deleted feature branch to recover the plan.
   On a clean existing clone: git fetch origin --prune, git switch main, git pull --ff-only.
+  Run these from /var/home/tsogtb/src/github.com/bedoux-tech/bedoux-commerce-cloud on nomad.
+  Baseline to include: 6b979797e762204c84e21e8bd2e9b477c9615be2 (PR #88), plus any later
+  reviewed updates. Receive this Nomad handoff edit through its separate publication/transfer.
   Preserve local work first; if fast-forward fails, compare histories rather than resetting.
   If the files below are absent, inspect fetched main/history and report the discrepancy rather
   than reconstructing the package or claiming to be caught up.
@@ -56,8 +71,8 @@ disagreements with the checkpoint; a clean clone does not prove it has the plann
 
 CURRENT STATE
 - P0-P14, maintenance M1-M5, and housekeeping H1-H6 are complete. No P15 exists.
-- PH-A hosting assessment and GO-A GitOps planning deliverables are complete LOCALLY,
-  awaiting review. Planning completion is not architecture acceptance or implementation.
+- PH-A hosting assessment and GO-A GitOps planning deliverables are merged as proposals,
+  awaiting design review. Planning completion/merge is not architecture acceptance or implementation.
 - ADRs 0025 and 0026 remain Proposed. GO-1 through GO-8 and PH-1 through PH-5 are NOT STARTED.
 - No implementation phase, AWS session, repository creation, or migration is active.
 - The owner prioritized GitOps planning before hosting implementation. Domain: bedoux.ca,
@@ -83,6 +98,20 @@ OWNER-CONFIRMED GITOPS CHOICES — DO NOT REPEAT THE DESIGN INTERVIEW
   revert/fix-forward PR. NO automatic Git revert or rejected-candidate retry. Traffic recovery
   does not restore the database. Document and prove these as separate steps.
 - Detailed technical proposals beyond these choices still need review and ADR acceptance.
+
+CLAUDE SUBAGENTS — OWNER PERMITTED, BOUNDED BY THE ACTIVE TASK
+- The owner explicitly permits the receiving Claude agent to use subagents. Follow
+  docs/workflows/phase-orchestration.md, especially "Delegate bounded work".
+- Before activation, delegate only read-only review/catch-up. After an item is activated,
+  delegate independent parts of that item, not future GO milestones. Examples for an activated
+  GO-1: source-revision binding analysis, migration ordering review, and rollout parity review.
+- Give each subagent narrow scope, relevant instructions/files and a concrete output. Assign
+  non-overlapping edits only when implementation is authorized; never run concurrent Git
+  checkout/commit operations in a shared worktree. Review each result before integrating.
+- The primary agent alone owns PROGRESS, task selection, combined evidence and completion
+  claims. Owner approvals cannot be delegated. No subagent independently accepts an ADR,
+  creates repositories, publishes/merges, installs controllers or opens a cloud/drill session.
+- For independent validation, request raw findings rather than supplying the desired verdict.
 
 NEXT ELIGIBLE TASK — GO-1 DESIGN CONTRACT, ONLY AFTER EXPLICIT ACTIVATION
 First review the existing package and report concrete blockers or readiness. Catch-up alone
@@ -115,6 +144,11 @@ VERIFICATION AND PUBLICATION
   Inspect tooling first; do not assume toolbox, host make, paths, credentials, kubeconfig
   contexts or inotify settings transferred. Report missing prerequisites; do not auto-install
   software or start a cluster just to complete handoff verification.
+- The initial Nomad SSH check found toolbox, mise and a Claude command shim; no host make
+  resolved, the stale clone lacked mise.toml, and its default .git/hooks/pre-push was not
+  executable. Tool versions, toolbox contents, effective custom hooksPath and credentials were
+  not verified. After updating Git, follow docs/local-tooling.md's Nomad checklist; do not
+  assume the original workstation's installations, guardrails or runtime state carry over.
 - Run git diff --check; also check new/untracked documents, which that command omits.
 - Update docs/PROGRESS.md before ending a work session. Preserve historical evidence and
   accepted ADRs. Do not silently accept Proposed ADRs or activate later tasks.

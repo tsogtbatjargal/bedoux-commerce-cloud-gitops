@@ -15,6 +15,11 @@ This file is the entry point for a new Claude Code, Codex, OpenClaw, or human se
 
 ## Current checkpoint
 
+- Continuation target: `nomad`, app clone
+  `/var/home/tsogtb/src/github.com/bedoux-tech/bedoux-commerce-cloud`. Read-only verification
+  found it clean but stale at `0c1c285`; update to reviewed main before resuming. The proposed
+  sibling `bedoux-commerce-env` directory is absent; creation remains GO-2 work. HANDOFF and
+  local-tooling record setup checks and owner permission for bounded Claude subagents.
 - Moving to another computer: use the portable prompt and 12-file manifest in `docs/HANDOFF.md`.
   PR #87 merged the planning package into `main` as `e40912d` with all four exact-head checks
   green; PR #86's toolchain is included. Both old feature branches are removed. Use updated

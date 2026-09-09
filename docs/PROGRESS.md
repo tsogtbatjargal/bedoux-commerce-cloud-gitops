@@ -8,13 +8,13 @@ checked here and its evidence is recorded in the session log.
 
 | Field | Value |
 |---|---|
-| State | COMPLETE |
+| State | IN PROGRESS |
 | Active phase | None — P0–P14, M1–M5, and post-track housekeeping H1–H6 are complete. |
-| Active task | None — existing planning/toolchain work consolidated into main and old branch refs removed; this documentation closeout follows the same checked-PR workflow. GO-1–GO-8 and PH-1–PH-5 remain NOT STARTED. |
-| Last verified | 2026-09-08T22:03:44-06:00 — PR #87 merged at e40912d864d14f79e58076d2a4f3e05833005807 after all four jobs passed in run 34309225980 on exact head 555647a; original merged branches removed locally/remotely. No AWS verification. |
+| Active task | Owner-authorized Nomad handoff publication via checked PR, then clean-checkout fast-forward on Nomad. GO-1–GO-8 and PH-1–PH-5 remain NOT STARTED. |
+| Last verified | 2026-09-09T08:07:53-06:00 — read-only Nomad check: clean main at 0c1c285, env directory absent. Local handoff docs-check, 14 link targets and whitespace passed; no AWS verification. |
 | AWS resources currently live | Last recorded inventory, not refreshed by PH-A: no temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
-| Next operator action | Resume from updated main using docs/HANDOFF.md; review the GitOps proposal and explicitly activate GO-1 if desired. ADRs 0025/0026 remain Proposed; no implementation, new repository or AWS session is active. Verify this closeout PR before removing its temporary branch. |
+| Next operator action | Finish authorized handoff PR checks/merge, then recheck and fast-forward Nomad without overwriting local work. Review the GitOps proposal afterward; GO-1 requires separate activation. Env repo creation remains GO-2, ADRs 0025/0026 Proposed, no AWS session. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -776,6 +776,47 @@ follow-on phase is active.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-09-09T08:10:38-06:00 — Nomad publication and checkout update authorized — Codex
+
+- **Authorization:** owner approved publishing the prepared docs through a PR and fast-forwarding
+  Nomad after merge. This covers the five-file handoff change and its verified closeout; no tool
+  install, hook change, env repository creation or implementation is included.
+- **Plan:** local docs/link/whitespace checks, exact-head CI, PR merge, fresh Nomad cleanliness
+  check, then fetch and fast-forward only. Stop on dirty or divergent receiving state rather
+  than resetting/stashing it. Record the resulting SHA and compare handoff content afterward.
+- **State:** publication/receiving-clone update IN PROGRESS. Historical inspection-only entries
+  remain valid for their timestamps; the newer authorization permits the bounded Git update.
+  AWS: none; no Kubernetes endpoint or phase activation.
+
+### 2026-09-09T08:07:53-06:00 — Nomad location and bounded-subagent handoff prepared — Codex
+
+- **Owner direction:** continue on workstation SSH alias `nomad`, using the parent directory
+  `/var/home/tsogtb/src/github.com/bedoux-tech/`; update relevant planning/handoff guidance.
+  Owner explicitly permits the receiving Claude agent to use subagents. This is not GO-1/GO-2
+  activation, repository-creation authority or permission to copy credentials between hosts.
+- **Read-only evidence:** SSH reached the existing `bedoux-commerce-cloud` clone at that parent.
+  Initial 2026-09-08 inspection and refreshed 2026-09-09 check found clean main at
+  `0c1c2855ad2d3f6dbb6d2f3dc6270ec927f4e629`; its origin/main tracking ref is also stale.
+  `bedoux-commerce-env` is absent. The initial check found toolbox/mise/Claude command paths,
+  no host make, no project mise.toml at that old commit and no executable default pre-push hook.
+  Custom hooksPath, installed tool versions, toolbox contents and credentials were not verified.
+- **Repository reconciliation:** local main already contains PR #88 closeout merge `6b97979`
+  and PR #86 toolchain declarations. The receiving clone must fetch/fast-forward before its
+  clean status can be treated as current. No SSH fetch/pull, file write, install or mkdir ran.
+- **Documentation:** HANDOFF, START-HERE, GitOps plan and local-tooling now specify sibling app
+  and proposed env clone paths, safe receiving-host setup checks and bounded delegation. No
+  nested repo/submodule/app worktree substitute. Primary agent keeps authoritative progress,
+  integration and completion responsibility; owner approvals cannot be delegated. Before GO-1
+  activation, subagent scope is read-only review/catch-up only.
+- **Verification:** local toolbox docs-check passed with 18 immutable Action references;
+  14 relative Markdown targets in touched files resolved and `git diff --check` passed. No
+  runtime proof or receiving-host tools-check claimed.
+- **State:** documentation preparation COMPLETE, local/uncommitted on `docs/nomad-gitops-handoff`
+  based on `6b97979`. No commit, push, PR, env repository or remote checkout update. AWS: none;
+  no Kubernetes endpoint. Original completed tracks remain closed; both new ADRs remain Proposed.
+- **Next action:** owner authorizes publication/transfer and receiving-clone update. Continue from
+  the current app repository on Nomad, review the plan, then activate GO-1 separately if desired.
 
 ### 2026-09-08T22:03:44-06:00 — Planning merge and original-branch cleanup verified — Codex
 
