@@ -8,13 +8,13 @@ checked here and its evidence is recorded in the session log.
 
 | Field | Value |
 |---|---|
-| State | COMPLETE |
+| State | IN PROGRESS |
 | Active phase | None — P0–P14, M1–M5, and post-track housekeeping H1–H6 are complete. |
-| Active task | None. |
-| Last verified | 2026-09-08T09:47:42-06:00 — PR #84 merge and exact-head CI verified; merged H6 branch/worktree cleanup completed. |
-| AWS resources currently live | No temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
+| Active task | Commit and push the complete planning/handoff documentation package on docs/production-hosting-assessment, explicitly authorized by owner. No PR or implementation. |
+| Last verified | 2026-09-08T21:45:06-06:00 — portable handoff checked against local branch/HEAD and the 12-file planning package; docs-check and git diff --check passed; no live account verification. |
+| AWS resources currently live | Last recorded inventory, not refreshed by PH-A: no temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
-| Next operator action | None. Stop unless the owner explicitly activates a new bounded task or phase. |
+| Next operator action | Verify the authorized branch push, then retrieve it on the receiving computer and review the GitOps plan, Proposed ADR 0026 and recovery procedure. GO-1 requires explicit activation; PR creation, implementation and AWS work are not authorized. Hosting remains deferred. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -752,6 +752,22 @@ The owner approved H1–H5 one at a time and separately authorized H6 on 2026-09
 bounded housekeeping tasks, not a new product or infrastructure phase. H1–H6 are complete; no
 follow-on phase is active.
 
+### Production-hosting assessment — planning only
+
+- [x] PH-A COMPLETE — planning deliverable prepared locally: `docs/production-hosting-plan.md`
+      compares four options with dated public pricing, app gaps, operating-policy changes and
+      proposed PH-1–PH-5 acceptance/rollback steps; ADR 0025 remains Proposed. Evidence:
+      2026-09-08T15:50:17-06:00 session entry. Owner review is pending; implementation and AWS
+      resource changes are not authorized. Completed P0–P14, M1–M5, and H1–H6 remain closed.
+
+### GitOps expansion — discovery and planning only
+
+- [x] GO-A COMPLETE — owner interview choices consolidated into `docs/gitops-expansion-plan.md`,
+      Proposed ADR 0026 and `docs/runbooks/gitops-recovery.md`. Evidence:
+      2026-09-08T20:56:54-06:00 session entry. Planning deliverables are complete locally;
+      technical proposal/ADR review is pending. GO-1–GO-8 remain NOT STARTED, with explicit
+      design gates before implementation. PH-A is preserved and PH-1–PH-5 stay inactive.
+
 ## Blockers
 
 - GitHub server-side branch protection remains unavailable while the repository is private
@@ -760,6 +776,189 @@ follow-on phase is active.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-09-08T21:48:11-06:00 — Owner-authorized planning-package publication prepared — Codex
+
+- **Authorization:** owner requested "git commit and push them all" after the cross-computer
+  handoff. Publishing all 12 pending documentation files together is now explicitly in scope;
+  this supersedes the earlier transfer-only restriction, not the implementation/PR gates.
+- **Scope:** existing `docs/production-hosting-assessment` branch based on `0c1c285`; hosting
+  assessment, GitOps plan, two Proposed ADRs, proposed recovery procedure and shared checkpoints.
+  No app, workflow, infrastructure or accepted ADR change. Separate focused review PRs remain
+  future work; no PR creation, merge, phase activation or AWS operation is authorized here.
+- **Prepublication evidence:** remote branch lookup returned no existing branch. Toolbox
+  `docs-check` passed with 18 immutable Action references; `git diff --check` and added-text
+  sensitive-identifier/key/email scan passed. Git author/committer use GitHub noreply identities.
+  START-HERE/HANDOFF now explain retrieving the feature branch rather than only main.
+- **State:** publication IN PROGRESS; no successful push claimed yet. AWS: none. Record the
+  actual pushed commit and remote verification in the closeout checkpoint after success.
+
+### 2026-09-08T21:45:06-06:00 — Cross-computer handoff prepared — Codex
+
+- **Owner request:** prepare a prompt in `docs/HANDOFF.md` for another agent on another computer.
+  Marked this bounded documentation task IN PROGRESS before editing; no implementation phase
+  was activated.
+- **Deliverable:** portable copy/paste prompt with the 12-file transfer manifest, exact source
+  HEAD, local-only branch status, confirmed interview decisions, pending GO-1 design gates,
+  review/activation boundaries and new-host toolchain checks. START-HERE points to the manifest.
+  The prompt distinguishes proposed designs from tested behavior and historical inventory from
+  fresh verification; it does not carry old cloud approvals into a new session.
+- **Verification:** confirmed HEAD `0c1c2855ad2d3f6dbb6d2f3dc6270ec927f4e629`, matched the manifest
+  to all 12 changed/untracked planning files, and ran toolbox `docs-check` (18 immutable Action
+  references) and `git diff --check`, both passing.
+- **Transfer status:** documentation prepared, but no files transferred or published. Changes
+  remain uncommitted/unpushed on `docs/production-hosting-assessment`; a fresh clone cannot
+  recover them. Receiving agent must request missing files and preserve any newer local history.
+  No credentials, state files or runtime artifacts belong in the documentation transfer.
+- **Scope/state:** AWS: none. No Kubernetes endpoint, GitHub mutation, commit, push or software
+  installation. Handoff preparation COMPLETE; PH-A/GO-A remain local review deliverables,
+  ADRs 0025/0026 Proposed, GO-1–GO-8 and PH-1–PH-5 NOT STARTED.
+- **Next action:** owner transfers the package or separately authorizes publication; receiving
+  agent reconciles it and reviews the GitOps proposal. GO-1 requires explicit activation.
+
+### 2026-09-08T20:56:54-06:00 — GO-A plan, proposed ADR and recovery procedure ready for review — Codex
+
+- **Final owner answers:** accepted explicit release preparation; automatic canary traffic
+  recovery and Git repair are separate steps. No automatic Git revert is needed; the owner
+  asked that both procedures be documented clearly. Combined with prior answers, this settles
+  the interview behavior without accepting every technical implementation choice.
+- **Deliverables:** finalized `docs/gitops-expansion-plan.md` with two-repository ownership,
+  immutable promotion, local/EKS boundaries, Argo CD and later Rollouts, security/migration design
+  gates, estimates and GO-1–GO-8/T-GO-01–08 acceptance. Added Proposed ADR 0026 and proposed
+  `docs/runbooks/gitops-recovery.md`; refreshed README, ADR index, START-HERE, HANDOFF and
+  historical-plan/architecture pointers. Accepted ADRs and completed phase evidence are unchanged.
+- **Recovery contract:** automatic traffic abort leaves a visible failed desired release; Git
+  revert/fix-forward remains a reviewed PR; data restore is separate. Repeated sync/controller
+  restart must not retry the candidate, and a fresh cluster refuses known rejected desired state
+  until reviewed recovery. Root/workload reconciliation is suspended before session teardown.
+- **Design limits:** source-revision binding, image admission verification, ordered migrations,
+  paired API/web rollout and supported router/controller pins are explicit GO-1 design gates.
+  No provider compatibility, signature enforcement, runtime behavior or ALB recovery is claimed
+  as tested merely because it appears in the plan. The documented outside-Git session bindings
+  preserve the existing no-account-ID rule; a cluster cannot be recovered from Git alone.
+- **Verification:** toolbox `docs-check` passed with 18 immutable Action references; relative
+  Markdown file-target check passed for 89 references across the touched documents. All eight
+  proposed task/evidence IDs were present, ADR 0026 was confirmed Proposed, tracked/new-file
+  whitespace checks passed, and the added-text AWS identifier/key-pattern scan passed.
+- **Scope/state:** AWS: none. Public reference reads and local documentation only; no AWS account
+  API, Kubernetes endpoint, GitHub write, repository creation, controller installation or
+  implementation. GO-A is complete as a planning deliverable awaiting review. ADRs 0025/0026
+  remain Proposed and all proposed hosting/GitOps implementation tasks are NOT STARTED.
+- **Git handoff:** changes remain uncommitted on `docs/production-hosting-assessment`, alongside
+  the preserved earlier hosting draft. No push or PR. A later publication must separate the
+  hosting and GitOps document scopes and reconcile shared checkpoints rather than silently
+  bundling the two proposals.
+- **Next action:** review the concrete plan/ADR/recovery package; GO-1 only is the next eligible
+  activation. This does not reopen P0–P14, M1–M5 or H1–H6 or activate a production hosting phase.
+
+### 2026-09-08T17:01:49-06:00 — GO-A isolation, self-healing and progressive delivery agreed — Codex
+
+- **Owner answers:** one local kind cluster with separate dev/staging namespaces/databases;
+  automatic repair of Argo-managed drift, initially no automatic deletion and protected data;
+  progressive delivery as the recommended later milestone after basic GitOps/rollback proof.
+- **Planning:** recorded Argo Rollouts as the proposed integration for that agreed scope; kept
+  API/web pairing, actual traffic/target health, drain timing and controller field ownership as
+  required evidence. No tool installation or replacement of the P13 implementation is authorized.
+- **Remaining behavior questions:** explicit release action versus publication on each app-main
+  merge; automatic failed-canary traffic abort with human-reviewed Git recovery and no automatic
+  candidate retry. Proposed private-repo, chart ownership, scoped GitHub App and external-to-Git
+  credential defaults are documented for the final review, not represented as owner decisions.
+- **Scope:** AWS: none. Local docs and public official Argo/GitHub sources only; no AWS account
+  API, Kubernetes endpoint, GitHub mutation, repository creation or implementation. GO-A remains
+  IN PROGRESS; existing hosting draft remains intact.
+- **Verification:** toolbox `docs-check` passed (18 immutable Action references) and
+  `git diff --check` passed. No deployment evidence is claimed.
+
+### 2026-09-08T16:57:36-06:00 — GO-A repository reuse and promotion flow confirmed — Codex
+
+- **Owner answers:** reuse the existing repository as the app repo; follow the recommended
+  local dev/staging then temporary EKS sequence; CI proposes an environment PR and owner merge
+  allows Argo CD to reconcile/deploy automatically in the authorized running cluster.
+- **Clarification:** Argo CD pulls desired configuration and applies Kubernetes resources;
+  the node's container runtime pulls the selected images. Deployment convergence still needs
+  application health evidence. No AWS session or implementation activation was inferred.
+- **Draft:** replaced open repository-preservation questions with the confirmed reuse decision,
+  added the agreed release flow, and identified remaining isolation, self-heal/prune, canary,
+  secrets, visibility and ownership choices. Separate per-stage PR details are still a proposal.
+- **Scope:** AWS: none. Local documentation and public Argo documentation only; no AWS account
+  or Kubernetes endpoint, GitHub write, migration or controller installation. GO-A IN PROGRESS.
+- **Verification:** toolbox `docs-check` passed (18 immutable Action references) and
+  `git diff --check` passed. Added an explicit planning issue for ECR image URLs versus the
+  repository's no-account-ID rule; no identifier or credential was recorded.
+
+### 2026-09-08T16:52:10-06:00 — GO-A owner confirms purpose and Argo CD — Codex
+
+- **Owner answers:** GitOps learning/interview purpose with intended future bedoux.ca reuse;
+  preserve the existing repository; use Argo CD. Owner asked whether an additional app repo
+  is needed, so repository migration shape is not recorded as accepted yet.
+- **Recommendation:** existing `bedoux-commerce-cloud` can become the app repository, retaining
+  API/web and history, with one new environment repo. Confirm whether preserving the existing
+  repo means keeping its history while evolving it or freezing its tree unchanged.
+- **Plan updates:** recorded Argo CD as the design choice and removed stale unanswered-purpose
+  wording. Future hosting runtime remains undecided; learning controller selection does not
+  approve always-on EKS. Next discussion: repository preservation, environments and promotion.
+- **Scope:** planning documents only. AWS: none; no AWS/Kubernetes endpoint, GitHub write,
+  controller install or repository migration. Previous hosting draft changes remain preserved.
+- **Verification:** toolbox `docs-check` passed (18 immutable Action references) and
+  `git diff --check` passed. GO-A remains IN PROGRESS for the design interview.
+
+### 2026-09-08T16:33:54-06:00 — GO-A GitOps planning discovery opened — Codex
+
+- **Owner direction:** plan a Bedoux-specific two-repository GitOps expansion before hosting
+  implementation; use iterative questions to establish shared scope. This authorizes discovery
+  and planning, not repository creation, file migration, controller installation or cloud work.
+- **Initial research:** read the supplied application/environment repository overviews, current
+  Bedoux deployment workflow, ADR 0005 migration contract and ADR 0023 canary design; consulted
+  OpenGitOps principles and official Argo CD/Flux Helm documentation. The example environment
+  repo contains multiple teaching tools, not a requirement to run all of them together.
+- **Open decisions:** portfolio versus production objective; reuse the current repo plus one
+  environment repo versus create two successors; Argo CD/Flux preference. Subsequent questions
+  will resolve promotion, environment topology, secrets, infrastructure ownership and recovery.
+- **Local deliverable/checks:** added `docs/gitops-expansion-plan.md` as an explicitly incomplete
+  discovery draft; refreshed entry/handoff/index links. At 2026-09-08T16:35:59-06:00, toolbox
+  `docs-check` passed (18 immutable Action references) and `git diff --check` passed. This is
+  documentation validation, not a controller or deployment test.
+- **Scope:** AWS: none. Public documentation/GitHub reads only; no AWS account or Kubernetes
+  endpoint contacted. Existing uncommitted hosting documents are preserved; no push/PR or
+  repository creation. GO-A remains IN PROGRESS pending owner answers.
+
+### 2026-09-08T15:50:17-06:00 — PH-A assessment prepared for owner review — Codex
+
+- **Deliverables:** `docs/production-hosting-plan.md` and Proposed ADR 0025, indexed from README,
+  the historical implementation plan and ADR index. START-HERE, HANDOFF and architecture context
+  point at the assessment without changing an accepted ADR or claiming persistent hosting.
+- **Recommendation/assumptions:** public static catalog first, with no customer writes, while
+  retaining the existing USD 20 whole-account budget. Owner launch-mode and budget preferences
+  remain open; the recommendation is not recorded as an accepted owner decision.
+- **Evidence:** inspected the frontend API dependency, order routes, request middleware and
+  development Compose exposure. Read current official CloudFront, S3, Route 53, Lightsail,
+  certificate/OAC and EKS references linked in the plan. Price figures are estimates before tax,
+  with account/traffic/retention assumptions and exclusions stated; no promotional credits used.
+- **Verification:** toolbox `docs-check` passed, including diagram/spine validation and 18
+  immutable Action references; `git diff --check` passed. Ad hoc local verification resolved 73
+  relative Markdown file targets, recomputed the cost arithmetic and checked Proposed/task
+  boundaries. New documents passed an AWS identifier/key-pattern scan. No app, Terraform,
+  workflow or runtime configuration changed; no live tests or CI run are claimed.
+- **Scope/state:** AWS: none. Only public documentation was fetched; no AWS account API, DNS
+  probe or Kubernetes endpoint contacted. PH-A's planning deliverable is complete locally;
+  ADR 0025 remains Proposed and PH-1–PH-5 remain NOT STARTED. Changes are uncommitted on
+  `docs/production-hosting-assessment`; nothing pushed and no PR opened.
+- **Next action:** owner reviews launch scope, budget, operating responsibility and the proposed
+  decision. PH-1 is the next eligible task after explicit activation. No new phase is inferred.
+
+### 2026-09-08T15:44:10-06:00 — PH-A planning assessment activated by owner — Codex
+
+- **Authorization:** owner explicitly activated a planning-only production-hosting assessment
+  for bedoux.ca, requesting architecture options, cost comparison, ADR, and implementation plan;
+  no AWS resource creation or modification.
+- **State:** PH-A is the only active item. No implementation phase has been activated.
+- **Repository reconciliation:** the clean starting branch `chore/declare-local-toolchain` has
+  commit `4e1790c` after the merged H6 checkpoint `0c1c285`. Preserved that branch and its
+  changes; created `docs/production-hosting-assessment` from local `main` at `0c1c285` so the
+  assessment does not bundle the separate toolchain change. No GitHub status was queried.
+- **Scope:** local source review and public vendor documentation/pricing only. AWS: none;
+  no AWS account API or Kubernetes endpoint contacted. Existing inventory and cost figures
+  remain historical evidence, not a fresh live check.
 
 ### 2026-09-08T09:47:42-06:00 — H6 merge reconciled and merged branch cleaned — Codex
 

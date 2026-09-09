@@ -8,6 +8,12 @@ every phase gate requires owner approval recorded as its own commit
 > **Status:** P0–P14 are complete and gate-approved. This file is the delivered historical plan,
 > not authorization to infer or begin P15.
 
+The owner-authorized planning-only [bedoux.ca hosting assessment](production-hosting-plan.md)
+is maintained separately. Its proposed tasks do not reopen this plan or authorize implementation.
+
+The subsequent [GitOps expansion plan](gitops-expansion-plan.md) records the owner's two-repository
+Argo CD direction and proposed GO-1–GO-8 milestones. It also remains separate from P0–P14.
+
 ## Goal
 
 Build a compact commerce system that demonstrates the skills expected from a cloud, platform,

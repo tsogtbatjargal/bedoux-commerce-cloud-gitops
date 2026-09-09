@@ -15,7 +15,13 @@ This file is the entry point for a new Claude Code, Codex, OpenClaw, or human se
 
 ## Current checkpoint
 
-- Repository state: **COMPLETE**. P0–P14 and T-001–T-1404 are complete and gate-approved.
+- Moving to another computer: use the portable prompt and 12-file manifest in `docs/HANDOFF.md`.
+  The owner authorized publishing the complete package on `docs/production-hosting-assessment`;
+  verify the publication checkpoint and retrieve that branch, not just `main`. No implementation
+  is activated.
+- P0–P14 and T-001–T-1404 are complete and gate-approved. A separate owner-authorized
+  production-hosting assessment (PH-A, planning only) is prepared for review; see
+  `docs/PROGRESS.md` for its evidence and state.
 - P14 closeout: PR #66 merged the focused P14 reconciliation and standalone owner gate commit to
   `main` as `9a2fe597f79018a68bfbe53580acebf8d91b0248`.
 - Post-P14 maintenance track (M1–M5, owner-approved, explicitly not P15) is also **complete**:
@@ -23,22 +29,32 @@ This file is the entry point for a new Claude Code, Codex, OpenClaw, or human se
   named deployment profiles (`ff81bfc`), M4 typed P12/P13 gate diagnostics (`38cadaf`), M5 lazy
   `app.db` engine + isolated order pricing (`4e63213`), plus `docs/verification-lessons.md`
   (`950775b`). Final merge: `40bb39d`.
-- Active phase/task: **none**. Post-track housekeeping H1–H6 is complete. P0–P14 and M1–M5
-  remain complete; no P15 or other phase is active.
+- GO-A GitOps planning deliverable is prepared for review; no implementation phase is active.
+  Post-track housekeeping H1–H6, P0–P14 and M1–M5 remain complete.
 - H6 closeout: exact head `e207efc` passed all four jobs in PR-validation run
   `34163029641` and merged through PR #84 as `0635b35`; its merged local/remote branch and
   worktree were removed.
-- AWS state: no temporary or hourly billed project resource is live. Only the owner-approved
+- Last recorded AWS state (not rechecked by PH-A): no temporary or hourly billed project resource
+  is live. Only the owner-approved
   persistent ECR/IAM, Route 53/ACM, and Terraform state-storage allowlist remains; website aliases
   are absent.
 - Local state: no kind cluster, Bedoux kind node/PVC volume, kind network, or `kind-bedoux`
   kubeconfig entry remains. The host inotify setting is restored to 128. Historical EKS contexts
   remain with no current context selected; always choose an explicit context before Kubernetes
   work.
-- Next action: none. Stop unless the owner explicitly activates a new bounded task or phase.
+- Next action: review `docs/gitops-expansion-plan.md`, Proposed ADR 0026 and
+  `docs/runbooks/gitops-recovery.md`. The interview choices are recorded; GO-1–GO-8 remain
+  NOT STARTED. GO-1 is the next eligible design-contract task after explicit activation.
+  Hosting implementation is deferred; PH-1–PH-5 stay NOT STARTED and ADR 0025 remains Proposed.
 
 ## Evidence map
 
+- `docs/gitops-expansion-plan.md` — GO-A review package: agreed two-repository flow, migration
+  design gates, GO-1–GO-8 acceptance evidence and operating boundaries.
+- `docs/runbooks/gitops-recovery.md` — proposed automatic traffic abort and separate reviewed
+  Git repair, data recovery, restart safeguards and teardown suspension.
+- `docs/production-hosting-plan.md` — PH-A hosting options, dated costs, application gaps,
+  proposed implementation sequence and review decisions for bedoux.ca.
 - `docs/PROGRESS.md` — authoritative checklist, AWS teardown evidence, and chronological session
   record.
 - `docs/IMPLEMENTATION-PLAN.md` — delivered P0–P14 plan; historical, not future authorization.
