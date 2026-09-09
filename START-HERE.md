@@ -16,9 +16,9 @@ This file is the entry point for a new Claude Code, Codex, OpenClaw, or human se
 ## Current checkpoint
 
 - Moving to another computer: use the portable prompt and 12-file manifest in `docs/HANDOFF.md`.
-  The complete package was published as `768ef73` on `docs/production-hosting-assessment`;
-  retrieve the latest branch tip including its publication checkpoint, not just `main`.
-  No implementation is activated.
+  The owner authorized consolidating the published planning package into `main` via checked PRs.
+  Verify the merge checkpoint, then use updated `main`; the temporary feature branch may be
+  removed after merge. No implementation is activated and ADRs 0025/0026 remain Proposed.
 - P0–P14 and T-001–T-1404 are complete and gate-approved. A separate owner-authorized
   production-hosting assessment (PH-A, planning only) is prepared for review; see
   `docs/PROGRESS.md` for its evidence and state.

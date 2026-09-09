@@ -8,13 +8,13 @@ checked here and its evidence is recorded in the session log.
 
 | Field | Value |
 |---|---|
-| State | COMPLETE |
+| State | IN PROGRESS |
 | Active phase | None — P0–P14, M1–M5, and post-track housekeeping H1–H6 are complete. |
-| Active task | None — complete planning package committed and pushed for cross-computer handoff. GO-A awaits review; GO-1–GO-8 and PH-1–PH-5 NOT STARTED. |
+| Active task | Owner-authorized repository consolidation: verify outstanding branches, merge reviewed planning docs via PR, update handoff, then clean only proven-merged branches. No implementation activation. |
 | Last verified | 2026-09-08T21:48:43-06:00 — planning-package push succeeded; remote feature branch confirmed at 768ef734f063b3f752a52d2cc01f92e52fcb0ed6. Local docs-check, staged whitespace and sensitive-data checks passed; no AWS verification. |
 | AWS resources currently live | Last recorded inventory, not refreshed by PH-A: no temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
-| Next operator action | Fetch docs/production-hosting-assessment on the receiving computer, read docs/HANDOFF.md and review the GitOps plan, Proposed ADR 0026 and recovery procedure. GO-1 requires explicit activation; PR creation, implementation and AWS work are not authorized. Hosting remains deferred. |
+| Next operator action | Complete the authorized planning-document PR checks/merge and reconcile the main-branch handoff before merged-branch cleanup. GO-1 and hosting implementation remain inactive; AWS work is not authorized. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -776,6 +776,25 @@ follow-on phase is active.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-09-08T21:57:58-06:00 — Owner-authorized repository consolidation opened — Codex
+
+- **Scope:** owner requested checking local/remote work, merging it into main, cleanup afterward
+  and a refreshed handoff. This authorizes PR-based documentation consolidation and removal of
+  proven-merged branches, not deleting repositories or activating implementation/accepting ADRs.
+- **Inventory:** one clean worktree; local main at `0c1c285`, toolchain branch at `4e1790c`,
+  planning branch at `26ba89b`. Fresh remote inventory contains only main (`614912d`) and the
+  planning branch. GitHub confirms toolchain PR #86 already merged at
+  `614912d2202b236801b733f4ff5f3c9a34c527ba`; its remote branch is already absent.
+- **Reconciliation:** switched from the clean toolchain branch to the planning branch and
+  integrated origin/main without conflicts or history rewriting, preserving all three merged
+  toolchain files. Updated HANDOFF/START-HERE to prefer main after verified consolidation and
+  avoid dependence on a subsequently deleted feature branch.
+- **Review boundary:** remaining changes against main are the 12 planning/checkpoint documents.
+  PH-A/GO-A are review deliverables, ADRs 0025/0026 Proposed, all GO/PH implementation tasks
+  inactive. No app/workflow/infrastructure changes or live claims added.
+- **State:** consolidation IN PROGRESS. Next: local checks, draft PR, exact-head CI, reviewed
+  merge, actual merge checkpoint, then ancestry-verified cleanup. AWS: none; no Kubernetes API.
 
 ### 2026-09-08T21:48:43-06:00 — Planning package published for cross-computer handoff — Codex
 

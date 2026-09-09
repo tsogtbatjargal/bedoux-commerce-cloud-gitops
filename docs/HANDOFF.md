@@ -1,9 +1,9 @@
 # Cross-computer handoff
 
-Copy the fenced prompt below into the next agent's session. The complete planning package was
-published as `768ef73` on `docs/production-hosting-assessment`, followed by this checkpoint.
-Retrieve the latest branch tip, not just `main`; publication evidence is in PROGRESS.
-This handoff does not authorize PR creation, merge, repository creation, or implementation.
+Copy the fenced prompt below into the next agent's session. The owner authorized consolidating
+the planning package into `main` through checked PRs, followed by merged-branch cleanup.
+Verify the merge checkpoint before choosing the source branch; do not depend on a deleted branch.
+This handoff does not activate GitOps/hosting implementation or accept either Proposed ADR.
 `docs/PROGRESS.md` remains the only authoritative execution state.
 
 ```text
@@ -14,14 +14,14 @@ REPOSITORY AND TRANSFER CHECK
 - Repository: bedoux-tech/bedoux-commerce-cloud. Locate its clone on THIS computer.
   Previous path: /var/home/tsogtb/git-projects/bedoux/bedoux-commerce-cloud.
   Do not assume that path or its toolchain exists here.
-- Source branch: docs/production-hosting-assessment, based on
-  0c1c2855ad2d3f6dbb6d2f3dc6270ec927f4e629 (PR #85 merge).
-- The owner authorized committing/pushing all planning files on 2026-09-08 for this handoff.
-  Package commit 768ef734f063b3f752a52d2cc01f92e52fcb0ed6 was pushed and verified remotely;
-  retrieve the latest branch tip to include the subsequent publication checkpoint too.
-  From a clean clone, fetch origin, then switch to a local branch tracking
-  origin/docs/production-hosting-assessment. If that branch already exists locally, compare
-  histories and preserve changes rather than resetting it. Main alone lacks this package.
+- The owner authorized publication and subsequently PR-based consolidation into main on
+  2026-09-08. Package commit 768ef734f063b3f752a52d2cc01f92e52fcb0ed6 was published first;
+  later checkpoints record integration/merge status. Planning merge does not accept an ADR.
+- Fetch origin and inspect origin/main for this package and its merge checkpoint. After verified
+  consolidation, use main; the temporary docs/production-hosting-assessment branch may be deleted.
+  On a clean existing clone: git fetch origin --prune, git switch main, git pull --ff-only.
+  Preserve local work first; if fast-forward fails, compare histories rather than resetting.
+  If consolidation is still pending, inspect the planning PR/branch instead; do not assume merge.
 - Confirm these 12 planning/checkpoint files are present on the retrieved branch:
     README.md
     START-HERE.md
@@ -38,9 +38,10 @@ REPOSITORY AND TRANSFER CHECK
 - If files are missing or stale, ask me for the package before claiming to be caught up.
   Do not reconstruct detailed plans or evidence from this summary. Compare local changes
   and ancestry before integrating; never overwrite a newer clone or reset it to the old base.
-- The source checkout preserved a separate chore/declare-local-toolchain branch at 4e1790c.
-  It was intentionally not bundled here; do not delete it or assume it merged. Preserve any
-  newer tooling changes on the receiving computer.
+- Toolchain commit 4e1790c is already merged through PR #86 as
+  614912d2202b236801b733f4ff5f3c9a34c527ba; its remote feature branch was already deleted.
+  Preserve the merged mise.toml, mise.lock and updated docs/local-tooling.md. Read these before
+  setting up a new host; installation is not automatically authorized by a catch-up request.
 
 READ FIRST
 1. AGENTS.md and START-HERE.md, then docs/PROGRESS.md (authoritative state and session log).
@@ -115,11 +116,11 @@ VERIFICATION AND PUBLICATION
 - Run git diff --check; also check new/untracked documents, which that command omits.
 - Update docs/PROGRESS.md before ending a work session. Preserve historical evidence and
   accepted ADRs. Do not silently accept Proposed ADRs or activate later tasks.
-- The owner authorized publishing the complete documentation package together for transfer.
-  This is not permission to open a combined implementation PR. For later review PRs, separate
-  hosting/GitOps scopes and reconcile shared checkpoints. Never push main directly.
-  Further publication, PR creation, exact-head review, CI, ready/merge and live dispatch remain
-  separately scoped actions; no PR or green CI is implied by the handoff branch push.
+- The owner authorized checking and merging the existing planning branch, updating this handoff,
+  and cleaning proven-merged branches afterward. This is repository consolidation only, not a
+  combined implementation authorization. Later work needs its own scoped approval and focused
+  PRs. Never push main directly. Check recorded exact-head CI and actual merge evidence;
+  neither a published branch nor a Proposed ADR proves runtime readiness.
 
 SAFETY AND HONEST EVIDENCE
 - No AWS account API or Kubernetes endpoint was contacted in this planning work.
