@@ -16,9 +16,9 @@ This file is the entry point for a new Claude Code, Codex, OpenClaw, or human se
 ## Current checkpoint
 
 - Moving to another computer: use the portable prompt and 12-file manifest in `docs/HANDOFF.md`.
-  The owner authorized consolidating the published planning package into `main` via checked PRs.
-  Verify the merge checkpoint, then use updated `main`; the temporary feature branch may be
-  removed after merge. No implementation is activated and ADRs 0025/0026 remain Proposed.
+  PR #87 merged the planning package into `main` as `e40912d` with all four exact-head checks
+  green; PR #86's toolchain is included. Both old feature branches are removed. Use updated
+  `main` including the closeout checkpoint; no implementation or ADR acceptance is implied.
 - P0–P14 and T-001–T-1404 are complete and gate-approved. A separate owner-authorized
   production-hosting assessment (PH-A, planning only) is prepared for review; see
   `docs/PROGRESS.md` for its evidence and state.

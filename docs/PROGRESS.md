@@ -8,13 +8,13 @@ checked here and its evidence is recorded in the session log.
 
 | Field | Value |
 |---|---|
-| State | IN PROGRESS |
+| State | COMPLETE |
 | Active phase | None — P0–P14, M1–M5, and post-track housekeeping H1–H6 are complete. |
-| Active task | Owner-authorized repository consolidation: verify outstanding branches, merge reviewed planning docs via PR, update handoff, then clean only proven-merged branches. No implementation activation. |
-| Last verified | 2026-09-08T21:48:43-06:00 — planning-package push succeeded; remote feature branch confirmed at 768ef734f063b3f752a52d2cc01f92e52fcb0ed6. Local docs-check, staged whitespace and sensitive-data checks passed; no AWS verification. |
+| Active task | None — existing planning/toolchain work consolidated into main and old branch refs removed; this documentation closeout follows the same checked-PR workflow. GO-1–GO-8 and PH-1–PH-5 remain NOT STARTED. |
+| Last verified | 2026-09-08T22:03:44-06:00 — PR #87 merged at e40912d864d14f79e58076d2a4f3e05833005807 after all four jobs passed in run 34309225980 on exact head 555647a; original merged branches removed locally/remotely. No AWS verification. |
 | AWS resources currently live | Last recorded inventory, not refreshed by PH-A: no temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
-| Next operator action | Complete the authorized planning-document PR checks/merge and reconcile the main-branch handoff before merged-branch cleanup. GO-1 and hosting implementation remain inactive; AWS work is not authorized. |
+| Next operator action | Resume from updated main using docs/HANDOFF.md; review the GitOps proposal and explicitly activate GO-1 if desired. ADRs 0025/0026 remain Proposed; no implementation, new repository or AWS session is active. Verify this closeout PR before removing its temporary branch. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -776,6 +776,34 @@ follow-on phase is active.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-09-08T22:03:44-06:00 — Planning merge and original-branch cleanup verified — Codex
+
+- **Merge evidence:** PR #87 exact head `555647a47f99eae6494aa480db8b9cdea3b3a042` passed API
+  tests, web lint/test/build, Terraform/Helm validation and container build/scan in run
+  `34309225980`. Rechecked CLEAN/MERGEABLE, marked ready and merged using exact-head matching.
+  GitHub reports merge `e40912d864d14f79e58076d2a4f3e05833005807`; local main fast-forwarded to
+  that SHA. No direct main push. PR #86's toolchain files are preserved unchanged.
+- **Local verification:** docs-check passed (18 immutable Action references), all 89 local
+  Markdown targets resolved, full per-file added-text sensitive-data scan passed on all 12
+  changed documents, branch whitespace check passed. Initial sandbox-only toolbox/Node process
+  restrictions were resolved by the permitted local toolbox execution and a no-subprocess
+  link checker; neither required a source fix or AWS/Kubernetes endpoint.
+- **Cleanup evidence:** proved `4e1790c` and `555647a` ancestors of merged main before using
+  `git branch -d` on `chore/declare-local-toolchain` and `docs/production-hosting-assessment`.
+  Removed the exact remote planning ref with a matching-SHA lease. The toolchain remote ref was
+  already absent. Fresh remote inventory now shows only main; one project worktree remains.
+  No repositories, files, unmerged commits, runtime data or unrelated project branches deleted.
+  Removed branch tips remain recoverable from main's merge history.
+- **Closeout:** this three-file checkpoint is on `docs/repository-consolidation-closeout` based
+  on the verified merge. It must pass its own exact-head CI/PR merge before that last temporary
+  branch is removed. Do not embed or invent this commit's own final merge SHA; verify the live
+  PR and local/remote main equality at final handoff.
+- **State:** original consolidation/cleanup COMPLETE. Updated HANDOFF/START-HERE now point to
+  main, not a deleted feature branch. PH-A/GO-A remain proposals awaiting design review; ADRs
+  0025/0026 stay Proposed and GO/PH implementation is inactive. AWS: none; no Kubernetes endpoint.
+- **Next action:** after closeout merge, use main on the next computer. Review the GitOps plan,
+  then activate GO-1 separately if desired. No further repository cleanup or new phase inferred.
 
 ### 2026-09-08T21:57:58-06:00 — Owner-authorized repository consolidation opened — Codex
 
