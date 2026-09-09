@@ -84,6 +84,29 @@ eventually lives under `infra/terraform/` there after an explicit ownership hand
 leave current Terraform in this repo while the GitOps path is proved; never keep two active
 copies managing the same remote state.
 
+## Nomad workspace and bounded delegation
+
+The workstation layout and delegation rules below are handoff logistics, not activation of
+the release workflow or approval to create the environment repository.
+
+The owner selected `/var/home/tsogtb/src/github.com/bedoux-tech/` on workstation `nomad` as the
+continuation location. Reuse `bedoux-commerce-cloud/` there as the existing app clone. Reserve
+the sibling path `bedoux-commerce-env/` for the future env clone; do not nest it inside the app,
+turn it into a submodule, or use an app-repo worktree as a substitute for a separate repository.
+The read-only 2026-09-09 check found the app clone clean but stale at `0c1c285` and the env
+directory absent. Bring the app clone up to reviewed main before resuming; env creation/clone
+remains GO-2 after explicit activation. Scripts should resolve repository roots/configuration,
+not hardcode this workstation path into deployment manifests or CI.
+
+The owner permits Claude subagents for independent, bounded work under the
+[phase-orchestration workflow](workflows/phase-orchestration.md#delegate-bounded-work).
+Before activation, only review/catch-up is in scope. After activation, parallel subtasks must
+stay within the single active GO item, use non-overlapping edit ownership, and return evidence
+for primary-agent review. The primary agent retains progress/gate state, integration and final
+verification; owner approvals are never delegated. Subagents do not independently publish,
+create repos, modify shared Git state, run later milestones or operate AWS/Kubernetes.
+This permits delegation; it does not require subagents or change any acceptance criterion.
+
 ## Agreed release flow
 
 1. Application changes pass PR CI; no AWS publication occurs automatically on app-main merge.

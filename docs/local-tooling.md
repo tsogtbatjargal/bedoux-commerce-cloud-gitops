@@ -1,6 +1,37 @@
 # Local tooling
 
-## Workstation
+## Nomad continuation workstation
+
+The owner-selected receiving checkout is
+`/var/home/tsogtb/src/github.com/bedoux-tech/bedoux-commerce-cloud` on SSH alias `nomad`.
+The proposed environment repository belongs at the sibling `bedoux-commerce-env` path, only
+when GO-2 is activated; it was absent during the read-only 2026-09-09 check.
+
+That check found a clean app clone still at `0c1c285` (before PRs #86–#88). The initial SSH
+command lookup found toolbox, mise and a Claude shim, but no host make. The clone lacked
+`mise.toml`; its default `.git/hooks/pre-push` was not executable. These observations do not
+verify tool versions, custom `core.hooksPath`, a configured toolbox or cloud credentials.
+
+Before continuing on Nomad:
+
+1. Inspect Git status and fast-forward to reviewed main without overwriting local changes.
+   PR #88 baseline is `6b97979`; retrieve any later reviewed handoff updates too.
+2. Read the retrieved `mise.toml`/`mise.lock`; install missing pinned tools only with authorized
+   setup scope. Do not assume a detected command shim means the pinned tool is installed.
+3. Check for the `bedoux-aws` toolbox and `/usr/bin/make` inside it before using the canonical
+   commands below. Missing tooling is a prerequisite to resolve, not evidence of a passing check.
+4. Inspect `core.hooksPath` and the effective pre-push hook. Follow the guarded dry-run/install
+   procedure in [github-branch-protection.md](runbooks/github-branch-protection.md) under
+   authorized setup scope; never overwrite an existing custom hook or bypass the PR workflow.
+5. Run local docs/tool checks and record actual results. Do not copy credentials, Terraform
+   state/plans or kubeconfigs from the old host as an implicit setup step. Kubernetes/cloud
+   sessions, inotify changes and container creation require their separate guardrails.
+
+No software or hook was installed and no Nomad repository was updated by the inspection.
+The remainder of this document records the original workstation unless explicitly stated;
+its verified versions and historical drill results are not new Nomad evidence.
+
+## Original workstation
 
 - Fedora Silverblue 44 (immutable/atomic host)
 - Host container engine: Podman (rootless)
