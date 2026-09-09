@@ -27,7 +27,11 @@ Before continuing on Nomad:
    state/plans or kubeconfigs from the old host as an implicit setup step. Kubernetes/cloud
    sessions, inotify changes and container creation require their separate guardrails.
 
-No software or hook was installed and no Nomad repository was updated by the inspection.
+No software or hook was installed by the inspection or later Git update. After owner approval
+and PR #89 merge, the Nomad app clone was fast-forwarded cleanly to `90a7f26`; `mise.toml` and
+`mise.lock` are now present through Git, not proof their tools have been installed. See the
+2026-09-09 synchronization entry in [PROGRESS.md](PROGRESS.md) for exact evidence and the
+subsequent closeout. The prerequisite checklist above still needs receiving-host verification.
 The remainder of this document records the original workstation unless explicitly stated;
 its verified versions and historical drill results are not new Nomad evidence.
 

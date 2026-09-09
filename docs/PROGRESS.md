@@ -8,13 +8,13 @@ checked here and its evidence is recorded in the session log.
 
 | Field | Value |
 |---|---|
-| State | IN PROGRESS |
+| State | COMPLETE |
 | Active phase | None — P0–P14, M1–M5, and post-track housekeeping H1–H6 are complete. |
-| Active task | Owner-authorized Nomad handoff publication via checked PR, then clean-checkout fast-forward on Nomad. GO-1–GO-8 and PH-1–PH-5 remain NOT STARTED. |
-| Last verified | 2026-09-09T08:07:53-06:00 — read-only Nomad check: clean main at 0c1c285, env directory absent. Local handoff docs-check, 14 link targets and whitespace passed; no AWS verification. |
+| Active task | None — Nomad handoff merged and receiving clone fast-forwarded cleanly; this closeout follows the same checked-PR/update workflow. GO-1–GO-8 and PH-1–PH-5 remain NOT STARTED. |
+| Last verified | 2026-09-09T08:16:08-06:00 — PR #89 merged at 90a7f26879fa45ba88b55ed1828a85c746781b50 after all four exact-head CI jobs passed; Nomad clean at the same SHA, HANDOFF hash matches, env directory absent. No AWS verification. |
 | AWS resources currently live | Last recorded inventory, not refreshed by PH-A: no temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
-| Next operator action | Finish authorized handoff PR checks/merge, then recheck and fast-forward Nomad without overwriting local work. Review the GitOps proposal afterward; GO-1 requires separate activation. Env repo creation remains GO-2, ADRs 0025/0026 Proposed, no AWS session. |
+| Next operator action | Continue in Nomad's app clone using docs/HANDOFF.md after receiving the closeout; verify workstation prerequisites and review the GitOps proposal. GO-1 requires separate activation; env creation remains GO-2, ADRs 0025/0026 Proposed, no AWS session. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -776,6 +776,33 @@ follow-on phase is active.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-09-09T08:16:08-06:00 — Nomad handoff merged and receiving clone synchronized — Codex
+
+- **Publication:** PR #89 exact head `dc5e6800ca9a3dfaa11f8e4e0c4a2a8fe2847c80` passed all four
+  jobs in run `34361997764`. Rechecked CLEAN/MERGEABLE, marked ready, merged with exact-head
+  matching and verified merge `90a7f26879fa45ba88b55ed1828a85c746781b50`. Local main updated
+  by fast-forward; no direct main push.
+- **Nomad update:** confirmed clean main and expected repository before fetching. The first
+  attempt refused Nomad's valid `ssh://git@github.com/...` URL form before mutation. Inspected
+  its host/path without exposing credentials, then allowed that exact repository URL. Fetch
+  confirmed the expected merge SHA; `merge --ff-only` advanced `0c1c285` to `90a7f26` without
+  reset, stash, branch switch or file overwrite outside Git's fast-forward.
+- **Evidence:** Nomad HEAD matches the verified merge and local HEAD; status is clean and
+  `git diff --check` passed. Both HANDOFF copies hash to
+  `030e2f8962dc00106e9837665d282017e05311f86733020a86025a5ee1ae73ad`.
+  The env directory remains absent. Toolchain declarations arrived through Git; no installer,
+  trust command, hook change, toolbox creation or runtime check was executed on Nomad.
+- **Local validation:** documentation gate passed with 18 immutable Action references;
+  14 local Markdown targets resolved, branch whitespace and full added-text sensitive-data
+  checks passed. These results do not claim Nomad's tools-check or Kubernetes readiness.
+- **Closeout:** update current-facing handoff/tooling text to distinguish the initial stale
+  inspection from successful synchronization. This checkpoint receives its own checked PR and
+  final fast-forward under the same authorization; verify its actual merge/receiving SHA
+  externally rather than embedding a self-referential final SHA here.
+- **State:** handoff publication and initial synchronization COMPLETE. Planning proposals stay
+  Proposed, GO/PH implementation inactive. AWS: none; no Kubernetes endpoint or env repository.
+  Next: continue on Nomad, verify local prerequisites, review the plan and activate GO-1 separately.
 
 ### 2026-09-09T08:10:38-06:00 — Nomad publication and checkout update authorized — Codex
 

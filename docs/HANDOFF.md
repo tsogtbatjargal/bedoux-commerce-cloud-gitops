@@ -3,10 +3,9 @@
 Copy the fenced prompt below into the next agent's session. PR #87 merged the planning package
 into `main` as `e40912d`; PR #86's toolchain work is included. Both old local branch refs and
 the remote planning branch are removed. PR #88 merged the closeout as `6b97979`.
-The receiving workstation is `nomad`; its checkout must be updated as described below.
-The owner authorized publishing these Nomad-specific additions through a checked PR and then
-fast-forwarding the clean receiving clone. See PROGRESS for actual merge/update evidence;
-authorization alone does not prove that either operation completed.
+The receiving workstation is `nomad`. PR #89 merged its handoff as `90a7f26`, and the receiving
+clone was fast-forwarded cleanly to that exact commit. Receive this subsequent closeout too;
+see PROGRESS for evidence. No manual file transfer or new app repository is needed.
 This handoff does not activate GitOps/hosting implementation or accept either Proposed ADR.
 `docs/PROGRESS.md` remains the only authoritative execution state.
 
@@ -24,7 +23,9 @@ REPOSITORY AND TRANSFER CHECK
 - Read-only SSH verification on 2026-09-09 found the app clone clean on main at
   0c1c2855ad2d3f6dbb6d2f3dc6270ec927f4e629 and the env directory absent. Its origin/main was
   equally stale; a clean tracking status did not mean it had fetched GitHub's current main.
-  No remote fetch, pull, files or directories were changed by the inspection.
+  That initial inspection was read-only. After PR #89 merged, the separately authorized
+  guarded fast-forward brought Nomad to 90a7f26879fa45ba88b55ed1828a85c746781b50, clean;
+  its HANDOFF hash matched the source checkout. Fetch any subsequent reviewed closeout too.
   Creating/cloning the env repo belongs to separately activated GO-2, not this handoff.
 - PR #87 merged the planning package as e40912d864d14f79e58076d2a4f3e05833005807 after all four
   CI jobs passed on exact head 555647a47f99eae6494aa480db8b9cdea3b3a042 (run 34309225980).
@@ -35,7 +36,7 @@ REPOSITORY AND TRANSFER CHECK
   On a clean existing clone: git fetch origin --prune, git switch main, git pull --ff-only.
   Run these from /var/home/tsogtb/src/github.com/bedoux-tech/bedoux-commerce-cloud on nomad.
   Baseline to include: 6b979797e762204c84e21e8bd2e9b477c9615be2 (PR #88), plus any later
-  reviewed updates. Receive this Nomad handoff edit through its separate publication/transfer.
+  reviewed updates including PR #89 and its synchronization closeout.
   Preserve local work first; if fast-forward fails, compare histories rather than resetting.
   If the files below are absent, inspect fetched main/history and report the discrepancy rather
   than reconstructing the package or claiming to be caught up.
