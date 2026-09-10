@@ -1000,6 +1000,19 @@ tree.
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
 
+### 2026-09-10T18:20:00-06:00 — GO-MVP-U1 verifier hardening round 2: PR #92 green on final head — Claude
+
+- Pushed commit `9e34af052ff087d1210be213a1170696708ae61e` (verifier fixes for Codex's five
+  2026-09-10T17:24:50-06:00 findings). All four required CI jobs pass (run `34544338484`):
+  API tests (37s), Web lint/test/build (23s), Terraform and Helm validation (1m6s, includes the
+  5 GO-MVP local suites — verify now 26/26), Container build and scan (1m41s). `gh pr view 92`
+  confirms `state=OPEN`, `mergeable=MERGEABLE`, `isDraft=false`, not merged.
+- `fs.inotify.max_user_instances` is still `1024` as of this entry (raised for the earlier
+  live-demo round) — restoration to `128` was requested from the owner but is **not yet
+  confirmed**. Do not assume it is back to the recorded default until explicitly confirmed.
+- **Stopping here per explicit instruction: not merging PR #92, no AWS activity, no broader
+  GitOps work.** Owner review is the next step. AWS: none.
+
 ### 2026-09-10T18:00:00-06:00 — GO-MVP-U1 verifier hardening round 2: fixed Codex's five findings — Claude
 
 Addresses Codex's review below (relayed verbatim by the owner; not independently re-fetched from
