@@ -15,6 +15,9 @@ export function Layout() {
       <main>
         <Outlet />
       </main>
+      <footer>
+        <p>Bedoux Commerce — build 0.2</p>
+      </footer>
     </div>
   );
 }
