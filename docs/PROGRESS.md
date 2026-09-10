@@ -11,7 +11,7 @@ checked here and its evidence is recorded in the session log.
 | State | IN PROGRESS |
 | Active phase | GitOps implementation — **owner-approved scope change 2026-09-09: full GO-1 design contract paused (IN PROGRESS, not complete, not abandoned), reduced-scope GO-MVP local demo now active.** P0–P14, M1–M5, and post-track housekeeping H1–H6 remain complete. |
 | Active task | GO-MVP: **owner-approved closeout 2026-09-10.** DEF-012–014 fixed and demonstrated via a same-cluster update lap (snapshot A `153a1526a...` → effective Git change → snapshot B `c16d9e0a8...`, `web` `1/1`→`2/2`, credential reused, DB-backed checks passing before/after — `web.replicas` restored to `1` afterward, the `2` was demo-only, never an approved default); ownership is checked before any cluster mutation (never adopts an unmarked cluster), the broad image-cleanup fallback is removed (exact-tag-only, skip rather than guess), and the sync-wait loop no longer fast-fails on the expected transient post-trigger window — all closed with 54 new/updated local regression assertions (chart 18, verify 14, down 17, up-ownership 5), no cluster required to verify. `migration.gitopsMode`'s chart fix is now committed (PR #91, `feature/gitops-mvp`, head `98658e482ab1a15a66417d61a5eb66b084016485` plus this documentation-only closeout commit) with all four CI checks (API tests, Web lint/test/build, Terraform and Helm validation — which runs the 4 MVP suites, Container build and scan) green. GO-1's full design contract remains untouched, `IN PROGRESS`/paused, and deferred; GO-2 is not activated. Deployment-time signature enforcement is NOT installed in GO-MVP; documented as a local-demo limitation (DEF-009). GO-MVP's checklist item below is now checked complete on this basis. |
-| Last verified | 2026-09-09T08:16:08-06:00 — PR #89 merged at 90a7f26879fa45ba88b55ed1828a85c746781b50 after all four exact-head CI jobs passed; Nomad clean at the same SHA, HANDOFF hash matches, env directory absent. No AWS verification. GO-1's third-round local checks (6 suites, 122 assertions total, all passing; `git diff --check` and `actions-check` pass; `docs-check`'s diagram-export step fails on the pre-existing, unrelated `gitops-workflow.svg` gap) are recorded in this session's log entry below, uncommitted as of this write. |
+| Last verified | 2026-09-10T11:19:10-06:00 — PR #91 (GO-MVP closeout) merged into `main` at `60e7d0757b1394f6d63a63530242eb7fed83eaf5` after all four exact-head CI jobs passed twice (once on the implementation commit `98658e4`, again on the documentation-only closeout commit `4d7fdc5`); local `main` fast-forwarded cleanly to that SHA; no demo kind cluster, container, or image remained on the host before or after. No AWS verification. GO-1's third-round local checks (6 suites, 122 assertions total, all passing; `git diff --check` and `actions-check` pass; `docs-check`'s diagram-export step fails on the pre-existing, unrelated `gitops-workflow.svg` gap) remain recorded in this session's log entry below, still uncommitted (preserved, GO-1 stays paused/deferred). |
 | AWS resources currently live | Last recorded inventory, not refreshed by PH-A: no temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
 | Next operator action | GO-MVP closed out 2026-09-10; PR #91 merges after this documentation commit's checks pass (see session log). Full GO-1 and the advanced backlog stay deferred — unfinished findings and safe deferral boundaries remain tracked in `docs/DEFERRED-WORK.md` (DEF-001–011, DEF-015); review that backlog with the owner before activating any of it. Do not mark the original full GO-1 contract complete or infer GO-2/ADR acceptance from the MVP closeout. No AWS session or cluster mutation is authorized by backlog maintenance. |
@@ -914,9 +914,9 @@ and stays the only signature check actually enforced anywhere in this session's 
 
 - [x] GO-MVP — activated 2026-09-09 by the owner gate quoted above; built and live-verified
       2026-09-10, then closed out 2026-09-10 by explicit owner approval ("I approve closing out
-      the narrowly scoped local scaling MVP") after DEF-012–014 were fixed and PR #91 carried all
-      committed MVP changes with all four CI checks passing (session log above; merge SHA recorded
-      there once merged). Delivered: one
+      the narrowly scoped local scaling MVP") after DEF-012–014 were fixed and PR #91 merged all
+      committed MVP changes into `main` at `60e7d0757b1394f6d63a63530242eb7fed83eaf5` with all
+      four CI checks passing (session log above). Delivered: one
       kind cluster + one dedicated demo namespace; Argo CD
       (pinned version, matching Gate 3's researched v3.5.2) deploying the existing
       `charts/bedoux` chart's api/web/Postgres; the existing `bedoux-commerce-cloud` app
@@ -949,6 +949,32 @@ and stays the only signature check actually enforced anywhere in this session's 
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-09-10T11:19:10-06:00 — PR #91 merged: GO-MVP closed out — Claude
+
+- **Scope:** merge only, per the owner's explicit conditional authorization ("I authorize
+  merging PR #91 once those checks pass and it remains mergeable"). No further chart/script/
+  workflow/documentation changes in this entry.
+- **Pre-merge verification:** the documentation-only closeout commit `4d7fdc59d8c811d77313f933`
+  `cb5363009a38b5ac` (previous entry) was pushed to `feature/gitops-mvp`; `gh pr checks 91`
+  showed all four checks passing again on that exact head (API tests, Web lint/test/build,
+  Terraform and Helm validation — including the 4 MVP suites, Container build and scan);
+  `gh pr view 91` confirmed `state: OPEN`, `mergeable: MERGEABLE` immediately before merging.
+- **Merge:** `gh pr merge 91 --merge`. GitHub reported `mergedAt: 2026-09-10T17:19:10Z`,
+  **merge SHA `60e7d0757b1394f6d63a63530242eb7fed83eaf5`** (`Merge pull request #91 from
+  bedoux-tech/feature/gitops-mvp`), merging into `main`.
+- **Local sync:** `git fetch origin --prune`; `git checkout main` (this briefly showed the
+  pre-merge content for files also touched on `main`'s stale local ref, corrected by the
+  immediately following fast-forward — no commit was made in that window); `git pull --ff-only
+  origin main` fast-forwarded local `main` from `2c1ec6b` to `60e7d07` cleanly (21 files, no
+  conflicts). The full-GO-1/advanced-backlog working-tree changes (`docs/TEST-PLAN.md`,
+  `docs/decisions/README.md`, `docs/gitops-expansion-plan.md`, `docs/runbooks/gitops-recovery.md`,
+  `scripts/p13-canary-rollout.sh`, and the untracked GO-1 design-contract/ADR-0027/fixtures/
+  automation-script files) remained uncommitted and unchanged throughout — confirmed via
+  `git status --short` before and after the checkout/pull.
+- **GO-MVP is now closed out on `main`.** Full GO-1 design contract stays `IN PROGRESS`/paused,
+  untouched. GO-2 is not activated. No AWS activity occurred. Stopping here per explicit owner
+  instruction — not activating GO-2, not resuming full GO-1, no further phase work this session.
 
 ### 2026-09-10T11:15:00-06:00 — GO-MVP closeout: documentation-only reconciliation on PR #91 — Claude
 
