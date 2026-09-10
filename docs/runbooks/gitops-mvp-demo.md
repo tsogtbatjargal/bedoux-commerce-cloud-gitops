@@ -147,6 +147,84 @@ before and after — see `docs/PROGRESS.md`'s 2026-09-10 session log entry for t
    `kubectl --context kind-bedoux-gitops-mvp -n argocd get application bedoux-demo
    -o jsonpath='{.status.sync.revision}'` reporting the new snapshot SHA.
 
+## GO-MVP-U1: real A→B version update, migration ordering, and failure/recovery
+
+Status: **owner-approved bounded post-MVP milestone, 2026-09-10** (`docs/PROGRESS.md` GO-MVP-U1
+checklist). Builds on the GO-MVP demo above with a genuine application-version update (not a
+scaling-only change) and a controlled migration failure. Same one-cluster boundary; still no AWS,
+no second cluster, no automatic reconciliation.
+
+**Live-reproduced end to end, 2026-09-10**, on `feature/gitops-version-update`:
+
+1. **Source revision → image identity.** Revision A = `7595dfa236698001d1a195d3ef3ac20cc686b2cc`
+   (image tag `mvp-7595dfa23669`) — pre-change baseline. Revision B =
+   `92fc1e19fbc6dcddcdf2e973c728465f1663c598` (image tag `mvp-92fc1e19fbc6`) — API version
+   `0.1.0`→`0.2.0` surfaced in `GET /health`'s new `"version"` field, a web footer ("Bedoux
+   Commerce — build 0.2", confirmed present in the served JS bundle — this is a client-rendered
+   SPA, so `curl /` alone never shows it, only the built bundle does), and a new backward-
+   compatible Alembic migration (`9f1a2b3c4d5e`, adds nullable `orders.note`).
+2. **Initial deploy + synthetic order.** `scripts/gitops-mvp-up.sh --app-revision
+   7595dfa236698001d1a195d3ef3ac20cc686b2cc` then `scripts/gitops-mvp-verify.sh
+   --no-port-forward`: `Synced`+`Healthy`, migration Job `bedoux-migrate-gitops-mvp-7595dfa23669`
+   Succeeded before either pod was created. A synthetic product was inserted directly via `kubectl
+   exec ... psql` (no product-write endpoint exists), then a real order was placed through the
+   actual API: `POST /orders` → order `ae521e22-1154-4a7b-a3b9-331a47d5ec34`, `total_cents=3000`,
+   `created_at=2026-09-10T20:31:09.313615Z`. Confirmed absent at this point: no `version` field in
+   `/health`, no footer text in the JS bundle.
+3. **Update to B on the SAME cluster/database.** `scripts/gitops-mvp-up.sh --app-revision
+   92fc1e19fbc6...` (Postgres credential reused, not regenerated — same data) then
+   `scripts/gitops-mvp-verify.sh --no-port-forward`. Confirmed the RUNNING image actually changed
+   (`kubectl get pods -o jsonpath='{.spec.containers[0].image}'` → `localhost/bedoux-
+   api:mvp-92fc1e19fbc6` / `localhost/bedoux-web:mvp-92fc1e19fbc6`, not a reused/stale tag),
+   `GET /health` now reports `"version":"0.2.0"`, the served JS bundle now contains "build 0.2",
+   migration Job `bedoux-migrate-gitops-mvp-92fc1e19fbc6` Succeeded at `2026-09-10T20:32:00Z`
+   before either pod's creation, and `GET /orders/ae521e22-...` returned the ORIGINAL order
+   unchanged — proving the database, not just the schema, survived the update.
+   - **Live finding, fixed in this milestone:** because old per-tag migration Jobs are
+     deliberately retained (never pruned), a real image update leaves the Application's aggregate
+     `status.sync.status` permanently `OutOfSync` (the prior release's Job is an unpruned extra
+     resource) even once the CURRENT release is genuinely healthy. `gitops-mvp-verify.sh` now
+     tolerates `OutOfSync` ONLY when every non-`Synced` tracked resource is a `Job` that is not the
+     current release's own migration Job — any other drift still fails. Without this fix, no real
+     update could ever pass verification, only the scaling-only case GO-MVP originally proved.
+4. **Migration ordering, on a throwaway branch — a controlled failure.** A deliberately broken
+   migration (`de1e7e0000fa`, references a nonexistent table — guaranteed to fail) was added ONLY
+   on a throwaway `demo-broken-migration` branch off B, never merged into
+   `feature/gitops-version-update` or any reviewed release lineage. Revision C =
+   `e444cf9b9da11601957bcb548f66867f1c41e045` (image tag `mvp-e444cf9b9da1`).
+   `scripts/gitops-mvp-up.sh --app-revision e444cf9...` then `scripts/gitops-mvp-verify.sh
+   --no-port-forward` **REFUSED** (non-zero exit) after the migration Job
+   `bedoux-migrate-gitops-mvp-e444cf9b9da1` failed 3 pod attempts and reached `Failed`. Confirmed
+   live: the api/web Deployments never advanced past B's images (Argo's sync-wave ordering gates
+   wave 1 on wave 0's Job health, so the broken candidate never reached the workloads at all), and
+   `GET /health` / `GET /orders/ae521e22-...` through the still-running B release both kept working
+   throughout — the previously-working release and its order were never disturbed by the failed
+   attempt. Alembic runs each migration in its own transaction, so the failed `ALTER TABLE`'s DDL
+   was never committed (the pod's `Error` exit confirms the process exited before commit); this was
+   not independently re-verified with a direct `psql` schema query before teardown.
+   - **Second live finding, fixed in this milestone:** the retained FAILED Job from the aborted C
+     attempt also permanently degraded the Application's aggregate `status.health.status` to
+     `Degraded`, even after recovering back to B. `gitops-mvp-verify.sh` now tolerates `Degraded`
+     under the identical "only a retained, non-current Job" condition as the `OutOfSync` tolerance
+     above — never for a genuinely unhealthy current-release resource.
+5. **Recovery — explicit, reviewed, manual.** `scripts/gitops-mvp-up.sh --app-revision
+   92fc1e19fbc6...` (re-selecting B, no `alembic downgrade` ever invoked — recovery never
+   automatically downgrades the schema) then `scripts/gitops-mvp-verify.sh --no-port-forward`
+   PASSED again: migration Job `bedoux-migrate-gitops-mvp-92fc1e19fbc6` (still `Succeeded` from
+   step 3), both rollouts complete, ordering intact. `GET /health` and `GET
+   /orders/ae521e22-...` confirmed the release and the original order both fully usable again.
+6. **Cleanup.** `scripts/gitops-mvp-down.sh` deleted the Application/namespace/cluster and the
+   LAST-recorded release's images (B, per its documented exact-tag-only design — see "Scoped
+   cleanup" below); revision A's and the throwaway revision C's images were removed manually
+   afterward (`podman rmi`) since `gitops-mvp-down.sh` only ever knows the one tag read from the
+   live Application, by design (no broader sweep). Confirmed clean: `kind get clusters` empty,
+   no `bedoux-*` podman images remain. The `demo-broken-migration` branch and its worktree were
+   left in place (not deleted) so its DO-NOT-MERGE fixture stays inspectable but is never part of
+   `feature/gitops-version-update`'s history or this PR's diff.
+
+See `docs/PROGRESS.md`'s GO-MVP-U1 session log entries for the full command transcript and every
+observed timestamp/ID.
+
 ## Scoped cleanup
 
 ```bash
@@ -196,3 +274,9 @@ same-day-teardown default.
   else already running as this user.** See "Prerequisites" above; requires a `sudo`-run, owner-
   restored transient sysctl bump on a tight host, matching `docs/local-tooling.md`'s existing
   precedent for this exact class of local constraint.
+- **Concurrency/shared-image limitations remain deferred (DEF-015).** GO-MVP-U1 closed the
+  startup inventory-error branch and the real-update/migration-ordering/failure-recovery proof
+  above, all still within a single demo cluster at a time. Multiple concurrent demo clusters
+  sharing base-SHA image tags, and broader new-image/schema shapes beyond what was actually
+  demonstrated here, are still out of scope — see `docs/DEFERRED-WORK.md` DEF-015 for the
+  retained subfinding and revisit criteria.

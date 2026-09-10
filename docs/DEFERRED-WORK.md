@@ -1,6 +1,6 @@
 # Deferred work and post-MVP improvements
 
-Last updated: 2026-09-10T11:15:00-06:00.
+Last updated: 2026-09-10T14:45:00-06:00.
 
 The owner requested a working local MVP first, then the unfinished GitOps improvements.
 This file keeps that work discoverable without treating it as fixed or requiring every future
@@ -275,22 +275,54 @@ the full gap/fix history stays attached to each ID; each now carries a **Resolut
 
 ### DEF-015 — Post-MVP startup preflight and broader update verification
 
-- **Status:** DEFERRED; non-blocking for the demonstrated single-cluster scaling-only MVP.
-  Source: Codex review 2026-09-10T09:20:38-06:00 in `PROGRESS.md`.
-- **Gap:** startup still branches to creation on a failed `kind get clusters` pipeline rather
-  than distinguishing error from absence; test coverage does not yet include that branch.
-  Verification still selects `.items[0]` for pod ordering and does not demonstrate all
-  new-image/migration-update shapes. Multiple demo clusters can share the base-SHA image tags;
-  a tag is not exclusive per-cluster ownership.
-- **While deferred:** one demo cluster at a time; confirm successful read-only kind inventory
-  before startup and stop on failure; review cleanup's exact tags and preserve anything shared.
-  Use only the demonstrated chart-scaling update, not arbitrary source/schema updates.
-  Explicitly report skipped image cleanup; inspect exact leftovers manually when needed.
-- **Revisit:** before adding multiple concurrent demos or claiming new-image/schema deployment
-  support, or when startup inventory fails.
-- **Close with:** startup inventory-error test proving no creation is attempted; scoped image
-  ownership for any supported concurrency; appropriate current-workload ordering evidence and
-  a same-cluster new-image/migration update test. No advanced GO-1 automation is implied.
+- **Status:** PARTIALLY RESOLVED (owner-approved bounded milestone GO-MVP-U1, 2026-09-10);
+  remaining subfinding stays DEFERRED. Source: Codex review 2026-09-10T09:20:38-06:00 in
+  `PROGRESS.md`.
+- **Resolution (subfinding 1 of 3 — startup inventory-error branch): CLOSED.**
+  `scripts/gitops-mvp-up.sh` now captures `kind get clusters`' own exit status before deciding
+  create-vs-reuse (mirrors the pattern already in `scripts/gitops-mvp-down.sh`): a failed query
+  REFUSEs before any cluster mutation, instead of falling through to creation. New regression test
+  `scripts/test-gitops-mvp-up-inventory.sh` (6/6 assertions) proves no kind/kubectl/podman/helm
+  mutation call happens after a failed inventory query. See `docs/PROGRESS.md` GO-MVP-U1.1 session
+  log entry.
+- **Resolution (subfinding 2 of 3 — `.items[0]` ordering selection and a real update proof):
+  CLOSED for the demonstrated shape.** `scripts/gitops-mvp-verify.sh` now selects the newest
+  RUNNING pod per label, not `.items[0]`. A genuine source-revision-A → source-revision-B
+  application-version update (API version bump surfaced in `/health`, a visible web footer, a new
+  backward-compatible migration) was live-demonstrated on the same cluster/database: the running
+  image provably changed, the visible change appeared, and a synthetic order survived the update
+  unchanged. This also surfaced and fixed two previously-unknown defects: `gitops-mvp-verify.sh`
+  required a bare `Synced` status and `Healthy` health that a real update (as opposed to GO-MVP's
+  scaling-only case) can never reach again, because retained prior-release migration Jobs
+  (deliberately never pruned) permanently show as extra/unhealthy resources — fixed with a
+  narrowly scoped tolerance (only a retained, non-current-release Job may explain an OutOfSync/
+  Degraded reading; any other drift still fails). See `docs/PROGRESS.md` GO-MVP-U1.2 session log
+  entry and `docs/runbooks/gitops-mvp-demo.md`'s "GO-MVP-U1" section for the full transcript.
+  **Not closed:** broader new-image/schema shapes beyond this one demonstrated update (e.g.
+  multi-file source changes, dependency/runtime-version bumps, destructive schema changes) remain
+  unproven.
+- **Resolution (subfinding 2b — migration ordering and controlled failure/recovery): CLOSED for
+  the demonstrated shape.** A minimal backward-compatible migration's ordering before workload
+  advancement was proven with Job/pod identity and timestamp evidence (already covered by GO-MVP's
+  existing ordering check, re-confirmed here on a real update). A controlled migration failure
+  (an isolated demo-only fixture on a throwaway, never-merged branch) was proven to make
+  verification exit non-zero, never advance the candidate past the migration wave, and leave the
+  previously-working release and its order fully usable. Recovery was explicit and reviewed
+  (re-running startup pinned at the known-good revision, then verify) — no automatic schema
+  downgrade was invoked. The failed migration's DDL rollback (Alembic's per-migration transaction)
+  was inferred from the pod's `Error` exit, not independently re-confirmed with a direct `psql`
+  schema query before teardown — a minor evidence gap, not a functional one.
+- **Still DEFERRED (subfinding 3 of 3 — multi-cluster/shared-image concurrency):** multiple demo
+  clusters can still share base-SHA image tags; a tag is not exclusive per-cluster ownership. No
+  work was done on this in GO-MVP-U1; it stays out of scope.
+- **While deferred:** one demo cluster at a time; review cleanup's exact tags and preserve
+  anything shared; explicitly report skipped image cleanup; inspect exact leftovers manually when
+  needed. Do not claim proof of arbitrary/destructive schema changes or multi-file source updates
+  beyond the one demonstrated shape.
+- **Revisit:** before adding multiple concurrent demos, before claiming broader new-image/schema
+  deployment support than the one demonstrated update, or when startup inventory fails.
+- **Close with (remaining):** scoped image ownership for any supported concurrency. No advanced
+  GO-1 automation is implied.
 
 ## New-item template
 
