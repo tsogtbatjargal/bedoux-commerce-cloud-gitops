@@ -1,6 +1,6 @@
 # Deferred work and post-MVP improvements
 
-Last updated: 2026-09-10T09:20:38-06:00.
+Last updated: 2026-09-10T11:15:00-06:00.
 
 The owner requested a working local MVP first, then the unfinished GitOps improvements.
 This file keeps that work discoverable without treating it as fixed or requiring every future
@@ -156,11 +156,12 @@ the investigation history, including issues already fixed that should not be reo
 - **Close with:** owner/editor-approved disposition or valid exported SVG, then full docs-check
   passes for the intended change set. Do not delete or export someone else's work by inference.
 
-## Captured MVP findings — not deferred past MVP acceptance
+## Captured MVP findings — resolved, closed with the MVP
 
-These items affect the selected demo path itself. They are recorded here for continuity, but
-must be handled within the active MVP task in `PROGRESS.md`, not by restarting the advanced
-GitOps work above. Evidence source: Codex review at 2026-09-09T20:27:22-06:00 in `PROGRESS.md`.
+These items affected the selected demo path itself and were closed within the active MVP task
+in `PROGRESS.md`, not by restarting the advanced GitOps work above. Evidence source: Codex review
+at 2026-09-09T20:27:22-06:00 in `PROGRESS.md`. Kept here (not moved to "Resolved items" below) so
+the full gap/fix history stays attached to each ID; each now carries a **Resolution** line.
 
 ### DEF-012 — Demonstrate a repeatable Git-driven update on the same cluster
 
@@ -189,8 +190,16 @@ GitOps work above. Evidence source: Codex review at 2026-09-09T20:27:22-06:00 in
   that works for an image change; demonstrate one effective Git change → manual sync → observed
   result on the SAME cluster, with before/after SHAs, DB-backed API checks and workload health.
 - **Artifacts:** `scripts/gitops-mvp-up.sh`, `charts/bedoux/templates/migration-job.yaml`,
-  `docs/runbooks/gitops-mvp-demo.md`. Record true project commit state: current chart edits are
-  uncommitted in this repository; commits inside throwaway snapshots are a different thing.
+  `docs/runbooks/gitops-mvp-demo.md`.
+- **Resolution:** owner-approved closeout 2026-09-10. Same-cluster scaling lap demonstrated
+  (snapshot `153a1526a...` -> `c16d9e0a8...`, web `1/1` -> `2/2`, DB credential reused, DB-backed
+  checks passing before/after); `web.replicas` restored to `1`; the earlier "new migration Job"
+  claim corrected (scaling-only change correctly reuses the already-Succeeded Job for the same
+  image tag). Chart fix (`migration.gitopsMode`) and all scripts/tests committed and merged via
+  PR #91 (`feature/gitops-mvp` -> `main`), all four CI checks passing. See `docs/PROGRESS.md`
+  session log 2026-09-10T02:55:00Z, 2026-09-10T03:40:00Z and 2026-09-10T11:15:00-06:00 for full
+  evidence and the merge SHA. Scope closed is scaling-only; new image/migration releases remain
+  unproven (tracked in DEF-015).
 
 ### DEF-013 — MVP verification must reject missing or failed evidence
 
@@ -218,6 +227,12 @@ GitOps work above. Evidence source: Codex review at 2026-09-09T20:27:22-06:00 in
   migration success and both workloads' advancement, successful HTTP checks including a DB-backed
   endpoint; failure-sensitive local tests and the live DEF-012 update lap.
 - **Artifact:** `scripts/gitops-mvp-verify.sh`.
+- **Resolution:** owner-approved closeout 2026-09-10. Post-trigger stale-operation fast-fail
+  fixed (fast-fail conditions now gated on `operation_is_current`); new real-trigger regression
+  test (no `--skip-sync`) proves the loop waits through the stale window before succeeding; 14/14
+  verifier assertions passing. Merged via PR #91, all four CI checks passing. See
+  `docs/PROGRESS.md` session log 2026-09-10T03:40:00Z and 2026-09-10T11:15:00-06:00. Arbitrary
+  image-update/all-response-shape verification remains unproven (tracked in DEF-015).
 
 ### DEF-014 — MVP cleanup inventory and exact ownership
 
@@ -249,6 +264,14 @@ GitOps work above. Evidence source: Codex review at 2026-09-09T20:27:22-06:00 in
   exact demo-owned targets, a no-write preview and verified cleanup. Correct the claim that the
   Application cascades via a finalizer: the emitted Application currently declares none.
 - **Artifacts:** `scripts/gitops-mvp-down.sh`, `scripts/gitops-mvp-up.sh`.
+- **Resolution:** owner-approved closeout 2026-09-10. Ownership is now checked before any cluster
+  mutation (an unmarked reused cluster is refused, never adopted); the broad `mvp-*` image-cleanup
+  fallback is removed (exact-tag-only, skipped and reported rather than guessed); deletion
+  failures now propagate to a non-zero exit instead of being reported as complete. 5
+  up-ownership + 17 cleanup assertions passing. Merged via PR #91, all four CI checks passing.
+  See `docs/PROGRESS.md` session log 2026-09-10T03:40:00Z and 2026-09-10T11:15:00-06:00. No demo
+  cluster, container, or image remained on the host after this closeout (reconfirmed
+  2026-09-10). Further inventory-error/preflight hardening remains open (DEF-015).
 
 ### DEF-015 — Post-MVP startup preflight and broader update verification
 
@@ -287,4 +310,6 @@ Use the next unused `DEF-NNN` ID; keep IDs stable when the title changes.
 
 ## Resolved items
 
-None yet. Move closed entries here with their original IDs and evidence links.
+DEF-012, DEF-013 and DEF-014 are resolved; their full gap/fix history and Resolution evidence
+are kept in place under "Captured MVP findings" above rather than duplicated here, per the
+maintenance rule against silently deleting history. No other items are resolved.

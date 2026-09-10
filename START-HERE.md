@@ -15,10 +15,15 @@ This file is the entry point for a new Claude Code, Codex, OpenClaw, or human se
 
 ## Current checkpoint
 
-- Owner direction (2026-09-09): prioritize a working local GitOps MVP, then improvements.
-  Read `docs/DEFERRED-WORK.md` for unfinished findings, safe interim boundaries and revisit
-  criteria; update it whenever additional work is deferred. This does not mark the full GO-1
-  contract complete or bypass the explicit implementation gate in `docs/PROGRESS.md`.
+- Owner direction (2026-09-10): the narrowly scoped local-only GitOps scaling MVP is
+  **closed out** — DEF-012–014 fixed and demonstrated, PR #91 (`feature/gitops-mvp` →
+  `main`) carries all MVP changes with all four CI checks green, merged per explicit owner
+  authorization (see `docs/PROGRESS.md` session log for the merge SHA). Full GO-1 and the
+  advanced GitOps backlog (DEF-001–011, DEF-015) remain explicitly deferred — not activated by
+  this closeout. Read `docs/DEFERRED-WORK.md` for unfinished findings, safe interim boundaries
+  and revisit criteria; update it whenever additional work is deferred. This does not mark the
+  full GO-1 contract complete, activate GO-2, or bypass the explicit implementation gate in
+  `docs/PROGRESS.md`.
 - Continuation target: `nomad`, app clone
   `/var/home/tsogtb/src/github.com/bedoux-tech/bedoux-commerce-cloud`. Read-only verification
   initially found it stale at `0c1c285`; the authorized update after PR #89 brought it cleanly
