@@ -13,6 +13,15 @@ This handoff does not activate GitOps/hosting implementation or accept either Pr
 Resume bedoux-commerce-cloud on this computer. First reconcile the transferred planning
 package and summarize the next decision for me; do not begin implementation automatically.
 
+LATEST OWNER DIRECTION — 2026-09-09, SUPERSEDES THE HISTORICAL PLANNING CHECKPOINT BELOW
+- GO-1 was activated and reviewed; its full contract remains unfinished. The owner now wants
+  a working local MVP before the advanced improvements. Read the newest PROGRESS entries.
+- Read docs/DEFERRED-WORK.md and maintain it whenever unfinished work is deferred. Reference
+  DEF IDs in PROGRESS; revisit them with the owner after the MVP, not as automatic MVP blockers.
+- Do not use known-broken deferred automation in the demo or claim it is complete. The exact
+  implementation slice still follows the explicit owner-gate workflow; no AWS or remote
+  repository creation is implied. Preserve the existing dirty worktree.
+
 REPOSITORY AND TRANSFER CHECK
 - Receiving workstation: nomad (SSH alias from the original workstation).
   Owner-selected projects directory: /var/home/tsogtb/src/github.com/bedoux-tech/.

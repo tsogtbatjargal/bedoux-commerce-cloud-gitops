@@ -4,6 +4,11 @@ metadata:
   name: api
   labels:
     {{- include "bedoux.labels" . | nindent 4 }}
+  annotations:
+    # Argo-CD-only, inert to Helm CLI. Wave 1 so Argo's built-in Job health check
+    # on the migration Job (wave 0, only emitted under migration.gitopsMode) gates
+    # this Deployment — see migration-job.yaml's header comment.
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   replicas: {{ .Values.api.replicas }}
   selector:

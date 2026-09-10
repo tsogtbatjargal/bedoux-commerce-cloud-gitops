@@ -97,6 +97,13 @@ jobs:
           terraform -chdir=infra/terraform test -filter=tests/eks_node_tagging.tftest.hcl -no-color
           terraform -chdir=infra/terraform test -filter=tests/ecr_lifecycle.tftest.hcl -no-color
           terraform -chdir=infra/terraform test -filter=tests/spot_diversification.tftest.hcl -no-color
+      - name: Run GO-MVP local test suites (no cluster; mocked kind/kubectl/podman)
+        run: |
+          set -euo pipefail
+          bash scripts/test-gitops-mvp-chart.sh
+          bash scripts/test-gitops-mvp-verify.sh
+          bash scripts/test-gitops-mvp-down.sh
+          bash scripts/test-gitops-mvp-up-ownership.sh
       - name: Lint and render all Helm profiles
         run: |
           set -euo pipefail

@@ -82,6 +82,12 @@ metadata:
     {{- include "bedoux.labels" . | nindent 4 }}
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /$2
+    # Argo-CD-only, inert to Helm CLI. GO-MVP finding, live-reproduced
+    # 2026-09-10: with no Ingress controller installed (this MVP is port-forward
+    # only, no router), Argo's default Ingress health check never reports Healthy
+    # (it waits for a LoadBalancer address), which otherwise blocks wave 1
+    # (api/web Deployments) forever. Same wave as api/web so it never gates them.
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   ingressClassName: {{ .Values.ingress.className }}
   rules:
@@ -101,6 +107,8 @@ metadata:
   name: bedoux-web
   labels:
     {{- include "bedoux.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   ingressClassName: {{ .Values.ingress.className }}
   rules:

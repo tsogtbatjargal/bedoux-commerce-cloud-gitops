@@ -13,12 +13,56 @@
 # container still handles postgres not being Ready yet, same pattern as api's).
 # pre-upgrade still fires before an existing release's resources are upgraded, which is
 # what schema-before-rollout requires.
+{{- /*
+GO-MVP finding, live-reproduced 2026-09-10: Argo CD's Helm-hook-to-Argo-hook
+translation maps `pre-upgrade` to PreSync UNCONDITIONALLY — Argo has no
+install-vs-upgrade distinction the way Helm does, so a Job annotated
+`post-install,pre-upgrade` runs as a PreSync hook even on a FIRST-EVER sync,
+before any of the chart's own plain resources (this Job's own ServiceAccount,
+Postgres, its credentials Secret) exist. Reproduced live: the Job failed with
+"serviceaccount bedoux-api not found", then "Job was active longer than
+specified deadline". This is the exact failure ADR 0005's own header comment
+already describes for pre-install — Argo's pre-upgrade mapping reproduces it via
+a different path. `migration.gitopsMode` (default false, so the legacy Helm CLI
+path is completely unchanged) switches this Job to a plain, non-hook,
+sync-wave-ordered resource instead, matching the wave design in
+docs/gitops-fixtures/gitops-migration-job.example.yaml (wave -1: Postgres/Secret/
+ServiceAccount, annotated in postgres.yaml/api-serviceaccount.yaml; wave 0: this
+Job, gated by Argo's built-in Job health check before wave 1's api/web apply).
+
+Corrected per Codex's GO-MVP review (docs/PROGRESS.md session log
+2026-09-09T20:27:22-06:00, DEF-012): a Job's pod template is immutable, and
+`argocd.argoproj.io/sync-options: Replace=true` does NOT reliably make Argo
+delete-and-recreate on an immutable-field diff — `Replace=true` only swaps
+`kubectl apply` for `kubectl replace`/`create`, which still fails the same way a
+plain PUT would on an immutable field (see
+https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/, which
+documents `Replace=true` and delete-then-create as separate concerns). Fixed by
+keying the Job's name on the image tag instead of a fixed name: each real update
+changes `api.image.tag` (this MVP's per-run pin), so each update targets a
+genuinely NEW Job object — no in-place mutation of an existing Job is ever
+attempted, so no sync-option workaround is needed at all. A prior tag's Job is
+simply left behind (never auto-deleted, matching this fixture's own "kept around,
+not deleted" precedent) until an explicit, reviewed cleanup.
+*/}}
 apiVersion: batch/v1
 kind: Job
 metadata:
-  # Unique per release revision so hook-delete-policy has something to delete before
-  # creating the next one, and so a failed Job's logs from THIS revision aren't
-  # immediately overwritten if a retry happens before the delete fires.
+  {{- if .Values.migration.gitopsMode }}
+  # Argo path: keyed on the image tag (changes every real update in this MVP) so
+  # each update always targets a brand-new Job object, never an in-place mutation
+  # of an existing one's immutable pod template. Sync-wave "0" as a plain
+  # resource — no helm.sh/hook annotation at all under gitopsMode.
+  name: bedoux-migrate-gitops-{{ .Values.api.image.tag | lower | trunc 40 | trimSuffix "-" }}
+  labels:
+    {{- include "bedoux.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  {{- else }}
+  # Legacy Helm CLI path (ADR 0005), completely unchanged: unique per release
+  # revision so hook-delete-policy has something to delete before creating the
+  # next one, and so a failed Job's logs from THIS revision aren't immediately
+  # overwritten if a retry happens before the delete fires.
   name: bedoux-migrate-{{ .Release.Revision }}
   labels:
     {{- include "bedoux.labels" . | nindent 4 }}
@@ -28,6 +72,7 @@ metadata:
     # hook-succeeded — so the completed Job stays inspectable until the next release.
     "helm.sh/hook-delete-policy": before-hook-creation
     "helm.sh/hook-weight": "0"
+  {{- end }}
 spec:
   backoffLimit: {{ .Values.migration.backoffLimit }}
   activeDeadlineSeconds: {{ .Values.migration.activeDeadlineSeconds }}
