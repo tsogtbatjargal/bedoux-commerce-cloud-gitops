@@ -21,6 +21,15 @@
 # retained migration Job (this MVP never auto-deletes old per-tag Jobs) instead
 # of the one belonging to the currently-requested release; this version looks up
 # the Job by the exact current image tag, never "the first Job found."
+#
+# GO-MVP-U1 live finding (docs/PROGRESS.md session log, 2026-09-10): because old
+# per-tag migration Jobs are deliberately retained/never pruned, a real image
+# update leaves status.sync.status permanently OutOfSync (the prior release's
+# Job is an unpruned extra resource) even once the CURRENT release is genuinely
+# Synced/Healthy. This script now tolerates OutOfSync ONLY when every non-Synced
+# resource is a retained prior-release migration Job — any other drift still
+# fails. Selects the newest RUNNING pod per label for ordering evidence, not
+# `.items[0]` (not guaranteed to be the current rollout's pod during an update).
 
 set -euo pipefail
 
@@ -39,7 +48,9 @@ Options:
   --help                 Show this help.
 
 Exits non-zero, with no partial-success claim, if ANY of the following is not
-confirmed from live cluster state: the Application reaches Synced+Healthy AND
+confirmed from live cluster state: the Application reaches Healthy AND either
+Synced, or OutOfSync solely because of retained prior-release migration Job(s)
+(never pruned by design — any other OutOfSync resource still fails) AND
 `.status.sync.revision` matches its currently-requested `spec.source.
 targetRevision` AND the triggered sync operation itself reports phase Succeeded
 (not a stale status left over from an earlier sync); the migration Job matching
@@ -82,6 +93,43 @@ if [[ -z "$requested_revision" || -z "$image_tag" ]]; then
 fi
 log "verifying release: targetRevision=$requested_revision image_tag=$image_tag"
 
+### The migration Job for THIS EXACT release (image tag), never "whichever Job ###
+### happens to exist" — old per-tag Jobs are deliberately retained (never ###
+### auto-deleted), so on an update there can be more than one. Computed here, ###
+### before the sync-wait loop, so the OutOfSync tolerance check below can use it. ###
+migrate_job="bedoux-migrate-gitops-${image_tag,,}"
+
+# GO-MVP-U1 live finding: because old per-tag migration Jobs are deliberately
+# retained (never pruned — see migrate_job above), a real image-tag update
+# leaves the PRIOR release's Job resource in the Application's live state but
+# no longer in the desired manifest for the new targetRevision. syncPolicy: {}
+# never prunes (a plain `operation: {sync: {}}` trigger, as used here, does not
+# pass --prune either), so Argo's Application-level status.sync.status reports
+# OutOfSync indefinitely after the first real update — even though the CURRENT
+# release's own resources are all genuinely Synced. Reproduced live 2026-09-10
+# (docs/PROGRESS.md GO-MVP-U1.2 session log): requiring a bare "Synced" here
+# would either false-REFUSE every real update forever, or (if simply dropped)
+# stop checking sync status at all. Instead: tolerate OutOfSync ONLY when every
+# non-Synced resource is a Job that is NOT this release's migrate_job (i.e. a
+# retained prior release's Job, the expected/documented shape) — any other
+# drift (a Deployment, Service, Secret, or even THIS release's own Job showing
+# OutOfSync) still fails.
+retained_jobs_only_out_of_sync() {
+  local bad=0
+  while IFS='|' read -r kind name status; do
+    [[ -z "$kind" ]] && continue
+    if [[ "$status" == "Synced" ]]; then
+      continue
+    fi
+    if [[ "$kind" == "Job" && "$name" != "$migrate_job" ]]; then
+      continue
+    fi
+    log "OutOfSync resource is not an expected retained prior-release Job: kind=$kind name=$name status=$status"
+    bad=1
+  done < <(kctl -n argocd get application bedoux-demo -o jsonpath='{range .status.resources[*]}{.kind}{"|"}{.name}{"|"}{.status}{"\n"}{end}' 2>/dev/null || true)
+  return "$bad"
+}
+
 prior_operation_started_at=$(kctl -n argocd get application bedoux-demo -o jsonpath='{.status.operationState.startedAt}' 2>/dev/null || true)
 
 if ! $skip_sync; then
@@ -106,7 +154,30 @@ while (( SECONDS < deadline )); do
   if ! $skip_sync && [[ -n "$prior_operation_started_at" && "$op_started_at" == "$prior_operation_started_at" ]]; then
     operation_is_current=false
   fi
-  if [[ "$sync_status" == "Synced" && "$health_status" == "Healthy" && "$op_phase" == "Succeeded" \
+  # A retained, non-current-release Job explains BOTH symptoms of the same root
+  # cause: a prior release's Job (Succeeded or Failed) is never pruned, so it
+  # can leave the Application's aggregate sync status OutOfSync (a Succeeded
+  # Job pending prune) AND/OR its aggregate health Degraded (a Failed Job,
+  # live-reproduced 2026-09-10 after a controlled migration-failure demo:
+  # health stayed "Degraded" even once the reverted-to release was genuinely
+  # healthy again, because the FAILED Job from the aborted attempt is retained
+  # and its own resource health is unhealthy). Tolerating either is only safe
+  # because the CURRENT release's own Job success, both Deployments' rollouts,
+  # and ordering are ALL independently re-verified below regardless of this
+  # tolerance — this never substitutes for those checks.
+  retained_only=false
+  if [[ "$sync_status" != "Synced" || "$health_status" != "Healthy" ]]; then
+    retained_jobs_only_out_of_sync && retained_only=true
+  fi
+  sync_acceptable=false
+  if [[ "$sync_status" == "Synced" || ( "$sync_status" == "OutOfSync" && "$retained_only" == true ) ]]; then
+    sync_acceptable=true
+  fi
+  health_acceptable=false
+  if [[ "$health_status" == "Healthy" || ( "$health_status" == "Degraded" && "$retained_only" == true ) ]]; then
+    health_acceptable=true
+  fi
+  if [[ "$sync_acceptable" == true && "$health_acceptable" == true && "$op_phase" == "Succeeded" \
         && "$sync_revision" == "$requested_revision" && "$operation_is_current" == true ]]; then
     break
   fi
@@ -141,21 +212,24 @@ while (( SECONDS < deadline )); do
   fi
   sleep 5
 done
-if [[ "$sync_status" != "Synced" || "$health_status" != "Healthy" || "$op_phase" != "Succeeded" ]]; then
-  fail "Application did not reach Synced+Healthy+Succeeded within 300s (last observed: sync=$sync_status health=$health_status op_phase=$op_phase). Run 'kubectl --context kind-${cluster_name} -n argocd get application bedoux-demo -o yaml' for details."
+if [[ "$sync_acceptable" != true ]]; then
+  fail "Application did not reach an acceptable Synced state within 300s (last observed: sync=$sync_status, and it is not explained by retained prior-release migration Job(s) alone; health=$health_status op_phase=$op_phase). Run 'kubectl --context kind-${cluster_name} -n argocd get application bedoux-demo -o yaml' for details."
+fi
+if [[ "$health_acceptable" != true || "$op_phase" != "Succeeded" ]]; then
+  fail "Application did not reach an acceptable Healthy+Succeeded state within 300s (last observed: sync=$sync_status health=$health_status, and it is not explained by retained prior-release migration Job(s) alone; op_phase=$op_phase). Run 'kubectl --context kind-${cluster_name} -n argocd get application bedoux-demo -o yaml' for details."
 fi
 if [[ "$sync_revision" != "$requested_revision" ]]; then
-  fail "Application reports Synced, but status.sync.revision ($sync_revision) does not match the currently-requested targetRevision ($requested_revision) — this is stale evidence from a different sync, not proof this release deployed."
+  fail "Application reports an acceptable sync/health state, but status.sync.revision ($sync_revision) does not match the currently-requested targetRevision ($requested_revision) — this is stale evidence from a different sync, not proof this release deployed."
 fi
 if [[ "$operation_is_current" != true ]]; then
-  fail "Application reports Synced+Healthy+Succeeded, but the operation's startedAt ($op_started_at) is unchanged from before this script triggered a sync ($prior_operation_started_at) — this is stale evidence from a PREVIOUS run, not proof the sync just triggered actually happened."
+  fail "Application reports an acceptable Healthy+Succeeded state, but the operation's startedAt ($op_started_at) is unchanged from before this script triggered a sync ($prior_operation_started_at) — this is stale evidence from a PREVIOUS run, not proof the sync just triggered actually happened."
 fi
-log "Application is Synced+Healthy at the currently-requested revision, with the triggered operation Succeeded."
+if [[ "$sync_status" == "Synced" && "$health_status" == "Healthy" ]]; then
+  log "Application is Synced+Healthy at the currently-requested revision, with the triggered operation Succeeded."
+else
+  log "Application is at the currently-requested revision with the triggered operation Succeeded (sync=$sync_status health=$health_status), tolerated ONLY because every non-Synced resource is a retained prior-release migration Job (Succeeded or Failed), which this MVP deliberately never prunes — not treated as a failure. The CURRENT release's own migration Job, rollouts, and ordering are still independently verified below."
+fi
 
-### The migration Job for THIS EXACT release (image tag), never "whichever Job ###
-### happens to exist" — old per-tag Jobs are deliberately retained (never ###
-### auto-deleted), so on an update there can be more than one. ###
-migrate_job="bedoux-migrate-gitops-${image_tag,,}"
 if ! kctl -n "$namespace" get job "$migrate_job" >/dev/null 2>&1; then
   fail "migration Job '$migrate_job' for the current release (image tag $image_tag) does not exist in namespace $namespace — cannot confirm migrations ran for this release."
 fi

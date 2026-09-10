@@ -48,6 +48,10 @@ run_with_mock() {
 #   MOCK_SYNC_REVISION_MISMATCH=1     status.sync.revision != requested targetRevision
 #   MOCK_ORDERING_VIOLATION=web|api   that pod's creationTimestamp is BEFORE migrate completion
 #   MOCK_ROLLOUT_FAILS=1              `rollout status` exits non-zero
+#   MOCK_OUTOFSYNC_RETAINED_JOB_ONLY=1  sync.status=OutOfSync, but the only non-Synced
+#                                        resource is a retained prior-release Job
+#   MOCK_OUTOFSYNC_OTHER_DRIFT=1        sync.status=OutOfSync with a non-Job resource
+#                                        (a Deployment) also OutOfSync — must still fail
 write_mock_kubectl() {
   local dir="$1"
   cat >"$dir/kubectl" <<'MOCKEOF'
@@ -78,8 +82,21 @@ case "$args" in
     echo "$image_tag" ;;
   *"get application bedoux-demo"*"jsonpath={.status.operationState.startedAt}"*)
     echo "2026-01-01T00:00:10Z" ;;
+  *"get application bedoux-demo"*"range .status.resources"*)
+    if [[ "${MOCK_OUTOFSYNC_RETAINED_JOB_ONLY:-}" == "1" ]]; then
+      printf 'Deployment|api|Synced\nJob|bedoux-migrate-gitops-mvp-oldtag|OutOfSync\nJob|%s|Synced\n' "bedoux-migrate-gitops-${image_tag,,}"
+    elif [[ "${MOCK_OUTOFSYNC_OTHER_DRIFT:-}" == "1" ]]; then
+      printf 'Deployment|api|OutOfSync\nJob|%s|Synced\n' "bedoux-migrate-gitops-${image_tag,,}"
+    else
+      printf 'Deployment|api|Synced\nJob|%s|Synced\n' "bedoux-migrate-gitops-${image_tag,,}"
+    fi
+    ;;
   *"get application bedoux-demo"*"jsonpath={.status.sync.status}"*)
-    echo "Synced" ;;
+    if [[ "${MOCK_OUTOFSYNC_RETAINED_JOB_ONLY:-}" == "1" || "${MOCK_OUTOFSYNC_OTHER_DRIFT:-}" == "1" ]]; then
+      echo "OutOfSync"
+    else
+      echo "Synced"
+    fi ;;
   *"get application bedoux-demo"*"jsonpath={.status.health.status}"*)
     echo "Healthy" ;;
   *"get application bedoux-demo"*"jsonpath={.status.operationState.phase}"*)
@@ -170,6 +187,24 @@ bindir7=$(mock_bin_dir scenario7)
 write_mock_kubectl "$bindir7"
 MOCK_ROLLOUT_FAILS=1 run_with_mock "$bindir7"
 assert "incomplete rollout -> exits non-zero" "$([[ "$last_exit" -ne 0 ]]; echo $?)"
+
+### GO-MVP-U1 live finding (docs/PROGRESS.md session log, 2026-09-10): old ###
+### per-tag migration Jobs are deliberately retained/never pruned, so a real ###
+### image update leaves status.sync.status permanently OutOfSync even once the ###
+### current release is genuinely Healthy/Synced-in-substance. OutOfSync must be ###
+### tolerated ONLY when every non-Synced resource is a retained prior-release Job. ###
+bindir9=$(mock_bin_dir scenario9)
+write_mock_kubectl "$bindir9"
+MOCK_OUTOFSYNC_RETAINED_JOB_ONLY=1 run_with_mock "$bindir9"
+assert "OutOfSync solely due to a retained prior-release Job -> still exits 0" "$([[ "$last_exit" -eq 0 ]]; echo $?)"
+
+### The same OutOfSync status must NOT be tolerated when a non-Job resource (or ###
+### the CURRENT release's own Job) is what's actually drifted — that is real ###
+### evidence something is wrong, not an artifact of the retained-Job design. ###
+bindir10=$(mock_bin_dir scenario10)
+write_mock_kubectl "$bindir10"
+MOCK_OUTOFSYNC_OTHER_DRIFT=1 run_with_mock "$bindir10"
+assert "OutOfSync from a genuinely drifted (non-Job) resource -> exits non-zero" "$([[ "$last_exit" -ne 0 ]]; echo $?)"
 
 ### Codex's GO-MVP follow-up review (docs/PROGRESS.md session log ###
 ### 2026-09-09T20:55:51-06:00, DEF-013): "all 11 tests use --skip-sync; add ###
