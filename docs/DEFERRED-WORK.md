@@ -1,6 +1,6 @@
 # Deferred work and post-MVP improvements
 
-Last updated: 2026-09-10T14:45:00-06:00.
+Last updated: 2026-09-10T18:00:00-06:00.
 
 The owner requested a working local MVP first, then the unfinished GitOps improvements.
 This file keeps that work discoverable without treating it as fixed or requiring every future
@@ -301,6 +301,17 @@ the full gap/fix history stays attached to each ID; each now carries a **Resolut
   **Not closed:** broader new-image/schema shapes beyond this one demonstrated update (e.g.
   multi-file source changes, dependency/runtime-version bumps, destructive schema changes) remain
   unproven.
+  - **Verifier hardening round 2 (Codex review, 2026-09-10T17:24:50-06:00), fixed via mock
+    regression tests only — the live-demo evidence above is unchanged, not re-run:** the
+    retained-Job tolerance did not reject a failed/empty/malformed resource listing; excused any
+    non-current Job by name inequality alone rather than positive identification (naming
+    convention + a direct terminal-status check); inferred current-release health purely from
+    "all drift is retained Jobs" instead of independently confirming the current release's own
+    resources; and the ordering check picked one pod per label instead of identifying the
+    current-rollout ReplicaSet, checking every relevant replica, and explicitly reporting a
+    workload the release left unchanged. All four fixed in `scripts/gitops-mvp-verify.sh`;
+    26/26 mock assertions pass (up from 14/14; then 16/16 after round 1). See
+    `docs/PROGRESS.md`'s 2026-09-10T18:00:00-06:00 session log entry.
 - **Resolution (subfinding 2b — migration ordering and controlled failure/recovery): CLOSED for
   the demonstrated shape.** A minimal backward-compatible migration's ordering before workload
   advancement was proven with Job/pod identity and timestamp evidence (already covered by GO-MVP's

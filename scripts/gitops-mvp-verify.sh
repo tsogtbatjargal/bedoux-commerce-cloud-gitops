@@ -30,6 +30,20 @@
 # resource is a retained prior-release migration Job — any other drift still
 # fails. Selects the newest RUNNING pod per label for ordering evidence, not
 # `.items[0]` (not guaranteed to be the current rollout's pod during an update).
+#
+# Corrected per Codex's GO-MVP-U1 review (docs/PROGRESS.md session log
+# 2026-09-10T17:24:50-06:00): the retained-Job tolerance above did not reject a
+# failed/empty/malformed resource listing (a query error or empty output was
+# silently treated as "nothing wrong" via `|| true`); it excused ANY
+# non-current Job by name inequality alone, not a positively-identified
+# migration Job (an unrelated Job could have qualified); it inferred CURRENT-
+# release health purely from "all drift is retained Jobs," never independently
+# confirming the current release's own resources are actually healthy; and its
+# ordering check picked one "newest Running pod" per label, which neither
+# checks every replica of a genuinely-updated workload nor recognizes a
+# workload an update legitimately left UNCHANGED (whose current pods can
+# predate the new migration by design, not as a violation). All four are fixed
+# below, with new regression coverage for each counterexample.
 
 set -euo pipefail
 
@@ -48,17 +62,25 @@ Options:
   --help                 Show this help.
 
 Exits non-zero, with no partial-success claim, if ANY of the following is not
-confirmed from live cluster state: the Application reaches Healthy AND either
-Synced, or OutOfSync solely because of retained prior-release migration Job(s)
-(never pruned by design — any other OutOfSync resource still fails) AND
+confirmed from live cluster state: the Application's sync status reaches
+Synced, or OutOfSync solely because of positively-identified, terminal,
+retained prior-release migration Job(s) (never pruned by design — a failed/
+empty/malformed resource listing, or any other OutOfSync resource, or an
+unrelated Job, still fails); health reaches Healthy, or Degraded ONLY when the
+same retained-Job condition holds AND the current release's own migration Job
+and api/web/postgres Deployments are independently confirmed healthy via
+direct queries (never inferred merely from "no other explanation was found");
 `.status.sync.revision` matches its currently-requested `spec.source.
 targetRevision` AND the triggered sync operation itself reports phase Succeeded
 (not a stale status left over from an earlier sync); the migration Job matching
 the CURRENTLY-REQUESTED image tag exists and Succeeded; both api and web
-Deployments' rollouts complete; migration completed at/before BOTH the first api
-AND first web pod were created; `/health`, `/` and `/products` (a real,
-read-only, DB-backed endpoint — see apps/api/app/routers/products.py) all
-return HTTP 200 through port-forward (unless --no-port-forward).
+Deployments' rollouts complete; for each of api/web that this release actually
+updated (its current ReplicaSet was created at/after this migration — a
+workload the release left unchanged is reported as such, not checked as a
+violation), migration completed at/before EVERY one of its current replicas;
+`/health`, `/` and `/products` (a real, read-only, DB-backed endpoint — see
+apps/api/app/routers/products.py) all return HTTP 200 through port-forward
+(unless --no-port-forward).
 EOF
 }
 
@@ -114,20 +136,92 @@ migrate_job="bedoux-migrate-gitops-${image_tag,,}"
 # retained prior release's Job, the expected/documented shape) — any other
 # drift (a Deployment, Service, Secret, or even THIS release's own Job showing
 # OutOfSync) still fails.
+#
+# migrate_job_name_pattern positively identifies a migration Job BY NAMING
+# CONVENTION (gitops-mvp-up.sh always names it "bedoux-migrate-gitops-<tag>"),
+# not merely "any Job whose name isn't the current one" — an unrelated Job
+# dropped into this namespace by something else must NOT qualify as a retained
+# migration Job just because it also happens not to be $migrate_job.
+migrate_job_name_pattern='^bedoux-migrate-gitops-'
+
 retained_jobs_only_out_of_sync() {
+  local resources_raw
+  # A failed or empty query is NEVER treated as "nothing is wrong" — it means
+  # we cannot positively identify anything, so the OutOfSync/Degraded state is
+  # NOT explained and must not be tolerated. `|| true` on the read loop's
+  # source alone previously hid exactly this (an empty stream just iterates
+  # zero times and returns success) — fixed by checking the query's own
+  # success and non-emptiness explicitly before ever trusting its content.
+  if ! resources_raw=$(kctl -n argocd get application bedoux-demo -o jsonpath='{range .status.resources[*]}{.kind}{"|"}{.group}{"|"}{.name}{"|"}{.status}{"\n"}{end}' 2>&1); then
+    log "could not read the Application's resource list ($resources_raw) — cannot positively identify retained Jobs; not tolerating"
+    return 1
+  fi
+  if [[ -z "$resources_raw" ]]; then
+    log "Application's resource list came back empty — cannot positively identify retained Jobs; not tolerating"
+    return 1
+  fi
   local bad=0
-  while IFS='|' read -r kind name status; do
-    [[ -z "$kind" ]] && continue
+  local line kind group name status field_count
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    IFS='|' read -r kind group name status <<<"$line"
+    field_count=$(($(grep -o '|' <<<"$line" | wc -l) + 1))
+    if [[ "$field_count" -ne 4 || -z "$kind" || -z "$name" || -z "$status" ]]; then
+      log "malformed resource-list line, refusing to trust it: '$line'"
+      bad=1
+      continue
+    fi
     if [[ "$status" == "Synced" ]]; then
       continue
     fi
-    if [[ "$kind" == "Job" && "$name" != "$migrate_job" ]]; then
+    if [[ "$kind" == "Job" && "$group" == "batch" && "$name" != "$migrate_job" && "$name" =~ $migrate_job_name_pattern ]]; then
+      # Positively identified as a retained migration Job by naming
+      # convention — but still confirm its OWN live status is genuinely
+      # terminal (Succeeded or Failed), not Active/ambiguous, via a direct
+      # query against the real Job resource rather than trusting the
+      # Application's cached resource-status field alone.
+      local j_succeeded j_failed j_active
+      j_succeeded=$(kctl -n "$namespace" get job "$name" -o jsonpath='{.status.succeeded}' 2>/dev/null || true)
+      j_failed=$(kctl -n "$namespace" get job "$name" -o jsonpath='{.status.failed}' 2>/dev/null || true)
+      j_active=$(kctl -n "$namespace" get job "$name" -o jsonpath='{.status.active}' 2>/dev/null || true)
+      if [[ ( "${j_succeeded:-0}" -ge 1 || "${j_failed:-0}" -ge 1 ) && "${j_active:-0}" -eq 0 ]]; then
+        log "OutOfSync resource confirmed as a terminal retained migration Job: name=$name status=$status succeeded=${j_succeeded:-0} failed=${j_failed:-0}"
+        continue
+      fi
+      log "OutOfSync Job '$name' matches the retained-migration-Job naming convention but is NOT confirmed terminal (succeeded=${j_succeeded:-0} failed=${j_failed:-0} active=${j_active:-0}) — not tolerating"
+      bad=1
       continue
     fi
-    log "OutOfSync resource is not an expected retained prior-release Job: kind=$kind name=$name status=$status"
+    log "OutOfSync resource is not a positively-identified retained migration Job: kind=$kind group=$group name=$name status=$status"
     bad=1
-  done < <(kctl -n argocd get application bedoux-demo -o jsonpath='{range .status.resources[*]}{.kind}{"|"}{.name}{"|"}{.status}{"\n"}{end}' 2>/dev/null || true)
+  done <<<"$resources_raw"
   return "$bad"
+}
+
+# Independent, direct confirmation that the CURRENT release's own resources
+# are actually healthy — never inferred merely because "the only drift is
+# retained Jobs." This is the ONLY thing allowed to justify tolerating the
+# Application's aggregate health reading Degraded (a retained, unrelated
+# Failed Job can drag that aggregate down even when the current release is
+# fine); it must independently and positively confirm the current release
+# itself, not take the absence of other explanations as proof of health.
+current_release_resources_healthy() {
+  local job_succeeded
+  job_succeeded=$(kctl -n "$namespace" get job "$migrate_job" -o jsonpath='{.status.succeeded}' 2>/dev/null || true)
+  if [[ -z "$job_succeeded" || "$job_succeeded" -lt 1 ]]; then
+    log "current release's migration Job '$migrate_job' has not Succeeded (succeeded=${job_succeeded:-0}) — current release is not confirmed healthy"
+    return 1
+  fi
+  local dep avail desired
+  for dep in api web postgres; do
+    avail=$(kctl -n "$namespace" get deployment "$dep" -o jsonpath='{.status.availableReplicas}' 2>/dev/null || true)
+    desired=$(kctl -n "$namespace" get deployment "$dep" -o jsonpath='{.spec.replicas}' 2>/dev/null || true)
+    if [[ -z "$avail" || -z "$desired" || "$avail" -lt 1 || "$avail" -lt "$desired" ]]; then
+      log "current release's Deployment '$dep' is not fully Available (available=${avail:-0} desired=${desired:-?}) — current release is not confirmed healthy"
+      return 1
+    fi
+  done
+  return 0
 }
 
 prior_operation_started_at=$(kctl -n argocd get application bedoux-demo -o jsonpath='{.status.operationState.startedAt}' 2>/dev/null || true)
@@ -137,8 +231,14 @@ if ! $skip_sync; then
   kctl -n argocd patch application bedoux-demo --type=merge -p '{"operation":{"sync":{}}}'
 fi
 
-log "waiting up to 300s for the CURRENT operation on revision $requested_revision to reach Synced+Healthy+Succeeded"
-deadline=$((SECONDS + 300))
+# GITOPS_MVP_VERIFY_WAIT_SECONDS/_POLL_SECONDS: test-only overrides (default
+# 300/5, unchanged from before) so local regression tests can exercise a
+# negative case that legitimately never becomes acceptable without actually
+# waiting 300 real seconds. Never set these for a real cluster.
+wait_seconds="${GITOPS_MVP_VERIFY_WAIT_SECONDS:-300}"
+poll_seconds="${GITOPS_MVP_VERIFY_POLL_SECONDS:-5}"
+log "waiting up to ${wait_seconds}s for the CURRENT operation on revision $requested_revision to reach Synced+Healthy+Succeeded"
+deadline=$((SECONDS + wait_seconds))
 sync_status="" health_status="" op_phase="" op_started_at="" sync_revision=""
 while (( SECONDS < deadline )); do
   sync_status=$(kctl -n argocd get application bedoux-demo -o jsonpath='{.status.sync.status}' 2>/dev/null || true)
@@ -154,17 +254,20 @@ while (( SECONDS < deadline )); do
   if ! $skip_sync && [[ -n "$prior_operation_started_at" && "$op_started_at" == "$prior_operation_started_at" ]]; then
     operation_is_current=false
   fi
-  # A retained, non-current-release Job explains BOTH symptoms of the same root
-  # cause: a prior release's Job (Succeeded or Failed) is never pruned, so it
-  # can leave the Application's aggregate sync status OutOfSync (a Succeeded
-  # Job pending prune) AND/OR its aggregate health Degraded (a Failed Job,
-  # live-reproduced 2026-09-10 after a controlled migration-failure demo:
-  # health stayed "Degraded" even once the reverted-to release was genuinely
-  # healthy again, because the FAILED Job from the aborted attempt is retained
-  # and its own resource health is unhealthy). Tolerating either is only safe
-  # because the CURRENT release's own Job success, both Deployments' rollouts,
-  # and ordering are ALL independently re-verified below regardless of this
-  # tolerance — this never substitutes for those checks.
+  # A positively-identified, terminal, retained (non-current-release) Job
+  # explains BOTH symptoms of the same root cause: a prior release's Job
+  # (Succeeded or Failed) is never pruned, so it can leave the Application's
+  # aggregate sync status OutOfSync (a Succeeded Job pending prune) AND/OR its
+  # aggregate health Degraded (a Failed Job, live-reproduced 2026-09-10 after a
+  # controlled migration-failure demo). SYNC and HEALTH are still two SEPARATE
+  # decisions (Codex's GO-MVP-U1 review, 2026-09-10T17:24:50-06:00): retained
+  # Jobs alone are sufficient to explain OutOfSync (a prune-pending resource is
+  # exactly that, nothing more to check), but they are NEVER, by themselves,
+  # sufficient to excuse Degraded health — that additionally requires
+  # independently and positively confirming the CURRENT release's own
+  # resources (its migration Job, api/web/postgres Deployments) are actually
+  # healthy via direct queries against those resources, not inferred from "no
+  # other explanation was found."
   retained_only=false
   if [[ "$sync_status" != "Synced" || "$health_status" != "Healthy" ]]; then
     retained_jobs_only_out_of_sync && retained_only=true
@@ -174,7 +277,9 @@ while (( SECONDS < deadline )); do
     sync_acceptable=true
   fi
   health_acceptable=false
-  if [[ "$health_status" == "Healthy" || ( "$health_status" == "Degraded" && "$retained_only" == true ) ]]; then
+  if [[ "$health_status" == "Healthy" ]]; then
+    health_acceptable=true
+  elif [[ "$health_status" == "Degraded" && "$retained_only" == true ]] && current_release_resources_healthy; then
     health_acceptable=true
   fi
   if [[ "$sync_acceptable" == true && "$health_acceptable" == true && "$op_phase" == "Succeeded" \
@@ -210,7 +315,7 @@ while (( SECONDS < deadline )); do
         ;;
     esac
   fi
-  sleep 5
+  sleep "$poll_seconds"
 done
 if [[ "$sync_acceptable" != true ]]; then
   fail "Application did not reach an acceptable Synced state within 300s (last observed: sync=$sync_status, and it is not explained by retained prior-release migration Job(s) alone; health=$health_status op_phase=$op_phase). Run 'kubectl --context kind-${cluster_name} -n argocd get application bedoux-demo -o yaml' for details."
@@ -250,24 +355,73 @@ for dep in api web; do
 done
 
 ### Ordering evidence for BOTH api and web — a violation FAILS the script, it is ###
-### no longer a soft warning (DEF-013). Selects the newest RUNNING pod for the ###
-### label, not `.items[0]` (GO-MVP-U1, per the returned deployment/rollout-status ###
-### wait above, this is the pod belonging to the advancing/current rollout, not ###
-### an arbitrary or possibly-terminating pod left over from a prior release — an ###
-### update lap can transiently have an old pod still terminating alongside the ###
-### new one, and `.items[0]`'s ordering is not guaranteed to be creation order). ###
+### no longer a soft warning (DEF-013). ###
+#
+# Corrected per Codex's GO-MVP-U1 review (docs/PROGRESS.md session log
+# 2026-09-10T17:24:50-06:00): picking one "newest Running pod" per label
+# neither identifies the CURRENT ROLLOUT positively (a ReplicaSet, not a
+# single pod picked by timestamp) nor checks every replica it owns — a
+# multi-replica release (e.g. GO-MVP's own web.replicas=2 scaling case) could
+# have one on-time replica and one genuinely late one, and only checking the
+# newest would miss the second. It also could not distinguish a workload this
+# release genuinely UPDATED from one it left UNCHANGED (no new image/values
+# for that workload => no new ReplicaSet => its existing, unchanged pods
+# legitimately predate this migration's completion — that is not a violation,
+# and must be reported as such explicitly, not silently skipped or wrongly
+# flagged).
 for dep_label in "api" "web"; do
-  pod_created=$(kctl -n "$namespace" get pods -l "app=${dep_label}" --field-selector=status.phase=Running \
-    -o jsonpath='{range .items[*]}{.metadata.creationTimestamp}{"\n"}{end}' 2>/dev/null | sort | tail -1 || true)
-  if [[ -z "$pod_created" ]]; then
-    fail "no Running pod found for app=${dep_label} in namespace $namespace — cannot confirm ordering or health for it."
+  # Identify the CURRENT rollout's ReplicaSet: the one this Deployment's
+  # controller actually scaled up (spec.replicas > 0). At steady state
+  # (rollout status already confirmed complete above) exactly one such RS
+  # should exist; if more than one is found (an anomaly), the one with the
+  # latest creationTimestamp is treated as current, and all candidates are
+  # logged for transparency rather than silently picking one.
+  rs_lines=$(kctl -n "$namespace" get rs -l "app=${dep_label}" \
+    -o jsonpath='{range .items[?(@.spec.replicas>0)]}{.metadata.creationTimestamp}{"|"}{.metadata.name}{"|"}{.metadata.labels.pod-template-hash}{"\n"}{end}' 2>/dev/null || true)
+  if [[ -z "$rs_lines" ]]; then
+    fail "no active ReplicaSet (spec.replicas>0) found for app=${dep_label} in namespace $namespace — cannot identify the current rollout to verify ordering."
   fi
-  log "first ${dep_label} pod creationTimestamp=$pod_created (migration completionTime=$migrate_done)"
-  if [[ "$migrate_done" > "$pod_created" ]]; then
-    fail "ORDERING VIOLATION: migration Job '$migrate_job' completed ($migrate_done) AFTER the ${dep_label} pod was created ($pod_created) — 'migrations complete before application workloads advance' is NOT satisfied for this run."
+  rs_count=$(wc -l <<<"$rs_lines")
+  if [[ "$rs_count" -gt 1 ]]; then
+    log "more than one active ReplicaSet found for app=${dep_label} (unexpected at steady state): $(tr '\n' ' ' <<<"$rs_lines") — using the one with the latest creationTimestamp as current"
   fi
+  current_rs_line=$(sort <<<"$rs_lines" | tail -1)
+  IFS='|' read -r rs_created rs_name rs_hash <<<"$current_rs_line"
+  if [[ -z "$rs_created" || -z "$rs_name" ]]; then
+    fail "could not parse the current ReplicaSet's identity for app=${dep_label} (line: '$current_rs_line') — cannot verify ordering."
+  fi
+  log "${dep_label}: current rollout is ReplicaSet '$rs_name' (created $rs_created, pod-template-hash=${rs_hash:-<none>})"
+
+  if [[ "$rs_created" < "$migrate_done" ]]; then
+    log "OBSERVED: ${dep_label}'s current ReplicaSet ($rs_created) predates this release's migration completion ($migrate_done) — this workload was UNCHANGED by this release (no new rollout). Ordering is not applicable to an unchanged workload; not claiming a violation."
+    continue
+  fi
+
+  # This workload WAS updated by this release: verify EVERY one of its
+  # current-rollout replicas, not just one, and require the desired replica
+  # count was actually found (a partially-listed set would silently under-
+  # check ordering).
+  selector="app=${dep_label}"
+  [[ -n "$rs_hash" ]] && selector="app=${dep_label},pod-template-hash=${rs_hash}"
+  pod_lines=$(kctl -n "$namespace" get pods -l "$selector" --field-selector=status.phase=Running \
+    -o jsonpath='{range .items[*]}{.metadata.creationTimestamp}{"|"}{.metadata.name}{"\n"}{end}' 2>/dev/null || true)
+  if [[ -z "$pod_lines" ]]; then
+    fail "no Running pod found for the current ReplicaSet '$rs_name' (app=${dep_label}) — cannot confirm ordering or health for it."
+  fi
+  desired_replicas=$(kctl -n "$namespace" get deployment "$dep_label" -o jsonpath='{.spec.replicas}' 2>/dev/null || true)
+  pod_count=$(wc -l <<<"$pod_lines")
+  if [[ -n "$desired_replicas" && "$pod_count" -lt "$desired_replicas" ]]; then
+    fail "only found $pod_count Running pod(s) for the current ${dep_label} rollout, expected $desired_replicas — cannot confirm ordering across all relevant replicas."
+  fi
+  while IFS='|' read -r pod_created pod_name; do
+    [[ -z "$pod_created" ]] && continue
+    log "${dep_label} replica '$pod_name' creationTimestamp=$pod_created (migration completionTime=$migrate_done)"
+    if [[ "$migrate_done" > "$pod_created" ]]; then
+      fail "ORDERING VIOLATION: migration Job '$migrate_job' completed ($migrate_done) AFTER ${dep_label} replica '$pod_name' was created ($pod_created) — 'migrations complete before application workloads advance' is NOT satisfied for this run."
+    fi
+  done <<<"$pod_lines"
+  log "OBSERVED: migration completed at/before all $pod_count current ${dep_label} replica(s) for this release."
 done
-log "OBSERVED: migration completed at/before both the api and web pods were created for this release."
 
 kctl -n "$namespace" get deploy,job,pods,svc
 

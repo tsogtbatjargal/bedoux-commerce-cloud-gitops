@@ -10,8 +10,8 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | GitOps implementation — GO-MVP **closed out and complete** (PR #91). **Owner-approved bounded post-MVP milestone GO-MVP-U1 activated 2026-09-10** (see GO-MVP-U1 checklist section) on isolated worktree `../bedoux-gitops-update`, branch `feature/gitops-version-update`. Full GO-1 design contract stays paused/deferred; GO-2 not activated. P0–P14, M1–M5, and post-track housekeeping H1–H6 remain complete. |
-| Active task | GO-MVP-U1 (IN PROGRESS, PR #92 open, ready for owner review, not merged): all four checklist items (U1.1–U1.4) complete — DEF-015 startup hardening, a live-demonstrated real version A→B update with a surviving synthetic order, a live-demonstrated migration-ordering + controlled-failure/recovery cycle, and packaged evidence (see 2026-09-10T14:45:00-06:00 session log entry, the GO-MVP-U1 checklist section, and `docs/runbooks/gitops-mvp-demo.md`). GO-MVP itself remains **complete** (owner-approved closeout 2026-09-10, PR #91 merged — see its own checklist entry above for full detail). GO-1's full design contract remains untouched, `IN PROGRESS`/paused, and deferred; GO-2 is not activated. |
-| Last verified | 2026-09-10T15:20:00-06:00 — PR #92 (GO-MVP-U1) open at head `774006c6f89506b83b54354361eb793cc1fef5ae`, all four required CI jobs pass (run `34540241763`), `mergeable=MERGEABLE`, ready for review, NOT merged. Built on a live-demonstrated real A→B application-version update with a surviving synthetic order and a controlled migration failure/recovery on a real kind cluster (see session log). Cluster torn down and confirmed clean; host `fs.inotify.max_user_instances` restoration to `128` requested from the owner, pending confirmation as of this entry. Prior: PR #91 (GO-MVP closeout) merged into `main` at `60e7d0757b1394f6d63a63530242eb7fed83eaf5`. No AWS verification. GO-1's third-round local checks (6 suites, 122 assertions, all passing) remain recorded further down this log, still uncommitted (preserved, GO-1 stays paused/deferred). |
+| Active task | GO-MVP-U1 (IN PROGRESS, PR #92 open, ready for owner review, not merged): all four checklist items (U1.1–U1.4) complete — DEF-015 startup hardening, a live-demonstrated real version A→B update with a surviving synthetic order, a live-demonstrated migration-ordering + controlled-failure/recovery cycle, and packaged evidence (see 2026-09-10T14:45:00-06:00 session log entry, the GO-MVP-U1 checklist section, and `docs/runbooks/gitops-mvp-demo.md`). **Verifier hardening round 2 (2026-09-10T18:00:00-06:00 session log entry) fixed five findings from Codex's 2026-09-10T17:24:50-06:00 review** — malformed/empty resource-evidence rejection, positive retained-migration-Job identification, sync/health checked as separate concerns (never excusing an unhealthy current resource), and current-rollout ordering across all relevant replicas with explicit unchanged-workload handling — via mock regression tests only, not a new live cluster run; the prior live-demo evidence is unchanged. GO-MVP itself remains **complete** (owner-approved closeout 2026-09-10, PR #91 merged — see its own checklist entry above for full detail). GO-1's full design contract remains untouched, `IN PROGRESS`/paused, and deferred; GO-2 is not activated. |
+| Last verified | 2026-09-10T18:00:00-06:00 — Verifier hardening round 2: `scripts/gitops-mvp-verify.sh` fixed against Codex's five findings; `scripts/test-gitops-mvp-verify.sh` 26/26 mock assertions pass (up from 16/16); all other GO-MVP-U1 local suites, `test_helm_render.py`, and `git diff --check` rerun clean. Pending as of this entry: push to PR #92, rerun CI on the new exact head, and owner confirmation that `fs.inotify.max_user_instances` has been restored to `128` (raised to `1024` for the earlier live-demo round). Prior: PR #92 open at head `774006c6f89506b83b54354361eb793cc1fef5ae` with all four CI jobs passing (run `34540241763`); PR #91 (GO-MVP closeout) merged into `main` at `60e7d0757b1394f6d63a63530242eb7fed83eaf5`. No AWS verification. GO-1's third-round local checks (6 suites, 122 assertions, all passing) remain recorded further down this log, still uncommitted (preserved, GO-1 stays paused/deferred). |
 | AWS resources currently live | Last recorded inventory, not refreshed by PH-A: no temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
 | Next operator action | Review and merge (or request changes on) the GO-MVP-U1 PR from `feature/gitops-version-update` once CI is green — this session stops after opening it, per explicit instruction, and does not merge it. Full GO-1 and the remaining advanced backlog stay deferred — unfinished findings and safe deferral boundaries remain tracked in `docs/DEFERRED-WORK.md` (DEF-001–011, DEF-015 subfinding 3); review that backlog with the owner before activating any of it. Do not mark the original full GO-1 contract complete, activate GO-2, or infer broader new-image/schema support than the one demonstrated update. No AWS session or cluster mutation occurred in this milestone. |
@@ -999,6 +999,64 @@ tree.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-09-10T18:00:00-06:00 — GO-MVP-U1 verifier hardening round 2: fixed Codex's five findings — Claude
+
+Addresses Codex's review below (relayed verbatim by the owner; not independently re-fetched from
+a PR comment or a Codex-authored PROGRESS entry — none was found in the repo at the time of this
+entry). Scope: `scripts/gitops-mvp-verify.sh` and its mock regression tests only. **No new live
+cluster run this round** — the owner's instruction was to keep the existing live-demo evidence
+(2026-09-10T14:45:00-06:00 entry) as-is and fix the verifier findings via local mock regression
+tests, then rerun CI. PR #92 stays open, not merged.
+
+1. **Reject failed, empty, or malformed resource evidence.** `retained_jobs_only_out_of_sync`'s
+   `kubectl ... | true` previously turned a failed or empty resource-list query into zero loop
+   iterations, i.e. silent success. Now checks the query's own exit status and non-emptiness
+   first (REFUSE if either fails) and rejects any line that doesn't parse into exactly 4 fields.
+2. **Positively identify retained migration Jobs; unrelated Jobs must not qualify.** Previously
+   "any Job whose name != current migrate_job" was excused. Now requires `kind==Job`,
+   `group==batch`, and the name to match the `bedoux-migrate-gitops-` naming convention AND be
+   confirmed terminal (Succeeded or Failed, not Active) via a direct `kubectl get job` query
+   against that exact resource — an unrelated Job, or one matching the name pattern but not
+   actually terminal, no longer qualifies.
+3. **Check resource health separately from sync status; never excuse an unhealthy current
+   resource.** Sync-status tolerance and health tolerance were previously the same boolean.
+   `current_release_resources_healthy()` is now an independent, direct check (the current
+   release's own migration Job Succeeded; api/web/postgres Deployments' `availableReplicas` meet
+   `spec.replicas`) — Degraded health is tolerated ONLY when both the retained-Job condition AND
+   this independent health check hold; a genuinely unhealthy current resource still fails even if
+   all drift is otherwise explained by a retained Job.
+4. **Identify current-rollout pods and verify ordering across the relevant replicas, handling
+   unchanged workloads explicitly.** Replaced "newest Running pod per label" with: find the
+   Deployment's active ReplicaSet (`spec.replicas>0`); if its `creationTimestamp` predates this
+   release's migration completion, the workload was left UNCHANGED by this release — reported
+   explicitly, not flagged as a violation; otherwise check EVERY Running replica of that
+   ReplicaSet's ordering against the migration, and fail if the expected replica count wasn't
+   found.
+5. **Regression tests for all four**, in `scripts/test-gitops-mvp-verify.sh`: failed/empty/
+   malformed resource-list rejection (3 scenarios), an unrelated Job and a name-matching-but-not-
+   terminal Job both still rejected (2), Degraded health excused only with an independently
+   healthy current release preserved as passing (1) vs. an unhealthy current Deployment still
+   rejected (1), an explicitly-unchanged workload not flagged (1) vs. a 2-replica rollout with one
+   late replica still rejected (1) — 26/26 assertions pass (up from 14/14). Added
+   `GITOPS_MVP_VERIFY_WAIT_SECONDS`/`_POLL_SECONDS` test-only overrides (default 300s/5s,
+   unchanged for real use) so the new negative-timeout scenarios don't each cost 300 real
+   seconds.
+- All other GO-MVP-U1 local suites rerun and still pass unaffected (chart, down, up-ownership,
+  up-inventory); `python3 scripts/test_helm_render.py` 17+6; `git diff --check` clean.
+- **DEF-015 and the checkpoint updated** (below/`docs/runbooks/gitops-mvp-demo.md`) to note this
+  second hardening round explicitly builds on, and does not repeat or contradict, the
+  2026-09-10T14:45:00-06:00 live-demo evidence.
+- **Next action:** push, rerun CI on the new exact head, confirm the owner has restored
+  `fs.inotify.max_user_instances` to `128`, stop for review. No merge, no AWS, no broader GitOps
+  work. AWS: none.
+
+**Codex's review, 2026-09-10T17:24:50-06:00 (relayed by the owner in this session, verbatim):**
+"Reject failed, empty, or malformed resource evidence. Positively identify retained migration
+Jobs; unrelated Jobs must not qualify. Check resource health separately from sync status. Never
+excuse an unhealthy current resource. Identify current-rollout pods and verify ordering across
+the relevant replicas, handling unchanged workloads explicitly. Add regression tests for these
+counterexamples while preserving valid retained-Job recovery."
 
 ### 2026-09-10T15:20:00-06:00 — GO-MVP-U1: PR #92 opened, all four CI checks green, stopped for owner review — Claude
 

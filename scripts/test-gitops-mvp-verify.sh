@@ -5,9 +5,19 @@
 # 2026-09-09T20:27:22-06:00, DEF-013): stale Synced/Healthy status from a
 # PREVIOUS operation was accepted as proof the CURRENT trigger succeeded; a
 # missing migration Job did not fail the script; ordering violations only
-# warned; web's ordering was never checked. Runs with --no-port-forward (no
-# curl/port-forward dependency) so this suite exercises exactly the evidence
-# logic, not the HTTP layer.
+# warned; web's ordering was never checked. Also covers Codex's GO-MVP-U1
+# review (docs/PROGRESS.md session log 2026-09-10T17:24:50-06:00): a failed/
+# empty/malformed resource listing was silently tolerated; any non-current Job
+# was excused by name inequality alone, not positive identification; Degraded
+# health was excused purely by "all drift is retained Jobs," never checking the
+# current release's own resources directly; and ordering picked one pod per
+# label instead of verifying every current-rollout replica and explicitly
+# handling a workload the release left unchanged. Runs with --no-port-forward
+# (no curl/port-forward dependency) so this suite exercises exactly the
+# evidence logic, not the HTTP layer. Scenarios that legitimately never reach
+# an acceptable state use GITOPS_MVP_VERIFY_WAIT_SECONDS/_POLL_SECONDS to avoid
+# a real 300s wait per negative case — a test-only override, unset (default
+# 300s/5s) for every other scenario and for real cluster use.
 
 set -euo pipefail
 
@@ -37,21 +47,45 @@ run_with_mock() {
   local bindir="$1"
   shift
   set +e
-  last_output=$(PATH="$bindir:$PATH" "$script" "$@" --no-port-forward --skip-sync 2>&1)
+  last_output=$(PATH="$bindir:$PATH" GITOPS_MVP_VERIFY_WAIT_SECONDS=1 GITOPS_MVP_VERIFY_POLL_SECONDS=1 \
+    "$script" "$@" --no-port-forward --skip-sync 2>&1)
   last_exit=$?
   set -e
 }
 
-# Common mock kubectl body, parameterized by env vars each scenario sets:
-#   MOCK_MIGRATE_JOB_MISSING=1        job get returns not-found
-#   MOCK_MIGRATE_JOB_NOT_SUCCEEDED=1  job exists but succeeded=0 / no completionTime
-#   MOCK_SYNC_REVISION_MISMATCH=1     status.sync.revision != requested targetRevision
-#   MOCK_ORDERING_VIOLATION=web|api   that pod's creationTimestamp is BEFORE migrate completion
-#   MOCK_ROLLOUT_FAILS=1              `rollout status` exits non-zero
-#   MOCK_OUTOFSYNC_RETAINED_JOB_ONLY=1  sync.status=OutOfSync, but the only non-Synced
-#                                        resource is a retained prior-release Job
-#   MOCK_OUTOFSYNC_OTHER_DRIFT=1        sync.status=OutOfSync with a non-Job resource
-#                                        (a Deployment) also OutOfSync — must still fail
+# Common mock kubectl body, parameterized by env vars each scenario sets. Fixed
+# identities: requested_rev/image_tag/migrate_job as below; retained_job is a
+# terminal (Succeeded), positively-named prior-release Job; unrelated_job does
+# NOT match the migration-Job naming convention.
+#
+#   MOCK_MIGRATE_JOB_MISSING=1          current job get returns not-found
+#   MOCK_MIGRATE_JOB_NOT_SUCCEEDED=1    current job exists but succeeded=0
+#   MOCK_SYNC_REVISION_MISMATCH=1       status.sync.revision != requested targetRevision
+#   MOCK_ORDERING_VIOLATION=web|api     that label's pod predates migrate completion
+#                                       (its ReplicaSet is still "changed" i.e. new)
+#   MOCK_ROLLOUT_FAILS=1                `rollout status` exits non-zero
+#   MOCK_OUTOFSYNC_RETAINED_JOB_ONLY=1  sync=OutOfSync, health=Healthy; only
+#                                       drift is the terminal retained_job
+#   MOCK_OUTOFSYNC_OTHER_DRIFT=1        sync=OutOfSync with a Deployment also
+#                                       OutOfSync — must still fail
+#   MOCK_RESOURCES_QUERY_FAILS=1        the resources range query itself fails
+#   MOCK_RESOURCES_EMPTY=1              the resources range query returns empty
+#   MOCK_RESOURCES_MALFORMED=1          a resource line has the wrong field count
+#   MOCK_UNRELATED_JOB_OUTOFSYNC=1      an OutOfSync Job NOT matching the
+#                                       migration-Job naming convention
+#   MOCK_RETAINED_JOB_NOT_TERMINAL=1    retained_job matches by name but its own
+#                                       live status is still Active (not terminal)
+#   MOCK_DEGRADED_RETAINED_HEALTHY=1    health=Degraded (retained_job Failed),
+#                                       but the CURRENT release's own resources
+#                                       are independently confirmed healthy
+#   MOCK_DEGRADED_CURRENT_UNHEALTHY=1   health=Degraded (retained_job Failed),
+#                                       AND the current release's own api
+#                                       Deployment is NOT available — must fail
+#   MOCK_UNCHANGED_WORKLOAD=web|api     that label's current ReplicaSet predates
+#                                       this migration (release did not touch
+#                                       it) — must NOT be flagged as a violation
+#   MOCK_MULTI_REPLICA_VIOLATION=web|api  two current-rollout replicas, one of
+#                                       which predates migrate completion
 write_mock_kubectl() {
   local dir="$1"
   cat >"$dir/kubectl" <<'MOCKEOF'
@@ -59,9 +93,21 @@ write_mock_kubectl() {
 args="$*"
 requested_rev="deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
 image_tag="mvp-cafef00dbabe"
+migrate_job="bedoux-migrate-gitops-mvp-cafef00dbabe"
+retained_job="bedoux-migrate-gitops-mvp-oldtag"
+unrelated_job="some-other-job"
 migrate_done="2026-01-01T00:00:00Z"
-api_pod_created="2026-01-01T00:00:05Z"
-web_pod_created="2026-01-01T00:00:05Z"
+changed_ts="2026-01-01T00:00:05Z"
+unchanged_ts="2025-12-31T00:00:00Z"
+
+api_rs_created="$changed_ts"
+web_rs_created="$changed_ts"
+api_pod_created="$changed_ts"
+web_pod_created="$changed_ts"
+api_pod2_created="$changed_ts"
+web_pod2_created="$changed_ts"
+api_replicas=1
+web_replicas=1
 
 if [[ "${MOCK_ORDERING_VIOLATION:-}" == "api" ]]; then
   api_pod_created="2025-12-31T23:59:00Z"
@@ -69,10 +115,39 @@ fi
 if [[ "${MOCK_ORDERING_VIOLATION:-}" == "web" ]]; then
   web_pod_created="2025-12-31T23:59:00Z"
 fi
+if [[ "${MOCK_UNCHANGED_WORKLOAD:-}" == "api" ]]; then
+  api_rs_created="$unchanged_ts"
+  api_pod_created="$unchanged_ts"
+fi
+if [[ "${MOCK_UNCHANGED_WORKLOAD:-}" == "web" ]]; then
+  web_rs_created="$unchanged_ts"
+  web_pod_created="$unchanged_ts"
+fi
+if [[ "${MOCK_MULTI_REPLICA_VIOLATION:-}" == "api" ]]; then
+  api_replicas=2
+  api_pod2_created="2025-12-31T23:59:00Z"
+fi
+if [[ "${MOCK_MULTI_REPLICA_VIOLATION:-}" == "web" ]]; then
+  web_replicas=2
+  web_pod2_created="2025-12-31T23:59:00Z"
+fi
 
 sync_revision="$requested_rev"
 if [[ "${MOCK_SYNC_REVISION_MISMATCH:-}" == "1" ]]; then
   sync_revision="0000000000000000000000000000000000000000"
+fi
+
+sync_status="Synced"
+health_status="Healthy"
+if [[ "${MOCK_OUTOFSYNC_RETAINED_JOB_ONLY:-}" == "1" || "${MOCK_OUTOFSYNC_OTHER_DRIFT:-}" == "1" \
+      || "${MOCK_RESOURCES_QUERY_FAILS:-}" == "1" || "${MOCK_RESOURCES_EMPTY:-}" == "1" \
+      || "${MOCK_RESOURCES_MALFORMED:-}" == "1" || "${MOCK_UNRELATED_JOB_OUTOFSYNC:-}" == "1" \
+      || "${MOCK_RETAINED_JOB_NOT_TERMINAL:-}" == "1" ]]; then
+  sync_status="OutOfSync"
+fi
+if [[ "${MOCK_DEGRADED_RETAINED_HEALTHY:-}" == "1" || "${MOCK_DEGRADED_CURRENT_UNHEALTHY:-}" == "1" ]]; then
+  sync_status="OutOfSync"
+  health_status="Degraded"
 fi
 
 case "$args" in
@@ -83,29 +158,58 @@ case "$args" in
   *"get application bedoux-demo"*"jsonpath={.status.operationState.startedAt}"*)
     echo "2026-01-01T00:00:10Z" ;;
   *"get application bedoux-demo"*"range .status.resources"*)
-    if [[ "${MOCK_OUTOFSYNC_RETAINED_JOB_ONLY:-}" == "1" ]]; then
-      printf 'Deployment|api|Synced\nJob|bedoux-migrate-gitops-mvp-oldtag|OutOfSync\nJob|%s|Synced\n' "bedoux-migrate-gitops-${image_tag,,}"
-    elif [[ "${MOCK_OUTOFSYNC_OTHER_DRIFT:-}" == "1" ]]; then
-      printf 'Deployment|api|OutOfSync\nJob|%s|Synced\n' "bedoux-migrate-gitops-${image_tag,,}"
-    else
-      printf 'Deployment|api|Synced\nJob|%s|Synced\n' "bedoux-migrate-gitops-${image_tag,,}"
+    if [[ "${MOCK_RESOURCES_QUERY_FAILS:-}" == "1" ]]; then
+      echo "Error from server: etcdserver: request timed out" >&2
+      exit 1
     fi
+    if [[ "${MOCK_RESOURCES_EMPTY:-}" == "1" ]]; then
+      exit 0
+    fi
+    if [[ "${MOCK_RESOURCES_MALFORMED:-}" == "1" ]]; then
+      printf 'Deployment|apps|api|Synced\nJob|batch|%s\n' "$migrate_job"
+      exit 0
+    fi
+    if [[ "${MOCK_UNRELATED_JOB_OUTOFSYNC:-}" == "1" ]]; then
+      printf 'Deployment|apps|api|Synced\nJob|batch|%s|OutOfSync\nJob|batch|%s|Synced\n' "$unrelated_job" "$migrate_job"
+      exit 0
+    fi
+    if [[ "${MOCK_RETAINED_JOB_NOT_TERMINAL:-}" == "1" ]]; then
+      printf 'Deployment|apps|api|Synced\nJob|batch|%s|OutOfSync\nJob|batch|%s|Synced\n' "$retained_job" "$migrate_job"
+      exit 0
+    fi
+    if [[ "${MOCK_OUTOFSYNC_RETAINED_JOB_ONLY:-}" == "1" || "${MOCK_DEGRADED_RETAINED_HEALTHY:-}" == "1" \
+          || "${MOCK_DEGRADED_CURRENT_UNHEALTHY:-}" == "1" ]]; then
+      printf 'Deployment|apps|api|Synced\nJob|batch|%s|OutOfSync\nJob|batch|%s|Synced\n' "$retained_job" "$migrate_job"
+      exit 0
+    fi
+    if [[ "${MOCK_OUTOFSYNC_OTHER_DRIFT:-}" == "1" ]]; then
+      printf 'Deployment|apps|api|OutOfSync\nJob|batch|%s|Synced\n' "$migrate_job"
+      exit 0
+    fi
+    printf 'Deployment|apps|api|Synced\nJob|batch|%s|Synced\n' "$migrate_job"
+    exit 0
     ;;
   *"get application bedoux-demo"*"jsonpath={.status.sync.status}"*)
-    if [[ "${MOCK_OUTOFSYNC_RETAINED_JOB_ONLY:-}" == "1" || "${MOCK_OUTOFSYNC_OTHER_DRIFT:-}" == "1" ]]; then
-      echo "OutOfSync"
-    else
-      echo "Synced"
-    fi ;;
+    echo "$sync_status" ;;
   *"get application bedoux-demo"*"jsonpath={.status.health.status}"*)
-    echo "Healthy" ;;
+    echo "$health_status" ;;
   *"get application bedoux-demo"*"jsonpath={.status.operationState.phase}"*)
     echo "Succeeded" ;;
   *"get application bedoux-demo"*"jsonpath={.status.sync.revision}"*)
     echo "$sync_revision" ;;
   *"get application bedoux-demo"*)
     exit 0 ;;
-  *"get job "*)
+  *"get job $retained_job "*"jsonpath={.status.succeeded}"*)
+    if [[ "${MOCK_RETAINED_JOB_NOT_TERMINAL:-}" == "1" ]]; then echo "0"; else echo "1"; fi ;;
+  *"get job $retained_job "*"jsonpath={.status.failed}"*)
+    if [[ "${MOCK_DEGRADED_RETAINED_HEALTHY:-}" == "1" || "${MOCK_DEGRADED_CURRENT_UNHEALTHY:-}" == "1" ]]; then
+      echo "1"
+    else
+      echo "0"
+    fi ;;
+  *"get job $retained_job "*"jsonpath={.status.active}"*)
+    if [[ "${MOCK_RETAINED_JOB_NOT_TERMINAL:-}" == "1" ]]; then echo "1"; else echo "0"; fi ;;
+  *"get job $migrate_job"*)
     if [[ "${MOCK_MIGRATE_JOB_MISSING:-}" == "1" ]]; then
       echo "Error from server (NotFound): jobs.batch not found" >&2
       exit 1
@@ -118,16 +222,34 @@ case "$args" in
       *) exit 0 ;;
     esac
     ;;
+  *"get deployment api "*"jsonpath={.status.availableReplicas}"*)
+    if [[ "${MOCK_DEGRADED_CURRENT_UNHEALTHY:-}" == "1" ]]; then echo "0"; else echo "1"; fi ;;
+  *"get deployment web "*"jsonpath={.status.availableReplicas}"*)
+    echo "1" ;;
+  *"get deployment postgres "*"jsonpath={.status.availableReplicas}"*)
+    echo "1" ;;
+  *"get deployment api "*"jsonpath={.spec.replicas}"*)
+    echo "$api_replicas" ;;
+  *"get deployment web "*"jsonpath={.spec.replicas}"*)
+    echo "$web_replicas" ;;
+  *"get deployment postgres "*"jsonpath={.spec.replicas}"*)
+    echo "1" ;;
   *"rollout status deployment/"*)
     if [[ "${MOCK_ROLLOUT_FAILS:-}" == "1" ]]; then
       echo "error: deployment rollout exceeded its progress deadline" >&2
       exit 1
     fi
     exit 0 ;;
-  *"get pods -l app=api"*"field-selector=status.phase=Running"*)
-    echo "$api_pod_created" ;;
-  *"get pods -l app=web"*"field-selector=status.phase=Running"*)
-    echo "$web_pod_created" ;;
+  *"get rs -l app=api "*)
+    printf '%s|api-rs1|apihash\n' "$api_rs_created" ;;
+  *"get rs -l app=web "*)
+    printf '%s|web-rs1|webhash\n' "$web_rs_created" ;;
+  *"get pods -l app=api,pod-template-hash=apihash"*"field-selector=status.phase=Running"*)
+    printf '%s|api-pod1\n' "$api_pod_created"
+    if [[ "$api_replicas" -ge 2 ]]; then printf '%s|api-pod2\n' "$api_pod2_created"; fi ;;
+  *"get pods -l app=web,pod-template-hash=webhash"*"field-selector=status.phase=Running"*)
+    printf '%s|web-pod1\n' "$web_pod_created"
+    if [[ "$web_replicas" -ge 2 ]]; then printf '%s|web-pod2\n' "$web_pod2_created"; fi ;;
   *"get deploy,job,pods,svc"*)
     echo "mock: resource listing" ;;
   *)
@@ -196,7 +318,8 @@ assert "incomplete rollout -> exits non-zero" "$([[ "$last_exit" -ne 0 ]]; echo 
 bindir9=$(mock_bin_dir scenario9)
 write_mock_kubectl "$bindir9"
 MOCK_OUTOFSYNC_RETAINED_JOB_ONLY=1 run_with_mock "$bindir9"
-assert "OutOfSync solely due to a retained prior-release Job -> still exits 0" "$([[ "$last_exit" -eq 0 ]]; echo $?)"
+assert "OutOfSync solely due to a retained, terminal, positively-identified prior-release Job -> still exits 0" \
+  "$([[ "$last_exit" -eq 0 ]]; echo $?)"
 
 ### The same OutOfSync status must NOT be tolerated when a non-Job resource (or ###
 ### the CURRENT release's own Job) is what's actually drifted — that is real ###
@@ -205,6 +328,70 @@ bindir10=$(mock_bin_dir scenario10)
 write_mock_kubectl "$bindir10"
 MOCK_OUTOFSYNC_OTHER_DRIFT=1 run_with_mock "$bindir10"
 assert "OutOfSync from a genuinely drifted (non-Job) resource -> exits non-zero" "$([[ "$last_exit" -ne 0 ]]; echo $?)"
+
+### Codex's GO-MVP-U1 review (docs/PROGRESS.md session log 2026-09-10T17:24:50-06:00): ###
+### finding 1 — a failed, empty, or malformed resource listing must be REJECTED, ###
+### never silently treated as "nothing is wrong" (the `|| true` bug). ###
+bindir11=$(mock_bin_dir scenario11)
+write_mock_kubectl "$bindir11"
+MOCK_RESOURCES_QUERY_FAILS=1 run_with_mock "$bindir11"
+assert "REPRO CLOSED: failed resource-list query -> exits non-zero (was silently tolerated)" "$([[ "$last_exit" -ne 0 ]]; echo $?)"
+
+bindir12=$(mock_bin_dir scenario12)
+write_mock_kubectl "$bindir12"
+MOCK_RESOURCES_EMPTY=1 run_with_mock "$bindir12"
+assert "REPRO CLOSED: empty resource-list query -> exits non-zero (was silently tolerated)" "$([[ "$last_exit" -ne 0 ]]; echo $?)"
+
+bindir13=$(mock_bin_dir scenario13)
+write_mock_kubectl "$bindir13"
+MOCK_RESOURCES_MALFORMED=1 run_with_mock "$bindir13"
+assert "REPRO CLOSED: malformed resource-list line -> exits non-zero (was silently tolerated)" "$([[ "$last_exit" -ne 0 ]]; echo $?)"
+
+### Finding 2 — positively identify retained migration Jobs by naming ###
+### convention; an unrelated Job (or one that ISN'T actually terminal despite ###
+### matching the naming convention) must NOT qualify as an excuse. ###
+bindir14=$(mock_bin_dir scenario14)
+write_mock_kubectl "$bindir14"
+MOCK_UNRELATED_JOB_OUTOFSYNC=1 run_with_mock "$bindir14"
+assert "REPRO CLOSED: unrelated Job (not matching migration-Job naming) OutOfSync -> exits non-zero" "$([[ "$last_exit" -ne 0 ]]; echo $?)"
+
+bindir15=$(mock_bin_dir scenario15)
+write_mock_kubectl "$bindir15"
+MOCK_RETAINED_JOB_NOT_TERMINAL=1 run_with_mock "$bindir15"
+assert "REPRO CLOSED: retained-Job-named resource that is NOT actually terminal -> exits non-zero" "$([[ "$last_exit" -ne 0 ]]; echo $?)"
+
+### Finding 3 — health is checked SEPARATELY from sync status: a retained Job ###
+### may excuse Degraded health only when the CURRENT release's own resources ###
+### are independently confirmed healthy; an unhealthy current resource is ###
+### NEVER excused just because the aggregate drift is otherwise explained. ###
+bindir16=$(mock_bin_dir scenario16)
+write_mock_kubectl "$bindir16"
+MOCK_DEGRADED_RETAINED_HEALTHY=1 run_with_mock "$bindir16"
+assert "PRESERVED: Degraded health from a retained Failed Job, current release independently confirmed healthy -> still exits 0 (valid recovery)" \
+  "$([[ "$last_exit" -eq 0 ]]; echo $?)"
+
+bindir17=$(mock_bin_dir scenario17)
+write_mock_kubectl "$bindir17"
+MOCK_DEGRADED_CURRENT_UNHEALTHY=1 run_with_mock "$bindir17"
+assert "REPRO CLOSED: Degraded health from a retained Failed Job, but the CURRENT api Deployment is not Available -> exits non-zero (never excused)" \
+  "$([[ "$last_exit" -ne 0 ]]; echo $?)"
+
+### Finding 4 — ordering identifies the current-rollout ReplicaSet and checks ###
+### EVERY relevant replica; a workload the release left UNCHANGED (its current ###
+### ReplicaSet predates this migration) must be reported as such, not flagged. ###
+bindir18=$(mock_bin_dir scenario18)
+write_mock_kubectl "$bindir18"
+MOCK_UNCHANGED_WORKLOAD=web run_with_mock "$bindir18"
+assert "REPRO CLOSED: web left UNCHANGED by this release -> still exits 0, not flagged as an ordering violation" \
+  "$([[ "$last_exit" -eq 0 ]]; echo $?)"
+assert "unchanged workload: reported explicitly as unchanged, not silently skipped" \
+  "$([[ "$last_output" == *"UNCHANGED by this release"* ]]; echo $?)"
+
+bindir19=$(mock_bin_dir scenario19)
+write_mock_kubectl "$bindir19"
+MOCK_MULTI_REPLICA_VIOLATION=web run_with_mock "$bindir19"
+assert "REPRO CLOSED: 2-replica web rollout, one replica predates migration -> exits non-zero (single-pod check would have missed this)" \
+  "$([[ "$last_exit" -ne 0 ]]; echo $?)"
 
 ### Codex's GO-MVP follow-up review (docs/PROGRESS.md session log ###
 ### 2026-09-09T20:55:51-06:00, DEF-013): "all 11 tests use --skip-sync; add ###
@@ -239,6 +426,7 @@ write_mock_kubectl_trigger() {
 args="\$*"
 requested_rev="deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
 image_tag="mvp-cafef00dbabe"
+migrate_job="bedoux-migrate-gitops-mvp-cafef00dbabe"
 migrate_done="2026-01-01T00:00:00Z"
 prior_started_at="2025-12-31T23:00:00Z"
 new_started_at="2026-01-01T00:10:00Z"
@@ -247,6 +435,8 @@ counter_file="$counter_file"
 case "\$args" in
   *"get application bedoux-demo"*"jsonpath={.spec.source.targetRevision}"*) echo "\$requested_rev"; exit 0 ;;
   *"get application bedoux-demo"*"jsonpath={.spec.source.helm.valuesObject.api.image.tag}"*) echo "\$image_tag"; exit 0 ;;
+  *"get application bedoux-demo"*"range .status.resources"*)
+    printf 'Deployment|apps|api|Synced\nJob|batch|%s|Synced\n' "\$migrate_job"; exit 0 ;;
   *"get application bedoux-demo"*"jsonpath={.status.sync.status}"*) polls=\$(cat "\$counter_file" 2>/dev/null | wc -l); echo "\$((polls + 1))" >> "\$counter_file"; echo "Synced"; exit 0 ;;
   *"get application bedoux-demo"*"jsonpath={.status.health.status}"*) echo "Healthy"; exit 0 ;;
   *"get application bedoux-demo"*"jsonpath={.status.operationState.phase}"*) echo "Succeeded"; exit 0 ;;
@@ -269,9 +459,13 @@ case "\$args" in
       *"jsonpath={.status.completionTime}"*) echo "\$migrate_done" ;;
       *) exit 0 ;;
     esac ;;
+  *"get deployment "*"jsonpath={.status.availableReplicas}"*) echo "1" ;;
+  *"get deployment "*"jsonpath={.spec.replicas}"*) echo "1" ;;
   *"rollout status deployment/"*) exit 0 ;;
-  *"get pods -l app=api"*"field-selector=status.phase=Running"*) echo "\$migrate_done" ;;
-  *"get pods -l app=web"*"field-selector=status.phase=Running"*) echo "\$migrate_done" ;;
+  *"get rs -l app=api "*) printf '%s|api-rs1|apihash\n' "\$migrate_done" ;;
+  *"get rs -l app=web "*) printf '%s|web-rs1|webhash\n' "\$migrate_done" ;;
+  *"get pods -l app=api,pod-template-hash=apihash"*"field-selector=status.phase=Running"*) printf '%s|api-pod1\n' "\$migrate_done" ;;
+  *"get pods -l app=web,pod-template-hash=webhash"*"field-selector=status.phase=Running"*) printf '%s|web-pod1\n' "\$migrate_done" ;;
   *"get deploy,job,pods,svc"*) echo "mock: resource listing" ;;
   *) echo "mock kubectl: unhandled args: \$args" >&2; exit 1 ;;
 esac
