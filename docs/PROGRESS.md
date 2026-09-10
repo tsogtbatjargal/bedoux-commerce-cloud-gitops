@@ -9,8 +9,8 @@ checked here and its evidence is recorded in the session log.
 | Field | Value |
 |---|---|
 | State | IN PROGRESS |
-| Active phase | GitOps implementation — **owner-approved scope change 2026-09-09: full GO-1 design contract paused (IN PROGRESS, not complete, not abandoned), reduced-scope GO-MVP local demo now active.** P0–P14, M1–M5, and post-track housekeeping H1–H6 remain complete. |
-| Active task | GO-MVP: **owner-approved closeout 2026-09-10.** DEF-012–014 fixed and demonstrated via a same-cluster update lap (snapshot A `153a1526a...` → effective Git change → snapshot B `c16d9e0a8...`, `web` `1/1`→`2/2`, credential reused, DB-backed checks passing before/after — `web.replicas` restored to `1` afterward, the `2` was demo-only, never an approved default); ownership is checked before any cluster mutation (never adopts an unmarked cluster), the broad image-cleanup fallback is removed (exact-tag-only, skip rather than guess), and the sync-wait loop no longer fast-fails on the expected transient post-trigger window — all closed with 54 new/updated local regression assertions (chart 18, verify 14, down 17, up-ownership 5), no cluster required to verify. `migration.gitopsMode`'s chart fix is now committed (PR #91, `feature/gitops-mvp`, head `98658e482ab1a15a66417d61a5eb66b084016485` plus this documentation-only closeout commit) with all four CI checks (API tests, Web lint/test/build, Terraform and Helm validation — which runs the 4 MVP suites, Container build and scan) green. GO-1's full design contract remains untouched, `IN PROGRESS`/paused, and deferred; GO-2 is not activated. Deployment-time signature enforcement is NOT installed in GO-MVP; documented as a local-demo limitation (DEF-009). GO-MVP's checklist item below is now checked complete on this basis. |
+| Active phase | GitOps implementation — GO-MVP **closed out and complete** (PR #91). **Owner-approved bounded post-MVP milestone GO-MVP-U1 activated 2026-09-10** (see GO-MVP-U1 checklist section) on isolated worktree `../bedoux-gitops-update`, branch `feature/gitops-version-update`. Full GO-1 design contract stays paused/deferred; GO-2 not activated. P0–P14, M1–M5, and post-track housekeeping H1–H6 remain complete. |
+| Active task | GO-MVP-U1.1 (IN PROGRESS): harden `scripts/gitops-mvp-up.sh`'s startup inventory-error branch (DEF-015). GO-MVP itself: **owner-approved closeout 2026-09-10.** DEF-012–014 fixed and demonstrated via a same-cluster update lap (snapshot A `153a1526a...` → effective Git change → snapshot B `c16d9e0a8...`, `web` `1/1`→`2/2`, credential reused, DB-backed checks passing before/after — `web.replicas` restored to `1` afterward, the `2` was demo-only, never an approved default); ownership is checked before any cluster mutation (never adopts an unmarked cluster), the broad image-cleanup fallback is removed (exact-tag-only, skip rather than guess), and the sync-wait loop no longer fast-fails on the expected transient post-trigger window — all closed with 54 new/updated local regression assertions (chart 18, verify 14, down 17, up-ownership 5), no cluster required to verify. `migration.gitopsMode`'s chart fix is now committed (PR #91, `feature/gitops-mvp`, head `98658e482ab1a15a66417d61a5eb66b084016485` plus this documentation-only closeout commit) with all four CI checks (API tests, Web lint/test/build, Terraform and Helm validation — which runs the 4 MVP suites, Container build and scan) green. GO-1's full design contract remains untouched, `IN PROGRESS`/paused, and deferred; GO-2 is not activated. Deployment-time signature enforcement is NOT installed in GO-MVP; documented as a local-demo limitation (DEF-009). GO-MVP's checklist item below is now checked complete on this basis. |
 | Last verified | 2026-09-10T11:19:10-06:00 — PR #91 (GO-MVP closeout) merged into `main` at `60e7d0757b1394f6d63a63530242eb7fed83eaf5` after all four exact-head CI jobs passed twice (once on the implementation commit `98658e4`, again on the documentation-only closeout commit `4d7fdc5`); local `main` fast-forwarded cleanly to that SHA; no demo kind cluster, container, or image remained on the host before or after. No AWS verification. GO-1's third-round local checks (6 suites, 122 assertions total, all passing; `git diff --check` and `actions-check` pass; `docs-check`'s diagram-export step fails on the pre-existing, unrelated `gitops-workflow.svg` gap) remain recorded in this session's log entry below, still uncommitted (preserved, GO-1 stays paused/deferred). |
 | AWS resources currently live | Last recorded inventory, not refreshed by PH-A: no temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
@@ -941,6 +941,51 @@ and stays the only signature check actually enforced anywhere in this session's 
       the first api pod's creation (from real timestamps), `curl` 200s from both api/web through
       port-forward — see the session log entry above for exact detail.
 
+### GO-MVP-U1 — post-MVP version-update milestone (bounded, owner-approved 2026-09-10)
+
+**Gate (owner-approved 2026-09-10, this message IS the activation):** "Activate one bounded
+post-MVP milestone... 1) Harden startup: address DEF-015's inventory-error branch... 2)
+Demonstrate a real version A -> version B update... 3) Demonstrate migration ordering and
+failure recovery separately... 4) Package the evidence... Verification and closeout: run
+focused regression tests and required repository checks, preserve legacy Helm behavior, scoped
+cleanup, update PROGRESS/DEFERRED-WORK/START-HERE/HANDOFF, publish a focused PR and monitor CI,
+stop for owner review; do not merge or activate further work." Full text recorded verbatim in
+this session's transcript. **GO-MVP remains complete** (see above); full GO-1 stays paused/
+deferred; GO-2 is **not** activated by this milestone.
+
+**Scope:** one local kind cluster, synthetic data, manual Argo CD sync only. No AWS activity, no
+new remote repository, no automatic reconciliation, no multi-environment promotion, no advanced
+rollout coordinator. Built on an isolated feature-branch worktree
+(`../bedoux-gitops-update`, branch `feature/gitops-version-update`, from `main` at `f3e38bd`) so
+all pre-existing uncommitted full-GO-1 work stays preserved, untouched, in the original working
+tree.
+
+- [x] GO-MVP-U1.1 — `scripts/gitops-mvp-up.sh` now captures `kind get clusters`' own exit status
+      before deciding create-vs-reuse (mirrors `scripts/gitops-mvp-down.sh`'s existing pattern): a
+      failed inventory query REFUSEs (non-zero exit, explains the query itself failed) instead of
+      falling through to cluster creation as if the cluster were simply absent. New regression
+      test `scripts/test-gitops-mvp-up-inventory.sh` (6/6 assertions passing) mocks a failing
+      `kind get clusters` and proves no `kind create cluster`, no kubectl/podman/helm mutation
+      call happens — refusal occurs before any cluster mutation. Wired into
+      `.github/workflows/pr-validation.yml`'s "Run GO-MVP local test suites" step alongside the
+      other three MVP suites. Existing `scripts/test-gitops-mvp-up-ownership.sh` (5/5) rerun and
+      still passes — the ownership-before-mutation check is unchanged. The empty-cluster-list
+      case (confirmed-empty, not a query failure) still proceeds to creation exactly as before.
+- [ ] GO-MVP-U1.2 — Demonstrate a real version A -> version B update: build distinct, traceable
+      images from two recorded source revisions; deploy A, create a synthetic order, manually
+      sync B on the SAME cluster/database; prove the running image changed, the visible change
+      appeared, and the original order survived; fix release-identity/verifier `.items[0]`
+      selection as needed.
+- [ ] GO-MVP-U1.3 — Demonstrate migration ordering and a controlled migration failure/recovery
+      separately, with Job/pod identity and timestamp evidence; prove verification rejects a
+      failed migration, the previously-working release and its order remain usable, and recovery
+      happens through an explicit reviewed local repair + manual sync (no automatic schema
+      downgrade).
+- [ ] GO-MVP-U1.4 — Package the evidence: update the demo runbook with the reproducible
+      walkthrough, record actual results in `docs/PROGRESS.md`, update DEF-015 by subfinding
+      (close only demonstrated portions), preserve the one-cluster boundary, scoped cleanup, and
+      open a focused PR (stop for owner review, do not merge).
+
 ## Blockers
 
 - GitHub server-side branch protection remains unavailable while the repository is private
@@ -949,6 +994,31 @@ and stays the only signature check actually enforced anywhere in this session's 
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-09-10T12:00:00-06:00 — GO-MVP-U1 activated: bounded post-MVP version-update milestone — Claude
+
+- **Owner authorization (verbatim, this session):** "Activate one bounded post-MVP milestone
+  covering the work below. Record its scope and activation in PROGRESS before implementation.
+  GO-MVP remains complete. Full GO-1 stays paused, and GO-2 is not activated." Full text (four
+  numbered work items plus verification/closeout instructions) recorded in this session's
+  transcript and summarized in the new "GO-MVP-U1" checklist section above.
+- **Scope activated:** one local kind cluster, synthetic data, manual Argo CD sync only — DEF-015
+  startup hardening, a real image-A-to-image-B application-version update demonstration with a
+  surviving synthetic order, migration ordering + a controlled migration failure/recovery
+  demonstration, and evidence packaging culminating in a focused PR. No AWS, no new remote repo,
+  no automatic reconciliation, no multi-environment promotion, no advanced rollout coordinator.
+- **Isolation:** created `git worktree add ../bedoux-gitops-update -b feature/gitops-version-update
+  main` from `main` at `f3e38bd` (the exact head after PR #91's merge and its follow-up
+  checkpoint commit). This session's implementation work happens in that worktree so the
+  pre-existing uncommitted full-GO-1 design-contract changes in the original working tree
+  (`docs/TEST-PLAN.md`, `docs/decisions/README.md`, `docs/gitops-expansion-plan.md`,
+  `docs/runbooks/gitops-recovery.md`, `scripts/p13-canary-rollout.sh`, ADR 0027 draft, the
+  GO-1 design contract doc, `docs/gitops-fixtures/`, and the deferred automation scripts/tests)
+  are never touched, staged, or committed by this milestone.
+- **Local tooling confirmed present:** `kind` (mise, v0.32.0), `podman`, `helm`, `kubectl` on
+  PATH; `kind get clusters` confirmed empty before starting. No AWS credentials used or needed.
+- **Next action:** GO-MVP-U1.1 — harden `scripts/gitops-mvp-up.sh`'s kind-inventory branch
+  (DEF-015) and add a regression test. AWS: none.
 
 ### 2026-09-10T11:19:10-06:00 — PR #91 merged: GO-MVP closed out — Claude
 

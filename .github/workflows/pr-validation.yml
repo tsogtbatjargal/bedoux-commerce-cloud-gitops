@@ -104,6 +104,7 @@ jobs:
           bash scripts/test-gitops-mvp-verify.sh
           bash scripts/test-gitops-mvp-down.sh
           bash scripts/test-gitops-mvp-up-ownership.sh
+          bash scripts/test-gitops-mvp-up-inventory.sh
       - name: Lint and render all Helm profiles
         run: |
           set -euo pipefail
