@@ -13,6 +13,20 @@ This handoff does not activate GitOps/hosting implementation or accept either Pr
 Resume bedoux-commerce-cloud on this computer. First reconcile the transferred planning
 package and summarize the next decision for me; do not begin implementation automatically.
 
+LATEST OWNER DIRECTION — 2026-09-10, SUPERSEDES THE HISTORICAL PLANNING CHECKPOINT BELOW
+- GO-1 was activated and reviewed; its full contract remains unfinished and paused/deferred.
+  The owner-approved narrowly scoped local-only GitOps scaling MVP is now **closed out**:
+  DEF-012–014 fixed and demonstrated, PR #91 (`feature/gitops-mvp` -> `main`) carried all MVP
+  changes with all four CI checks green and merged per explicit owner authorization. Read the
+  newest PROGRESS entries for the merge SHA and evidence.
+- Read docs/DEFERRED-WORK.md and maintain it whenever unfinished work is deferred. DEF-012–014
+  are now Resolved with evidence links; DEF-001–011 and DEF-015 (full GO-1 backlog) remain
+  DEFERRED. Reference DEF IDs in PROGRESS; revisit the open backlog with the owner, not as
+  automatic activation.
+- Do not use known-broken deferred automation. The MVP closeout does not activate GO-2 or resume
+  full GO-1; no AWS or remote repository creation is implied. Preserve the existing dirty
+  worktree (full GO-1 design-contract files remain uncommitted and untouched).
+
 REPOSITORY AND TRANSFER CHECK
 - Receiving workstation: nomad (SSH alias from the original workstation).
   Owner-selected projects directory: /var/home/tsogtb/src/github.com/bedoux-tech/.

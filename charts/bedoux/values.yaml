@@ -70,6 +70,14 @@ web:
     pullPolicy: IfNotPresent
   # Test-only rollback drills may override this while retaining a signed image digest.
   command: []
+  # Restored to 1 (Codex's GO-MVP follow-up review, docs/PROGRESS.md session log
+  # 2026-09-09T20:55:51-06:00): a prior session temporarily bumped this to 2 as
+  # the demo's "effective Git change" (docs/runbooks/gitops-mvp-demo.md records
+  # the live evidence from that run: web scaled 1/1 -> 2/2 on the same cluster,
+  # snapshot revision 153a1526a... -> c16d9e0a8...) — a one-off local
+  # demonstration, never an intentionally approved change to this shared chart's
+  # default. Restored here since that approval was never given; re-apply the
+  # bump locally (not in this file) for a future same demo run if desired.
   replicas: 1
   autoscaling:
     # P11.1 opts this in through values-kind-hpa.yaml.
@@ -140,6 +148,13 @@ migration:
   enabled: true
   backoffLimit: 2
   activeDeadlineSeconds: 120
+  # Default false: legacy Helm CLI hook behavior (ADR 0005), completely unchanged.
+  # GO-MVP's Argo Application overrides this to true — see
+  # charts/bedoux/templates/migration-job.yaml's header comment for why the
+  # Helm-hook form fails on a fresh Argo CD sync (Argo maps pre-upgrade to
+  # PreSync unconditionally, before this chart's own ServiceAccount/Postgres
+  # exist) and what the gitopsMode plain sync-wave resource does instead.
+  gitopsMode: false
 
 # Per ADR 0005: off by default everywhere, including the learning AWS profile. Turn on
 # explicitly (--set seed.enabled=true) only to bootstrap a fresh environment — never

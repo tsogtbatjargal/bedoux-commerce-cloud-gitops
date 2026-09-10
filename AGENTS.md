@@ -15,6 +15,11 @@ scripts, and human operators working in this repository.
    (supersede — do not amend accepted decisions).
 8. Do not start a later phase early. Phase gates require explicit owner approval, recorded
    as their own commit: `Phase N gate approved by owner; activate Phase N+1`.
+9. When work is deferred or an out-of-scope defect is found, add or update its stable entry in
+   `docs/DEFERRED-WORK.md` before session closeout and reference its ID in `docs/PROGRESS.md`.
+   Include the safe interim boundary, revisit trigger and closure evidence. Review the backlog
+   with the owner after the MVP and at milestone closeouts; it does not authorize implementation
+   or replace `docs/PROGRESS.md` as execution state. Keep resolved entries with evidence links.
 
 ## Scope and safety
 

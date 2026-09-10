@@ -14,6 +14,8 @@ metadata:
   name: web
   labels:
     {{- include "bedoux.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   replicas: {{ .Values.web.replicas }}
   selector:
