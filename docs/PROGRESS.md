@@ -10,8 +10,8 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | GitOps implementation — GO-MVP **closed out and complete** (PR #91). **Owner-approved bounded post-MVP milestone GO-MVP-U1 activated 2026-09-10** (see GO-MVP-U1 checklist section) on isolated worktree `../bedoux-gitops-update`, branch `feature/gitops-version-update`. Full GO-1 design contract stays paused/deferred; GO-2 not activated. P0–P14, M1–M5, and post-track housekeeping H1–H6 remain complete. |
-| Active task | GO-MVP-U1 (IN PROGRESS, PR pending owner review): all four checklist items (U1.1–U1.4) complete — DEF-015 startup hardening, a live-demonstrated real version A→B update with a surviving synthetic order, a live-demonstrated migration-ordering + controlled-failure/recovery cycle, and packaged evidence (see 2026-09-10T14:45:00-06:00 session log entry, the GO-MVP-U1 checklist section, and `docs/runbooks/gitops-mvp-demo.md`). GO-MVP itself remains **complete** (owner-approved closeout 2026-09-10, PR #91 merged — see its own checklist entry above for full detail). GO-1's full design contract remains untouched, `IN PROGRESS`/paused, and deferred; GO-2 is not activated. |
-| Last verified | 2026-09-10T14:45:00-06:00 — GO-MVP-U1 live-demonstrated end to end on a real kind cluster (see session log): real A→B application-version update with a surviving synthetic order, controlled migration failure/recovery, two previously-unknown verifier defects found and fixed live. Local suites (chart/down/up-ownership/up-inventory mocks, verify 16/16 mocks, helm-test 17+6, web unit/lint/build, api unit via throwaway venv 29 passed/7 skipped) all rerun and pass. Cluster torn down and confirmed clean; host `fs.inotify.max_user_instances` restoration to `128` requested from the owner, pending confirmation. Prior: PR #91 (GO-MVP closeout) merged into `main` at `60e7d0757b1394f6d63a63530242eb7fed83eaf5` after all four exact-head CI jobs passed twice. No AWS verification. GO-1's third-round local checks (6 suites, 122 assertions, all passing) remain recorded further down this log, still uncommitted (preserved, GO-1 stays paused/deferred). |
+| Active task | GO-MVP-U1 (IN PROGRESS, PR #92 open, ready for owner review, not merged): all four checklist items (U1.1–U1.4) complete — DEF-015 startup hardening, a live-demonstrated real version A→B update with a surviving synthetic order, a live-demonstrated migration-ordering + controlled-failure/recovery cycle, and packaged evidence (see 2026-09-10T14:45:00-06:00 session log entry, the GO-MVP-U1 checklist section, and `docs/runbooks/gitops-mvp-demo.md`). GO-MVP itself remains **complete** (owner-approved closeout 2026-09-10, PR #91 merged — see its own checklist entry above for full detail). GO-1's full design contract remains untouched, `IN PROGRESS`/paused, and deferred; GO-2 is not activated. |
+| Last verified | 2026-09-10T15:20:00-06:00 — PR #92 (GO-MVP-U1) open at head `774006c6f89506b83b54354361eb793cc1fef5ae`, all four required CI jobs pass (run `34540241763`), `mergeable=MERGEABLE`, ready for review, NOT merged. Built on a live-demonstrated real A→B application-version update with a surviving synthetic order and a controlled migration failure/recovery on a real kind cluster (see session log). Cluster torn down and confirmed clean; host `fs.inotify.max_user_instances` restoration to `128` requested from the owner, pending confirmation as of this entry. Prior: PR #91 (GO-MVP closeout) merged into `main` at `60e7d0757b1394f6d63a63530242eb7fed83eaf5`. No AWS verification. GO-1's third-round local checks (6 suites, 122 assertions, all passing) remain recorded further down this log, still uncommitted (preserved, GO-1 stays paused/deferred). |
 | AWS resources currently live | Last recorded inventory, not refreshed by PH-A: no temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
 | Next operator action | Review and merge (or request changes on) the GO-MVP-U1 PR from `feature/gitops-version-update` once CI is green — this session stops after opening it, per explicit instruction, and does not merge it. Full GO-1 and the remaining advanced backlog stay deferred — unfinished findings and safe deferral boundaries remain tracked in `docs/DEFERRED-WORK.md` (DEF-001–011, DEF-015 subfinding 3); review that backlog with the owner before activating any of it. Do not mark the original full GO-1 contract complete, activate GO-2, or infer broader new-image/schema support than the one demonstrated update. No AWS session or cluster mutation occurred in this milestone. |
@@ -999,6 +999,32 @@ tree.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-09-10T15:20:00-06:00 — GO-MVP-U1: PR #92 opened, all four CI checks green, stopped for owner review — Claude
+
+- **PR #92** (`feature/gitops-version-update` -> `main`) opened covering commits `90475e6`
+  (U1.1), `7595dfa`/`92fc1e1`/`1555144` (U1.2/U1.3), `0be0baf` (U1.4), and `774006c` (a CI-only
+  fix, below). Draft initially, marked ready for review once checks passed.
+- **CI fix required:** the first CI run (`34531260061`) failed "Terraform and Helm validation" on
+  a pre-existing, unrelated assertion in `scripts/test-gitops-mvp-chart.sh` ("postgres Deployment
+  carries sync-wave -1") that grabbed the FIRST `kind: Deployment` block in the whole rendered
+  manifest and assumed it was postgres's — not guaranteed by Helm, and apparently ordered
+  differently on the CI runner's Helm version than this dev host's (passed 5/5 local reruns
+  throughout). `charts/bedoux` itself is untouched by this branch (`git diff f3e38bd..HEAD --
+  charts/` is empty) — this was a test-only flakiness bug, not a chart regression. Fixed
+  (`774006c`) by scoping the check by kind+name explicitly, matching the already-reliable pattern
+  the api/web Deployment checks already use.
+- **Final head `774006c6f89506b83b54354361eb793cc1fef5ae`, all four required CI jobs pass**
+  (run `34540241763`): API tests (45s), Web lint/test/build (26s), Container build and scan
+  (1m44s), Terraform and Helm validation (5m58s, includes the 5 GO-MVP local suites: chart 19
+  assertions, verify 16, down 17, up-ownership 5, up-inventory 6). `gh pr view 92` confirms
+  `state=OPEN`, `mergeable=MERGEABLE`, `isDraft=false` (marked ready for review after checks
+  passed).
+- **Stopping here per explicit instruction: not merging PR #92, not activating GO-2, not resuming
+  full GO-1, no AWS activity.** Owner review is the next step. `fs.inotify.max_user_instances`
+  restoration to `128` was requested from the owner during the live-demo portion of this session;
+  confirm it landed before assuming the host is back to its recorded default (see the prior
+  session log entry's note — this entry does not re-verify it). AWS: none.
 
 ### 2026-09-10T14:45:00-06:00 — GO-MVP-U1.2/U1.3 live-demonstrated: real A→B update, migration failure/recovery — Claude
 
