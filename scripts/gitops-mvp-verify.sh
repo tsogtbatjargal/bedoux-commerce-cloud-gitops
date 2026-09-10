@@ -176,11 +176,17 @@ for dep in api web; do
 done
 
 ### Ordering evidence for BOTH api and web — a violation FAILS the script, it is ###
-### no longer a soft warning (DEF-013). ###
+### no longer a soft warning (DEF-013). Selects the newest RUNNING pod for the ###
+### label, not `.items[0]` (GO-MVP-U1, per the returned deployment/rollout-status ###
+### wait above, this is the pod belonging to the advancing/current rollout, not ###
+### an arbitrary or possibly-terminating pod left over from a prior release — an ###
+### update lap can transiently have an old pod still terminating alongside the ###
+### new one, and `.items[0]`'s ordering is not guaranteed to be creation order). ###
 for dep_label in "api" "web"; do
-  pod_created=$(kctl -n "$namespace" get pods -l "app=${dep_label}" -o jsonpath='{.items[0].metadata.creationTimestamp}' 2>/dev/null || true)
+  pod_created=$(kctl -n "$namespace" get pods -l "app=${dep_label}" --field-selector=status.phase=Running \
+    -o jsonpath='{range .items[*]}{.metadata.creationTimestamp}{"\n"}{end}' 2>/dev/null | sort | tail -1 || true)
   if [[ -z "$pod_created" ]]; then
-    fail "no pod found for app=${dep_label} in namespace $namespace — cannot confirm ordering or health for it."
+    fail "no Running pod found for app=${dep_label} in namespace $namespace — cannot confirm ordering or health for it."
   fi
   log "first ${dep_label} pod creationTimestamp=$pod_created (migration completionTime=$migrate_done)"
   if [[ "$migrate_done" > "$pod_created" ]]; then

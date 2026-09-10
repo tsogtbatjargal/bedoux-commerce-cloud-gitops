@@ -107,9 +107,9 @@ case "$args" in
       exit 1
     fi
     exit 0 ;;
-  *"get pods -l app=api"*"jsonpath={.items[0].metadata.creationTimestamp}"*)
+  *"get pods -l app=api"*"field-selector=status.phase=Running"*)
     echo "$api_pod_created" ;;
-  *"get pods -l app=web"*"jsonpath={.items[0].metadata.creationTimestamp}"*)
+  *"get pods -l app=web"*"field-selector=status.phase=Running"*)
     echo "$web_pod_created" ;;
   *"get deploy,job,pods,svc"*)
     echo "mock: resource listing" ;;
@@ -235,8 +235,8 @@ case "\$args" in
       *) exit 0 ;;
     esac ;;
   *"rollout status deployment/"*) exit 0 ;;
-  *"get pods -l app=api"*"jsonpath={.items[0].metadata.creationTimestamp}"*) echo "\$migrate_done" ;;
-  *"get pods -l app=web"*"jsonpath={.items[0].metadata.creationTimestamp}"*) echo "\$migrate_done" ;;
+  *"get pods -l app=api"*"field-selector=status.phase=Running"*) echo "\$migrate_done" ;;
+  *"get pods -l app=web"*"field-selector=status.phase=Running"*) echo "\$migrate_done" ;;
   *"get deploy,job,pods,svc"*) echo "mock: resource listing" ;;
   *) echo "mock kubectl: unhandled args: \$args" >&2; exit 1 ;;
 esac
