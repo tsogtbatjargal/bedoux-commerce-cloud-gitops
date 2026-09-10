@@ -55,8 +55,20 @@ assert "gitopsMode: no Replace=true sync-option (removed — per-tag naming make
   "$([[ "$gitops1" != *"sync-options"* ]]; echo $?)"
 assert "gitopsMode: api ServiceAccount carries sync-wave -1" \
   "$(awk '/kind: ServiceAccount/,/^---/' <<<"$gitops1" | grep -q 'sync-wave: "-1"'; echo $?)"
+# GO-MVP-U1 fix: the previous version grabbed only the FIRST "kind: Deployment"
+# block in the whole rendered manifest, which assumed postgres's Deployment
+# happens to render before api's/web's — not guaranteed by Helm (object order
+# depends on template file processing, which can differ across Helm versions/
+# environments). Its `grep -B5 'name: postgres$'` fallback was equally
+# unreliable: multiple rendered objects are named "postgres" (Secret, Service,
+# Deployment), and "5 lines before this metadata.name" does not reliably land
+# on THIS object's own annotations block. Live-reproduced in CI 2026-09-10 (a
+# different Helm version than this dev host's): both matched the wrong object
+# and the assertion false-FAILed even though the chart's actual annotation was
+# correct. Fixed to scope by kind+name explicitly, the same robust pattern
+# already used for the api/web Deployment checks below.
 assert "gitopsMode: postgres Deployment carries sync-wave -1" \
-  "$(awk '/^kind: Deployment/,/^---/' <<<"$gitops1" | grep -q 'sync-wave: "-1"' || grep -B5 'name: postgres$' <<<"$gitops1" | grep -q 'sync-wave: "-1"'; echo $?)"
+  "$(awk '/^kind: Deployment/{d=1} d && /name: postgres$/{f=1} f{print} /^---/{if(f)exit}' <<<"$gitops1" | grep -q 'sync-wave: "-1"'; echo $?)"
 assert "gitopsMode: api Deployment carries sync-wave 1" \
   "$(awk '/^kind: Deployment/{d=1} d && /name: api$/{f=1} f{print} /^---/{if(f)exit}' <<<"$gitops1" | grep -q 'sync-wave: "1"'; echo $?)"
 assert "gitopsMode: web Deployment carries sync-wave 1" \
