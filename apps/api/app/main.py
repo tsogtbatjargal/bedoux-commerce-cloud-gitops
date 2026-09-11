@@ -13,7 +13,7 @@ app = FastAPI(
         "Products and orders API for the Bedoux Commerce Cloud reference "
         "implementation. See docs/IMPLEMENTATION-PLAN.md for scope."
     ),
-    version="0.1.0",
+    version="0.2.0",
 )
 
 
@@ -75,4 +75,4 @@ def health() -> dict[str, object]:
     """Liveness/readiness probe target. Must never touch the database. Also
     reports orders_enabled so the frontend can render a deliberate "ordering
     disabled" state instead of surfacing raw 503s from /orders."""
-    return {"status": "ok", "orders_enabled": settings.orders_enabled}
+    return {"status": "ok", "orders_enabled": settings.orders_enabled, "version": app.version}

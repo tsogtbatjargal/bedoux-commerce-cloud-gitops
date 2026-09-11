@@ -8,7 +8,7 @@ client = TestClient(app)
 def test_health_returns_ok():
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "orders_enabled": True}
+    assert response.json() == {"status": "ok", "orders_enabled": True, "version": "0.2.0"}
 
 
 def test_openapi_docs_available():

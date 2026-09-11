@@ -19,13 +19,26 @@ LATEST OWNER DIRECTION — 2026-09-10, SUPERSEDES THE HISTORICAL PLANNING CHECKP
   DEF-012–014 fixed and demonstrated, PR #91 (`feature/gitops-mvp` -> `main`) carried all MVP
   changes with all four CI checks green and merged per explicit owner authorization. Read the
   newest PROGRESS entries for the merge SHA and evidence.
+- A second, bounded post-MVP milestone, **GO-MVP-U1**, was activated the same day and its four
+  checklist items completed on isolated worktree `../bedoux-gitops-update`
+  (branch `feature/gitops-version-update`): DEF-015's startup inventory-error branch hardened,
+  a real version A->B application update live-demonstrated on a real kind cluster with a
+  surviving synthetic order, migration ordering plus a controlled migration failure/recovery
+  live-demonstrated, and the evidence packaged (docs/runbooks/gitops-mvp-demo.md's "GO-MVP-U1"
+  section, PROGRESS's 2026-09-10T14:45:00-06:00 session log entry). A PR from
+  feature/gitops-version-update is open for owner review; this session stopped there and did
+  NOT merge it — do not infer merge or completion without checking the PR's actual state.
 - Read docs/DEFERRED-WORK.md and maintain it whenever unfinished work is deferred. DEF-012–014
-  are now Resolved with evidence links; DEF-001–011 and DEF-015 (full GO-1 backlog) remain
-  DEFERRED. Reference DEF IDs in PROGRESS; revisit the open backlog with the owner, not as
+  are Resolved with evidence links; DEF-015 is now updated by subfinding (startup inventory,
+  the real-update proof, and migration ordering/failure/recovery are closed for the demonstrated
+  shape; multi-cluster/shared-image concurrency stays DEFERRED). DEF-001–011 (full GO-1 backlog)
+  remain DEFERRED. Reference DEF IDs in PROGRESS; revisit the open backlog with the owner, not as
   automatic activation.
-- Do not use known-broken deferred automation. The MVP closeout does not activate GO-2 or resume
-  full GO-1; no AWS or remote repository creation is implied. Preserve the existing dirty
-  worktree (full GO-1 design-contract files remain uncommitted and untouched).
+- Do not use known-broken deferred automation. Neither milestone activates GO-2 or resumes
+  full GO-1; no AWS or remote repository creation occurred in either. Preserve the existing dirty
+  worktree in the ORIGINAL clone (full GO-1 design-contract files remain uncommitted and
+  untouched there) — GO-MVP-U1's work happened entirely in the separate `../bedoux-gitops-update`
+  worktree specifically so it never touched that uncommitted GO-1 work.
 
 REPOSITORY AND TRANSFER CHECK
 - Receiving workstation: nomad (SSH alias from the original workstation).

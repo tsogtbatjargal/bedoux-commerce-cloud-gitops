@@ -23,7 +23,7 @@ def test_orders_disabled_returns_503_not_a_crash(monkeypatch):
 def test_health_reports_orders_enabled_state(monkeypatch):
     monkeypatch.setattr(config.settings, "orders_enabled", False)
     response = client.get("/health")
-    assert response.json() == {"status": "ok", "orders_enabled": False}
+    assert response.json() == {"status": "ok", "orders_enabled": False, "version": "0.2.0"}
 
 
 def test_order_rejects_more_than_twenty_lines():

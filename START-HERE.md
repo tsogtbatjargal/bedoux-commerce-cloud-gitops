@@ -18,12 +18,20 @@ This file is the entry point for a new Claude Code, Codex, OpenClaw, or human se
 - Owner direction (2026-09-10): the narrowly scoped local-only GitOps scaling MVP is
   **closed out** — DEF-012–014 fixed and demonstrated, PR #91 (`feature/gitops-mvp` →
   `main`) carries all MVP changes with all four CI checks green, merged per explicit owner
-  authorization (see `docs/PROGRESS.md` session log for the merge SHA). Full GO-1 and the
-  advanced GitOps backlog (DEF-001–011, DEF-015) remain explicitly deferred — not activated by
-  this closeout. Read `docs/DEFERRED-WORK.md` for unfinished findings, safe interim boundaries
-  and revisit criteria; update it whenever additional work is deferred. This does not mark the
-  full GO-1 contract complete, activate GO-2, or bypass the explicit implementation gate in
-  `docs/PROGRESS.md`.
+  authorization (see `docs/PROGRESS.md` session log for the merge SHA).
+- Owner direction (2026-09-10, same day, later): a second **bounded post-MVP milestone,
+  GO-MVP-U1**, was activated and completed on isolated worktree `../bedoux-gitops-update`
+  (branch `feature/gitops-version-update`, from `main` at `f3e38bd`) — DEF-015's startup
+  inventory-error branch hardened, a real version A→B application update live-demonstrated with
+  a surviving synthetic order, migration ordering plus a controlled migration failure/recovery
+  live-demonstrated, and the evidence packaged in `docs/runbooks/gitops-mvp-demo.md`'s "GO-MVP-U1"
+  section and `docs/PROGRESS.md`'s 2026-09-10T14:45:00-06:00 session log entry. A PR from
+  `feature/gitops-version-update` is open for owner review; **this session stopped there and did
+  not merge it.** Full GO-1 and the remaining advanced GitOps backlog (DEF-001–011, DEF-015
+  subfinding 3) remain explicitly deferred — not activated by either milestone. Read
+  `docs/DEFERRED-WORK.md` for unfinished findings, safe interim boundaries and revisit criteria;
+  update it whenever additional work is deferred. Neither milestone marks the full GO-1 contract
+  complete, activates GO-2, or bypasses the explicit implementation gate in `docs/PROGRESS.md`.
 - Continuation target: `nomad`, app clone
   `/var/home/tsogtb/src/github.com/bedoux-tech/bedoux-commerce-cloud`. Read-only verification
   initially found it stale at `0c1c285`; the authorized update after PR #89 brought it cleanly

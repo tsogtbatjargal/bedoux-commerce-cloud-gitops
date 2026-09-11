@@ -80,7 +80,9 @@ or controller pod CrashLoopBackOffs with "couldn't initialize inotify: too many
 open files"; this script does not adjust that sysctl itself.
 
 Refuses (non-zero exit) if: any required tool is missing; --app-revision is not a
-well-formed, existing commit.
+well-formed, existing commit; the 'kind get clusters' inventory query itself fails (distinct
+from a confirmed-empty result) — a failed inventory query is never treated as proof it is safe
+to create a new cluster.
 EOF
 }
 
@@ -176,7 +178,18 @@ log "local snapshot commit: $snapshot_revision (base $app_revision + current cha
 export KIND_EXPERIMENTAL_PROVIDER=podman
 kctl() { kubectl --context "kind-$cluster_name" "$@"; }
 
-if kind get clusters 2>/dev/null | grep -qx "$cluster_name"; then
+### Inventory: distinguish "confirmed empty/absent" from "query failed" — a ###
+### failed `kind get clusters` query must never fall through to cluster ###
+### creation as if the cluster were simply absent (DEF-015). Mirrors the same ###
+### check already in scripts/gitops-mvp-down.sh. ###
+cluster_list_output=""
+if ! cluster_list_output=$(kind get clusters 2>&1); then
+  echo "REFUSE: 'kind get clusters' failed (not a confirmed-empty result): $cluster_list_output" >&2
+  echo "Not proceeding — a failed inventory query is never treated as proof it is safe to create a new cluster." >&2
+  exit 1
+fi
+
+if grep -qx "$cluster_name" <<<"$cluster_list_output"; then
   log "kind cluster '$cluster_name' already exists; checking ownership before touching it"
   if ! kctl -n kube-system get configmap bedoux-gitops-mvp-owner >/dev/null 2>&1; then
     echo "REFUSE: kind cluster '$cluster_name' already exists but has no kube-system/bedoux-gitops-mvp-owner marker — this does not look like a cluster gitops-mvp-up.sh created. Refusing to reuse, modify, or adopt it; use a different --cluster-name, or inspect/remove it manually first." >&2
