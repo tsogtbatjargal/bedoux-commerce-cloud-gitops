@@ -9,12 +9,12 @@ checked here and its evidence is recorded in the session log.
 | Field | Value |
 |---|---|
 | State | IN PROGRESS |
-| Active phase | GitOps implementation — GO-MVP **closed out and complete** (PR #91). **Owner-approved bounded post-MVP milestone GO-MVP-U1 activated 2026-09-10** (see GO-MVP-U1 checklist section) on isolated worktree `../bedoux-gitops-update`, branch `feature/gitops-version-update`. Full GO-1 design contract stays paused/deferred; GO-2 not activated. P0–P14, M1–M5, and post-track housekeeping H1–H6 remain complete. |
-| Active task | GO-MVP-U1 (IN PROGRESS, PR #92 open, ready for owner review, not merged): all four checklist items (U1.1–U1.4) complete — DEF-015 startup hardening, a live-demonstrated real version A→B update with a surviving synthetic order, a live-demonstrated migration-ordering + controlled-failure/recovery cycle, and packaged evidence (see 2026-09-10T14:45:00-06:00 session log entry, the GO-MVP-U1 checklist section, and `docs/runbooks/gitops-mvp-demo.md`). **Verifier hardened across four review rounds** (2026-09-10T18:00:00-06:00, 2026-09-10T19:30:00-06:00, and 2026-09-10T20:15:00-06:00 session log entries) fixing Codex's 2026-09-10T17:24:50-06:00, 2026-09-10T19:05:29-06:00, and next follow-up reviews — malformed/empty resource-evidence rejection, positive retained-migration-Job identification, sync/health checked as separate concerns, current-rollout ordering across all relevant replicas, "unchanged workload" proven from pod-template-hash identity (not RS timing), Job termination from explicit Complete/Failed conditions (not succeeded/failed counts), and `--skip-sync` made explicitly status-only (never claims ordering/unchanged-workload evidence or full release acceptance from two post-deployment reads with no genuine trigger in between) — all via mock regression tests only, no new live cluster run; the original live-demo evidence is unchanged throughout. GO-MVP itself remains **complete** (owner-approved closeout 2026-09-10, PR #91 merged — see its own checklist entry above for full detail). GO-1's full design contract remains untouched, `IN PROGRESS`/paused, and deferred; GO-2 is not activated. |
-| Last verified | 2026-09-10T20:15:00-06:00 — Verifier hardening round 4: `scripts/gitops-mvp-verify.sh`'s `--skip-sync` made explicitly status-only (no pre-sync hash capture, ordering/unchanged-workload reported as UNVERIFIED, final message notes STATUS ONLY); `scripts/test-gitops-mvp-verify.sh` 35/35 mock assertions pass (up from 30/30), including a new stable post-deployment regression (pods predating migration completion under `--skip-sync` must not be misreported as a violation) and a mock fix so the prior/current ReplicaSet-hash transition is driven by an actual sync-trigger marker, not a raw call counter. All other GO-MVP-U1 local suites rerun clean. Prior: round 3 fixed two findings (30/30, then-head `30175af`, CI green); round 2 fixed five findings (26/26, then-head `9e34af0`, CI green, run `34544338484`); PR #91 (GO-MVP closeout) merged into `main` at `60e7d0757b1394f6d63a63530242eb7fed83eaf5`. No AWS verification. GO-1's third-round local checks (6 suites, 122 assertions, all passing) remain recorded further down this log, still uncommitted (preserved, GO-1 stays paused/deferred). |
+| Active phase | GitOps implementation — GO-MVP **closed out and complete** (PR #91). **Owner-approved bounded post-MVP milestone GO-MVP-U1 activated 2026-09-10, merged 2026-09-10T21:37:35-06:00** (PR #92, merge commit `b7e52a9a14f2366609e6e733df0277872a5439b5`; see Active task row below for full evidence). Full GO-1 design contract stays paused/deferred; GO-2 not activated. P0–P14, M1–M5, and post-track housekeeping H1–H6 remain complete. |
+| Active task | GO-MVP-U1 **COMPLETE AND MERGED**: PR #92 (`feature/gitops-version-update` → `main`) merged by owner authorization at reviewed head `935b95cc7cacd49c1b86e4676b5644069ec038d1`, producing merge commit `b7e52a9a14f2366609e6e733df0277872a5439b5` on `main` (GitHub-reported `mergedAt`: 2026-09-10T21:37:35-06:00). All four required CI checks (API tests, Terraform and Helm validation, Web lint/test/build, Container build and scan) were re-confirmed green on that exact head immediately before merge — no head drift. All four checklist items (U1.1–U1.4) are complete — DEF-015 startup hardening, a live-demonstrated real version A→B update with a surviving synthetic order, a live-demonstrated migration-ordering + controlled-failure/recovery cycle, and packaged evidence (see 2026-09-10T14:45:00-06:00 session log entry, the GO-MVP-U1 checklist section, and `docs/runbooks/gitops-mvp-demo.md`) — and the verifier was hardened across four review rounds (2026-09-10T18:00:00-06:00, 2026-09-10T19:30:00-06:00, and 2026-09-10T20:15:00-06:00 session log entries) fixing Codex's 2026-09-10T17:24:50-06:00, 2026-09-10T19:05:29-06:00, and next follow-up reviews, ending at 35/35 mock verifier assertions. GO-MVP itself remains **complete** (owner-approved closeout 2026-09-10, PR #91 merged — see its own checklist entry above for full detail). GO-1's full design contract remains untouched, `IN PROGRESS`/paused, and deferred; GO-2 is not activated by this merge. |
+| Last verified | 2026-09-10T21:37:35-06:00 — PR #92 merge confirmed: `gh pr view 92` reports `state=MERGED`, `mergeCommit.oid=b7e52a9a14f2366609e6e733df0277872a5439b5`, `headRefOid=935b95cc7cacd49c1b86e4676b5644069ec038d1` (the exact reviewed head, unchanged since round 4). All four required checks were re-verified green on that head immediately before the merge was executed. Prior: round 4 made `--skip-sync` explicitly status-only (35/35 mock assertions, up from 30/30, CI green on `935b95c`); round 3 fixed two findings (30/30, then-head `30175af`, CI green); round 2 fixed five findings (26/26, then-head `9e34af0`, CI green, run `34544338484`); PR #91 (GO-MVP closeout) merged into `main` at `60e7d0757b1394f6d63a63530242eb7fed83eaf5`. No AWS verification. GO-1's third-round local checks (6 suites, 122 assertions, all passing) remain recorded further down this log, still uncommitted in the original checkout (preserved, GO-1 stays paused/deferred) — untouched by this merge/reconciliation. |
 | AWS resources currently live | Last recorded inventory, not refreshed by PH-A: no temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
-| Next operator action | Review and merge (or request changes on) the GO-MVP-U1 PR from `feature/gitops-version-update` once CI is green — this session stops after opening it, per explicit instruction, and does not merge it. Full GO-1 and the remaining advanced backlog stay deferred — unfinished findings and safe deferral boundaries remain tracked in `docs/DEFERRED-WORK.md` (DEF-001–011, DEF-015 subfinding 3); review that backlog with the owner before activating any of it. Do not mark the original full GO-1 contract complete, activate GO-2, or infer broader new-image/schema support than the one demonstrated update. No AWS session or cluster mutation occurred in this milestone. |
+| Next operator action | GO-MVP-U1 is closed out and merged; no further action required to accept it. Full GO-1 and the remaining advanced backlog stay deferred — unfinished findings and safe deferral boundaries remain tracked in `docs/DEFERRED-WORK.md` (DEF-001–011, DEF-015 subfinding 3, DEF-016); review that backlog with the owner before activating any of it. Do not mark the original full GO-1 contract complete, activate GO-2, or infer broader new-image/schema support than the one demonstrated update. No AWS session or cluster mutation occurred in this milestone or its merge. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -999,6 +999,46 @@ tree.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-09-10T21:37:35-06:00 — PR #92 merged (owner-approved); GO-MVP-U1 closed out — Claude
+
+Owner authorized merging PR #92 at reviewed head `935b95cc7cacd49c1b86e4676b5644069ec038d1`,
+conditional on that head being unchanged and all required checks remaining green.
+
+1. **Verified before merging.** `gh pr view 92 --json state,isDraft,mergeable,headRefOid,
+   mergeStateStatus` showed `headRefOid=935b95cc7cacd49c1b86e4676b5644069ec038d1` (unchanged from
+   round 4's push), `mergeStateStatus=CLEAN`, `mergeable=MERGEABLE`, `state=OPEN`. `gh pr checks 92`
+   re-confirmed all four required checks (API tests, Terraform and Helm validation, Web lint/test/
+   build, Container build and scan) `pass` on that exact head immediately before merging — no stale
+   cached result relied upon.
+2. **Merged.** `gh pr merge 92 --merge --delete-branch=false` (branch kept, per no broader cleanup
+   being requested). `gh pr view 92 --json state,mergedAt,mergeCommit,headRefOid` afterward
+   confirmed `state=MERGED`, `headRefOid=935b95cc7cacd49c1b86e4676b5644069ec038d1` (still the exact
+   reviewed head — no last-second change), `mergeCommit.oid=
+   b7e52a9a14f2366609e6e733df0277872a5439b5`, `mergedAt=2026-09-11T03:37:35Z` (2026-09-10T21:37:35
+   in this log's -06:00 convention). GO-MVP-U1 is now merged into `main`.
+3. **Checkpoint reconciled.** This entry and the overall-status table above were updated directly
+   on `main` (via a short-lived worktree tracking `origin/main`, pushed directly — matching this
+   repo's established post-merge checkpoint-commit convention, e.g. `f3e38bd` after PR #91's merge)
+   to record the merge SHA and mark GO-MVP-U1 complete/merged, without touching the separate
+   `feature/gitops-version-update` worktree or the pre-existing, unrelated uncommitted full-GO-1
+   work sitting in the original checkout (`docs/DEFERRED-WORK.md`, `docs/PROGRESS.md`,
+   `docs/TEST-PLAN.md`, `docs/decisions/README.md`, `docs/gitops-expansion-plan.md`,
+   `docs/runbooks/gitops-recovery.md`, `scripts/p13-canary-rollout.sh`, and several untracked GO-1
+   design/fixture files) — none of that was read for content beyond identifying DEF-016 to carry
+   forward (next item), and none of it was modified, staged, or committed.
+4. **DEF-016 carried forward.** The original checkout's uncommitted `docs/DEFERRED-WORK.md`
+   contained a DEF-016 entry ("Refresh MVP runbook after verifier and PR closeout") that did not
+   yet exist in the authoritative, now-merged `docs/DEFERRED-WORK.md` — it would have been lost to
+   this closeout if left only in that uncommitted scratch file. Added a DEF-016 entry to the
+   authoritative `docs/DEFERRED-WORK.md` (see its own section) recording the same gap: the runbook
+   at `docs/runbooks/gitops-mvp-demo.md` still describes GO-MVP's chart fix as an uncommitted edit
+   even though PR #91 merged it, and its narrative predates the current per-workload ordering/
+   retained-Job checks and the `--skip-sync` status-only boundary added across GO-MVP-U1's four
+   verifier-hardening rounds. This is a documentation-cleanup tracking entry only — the runbook
+   itself was not rewritten this session, and this does not authorize any further scope.
+5. **No other action taken.** GO-2 was not activated, full GO-1 was not resumed, and no AWS session
+   was opened, per explicit instruction.
 
 ### 2026-09-10T20:15:00-06:00 — GO-MVP-U1 verifier hardening round 4: `--skip-sync` made status-only — Claude
 

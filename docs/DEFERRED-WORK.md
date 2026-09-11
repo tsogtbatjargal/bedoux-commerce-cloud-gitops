@@ -1,6 +1,6 @@
 # Deferred work and post-MVP improvements
 
-Last updated: 2026-09-10T20:15:00-06:00.
+Last updated: 2026-09-10T21:37:35-06:00.
 
 The owner requested a working local MVP first, then the unfinished GitOps improvements.
 This file keeps that work discoverable without treating it as fixed or requiring every future
@@ -374,6 +374,28 @@ the full gap/fix history stays attached to each ID; each now carries a **Resolut
   deployment support than the one demonstrated update, or when startup inventory fails.
 - **Close with (remaining):** scoped image ownership for any supported concurrency. No advanced
   GO-1 automation is implied.
+
+### DEF-016 — Refresh MVP runbook after verifier and PR closeout
+
+- **Status:** DEFERRED; non-blocking. Carried forward at GO-MVP-U1's PR #92 merge closeout
+  (2026-09-10T21:37:35-06:00) from a note found in unrelated, uncommitted full-GO-1 working-tree
+  content (never itself committed) so it is not lost. Updated: 2026-09-10T21:37:35-06:00.
+- **Gap:** `docs/runbooks/gitops-mvp-demo.md` still describes GO-MVP's chart fix as an uncommitted
+  edit even though PR #91 merged it, and its verification narrative predates the per-workload
+  ordering/retained-Job checks and the explicit `--skip-sync` status-only boundary added across
+  GO-MVP-U1's four verifier-hardening rounds (see DEF-015 subfinding 2's round 2–4 notes and
+  `docs/PROGRESS.md`'s 2026-09-10T18:00:00-06:00, 19:30:00-06:00, and 20:15:00-06:00 session log
+  entries).
+- **While deferred:** rely on `scripts/gitops-mvp-verify.sh --help` for the current, accurate
+  behavior contract rather than the runbook's narrative; a default (non-`--skip-sync`) triggered
+  sync is required for this run's ordering/unchanged-workload evidence, while `--skip-sync` is
+  status-only and never a release-acceptance claim. The demo's local-snapshot operation is
+  unaffected; this is a documentation-accuracy gap, not a functional one.
+- **Revisit:** before relying on `docs/runbooks/gitops-mvp-demo.md` as an operator-facing how-to
+  for a fresh demo run, or at the next GO-MVP-U1-adjacent milestone closeout.
+- **Close with:** `docs/runbooks/gitops-mvp-demo.md` updated to describe the chart fix as merged
+  (not uncommitted) and to describe the current ordering/retained-Job/`--skip-sync` behavior
+  accurately; no functional change implied or required.
 
 ## New-item template
 
