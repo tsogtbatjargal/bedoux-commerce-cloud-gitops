@@ -1000,6 +1000,18 @@ tree.
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
 
+### 2026-09-10T18:35:00-06:00 — Owner confirmed inotify restoration; GO-MVP-U1 fully closed out for this session — Claude
+
+- Owner ran `sudo sysctl -w fs.inotify.max_user_instances=128`; confirmed via
+  `cat /proc/sys/fs/inotify/max_user_instances` -> `128`, matching the host's recorded original
+  value. The transient bump to `1024` for the live-demo round is fully reverted; nothing persisted.
+- PR #92 remains open at head `aadff4610cafe6b23db17e92c05d9650e645a785`, all four CI checks
+  green, `mergeable=MERGEABLE`, not merged. All five findings from Codex's
+  2026-09-10T17:24:50-06:00 verifier review are fixed (see the 2026-09-10T18:00:00-06:00 entry).
+- **Stopping here: PR #92 not merged, GO-2 not activated, full GO-1 not resumed, no AWS activity,
+  no work beyond the scoped verifier fixes requested.** Next step is owner review of PR #92.
+  AWS: none.
+
 ### 2026-09-10T18:20:00-06:00 — GO-MVP-U1 verifier hardening round 2: PR #92 green on final head — Claude
 
 - Pushed commit `9e34af052ff087d1210be213a1170696708ae61e` (verifier fixes for Codex's five
