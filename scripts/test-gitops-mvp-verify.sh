@@ -18,6 +18,15 @@
 # completion (a timing correlation), not by actual pod-template evidence; and
 # Job termination was inferred from succeeded/failed counts, which can reflect
 # a "retry gap" rather than the Job's own explicit Complete/Failed condition.
+# Also covers Codex's next GO-MVP-U1 review (docs/PROGRESS.md session log
+# 2026-09-10T20:15:00-06:00): --skip-sync's ordering/unchanged-workload claims
+# were being drawn from two post-deployment reads with no genuine trigger in
+# between, which the script now treats as UNVERIFIED (status-only) rather than
+# a pass/fail claim; scenarios that genuinely exercise ordering/unchanged
+# evidence now actually trigger a sync (run_with_mock_synced) instead of
+# --skip-sync, and the mock's prior->current transition is now driven by
+# whether the "patch application bedoux-demo" sync trigger actually ran
+# (a marker file), not by a raw per-label call counter.
 # Runs with --no-port-forward (no curl/port-forward dependency) so this suite
 # exercises exactly the evidence logic, not the HTTP layer. Scenarios that
 # legitimately never reach an acceptable state use
@@ -55,6 +64,22 @@ run_with_mock() {
   set +e
   last_output=$(PATH="$bindir:$PATH" GITOPS_MVP_VERIFY_WAIT_SECONDS=1 GITOPS_MVP_VERIFY_POLL_SECONDS=1 \
     "$script" "$@" --no-port-forward --skip-sync 2>&1)
+  last_exit=$?
+  set -e
+}
+
+# Corrected per Codex's next GO-MVP-U1 review (docs/PROGRESS.md session log
+# 2026-09-10T20:15:00-06:00): --skip-sync is now status-only in
+# gitops-mvp-verify.sh and never evaluates ordering or unchanged-workload
+# evidence, so scenarios that exercise THOSE checks must actually trigger a
+# sync (no --skip-sync) for their assertions to mean anything — otherwise they
+# would be asserting behavior the script deliberately no longer performs.
+run_with_mock_synced() {
+  local bindir="$1"
+  shift
+  set +e
+  last_output=$(PATH="$bindir:$PATH" GITOPS_MVP_VERIFY_WAIT_SECONDS=1 GITOPS_MVP_VERIFY_POLL_SECONDS=1 \
+    "$script" "$@" --no-port-forward 2>&1)
   last_exit=$?
   set -e
 }
@@ -183,15 +208,22 @@ retained_job_condition() {
   fi
 }
 
-next_rs_call_is_current() {
-  # Returns 0 (true) once this label's counter has already seen one call
-  # (the PRIOR read); increments on every call.
-  local label="$1" calls
-  local counter_file="$mockdir/.rs_calls_$label"
-  calls=$(( $(cat "$counter_file" 2>/dev/null || echo 0) + 1 ))
-  echo "$calls" >"$counter_file"
-  [[ "$calls" -ge 2 ]]
-}
+# Corrected per Codex's next GO-MVP-U1 review (docs/PROGRESS.md session log
+# 2026-09-10T20:15:00-06:00): the previous call-count-based transition
+# ("first call per label = prior, every call after = current") modeled WHEN a
+# genuine before/after transition happens by call ORDER alone, not by whether
+# a sync was actually triggered — which is exactly the assumption the real
+# script no longer makes for --skip-sync runs (see gitops-mvp-verify.sh: no
+# trigger means no genuine "before" sample exists at all). Replaced with a
+# marker file the "patch application bedoux-demo" case below only touches when
+# a sync trigger actually happens: state only transitions from prior to
+# current AFTER a real trigger, matching gitops-mvp-verify.sh's own causality
+# (prior-hash capture happens before the patch call; the ordering loop's read
+# happens after it). Under --skip-sync the patch is never invoked, so the
+# marker never appears and every "get rs" call keeps returning the SAME
+# (prior) line — correctly modeling "nothing happened this run."
+sync_triggered_marker="$mockdir/.sync_triggered"
+sync_was_triggered() { [[ -f "$sync_triggered_marker" ]]; }
 
 case "$args" in
   *"get application bedoux-demo"*"jsonpath={.spec.source.targetRevision}"*)
@@ -199,7 +231,10 @@ case "$args" in
   *"get application bedoux-demo"*"jsonpath={.spec.source.helm.valuesObject.api.image.tag}"*)
     echo "$image_tag" ;;
   *"get application bedoux-demo"*"jsonpath={.status.operationState.startedAt}"*)
-    echo "2026-01-01T00:00:10Z" ;;
+    if sync_was_triggered; then echo "2026-01-01T00:10:00Z"; else echo "2026-01-01T00:00:10Z"; fi ;;
+  *"patch application bedoux-demo"*)
+    touch "$sync_triggered_marker"
+    exit 0 ;;
   *"get application bedoux-demo"*"range .status.resources"*)
     if [[ "${MOCK_RESOURCES_QUERY_FAILS:-}" == "1" ]]; then
       echo "Error from server: etcdserver: request timed out" >&2
@@ -277,13 +312,13 @@ case "$args" in
     fi
     exit 0 ;;
   *"get rs -l app=api "*)
-    if next_rs_call_is_current api; then
+    if sync_was_triggered; then
       printf '%s|api-rs-current|%s\n' "$changed_ts" "$api_current_hash"
     else
       printf '2025-12-31T00:00:00Z|api-rs-prior|%s\n' "$api_prior_hash"
     fi ;;
   *"get rs -l app=web "*)
-    if next_rs_call_is_current web; then
+    if sync_was_triggered; then
       printf '%s|web-rs-current|%s\n' "$changed_ts" "$web_current_hash"
     else
       printf '2025-12-31T00:00:00Z|web-rs-prior|%s\n' "$web_prior_hash"
@@ -334,9 +369,11 @@ assert "REPRO CLOSED: sync.revision mismatch (stale evidence) -> exits non-zero 
 assert "sync.revision mismatch: error names it stale evidence" "$([[ "$last_output" == *"stale evidence"* ]]; echo $?)"
 
 ### DEF-013 repro 3: ordering violation for API must fail (already worked before). ###
+### Must actually trigger a sync (run_with_mock_synced) — ordering evidence is ###
+### only ever evaluated when a genuine before/after sample exists. ###
 bindir5=$(mock_bin_dir scenario5)
 write_mock_kubectl "$bindir5"
-MOCK_ORDERING_VIOLATION=api run_with_mock "$bindir5"
+MOCK_ORDERING_VIOLATION=api run_with_mock_synced "$bindir5"
 assert "api ordering violation -> exits non-zero" "$([[ "$last_exit" -ne 0 ]]; echo $?)"
 assert "api ordering violation: error names it an ORDERING VIOLATION" "$([[ "$last_output" == *"ORDERING VIOLATION"* ]]; echo $?)"
 
@@ -344,8 +381,31 @@ assert "api ordering violation: error names it an ORDERING VIOLATION" "$([[ "$la
 ### ordering violation for WEB must ALSO fail — previously never checked at all. ###
 bindir6=$(mock_bin_dir scenario6)
 write_mock_kubectl "$bindir6"
-MOCK_ORDERING_VIOLATION=web run_with_mock "$bindir6"
+MOCK_ORDERING_VIOLATION=web run_with_mock_synced "$bindir6"
 assert "REPRO CLOSED: web ordering violation -> exits non-zero (web was never checked before)" "$([[ "$last_exit" -ne 0 ]]; echo $?)"
+
+### Codex's next GO-MVP-U1 review (docs/PROGRESS.md session log ###
+### 2026-09-10T20:15:00-06:00): "add a stable post-deployment regression with ###
+### pods predating migration completion." With --skip-sync (no genuine before ###
+### sample this run), a pod that predates the CURRENT migration Job's ###
+### completion — e.g. a routine status check run some time after a real ###
+### deploy already happened — must NOT be misreported as an ORDERING VIOLATION ###
+### (there is nothing this run to blame it on) nor as "UNCHANGED by this ###
+### release" (no genuine before/after sample exists to prove that either). It ###
+### must be reported as UNVERIFIED and the run must still exit 0. ###
+bindir23=$(mock_bin_dir scenario23)
+write_mock_kubectl "$bindir23"
+MOCK_ORDERING_VIOLATION=web run_with_mock "$bindir23"
+assert "REPRO CLOSED: --skip-sync status check with a pod predating migration completion -> still exits 0 (no false ORDERING VIOLATION)" \
+  "$([[ "$last_exit" -eq 0 ]]; echo $?)"
+assert "--skip-sync status check: reports UNVERIFIED, not a pass/fail ordering claim" \
+  "$([[ "$last_output" == *"UNVERIFIED (--skip-sync)"* ]]; echo $?)"
+assert "--skip-sync status check: never claims ORDERING VIOLATION" \
+  "$([[ "$last_output" != *"ORDERING VIOLATION"* ]]; echo $?)"
+assert "--skip-sync status check: never claims UNCHANGED by this release from a single post-deployment sample" \
+  "$([[ "$last_output" != *"UNCHANGED by this release"* ]]; echo $?)"
+assert "--skip-sync status check: final message notes STATUS ONLY, not full release acceptance" \
+  "$([[ "$last_output" == *"STATUS ONLY"* ]]; echo $?)"
 
 ### A rollout that never completes must fail, not be masked by a stale ###
 ### Application-level Healthy status. ###
@@ -425,9 +485,11 @@ assert "REPRO CLOSED: Degraded health from a retained Failed Job, but the CURREN
 ### its pod-template-hash being IDENTICAL before and after this sync, never by ###
 ### comparing a ReplicaSet's creationTimestamp to migration completion — must ###
 ### be reported as such, not flagged. ###
+### These require a genuine before/after sample, so they must actually ###
+### trigger a sync (run_with_mock_synced), not --skip-sync. ###
 bindir18=$(mock_bin_dir scenario18)
 write_mock_kubectl "$bindir18"
-MOCK_UNCHANGED_WORKLOAD=web run_with_mock "$bindir18"
+MOCK_UNCHANGED_WORKLOAD=web run_with_mock_synced "$bindir18"
 assert "REPRO CLOSED: web left UNCHANGED by this release (proven by template-hash identity) -> still exits 0, not flagged as an ordering violation" \
   "$([[ "$last_exit" -eq 0 ]]; echo $?)"
 assert "unchanged workload: reported explicitly as unchanged, not silently skipped" \
@@ -435,7 +497,7 @@ assert "unchanged workload: reported explicitly as unchanged, not silently skipp
 
 bindir19=$(mock_bin_dir scenario19)
 write_mock_kubectl "$bindir19"
-MOCK_MULTI_REPLICA_VIOLATION=web run_with_mock "$bindir19"
+MOCK_MULTI_REPLICA_VIOLATION=web run_with_mock_synced "$bindir19"
 assert "REPRO CLOSED: 2-replica web rollout, one replica predates migration -> exits non-zero (single-pod check would have missed this)" \
   "$([[ "$last_exit" -ne 0 ]]; echo $?)"
 
@@ -448,7 +510,7 @@ assert "REPRO CLOSED: 2-replica web rollout, one replica predates migration -> e
 ### ordering check it feeds into. ###
 bindir20=$(mock_bin_dir scenario20)
 write_mock_kubectl "$bindir20"
-MOCK_NEW_RS_ORDERING_VIOLATION=web run_with_mock "$bindir20"
+MOCK_NEW_RS_ORDERING_VIOLATION=web run_with_mock_synced "$bindir20"
 assert "REPRO CLOSED: new ReplicaSet -> new pod -> migration completes after it -> exits non-zero" \
   "$([[ "$last_exit" -ne 0 ]]; echo $?)"
 assert "new-RS ordering violation: correctly identified as CHANGED (not excused as unchanged), error names it an ORDERING VIOLATION" \
@@ -459,7 +521,7 @@ assert "new-RS ordering violation: correctly identified as CHANGED (not excused 
 ### conditions must still be tolerated together, not just individually. ###
 bindir21=$(mock_bin_dir scenario21)
 write_mock_kubectl "$bindir21"
-MOCK_UNCHANGED_WORKLOAD=api MOCK_OUTOFSYNC_RETAINED_JOB_ONLY=1 run_with_mock "$bindir21"
+MOCK_UNCHANGED_WORKLOAD=api MOCK_OUTOFSYNC_RETAINED_JOB_ONLY=1 run_with_mock_synced "$bindir21"
 assert "PRESERVED: unchanged api workload + a terminal retained Job together -> still exits 0" \
   "$([[ "$last_exit" -eq 0 ]]; echo $?)"
 

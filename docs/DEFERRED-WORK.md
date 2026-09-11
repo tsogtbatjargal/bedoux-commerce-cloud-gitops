@@ -1,6 +1,6 @@
 # Deferred work and post-MVP improvements
 
-Last updated: 2026-09-10T19:30:00-06:00.
+Last updated: 2026-09-10T20:15:00-06:00.
 
 The owner requested a working local MVP first, then the unfinished GitOps improvements.
 This file keeps that work discoverable without treating it as fixed or requiring every future
@@ -329,6 +329,29 @@ the full gap/fix history stays attached to each ID; each now carries a **Resolut
     including preserved positive tests for a genuinely unchanged workload and a genuinely
     terminal retained Job (together, not just individually). See `docs/PROGRESS.md`'s
     2026-09-10T19:30:00-06:00 session log entry.
+  - **Verifier hardening round 4 (Codex review, 2026-09-10T20:15:00-06:00), fixed via mock
+    regression tests only — the live-demo evidence above is still unchanged, not re-run; no new
+    cluster run:** `--skip-sync` was still using its pod-template-hash and pod-creation-timestamp
+    reads to claim "unchanged by this release," an ORDERING VIOLATION, or full release acceptance
+    — but with no sync ever triggered, both reads are of the SAME already-deployed state taken
+    moments apart, not a genuine before/after pair; a coincidental hash match or mismatch there
+    proves nothing about what happened during a release, because no release happened during that
+    run. `--skip-sync` is now explicit STATUS ONLY: it skips the pre-sync hash capture entirely and
+    reports migration ordering/unchanged-workload status as UNVERIFIED, never a pass/fail claim,
+    and its final message never claims full release acceptance in that mode. Added a new stable
+    regression proving a `--skip-sync` status check against pods that predate the current migration
+    Job's completion (the routine "check on a release some time after it already happened" case)
+    exits 0 with an explicit UNVERIFIED note — never a false ORDERING VIOLATION nor a false
+    UNCHANGED claim. The scenarios that genuinely exercise ordering/unchanged-workload evidence
+    (ordering violations, unchanged-workload, multi-replica, new-ReplicaSet ordering, and the
+    combined unchanged+retained-Job case) were moved off `--skip-sync` onto a real triggered sync,
+    since that evidence is only ever meaningful when a sync genuinely ran. Also fixed the mock
+    itself: the prior/current ReplicaSet-hash transition was driven by a raw per-label call
+    counter (transitioning on the 2nd call regardless of whether a sync was ever triggered) —
+    replaced with a marker file the mock's `patch application` case only touches when a sync
+    trigger actually happens, so the mock's own causality now matches the real script's (no
+    trigger, no transition). 35/35 mock assertions pass (up from 30/30). See `docs/PROGRESS.md`'s
+    2026-09-10T20:15:00-06:00 session log entry.
 - **Resolution (subfinding 2b — migration ordering and controlled failure/recovery): CLOSED for
   the demonstrated shape.** A minimal backward-compatible migration's ordering before workload
   advancement was proven with Job/pod identity and timestamp evidence (already covered by GO-MVP's

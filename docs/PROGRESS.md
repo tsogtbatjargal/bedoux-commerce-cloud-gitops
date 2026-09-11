@@ -10,8 +10,8 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | GitOps implementation — GO-MVP **closed out and complete** (PR #91). **Owner-approved bounded post-MVP milestone GO-MVP-U1 activated 2026-09-10** (see GO-MVP-U1 checklist section) on isolated worktree `../bedoux-gitops-update`, branch `feature/gitops-version-update`. Full GO-1 design contract stays paused/deferred; GO-2 not activated. P0–P14, M1–M5, and post-track housekeeping H1–H6 remain complete. |
-| Active task | GO-MVP-U1 (IN PROGRESS, PR #92 open, ready for owner review, not merged): all four checklist items (U1.1–U1.4) complete — DEF-015 startup hardening, a live-demonstrated real version A→B update with a surviving synthetic order, a live-demonstrated migration-ordering + controlled-failure/recovery cycle, and packaged evidence (see 2026-09-10T14:45:00-06:00 session log entry, the GO-MVP-U1 checklist section, and `docs/runbooks/gitops-mvp-demo.md`). **Verifier hardened across three review rounds** (2026-09-10T18:00:00-06:00 and 2026-09-10T19:30:00-06:00 session log entries) fixing seven total findings from Codex's 2026-09-10T17:24:50-06:00 and 2026-09-10T19:05:29-06:00 reviews — malformed/empty resource-evidence rejection, positive retained-migration-Job identification, sync/health checked as separate concerns, current-rollout ordering across all relevant replicas, "unchanged workload" proven from pod-template-hash identity (not RS timing), and Job termination from explicit Complete/Failed conditions (not succeeded/failed counts, which can reflect a retry gap) — all via mock regression tests only, no new live cluster run; the original live-demo evidence is unchanged throughout. GO-MVP itself remains **complete** (owner-approved closeout 2026-09-10, PR #91 merged — see its own checklist entry above for full detail). GO-1's full design contract remains untouched, `IN PROGRESS`/paused, and deferred; GO-2 is not activated. |
-| Last verified | 2026-09-10T19:30:00-06:00 — Verifier hardening round 3: `scripts/gitops-mvp-verify.sh` fixed against Codex's two remaining findings (pod-template-hash-based unchanged-workload proof; explicit Job Complete/Failed conditions); `scripts/test-gitops-mvp-verify.sh` 30/30 mock assertions pass (up from 26/26). All other GO-MVP-U1 local suites, `test_helm_render.py`, and `git diff --check` rerun clean. Pending as of this entry: push to PR #92 and rerun CI on the new exact head. Prior: round 2 fixed five findings (26/26, then-head `9e34af0`, CI green, run `34544338484`); PR #91 (GO-MVP closeout) merged into `main` at `60e7d0757b1394f6d63a63530242eb7fed83eaf5`. No AWS verification. GO-1's third-round local checks (6 suites, 122 assertions, all passing) remain recorded further down this log, still uncommitted (preserved, GO-1 stays paused/deferred). |
+| Active task | GO-MVP-U1 (IN PROGRESS, PR #92 open, ready for owner review, not merged): all four checklist items (U1.1–U1.4) complete — DEF-015 startup hardening, a live-demonstrated real version A→B update with a surviving synthetic order, a live-demonstrated migration-ordering + controlled-failure/recovery cycle, and packaged evidence (see 2026-09-10T14:45:00-06:00 session log entry, the GO-MVP-U1 checklist section, and `docs/runbooks/gitops-mvp-demo.md`). **Verifier hardened across four review rounds** (2026-09-10T18:00:00-06:00, 2026-09-10T19:30:00-06:00, and 2026-09-10T20:15:00-06:00 session log entries) fixing Codex's 2026-09-10T17:24:50-06:00, 2026-09-10T19:05:29-06:00, and next follow-up reviews — malformed/empty resource-evidence rejection, positive retained-migration-Job identification, sync/health checked as separate concerns, current-rollout ordering across all relevant replicas, "unchanged workload" proven from pod-template-hash identity (not RS timing), Job termination from explicit Complete/Failed conditions (not succeeded/failed counts), and `--skip-sync` made explicitly status-only (never claims ordering/unchanged-workload evidence or full release acceptance from two post-deployment reads with no genuine trigger in between) — all via mock regression tests only, no new live cluster run; the original live-demo evidence is unchanged throughout. GO-MVP itself remains **complete** (owner-approved closeout 2026-09-10, PR #91 merged — see its own checklist entry above for full detail). GO-1's full design contract remains untouched, `IN PROGRESS`/paused, and deferred; GO-2 is not activated. |
+| Last verified | 2026-09-10T20:15:00-06:00 — Verifier hardening round 4: `scripts/gitops-mvp-verify.sh`'s `--skip-sync` made explicitly status-only (no pre-sync hash capture, ordering/unchanged-workload reported as UNVERIFIED, final message notes STATUS ONLY); `scripts/test-gitops-mvp-verify.sh` 35/35 mock assertions pass (up from 30/30), including a new stable post-deployment regression (pods predating migration completion under `--skip-sync` must not be misreported as a violation) and a mock fix so the prior/current ReplicaSet-hash transition is driven by an actual sync-trigger marker, not a raw call counter. All other GO-MVP-U1 local suites rerun clean. Prior: round 3 fixed two findings (30/30, then-head `30175af`, CI green); round 2 fixed five findings (26/26, then-head `9e34af0`, CI green, run `34544338484`); PR #91 (GO-MVP closeout) merged into `main` at `60e7d0757b1394f6d63a63530242eb7fed83eaf5`. No AWS verification. GO-1's third-round local checks (6 suites, 122 assertions, all passing) remain recorded further down this log, still uncommitted (preserved, GO-1 stays paused/deferred). |
 | AWS resources currently live | Last recorded inventory, not refreshed by PH-A: no temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
 | Next operator action | Review and merge (or request changes on) the GO-MVP-U1 PR from `feature/gitops-version-update` once CI is green — this session stops after opening it, per explicit instruction, and does not merge it. Full GO-1 and the remaining advanced backlog stay deferred — unfinished findings and safe deferral boundaries remain tracked in `docs/DEFERRED-WORK.md` (DEF-001–011, DEF-015 subfinding 3); review that backlog with the owner before activating any of it. Do not mark the original full GO-1 contract complete, activate GO-2, or infer broader new-image/schema support than the one demonstrated update. No AWS session or cluster mutation occurred in this milestone. |
@@ -999,6 +999,55 @@ tree.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-09-10T20:15:00-06:00 — GO-MVP-U1 verifier hardening round 4: `--skip-sync` made status-only — Claude
+
+Addresses Codex's next follow-up review (relayed verbatim by the owner; not independently
+re-fetched from a PR comment or a Codex-authored PROGRESS entry — none was found in the repo).
+Scope: `scripts/gitops-mvp-verify.sh` and `scripts/test-gitops-mvp-verify.sh` only. **No new live
+cluster run this round, no AWS activity, no full GO-1 work** — the existing live-demo evidence
+(2026-09-10T14:45:00-06:00 entry) stays exactly as-is.
+
+1. **`--skip-sync` treated as status-only.** Round 3's pod-template-hash comparison is only
+   meaningful when a sync was genuinely triggered by the current run: the "prior" sample is
+   captured before the trigger, the "current" sample after it. With `--skip-sync`, no trigger ever
+   happens, so both samples are reads of the SAME already-deployed state taken moments apart — a
+   coincidental hash match or mismatch there proves nothing about what "this release" did, because
+   no release happened during that run. `gitops-mvp-verify.sh` no longer captures the pre-sync hash
+   at all when `--skip-sync` is set, and the per-workload ordering loop now explicitly logs
+   `UNVERIFIED (--skip-sync)` and skips straight to the next workload instead of evaluating a
+   pass/fail or an "UNCHANGED by this release" claim. The final success message now appends a
+   `STATUS ONLY` note in `--skip-sync` mode so the run's own output never implies full release
+   acceptance.
+2. **Added the requested stable post-deployment regression.** A new scenario runs `--skip-sync`
+   against a mock where a pod predates the current migration Job's completion (modeling a routine
+   status check performed some time after a real deploy already happened) and asserts: exit 0, an
+   explicit `UNVERIFIED (--skip-sync)` message, no `ORDERING VIOLATION`, no `UNCHANGED by this
+   release` claim, and the `STATUS ONLY` note on the final line.
+3. **Triggered-sync transition mocks now change state only after the sync trigger.** The mock's
+   prior/current ReplicaSet-hash transition previously used a raw per-label call counter
+   (`next_rs_call_is_current()`), switching to "current" on the label's 2nd call regardless of
+   whether a sync was ever actually triggered — the exact assumption this round's fix removes from
+   the real script. Replaced with a marker file the mock's `patch application bedoux-demo` case
+   only touches when a sync trigger genuinely happens; `get rs` now returns the "current" line only
+   once that marker exists. This models the real script's own causality (prior-hash capture always
+   happens before the patch call; the ordering loop's read always happens after it) instead of
+   assuming call order alone means anything.
+4. **Preserved valid unchanged-workload and terminal-Job cases; moved ordering-dependent scenarios
+   onto a real triggered sync.** The scenarios that genuinely exercise ordering/unchanged-workload
+   evidence — API/web ordering violations, unchanged-workload, multi-replica violation, the
+   new-ReplicaSet ordering violation, and the combined unchanged-workload + terminal-retained-Job
+   case — now run via a new `run_with_mock_synced()` helper (no `--skip-sync`, so the trigger and
+   its marker-driven hash transition are real) instead of the always-`--skip-sync` `run_with_mock()`
+   they used before; their assertions are otherwise unchanged and still pass. `scripts/
+   test-gitops-mvp-verify.sh` now covers 35/35 assertions (up from 30/30). All other GO-MVP-U1
+   local suites (`test-gitops-mvp-chart.sh`, `test-gitops-mvp-up-inventory.sh`) rerun clean.
+5. **PR #92 kept open, no merge.** Pushed to the existing `feature/gitops-version-update` branch;
+   CI rerun on the new exact head. See the updated overall-status table row above for the exact
+   commit SHA and CI run result once available.
+
+See `docs/DEFERRED-WORK.md` DEF-015 subfinding 2's "Verifier hardening round 4" note for the
+paired defect/fix writeup.
 
 ### 2026-09-10T19:30:00-06:00 — GO-MVP-U1 verifier hardening round 3: fixed Codex's two remaining findings — Claude
 

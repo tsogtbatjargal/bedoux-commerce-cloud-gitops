@@ -58,6 +58,22 @@
 # own explicit `status.conditions[type=Complete|Failed,status=True]`, read via
 # one validated query — a query failure is rejected the same as a Job that
 # hasn't reached either condition yet.
+#
+# Corrected per Codex's next GO-MVP-U1 review (docs/PROGRESS.md session log
+# 2026-09-10T20:15:00-06:00): the pod-template-hash comparison above is only
+# meaningful when a sync was genuinely triggered by THIS run — the "prior"
+# sample is captured before the trigger and the "current" sample after it. With
+# --skip-sync, no trigger ever happens, so both samples are reads of the SAME
+# already-deployed state taken moments apart; a hash "match" there proves
+# nothing about what "this release" did (there was no release this run), and a
+# hash "mismatch" would be equally meaningless. Treating either as proof of
+# "unchanged by this release," an ORDERING VIOLATION, or full release
+# acceptance was comparing two post-deployment samples as if one were
+# pre-deployment. --skip-sync is now explicitly STATUS-ONLY: it never captures
+# or compares these hashes, never claims ordering or unchanged-workload
+# evidence either way, and its final message never claims full release
+# acceptance — it only reports the Application's current sync/health/revision
+# status and the current migration Job's own terminal condition.
 
 set -euo pipefail
 
@@ -68,8 +84,14 @@ Usage: scripts/gitops-mvp-verify.sh [options]
 Options:
   --cluster-name NAME   kind cluster name (default: bedoux-gitops-mvp).
   --namespace NAME      Demo namespace (default: bedoux-demo).
-  --skip-sync           Do not trigger a new sync; only verify the Application's
-                         current state against its currently-requested revision.
+  --skip-sync           Status-only: do not trigger a new sync, and do not
+                         claim migration-ordering or unchanged-workload
+                         evidence for api/web (no genuine pre-sync sample
+                         exists in this mode to compare against — see below).
+                         Only reports the Application's current sync/health/
+                         revision status and the current migration Job's own
+                         terminal condition; never a full release-acceptance
+                         claim.
   --no-port-forward      Skip the HTTP checks and port-forward step (still runs
                           all other evidence checks; use this only for a status
                           peek, not as proof the demo actually works end to end).
@@ -96,7 +118,9 @@ rollouts complete; for each of api/web that this release actually updated
 this sync was triggered, never by comparing a timestamp to migration
 completion — a workload whose hash is unchanged is reported as such, not
 checked as a violation), migration completed at/before EVERY one of its
-current replicas; `/health`, `/` and `/products` (a real, read-only, DB-backed
+current replicas (this ordering/unchanged-workload check is SKIPPED and
+reported as UNVERIFIED under --skip-sync, never claimed either way — see
+above); `/health`, `/` and `/products` (a real, read-only, DB-backed
 endpoint — see
 apps/api/app/routers/products.py) all return HTTP 200 through port-forward
 (unless --no-port-forward).
@@ -306,8 +330,17 @@ prior_operation_started_at=$(kctl -n argocd get application bedoux-demo -o jsonp
 # release's migration completion time (a timing correlation, not proof the
 # template didn't change). Captured here, before any sync is triggered, so it
 # reflects genuinely PRIOR state.
-prior_api_hash=$(active_rs_info api | awk -F'|' '{print $3}')
-prior_web_hash=$(active_rs_info web | awk -F'|' '{print $3}')
+#
+# --skip-sync never triggers anything, so there is no genuine "before this
+# sync" moment to sample from — skip the capture entirely rather than read a
+# value that would just be compared against itself later.
+if $skip_sync; then
+  prior_api_hash=""
+  prior_web_hash=""
+else
+  prior_api_hash=$(active_rs_info api | awk -F'|' '{print $3}')
+  prior_web_hash=$(active_rs_info web | awk -F'|' '{print $3}')
+fi
 
 if ! $skip_sync; then
   log "triggering manual sync (syncPolicy is {} — nothing else ever syncs this Application automatically)"
@@ -473,6 +506,17 @@ for dep_label in "api" "web"; do
   fi
   log "${dep_label}: current rollout is ReplicaSet '$rs_name' (created $rs_created, pod-template-hash=${rs_hash:-<none>})"
 
+  # --skip-sync captured no genuine pre-sync sample (see above) — there is
+  # nothing legitimate to compare $rs_hash against. Report this explicitly as
+  # UNVERIFIED rather than claim "unchanged by this release" (a coincidental
+  # hash match proves nothing when no release happened this run) or evaluate
+  # ordering as a pass/fail (a coincidental pod timestamp proves nothing about
+  # THIS run's migration either). This is a status peek, not a verification.
+  if $skip_sync; then
+    log "UNVERIFIED (--skip-sync): no pre-sync sample exists this run, so ${dep_label}'s migration-ordering and unchanged-workload status cannot be proven from a single post-deployment read — reporting current status only, not a pass or fail."
+    continue
+  fi
+
   # Proof of "unchanged" comes from comparing the ACTUAL pod-template-hash
   # captured before this sync to the one active now — not from comparing this
   # ReplicaSet's creationTimestamp to the migration's completion time (a
@@ -516,6 +560,11 @@ done
 
 kctl -n "$namespace" get deploy,job,pods,svc
 
+skip_sync_note=""
+if $skip_sync; then
+  skip_sync_note=" (--skip-sync: STATUS ONLY — migration ordering and unchanged-workload status were not verified this run; this is not a full release-acceptance claim)"
+fi
+
 if $do_port_forward; then
   log "starting port-forwards: web on http://127.0.0.1:8080/  api on http://127.0.0.1:8000/  (Ctrl-C to stop)"
   kctl -n "$namespace" port-forward svc/web 8080:8080 >/tmp/gitops-mvp-verify-pf-web.log 2>&1 &
@@ -542,9 +591,9 @@ if $do_port_forward; then
   # surface through /health at all).
   check_http "api DB-backed (/products)" "http://127.0.0.1:8000/products"
 
-  log "ALL CHECKS PASSED for release targetRevision=$requested_revision image_tag=$image_tag."
+  log "ALL CHECKS PASSED for release targetRevision=$requested_revision image_tag=$image_tag.${skip_sync_note}"
   log "port-forwards running in the foreground; press Ctrl-C to stop."
   wait "$web_pf" "$api_pf"
 else
-  log "ALL NON-HTTP CHECKS PASSED for release targetRevision=$requested_revision image_tag=$image_tag (--no-port-forward: HTTP/DB checks skipped, not proof of a working demo end to end)."
+  log "ALL NON-HTTP CHECKS PASSED for release targetRevision=$requested_revision image_tag=$image_tag (--no-port-forward: HTTP/DB checks skipped, not proof of a working demo end to end).${skip_sync_note}"
 fi
