@@ -10,8 +10,8 @@ checked here and its evidence is recorded in the session log.
 |---|---|
 | State | IN PROGRESS |
 | Active phase | GitOps implementation — GO-MVP **closed out and complete** (PR #91). **Owner-approved bounded post-MVP milestone GO-MVP-U1 activated 2026-09-10** (see GO-MVP-U1 checklist section) on isolated worktree `../bedoux-gitops-update`, branch `feature/gitops-version-update`. Full GO-1 design contract stays paused/deferred; GO-2 not activated. P0–P14, M1–M5, and post-track housekeeping H1–H6 remain complete. |
-| Active task | GO-MVP-U1 (IN PROGRESS, PR #92 open, ready for owner review, not merged): all four checklist items (U1.1–U1.4) complete — DEF-015 startup hardening, a live-demonstrated real version A→B update with a surviving synthetic order, a live-demonstrated migration-ordering + controlled-failure/recovery cycle, and packaged evidence (see 2026-09-10T14:45:00-06:00 session log entry, the GO-MVP-U1 checklist section, and `docs/runbooks/gitops-mvp-demo.md`). **Verifier hardening round 2 (2026-09-10T18:00:00-06:00 session log entry) fixed five findings from Codex's 2026-09-10T17:24:50-06:00 review** — malformed/empty resource-evidence rejection, positive retained-migration-Job identification, sync/health checked as separate concerns (never excusing an unhealthy current resource), and current-rollout ordering across all relevant replicas with explicit unchanged-workload handling — via mock regression tests only, not a new live cluster run; the prior live-demo evidence is unchanged. GO-MVP itself remains **complete** (owner-approved closeout 2026-09-10, PR #91 merged — see its own checklist entry above for full detail). GO-1's full design contract remains untouched, `IN PROGRESS`/paused, and deferred; GO-2 is not activated. |
-| Last verified | 2026-09-10T18:00:00-06:00 — Verifier hardening round 2: `scripts/gitops-mvp-verify.sh` fixed against Codex's five findings; `scripts/test-gitops-mvp-verify.sh` 26/26 mock assertions pass (up from 16/16); all other GO-MVP-U1 local suites, `test_helm_render.py`, and `git diff --check` rerun clean. Pending as of this entry: push to PR #92, rerun CI on the new exact head, and owner confirmation that `fs.inotify.max_user_instances` has been restored to `128` (raised to `1024` for the earlier live-demo round). Prior: PR #92 open at head `774006c6f89506b83b54354361eb793cc1fef5ae` with all four CI jobs passing (run `34540241763`); PR #91 (GO-MVP closeout) merged into `main` at `60e7d0757b1394f6d63a63530242eb7fed83eaf5`. No AWS verification. GO-1's third-round local checks (6 suites, 122 assertions, all passing) remain recorded further down this log, still uncommitted (preserved, GO-1 stays paused/deferred). |
+| Active task | GO-MVP-U1 (IN PROGRESS, PR #92 open, ready for owner review, not merged): all four checklist items (U1.1–U1.4) complete — DEF-015 startup hardening, a live-demonstrated real version A→B update with a surviving synthetic order, a live-demonstrated migration-ordering + controlled-failure/recovery cycle, and packaged evidence (see 2026-09-10T14:45:00-06:00 session log entry, the GO-MVP-U1 checklist section, and `docs/runbooks/gitops-mvp-demo.md`). **Verifier hardened across three review rounds** (2026-09-10T18:00:00-06:00 and 2026-09-10T19:30:00-06:00 session log entries) fixing seven total findings from Codex's 2026-09-10T17:24:50-06:00 and 2026-09-10T19:05:29-06:00 reviews — malformed/empty resource-evidence rejection, positive retained-migration-Job identification, sync/health checked as separate concerns, current-rollout ordering across all relevant replicas, "unchanged workload" proven from pod-template-hash identity (not RS timing), and Job termination from explicit Complete/Failed conditions (not succeeded/failed counts, which can reflect a retry gap) — all via mock regression tests only, no new live cluster run; the original live-demo evidence is unchanged throughout. GO-MVP itself remains **complete** (owner-approved closeout 2026-09-10, PR #91 merged — see its own checklist entry above for full detail). GO-1's full design contract remains untouched, `IN PROGRESS`/paused, and deferred; GO-2 is not activated. |
+| Last verified | 2026-09-10T19:30:00-06:00 — Verifier hardening round 3: `scripts/gitops-mvp-verify.sh` fixed against Codex's two remaining findings (pod-template-hash-based unchanged-workload proof; explicit Job Complete/Failed conditions); `scripts/test-gitops-mvp-verify.sh` 30/30 mock assertions pass (up from 26/26). All other GO-MVP-U1 local suites, `test_helm_render.py`, and `git diff --check` rerun clean. Pending as of this entry: push to PR #92 and rerun CI on the new exact head. Prior: round 2 fixed five findings (26/26, then-head `9e34af0`, CI green, run `34544338484`); PR #91 (GO-MVP closeout) merged into `main` at `60e7d0757b1394f6d63a63530242eb7fed83eaf5`. No AWS verification. GO-1's third-round local checks (6 suites, 122 assertions, all passing) remain recorded further down this log, still uncommitted (preserved, GO-1 stays paused/deferred). |
 | AWS resources currently live | Last recorded inventory, not refreshed by PH-A: no temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
 | Next operator action | Review and merge (or request changes on) the GO-MVP-U1 PR from `feature/gitops-version-update` once CI is green — this session stops after opening it, per explicit instruction, and does not merge it. Full GO-1 and the remaining advanced backlog stay deferred — unfinished findings and safe deferral boundaries remain tracked in `docs/DEFERRED-WORK.md` (DEF-001–011, DEF-015 subfinding 3); review that backlog with the owner before activating any of it. Do not mark the original full GO-1 contract complete, activate GO-2, or infer broader new-image/schema support than the one demonstrated update. No AWS session or cluster mutation occurred in this milestone. |
@@ -999,6 +999,58 @@ tree.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-09-10T19:30:00-06:00 — GO-MVP-U1 verifier hardening round 3: fixed Codex's two remaining findings — Claude
+
+Addresses Codex's follow-up review (relayed verbatim by the owner; not independently re-fetched
+from a PR comment or a Codex-authored PROGRESS entry — none was found in the repo). Scope:
+`scripts/gitops-mvp-verify.sh` and `scripts/test-gitops-mvp-verify.sh` only. **No new live cluster
+run this round** — the existing live-demo evidence (2026-09-10T14:45:00-06:00 entry) stays as-is.
+
+1. **Prove "unchanged" from before/after template evidence, not RS timing.** Round 2's check
+   compared a ReplicaSet's `creationTimestamp` to migration completion — a timing correlation,
+   not proof the pod template didn't change. Fixed: `active_rs_info()` is now called once BEFORE
+   the sync is triggered (capturing `prior_api_hash`/`prior_web_hash`, each label's active
+   ReplicaSet's `pod-template-hash`) and again in the ordering loop (the CURRENT hash); only a
+   genuine hash match proves "unchanged." Added the requested realistic negative test: a
+   genuinely NEW ReplicaSet/pod (hash changes, correctly identified as CHANGED) whose pod predates
+   migration completion is still caught as an ORDERING VIOLATION ("new ReplicaSet -> new pod ->
+   migration completes").
+2. **Determine Job termination from explicit Complete/Failed conditions, reject retry gaps and
+   query failures.** Both the retained-Job terminal check and the current release's own migration
+   Job success check previously inferred termination from `.status.succeeded`/`.status.failed`
+   counts — which can reflect a Job still retrying after an earlier failed attempt (backoffLimit
+   not yet exhausted), a genuine "retry gap," not termination. Fixed: new `job_condition_state()`
+   reads a Job's `status.conditions[?(@.status=="True")]` via ONE validated query and returns
+   "Complete"/"Failed"/empty; a query failure is a separate, explicit rejection from "read fine,
+   not terminal yet," and both are treated as "do not confirm terminal." Applied consistently to
+   the retained-Job check, the independent current-release health check, and the main post-loop
+   migration-success check.
+3. **Regression tests, preserving existing positive tests.** `scripts/test-gitops-mvp-verify.sh`
+   now covers 30/30 assertions (up from 26/26): the new-RS ordering-violation negative test above;
+   a current-migration-Job "retry gap" (succeeded=0 but no terminal condition) correctly rejected
+   with the right error text; and a combined positive test proving an unchanged workload AND a
+   terminal retained Job are still tolerated TOGETHER, not just individually. All prior
+   scenarios — genuinely unchanged workload, genuinely terminal retained Job, multi-replica
+   violation, resource-evidence rejection, health-separate-from-sync — rerun unmodified and still
+   pass. A real implementation bug was found and fixed along the way: the mock's
+   `next_rs_call_is_current()` used `local label="$1" counter_file="...$label"` — bash does NOT
+   make `$label` visible to a later assignment in the SAME `local` statement, so `counter_file`
+   always evaluated with an empty label, collapsing the api/web call counters into one shared
+   file. Split into two `local` statements; confirmed via manual reproduction before and after.
+- All other GO-MVP-U1 local suites, `python3 scripts/test_helm_render.py`, and `git diff --check`
+  rerun clean.
+- `docs/DEFERRED-WORK.md` DEF-015 updated with a "round 3" note under subfinding 2, layered on
+  top of (not replacing) round 1 and round 2's notes.
+- **Next action:** push, rerun CI on the new exact head, stop for review. No merge, no AWS, no
+  broader GitOps work. AWS: none.
+
+**Codex's review, 2026-09-10T19:05:29-06:00 (relayed by the owner in this session, verbatim):**
+"Prove a workload is unchanged from before/after template or revision evidence—not from whether
+its ReplicaSet predates migration. Add a realistic negative test: new ReplicaSet → new pod →
+migration completes. Determine Job termination from explicit Complete/Failed conditions in a
+successfully read, validated Job object. Reject retry gaps and query failures. Preserve positive
+tests for genuinely unchanged workloads and terminal retained Jobs."
 
 ### 2026-09-10T18:35:00-06:00 — Owner confirmed inotify restoration; GO-MVP-U1 fully closed out for this session — Claude
 

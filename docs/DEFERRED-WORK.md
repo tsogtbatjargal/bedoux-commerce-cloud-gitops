@@ -1,6 +1,6 @@
 # Deferred work and post-MVP improvements
 
-Last updated: 2026-09-10T18:00:00-06:00.
+Last updated: 2026-09-10T19:30:00-06:00.
 
 The owner requested a working local MVP first, then the unfinished GitOps improvements.
 This file keeps that work discoverable without treating it as fixed or requiring every future
@@ -312,6 +312,23 @@ the full gap/fix history stays attached to each ID; each now carries a **Resolut
     workload the release left unchanged. All four fixed in `scripts/gitops-mvp-verify.sh`;
     26/26 mock assertions pass (up from 14/14; then 16/16 after round 1). See
     `docs/PROGRESS.md`'s 2026-09-10T18:00:00-06:00 session log entry.
+  - **Verifier hardening round 3 (Codex review, 2026-09-10T19:05:29-06:00), fixed via mock
+    regression tests only — the live-demo evidence above is still unchanged, not re-run:**
+    round 2's "unchanged workload" detection still compared a ReplicaSet's creationTimestamp to
+    migration completion — a timing correlation, not proof the pod template didn't change.
+    Fixed to compare the actual pod-template-hash captured before this sync to the one active
+    now (a genuine hash match is the only valid proof of "unchanged"), with a new regression
+    proving a genuinely new ReplicaSet/pod whose pod predates migration completion is still
+    caught ("new ReplicaSet -> new pod -> migration completes"). Separately, Job termination
+    (both the current release's own migration Job and any retained prior-release Job) was
+    inferred from `.status.succeeded`/`.status.failed` counts, which can reflect a Job still
+    retrying after an earlier failed attempt (a "retry gap") rather than actually being done.
+    Fixed to require the Job's own explicit `status.conditions[type=Complete|Failed,
+    status=True]`, read via one validated query; a query failure or a Job with neither condition
+    set yet is rejected, never defaulted to success. 30/30 mock assertions pass (up from 26/26),
+    including preserved positive tests for a genuinely unchanged workload and a genuinely
+    terminal retained Job (together, not just individually). See `docs/PROGRESS.md`'s
+    2026-09-10T19:30:00-06:00 session log entry.
 - **Resolution (subfinding 2b — migration ordering and controlled failure/recovery): CLOSED for
   the demonstrated shape.** A minimal backward-compatible migration's ordering before workload
   advancement was proven with Job/pod identity and timestamp evidence (already covered by GO-MVP's

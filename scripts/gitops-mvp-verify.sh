@@ -44,6 +44,20 @@
 # workload an update legitimately left UNCHANGED (whose current pods can
 # predate the new migration by design, not as a violation). All four are fixed
 # below, with new regression coverage for each counterexample.
+#
+# Corrected per Codex's follow-up GO-MVP-U1 review (docs/PROGRESS.md session
+# log 2026-09-10T19:05:29-06:00): "unchanged workload" was still being proven
+# by comparing a ReplicaSet's creationTimestamp to migration completion — a
+# timing correlation, not evidence the pod template actually didn't change.
+# Fixed to compare the ACTUAL pod-template-hash captured before this sync to
+# the one active now; only a genuine hash match proves "unchanged." Job
+# termination (both the current release's own migration Job and any retained
+# prior-release Job) was inferred from `.status.succeeded`/`.status.failed`
+# counts, which can reflect a "retry gap" (failed on an earlier attempt but
+# still within backoffLimit, not actually done). Fixed to require the Job's
+# own explicit `status.conditions[type=Complete|Failed,status=True]`, read via
+# one validated query — a query failure is rejected the same as a Job that
+# hasn't reached either condition yet.
 
 set -euo pipefail
 
@@ -73,12 +87,17 @@ direct queries (never inferred merely from "no other explanation was found");
 `.status.sync.revision` matches its currently-requested `spec.source.
 targetRevision` AND the triggered sync operation itself reports phase Succeeded
 (not a stale status left over from an earlier sync); the migration Job matching
-the CURRENTLY-REQUESTED image tag exists and Succeeded; both api and web
-Deployments' rollouts complete; for each of api/web that this release actually
-updated (its current ReplicaSet was created at/after this migration — a
-workload the release left unchanged is reported as such, not checked as a
-violation), migration completed at/before EVERY one of its current replicas;
-`/health`, `/` and `/products` (a real, read-only, DB-backed endpoint — see
+the CURRENTLY-REQUESTED image tag exists and Succeeded (a "Succeeded" here
+means the Job's own explicit `status.conditions[type=Complete,status=True]`,
+never inferred from a `.status.succeeded` count — which can reflect a Job
+still retrying after an earlier failed attempt); both api and web Deployments'
+rollouts complete; for each of api/web that this release actually updated
+(proven by its current ReplicaSet's pod-template-hash differing from before
+this sync was triggered, never by comparing a timestamp to migration
+completion — a workload whose hash is unchanged is reported as such, not
+checked as a violation), migration completed at/before EVERY one of its
+current replicas; `/health`, `/` and `/products` (a real, read-only, DB-backed
+endpoint — see
 apps/api/app/routers/products.py) all return HTTP 200 through port-forward
 (unless --no-port-forward).
 EOF
@@ -144,6 +163,37 @@ migrate_job="bedoux-migrate-gitops-${image_tag,,}"
 # migration Job just because it also happens not to be $migrate_job.
 migrate_job_name_pattern='^bedoux-migrate-gitops-'
 
+# Corrected per Codex's GO-MVP-U1 review (docs/PROGRESS.md session log
+# 2026-09-10T19:05:29-06:00): terminal Job state must come from the Job
+# controller's own explicit `status.conditions[type=Complete|Failed,
+# status="True"]` — never inferred from `.status.succeeded`/`.status.failed`
+# counts. A Job can show `failed >= 1` from an EARLIER attempt while still
+# genuinely retrying (backoffLimit not yet exhausted) — that is a "retry gap,"
+# not termination, and treating `failed >= 1` as terminal would wrongly excuse
+# a Job that has not actually finished failing yet. Reads the Job with ONE
+# query; a failed/unparseable query is a separate, explicit rejection reason
+# from "read fine, but no terminal condition is set yet" — both mean "do not
+# confirm terminal," never silently default to a count-based guess.
+#
+# Echoes "Complete" or "Failed" on success with a True condition of that type;
+# echoes nothing (empty) if the query succeeded but no terminal condition is
+# set yet (still running/pending/retrying). Returns 1 ONLY when the query
+# itself could not be read at all — callers must treat an empty-but-successful
+# read as "not yet terminal," not as a query failure.
+job_condition_state() {
+  local ns="$1" name="$2" raw
+  if ! raw=$(kctl -n "$ns" get job "$name" -o jsonpath='{range .status.conditions[?(@.status=="True")]}{.type}{"\n"}{end}' 2>&1); then
+    log "could not read Job '$name' conditions ($raw) — refusing to guess its terminal state"
+    return 1
+  fi
+  if grep -qx 'Complete' <<<"$raw"; then
+    echo "Complete"
+  elif grep -qx 'Failed' <<<"$raw"; then
+    echo "Failed"
+  fi
+  return 0
+}
+
 retained_jobs_only_out_of_sync() {
   local resources_raw
   # A failed or empty query is NEVER treated as "nothing is wrong" — it means
@@ -177,18 +227,20 @@ retained_jobs_only_out_of_sync() {
     if [[ "$kind" == "Job" && "$group" == "batch" && "$name" != "$migrate_job" && "$name" =~ $migrate_job_name_pattern ]]; then
       # Positively identified as a retained migration Job by naming
       # convention — but still confirm its OWN live status is genuinely
-      # terminal (Succeeded or Failed), not Active/ambiguous, via a direct
-      # query against the real Job resource rather than trusting the
-      # Application's cached resource-status field alone.
-      local j_succeeded j_failed j_active
-      j_succeeded=$(kctl -n "$namespace" get job "$name" -o jsonpath='{.status.succeeded}' 2>/dev/null || true)
-      j_failed=$(kctl -n "$namespace" get job "$name" -o jsonpath='{.status.failed}' 2>/dev/null || true)
-      j_active=$(kctl -n "$namespace" get job "$name" -o jsonpath='{.status.active}' 2>/dev/null || true)
-      if [[ ( "${j_succeeded:-0}" -ge 1 || "${j_failed:-0}" -ge 1 ) && "${j_active:-0}" -eq 0 ]]; then
-        log "OutOfSync resource confirmed as a terminal retained migration Job: name=$name status=$status succeeded=${j_succeeded:-0} failed=${j_failed:-0}"
+      # terminal (an explicit Complete or Failed condition, not inferred from
+      # succeeded/failed counts which can reflect a retry still in progress),
+      # via a direct, single, validated query against the real Job resource
+      # rather than trusting the Application's cached resource-status alone.
+      local j_state
+      if ! j_state=$(job_condition_state "$namespace" "$name"); then
+        bad=1
         continue
       fi
-      log "OutOfSync Job '$name' matches the retained-migration-Job naming convention but is NOT confirmed terminal (succeeded=${j_succeeded:-0} failed=${j_failed:-0} active=${j_active:-0}) — not tolerating"
+      if [[ "$j_state" == "Complete" || "$j_state" == "Failed" ]]; then
+        log "OutOfSync resource confirmed as a terminal retained migration Job: name=$name status=$status condition=$j_state"
+        continue
+      fi
+      log "OutOfSync Job '$name' matches the retained-migration-Job naming convention but has no terminal Complete/Failed condition yet (possibly still retrying) — not tolerating"
       bad=1
       continue
     fi
@@ -206,10 +258,13 @@ retained_jobs_only_out_of_sync() {
 # fine); it must independently and positively confirm the current release
 # itself, not take the absence of other explanations as proof of health.
 current_release_resources_healthy() {
-  local job_succeeded
-  job_succeeded=$(kctl -n "$namespace" get job "$migrate_job" -o jsonpath='{.status.succeeded}' 2>/dev/null || true)
-  if [[ -z "$job_succeeded" || "$job_succeeded" -lt 1 ]]; then
-    log "current release's migration Job '$migrate_job' has not Succeeded (succeeded=${job_succeeded:-0}) — current release is not confirmed healthy"
+  local job_state
+  if ! job_state=$(job_condition_state "$namespace" "$migrate_job"); then
+    log "current release's migration Job '$migrate_job' conditions could not be read — current release is not confirmed healthy"
+    return 1
+  fi
+  if [[ "$job_state" != "Complete" ]]; then
+    log "current release's migration Job '$migrate_job' has no terminal Complete condition yet (observed: ${job_state:-<none>}) — current release is not confirmed healthy"
     return 1
   fi
   local dep avail desired
@@ -224,7 +279,35 @@ current_release_resources_healthy() {
   return 0
 }
 
+# Prints "<creationTimestamp>|<name>|<pod-template-hash>" for the ReplicaSet
+# this Deployment's controller currently has scaled up (spec.replicas>0), or
+# nothing if none exists yet (e.g. before a first-ever deploy) or the query
+# fails. Ties (an anomaly at steady state) broken by latest creationTimestamp,
+# with all candidates logged for transparency rather than silently picking one.
+active_rs_info() {
+  local dep_label="$1" lines rs_count
+  lines=$(kctl -n "$namespace" get rs -l "app=${dep_label}" \
+    -o jsonpath='{range .items[?(@.spec.replicas>0)]}{.metadata.creationTimestamp}{"|"}{.metadata.name}{"|"}{.metadata.labels.pod-template-hash}{"\n"}{end}' 2>/dev/null || true)
+  [[ -z "$lines" ]] && return 0
+  rs_count=$(wc -l <<<"$lines")
+  if [[ "$rs_count" -gt 1 ]]; then
+    log "more than one active ReplicaSet found for app=${dep_label} (unexpected at steady state): $(tr '\n' ' ' <<<"$lines") — using the one with the latest creationTimestamp"
+  fi
+  sort <<<"$lines" | tail -1
+}
+
 prior_operation_started_at=$(kctl -n argocd get application bedoux-demo -o jsonpath='{.status.operationState.startedAt}' 2>/dev/null || true)
+
+# Corrected per Codex's GO-MVP-U1 review (docs/PROGRESS.md session log
+# 2026-09-10T19:05:29-06:00): whether a workload was UNCHANGED by this release
+# must be proven from actual before/after pod-template evidence — the
+# pod-template-hash Kubernetes itself computes from the Deployment's pod spec
+# — not inferred from comparing a ReplicaSet's creationTimestamp to this
+# release's migration completion time (a timing correlation, not proof the
+# template didn't change). Captured here, before any sync is triggered, so it
+# reflects genuinely PRIOR state.
+prior_api_hash=$(active_rs_info api | awk -F'|' '{print $3}')
+prior_web_hash=$(active_rs_info web | awk -F'|' '{print $3}')
 
 if ! $skip_sync; then
   log "triggering manual sync (syncPolicy is {} — nothing else ever syncs this Application automatically)"
@@ -338,12 +421,20 @@ fi
 if ! kctl -n "$namespace" get job "$migrate_job" >/dev/null 2>&1; then
   fail "migration Job '$migrate_job' for the current release (image tag $image_tag) does not exist in namespace $namespace — cannot confirm migrations ran for this release."
 fi
-migrate_succeeded=$(kctl -n "$namespace" get job "$migrate_job" -o jsonpath='{.status.succeeded}' 2>/dev/null || true)
-migrate_done=$(kctl -n "$namespace" get job "$migrate_job" -o jsonpath='{.status.completionTime}' 2>/dev/null || true)
-if [[ -z "$migrate_succeeded" || "$migrate_succeeded" -lt 1 || -z "$migrate_done" ]]; then
-  fail "migration Job '$migrate_job' exists but has not Succeeded (status.succeeded=${migrate_succeeded:-0}) — refusing to claim a working release."
+# Terminal state comes from the Job's own explicit Complete condition, never
+# from a `.status.succeeded` count alone (Codex's GO-MVP-U1 review,
+# 2026-09-10T19:05:29-06:00) — see job_condition_state's header comment.
+if ! migrate_state=$(job_condition_state "$namespace" "$migrate_job"); then
+  fail "could not read migration Job '$migrate_job's conditions — refusing to claim a working release."
 fi
-log "migration Job '$migrate_job' Succeeded at $migrate_done"
+if [[ "$migrate_state" != "Complete" ]]; then
+  fail "migration Job '$migrate_job' has no terminal Complete condition yet (observed: ${migrate_state:-<none>}) — refusing to claim a working release."
+fi
+migrate_done=$(kctl -n "$namespace" get job "$migrate_job" -o jsonpath='{.status.completionTime}' 2>/dev/null || true)
+if [[ -z "$migrate_done" ]]; then
+  fail "migration Job '$migrate_job' reports a Complete condition but has no completionTime — cannot verify ordering."
+fi
+log "migration Job '$migrate_job' Succeeded (Complete condition) at $migrate_done"
 
 ### Both api AND web rollouts must actually complete for THIS release — not just ###
 ### "the Application is Healthy," which can be satisfied by stale pods if a ###
@@ -371,29 +462,29 @@ done
 # flagged).
 for dep_label in "api" "web"; do
   # Identify the CURRENT rollout's ReplicaSet: the one this Deployment's
-  # controller actually scaled up (spec.replicas > 0). At steady state
-  # (rollout status already confirmed complete above) exactly one such RS
-  # should exist; if more than one is found (an anomaly), the one with the
-  # latest creationTimestamp is treated as current, and all candidates are
-  # logged for transparency rather than silently picking one.
-  rs_lines=$(kctl -n "$namespace" get rs -l "app=${dep_label}" \
-    -o jsonpath='{range .items[?(@.spec.replicas>0)]}{.metadata.creationTimestamp}{"|"}{.metadata.name}{"|"}{.metadata.labels.pod-template-hash}{"\n"}{end}' 2>/dev/null || true)
-  if [[ -z "$rs_lines" ]]; then
+  # controller actually scaled up (spec.replicas > 0).
+  current_rs_line=$(active_rs_info "$dep_label")
+  if [[ -z "$current_rs_line" ]]; then
     fail "no active ReplicaSet (spec.replicas>0) found for app=${dep_label} in namespace $namespace — cannot identify the current rollout to verify ordering."
   fi
-  rs_count=$(wc -l <<<"$rs_lines")
-  if [[ "$rs_count" -gt 1 ]]; then
-    log "more than one active ReplicaSet found for app=${dep_label} (unexpected at steady state): $(tr '\n' ' ' <<<"$rs_lines") — using the one with the latest creationTimestamp as current"
-  fi
-  current_rs_line=$(sort <<<"$rs_lines" | tail -1)
   IFS='|' read -r rs_created rs_name rs_hash <<<"$current_rs_line"
   if [[ -z "$rs_created" || -z "$rs_name" ]]; then
     fail "could not parse the current ReplicaSet's identity for app=${dep_label} (line: '$current_rs_line') — cannot verify ordering."
   fi
   log "${dep_label}: current rollout is ReplicaSet '$rs_name' (created $rs_created, pod-template-hash=${rs_hash:-<none>})"
 
-  if [[ "$rs_created" < "$migrate_done" ]]; then
-    log "OBSERVED: ${dep_label}'s current ReplicaSet ($rs_created) predates this release's migration completion ($migrate_done) — this workload was UNCHANGED by this release (no new rollout). Ordering is not applicable to an unchanged workload; not claiming a violation."
+  # Proof of "unchanged" comes from comparing the ACTUAL pod-template-hash
+  # captured before this sync to the one active now — not from comparing this
+  # ReplicaSet's creationTimestamp to the migration's completion time (a
+  # timing correlation, not evidence about the template itself; a hash match
+  # means Kubernetes computed the identical pod spec both times, which a
+  # timestamp comparison can never prove or disprove).
+  case "$dep_label" in
+    api) prior_hash="$prior_api_hash" ;;
+    web) prior_hash="$prior_web_hash" ;;
+  esac
+  if [[ -n "$rs_hash" && "$rs_hash" == "$prior_hash" ]]; then
+    log "OBSERVED: ${dep_label}'s current ReplicaSet pod-template-hash ($rs_hash) is IDENTICAL to before this sync was triggered — this workload was left UNCHANGED by this release (proven by template identity, not by comparing timestamps). Ordering is not applicable to an unchanged workload; not claiming a violation."
     continue
   fi
 

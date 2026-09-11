@@ -12,12 +12,18 @@
 # health was excused purely by "all drift is retained Jobs," never checking the
 # current release's own resources directly; and ordering picked one pod per
 # label instead of verifying every current-rollout replica and explicitly
-# handling a workload the release left unchanged. Runs with --no-port-forward
-# (no curl/port-forward dependency) so this suite exercises exactly the
-# evidence logic, not the HTTP layer. Scenarios that legitimately never reach
-# an acceptable state use GITOPS_MVP_VERIFY_WAIT_SECONDS/_POLL_SECONDS to avoid
-# a real 300s wait per negative case — a test-only override, unset (default
-# 300s/5s) for every other scenario and for real cluster use.
+# handling a workload the release left unchanged. Also covers Codex's follow-up
+# GO-MVP-U1 review (docs/PROGRESS.md session log 2026-09-10T19:05:29-06:00):
+# "unchanged" was proven by a ReplicaSet's creationTimestamp vs migration
+# completion (a timing correlation), not by actual pod-template evidence; and
+# Job termination was inferred from succeeded/failed counts, which can reflect
+# a "retry gap" rather than the Job's own explicit Complete/Failed condition.
+# Runs with --no-port-forward (no curl/port-forward dependency) so this suite
+# exercises exactly the evidence logic, not the HTTP layer. Scenarios that
+# legitimately never reach an acceptable state use
+# GITOPS_MVP_VERIFY_WAIT_SECONDS/_POLL_SECONDS to avoid a real 300s wait per
+# negative case — a test-only override, unset (default 300s/5s) for every
+# other scenario and for real cluster use.
 
 set -euo pipefail
 
@@ -81,15 +87,25 @@ run_with_mock() {
 #   MOCK_DEGRADED_CURRENT_UNHEALTHY=1   health=Degraded (retained_job Failed),
 #                                       AND the current release's own api
 #                                       Deployment is NOT available — must fail
-#   MOCK_UNCHANGED_WORKLOAD=web|api     that label's current ReplicaSet predates
-#                                       this migration (release did not touch
-#                                       it) — must NOT be flagged as a violation
+#   MOCK_UNCHANGED_WORKLOAD=web|api     that label's pod-template-hash is
+#                                       IDENTICAL before and after this sync
+#                                       (proven by template evidence) — must
+#                                       NOT be flagged as a violation
+#   MOCK_NEW_RS_ORDERING_VIOLATION=web|api  a genuinely NEW ReplicaSet/pod
+#                                       (hash changes before -> after, so it
+#                                       is correctly identified as CHANGED,
+#                                       never mistaken for unchanged) whose
+#                                       pod was created BEFORE migration
+#                                       completed — the realistic "new
+#                                       ReplicaSet -> new pod -> migration
+#                                       completes" ordering violation
 #   MOCK_MULTI_REPLICA_VIOLATION=web|api  two current-rollout replicas, one of
 #                                       which predates migrate completion
 write_mock_kubectl() {
   local dir="$1"
   cat >"$dir/kubectl" <<'MOCKEOF'
 #!/usr/bin/env bash
+mockdir=$(dirname "$(command -v kubectl)")
 args="$*"
 requested_rev="deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
 image_tag="mvp-cafef00dbabe"
@@ -98,10 +114,23 @@ retained_job="bedoux-migrate-gitops-mvp-oldtag"
 unrelated_job="some-other-job"
 migrate_done="2026-01-01T00:00:00Z"
 changed_ts="2026-01-01T00:00:05Z"
-unchanged_ts="2025-12-31T00:00:00Z"
 
-api_rs_created="$changed_ts"
-web_rs_created="$changed_ts"
+# Prior (before this sync) vs current (after) pod-template-hash per label.
+# Different by default (a genuine update); MOCK_UNCHANGED_WORKLOAD forces them
+# identical for one label to prove that IS what "unchanged" means now — never
+# a timestamp comparison. The first "get rs" call per label (from
+# gitops-mvp-verify.sh's prior-hash capture, before it triggers/waits for the
+# sync) returns the PRIOR line; every call after that returns the CURRENT line
+# — modeled with a per-label call counter file, since a real cluster's state
+# genuinely differs between those two reads but this static mock cannot know
+# "which call number" any other way.
+api_prior_hash="apihash-old"
+api_current_hash="apihash-new"
+web_prior_hash="webhash-old"
+web_current_hash="webhash-new"
+if [[ "${MOCK_UNCHANGED_WORKLOAD:-}" == "api" ]]; then api_current_hash="$api_prior_hash"; fi
+if [[ "${MOCK_UNCHANGED_WORKLOAD:-}" == "web" ]]; then web_current_hash="$web_prior_hash"; fi
+
 api_pod_created="$changed_ts"
 web_pod_created="$changed_ts"
 api_pod2_created="$changed_ts"
@@ -109,19 +138,11 @@ web_pod2_created="$changed_ts"
 api_replicas=1
 web_replicas=1
 
-if [[ "${MOCK_ORDERING_VIOLATION:-}" == "api" ]]; then
+if [[ "${MOCK_ORDERING_VIOLATION:-}" == "api" || "${MOCK_NEW_RS_ORDERING_VIOLATION:-}" == "api" ]]; then
   api_pod_created="2025-12-31T23:59:00Z"
 fi
-if [[ "${MOCK_ORDERING_VIOLATION:-}" == "web" ]]; then
+if [[ "${MOCK_ORDERING_VIOLATION:-}" == "web" || "${MOCK_NEW_RS_ORDERING_VIOLATION:-}" == "web" ]]; then
   web_pod_created="2025-12-31T23:59:00Z"
-fi
-if [[ "${MOCK_UNCHANGED_WORKLOAD:-}" == "api" ]]; then
-  api_rs_created="$unchanged_ts"
-  api_pod_created="$unchanged_ts"
-fi
-if [[ "${MOCK_UNCHANGED_WORKLOAD:-}" == "web" ]]; then
-  web_rs_created="$unchanged_ts"
-  web_pod_created="$unchanged_ts"
 fi
 if [[ "${MOCK_MULTI_REPLICA_VIOLATION:-}" == "api" ]]; then
   api_replicas=2
@@ -149,6 +170,28 @@ if [[ "${MOCK_DEGRADED_RETAINED_HEALTHY:-}" == "1" || "${MOCK_DEGRADED_CURRENT_U
   sync_status="OutOfSync"
   health_status="Degraded"
 fi
+
+# Reads a Job's terminal condition via ONE call, per job_condition_state's own
+# contract: prints "Complete"/"Failed"/"" on a successful read.
+retained_job_condition() {
+  if [[ "${MOCK_RETAINED_JOB_NOT_TERMINAL:-}" == "1" ]]; then
+    printf ''
+  elif [[ "${MOCK_DEGRADED_RETAINED_HEALTHY:-}" == "1" || "${MOCK_DEGRADED_CURRENT_UNHEALTHY:-}" == "1" ]]; then
+    printf 'Failed'
+  else
+    printf 'Complete'
+  fi
+}
+
+next_rs_call_is_current() {
+  # Returns 0 (true) once this label's counter has already seen one call
+  # (the PRIOR read); increments on every call.
+  local label="$1" calls
+  local counter_file="$mockdir/.rs_calls_$label"
+  calls=$(( $(cat "$counter_file" 2>/dev/null || echo 0) + 1 ))
+  echo "$calls" >"$counter_file"
+  [[ "$calls" -ge 2 ]]
+}
 
 case "$args" in
   *"get application bedoux-demo"*"jsonpath={.spec.source.targetRevision}"*)
@@ -199,29 +242,22 @@ case "$args" in
     echo "$sync_revision" ;;
   *"get application bedoux-demo"*)
     exit 0 ;;
-  *"get job $retained_job "*"jsonpath={.status.succeeded}"*)
-    if [[ "${MOCK_RETAINED_JOB_NOT_TERMINAL:-}" == "1" ]]; then echo "0"; else echo "1"; fi ;;
-  *"get job $retained_job "*"jsonpath={.status.failed}"*)
-    if [[ "${MOCK_DEGRADED_RETAINED_HEALTHY:-}" == "1" || "${MOCK_DEGRADED_CURRENT_UNHEALTHY:-}" == "1" ]]; then
-      echo "1"
-    else
-      echo "0"
-    fi ;;
-  *"get job $retained_job "*"jsonpath={.status.active}"*)
-    if [[ "${MOCK_RETAINED_JOB_NOT_TERMINAL:-}" == "1" ]]; then echo "1"; else echo "0"; fi ;;
+  *"get job $retained_job"*"range .status.conditions"*)
+    retained_job_condition ;;
+  *"get job $migrate_job"*"range .status.conditions"*)
+    if [[ "${MOCK_MIGRATE_JOB_MISSING:-}" == "1" ]]; then
+      echo "Error from server (NotFound): jobs.batch not found" >&2
+      exit 1
+    fi
+    if [[ "${MOCK_MIGRATE_JOB_NOT_SUCCEEDED:-}" == "1" ]]; then printf ''; else printf 'Complete'; fi ;;
+  *"get job $migrate_job"*"jsonpath={.status.completionTime}"*)
+    if [[ "${MOCK_MIGRATE_JOB_NOT_SUCCEEDED:-}" == "1" ]]; then echo ""; else echo "$migrate_done"; fi ;;
   *"get job $migrate_job"*)
     if [[ "${MOCK_MIGRATE_JOB_MISSING:-}" == "1" ]]; then
       echo "Error from server (NotFound): jobs.batch not found" >&2
       exit 1
     fi
-    case "$args" in
-      *"jsonpath={.status.succeeded}"*)
-        if [[ "${MOCK_MIGRATE_JOB_NOT_SUCCEEDED:-}" == "1" ]]; then echo ""; else echo "1"; fi ;;
-      *"jsonpath={.status.completionTime}"*)
-        if [[ "${MOCK_MIGRATE_JOB_NOT_SUCCEEDED:-}" == "1" ]]; then echo ""; else echo "$migrate_done"; fi ;;
-      *) exit 0 ;;
-    esac
-    ;;
+    exit 0 ;;
   *"get deployment api "*"jsonpath={.status.availableReplicas}"*)
     if [[ "${MOCK_DEGRADED_CURRENT_UNHEALTHY:-}" == "1" ]]; then echo "0"; else echo "1"; fi ;;
   *"get deployment web "*"jsonpath={.status.availableReplicas}"*)
@@ -241,13 +277,21 @@ case "$args" in
     fi
     exit 0 ;;
   *"get rs -l app=api "*)
-    printf '%s|api-rs1|apihash\n' "$api_rs_created" ;;
+    if next_rs_call_is_current api; then
+      printf '%s|api-rs-current|%s\n' "$changed_ts" "$api_current_hash"
+    else
+      printf '2025-12-31T00:00:00Z|api-rs-prior|%s\n' "$api_prior_hash"
+    fi ;;
   *"get rs -l app=web "*)
-    printf '%s|web-rs1|webhash\n' "$web_rs_created" ;;
-  *"get pods -l app=api,pod-template-hash=apihash"*"field-selector=status.phase=Running"*)
+    if next_rs_call_is_current web; then
+      printf '%s|web-rs-current|%s\n' "$changed_ts" "$web_current_hash"
+    else
+      printf '2025-12-31T00:00:00Z|web-rs-prior|%s\n' "$web_prior_hash"
+    fi ;;
+  *"get pods -l app=api,pod-template-hash=$api_current_hash"*"field-selector=status.phase=Running"*)
     printf '%s|api-pod1\n' "$api_pod_created"
     if [[ "$api_replicas" -ge 2 ]]; then printf '%s|api-pod2\n' "$api_pod2_created"; fi ;;
-  *"get pods -l app=web,pod-template-hash=webhash"*"field-selector=status.phase=Running"*)
+  *"get pods -l app=web,pod-template-hash=$web_current_hash"*"field-selector=status.phase=Running"*)
     printf '%s|web-pod1\n' "$web_pod_created"
     if [[ "$web_replicas" -ge 2 ]]; then printf '%s|web-pod2\n' "$web_pod2_created"; fi ;;
   *"get deploy,job,pods,svc"*)
@@ -377,12 +421,14 @@ assert "REPRO CLOSED: Degraded health from a retained Failed Job, but the CURREN
   "$([[ "$last_exit" -ne 0 ]]; echo $?)"
 
 ### Finding 4 — ordering identifies the current-rollout ReplicaSet and checks ###
-### EVERY relevant replica; a workload the release left UNCHANGED (its current ###
-### ReplicaSet predates this migration) must be reported as such, not flagged. ###
+### EVERY relevant replica; a workload the release left UNCHANGED — proven by ###
+### its pod-template-hash being IDENTICAL before and after this sync, never by ###
+### comparing a ReplicaSet's creationTimestamp to migration completion — must ###
+### be reported as such, not flagged. ###
 bindir18=$(mock_bin_dir scenario18)
 write_mock_kubectl "$bindir18"
 MOCK_UNCHANGED_WORKLOAD=web run_with_mock "$bindir18"
-assert "REPRO CLOSED: web left UNCHANGED by this release -> still exits 0, not flagged as an ordering violation" \
+assert "REPRO CLOSED: web left UNCHANGED by this release (proven by template-hash identity) -> still exits 0, not flagged as an ordering violation" \
   "$([[ "$last_exit" -eq 0 ]]; echo $?)"
 assert "unchanged workload: reported explicitly as unchanged, not silently skipped" \
   "$([[ "$last_output" == *"UNCHANGED by this release"* ]]; echo $?)"
@@ -392,6 +438,44 @@ write_mock_kubectl "$bindir19"
 MOCK_MULTI_REPLICA_VIOLATION=web run_with_mock "$bindir19"
 assert "REPRO CLOSED: 2-replica web rollout, one replica predates migration -> exits non-zero (single-pod check would have missed this)" \
   "$([[ "$last_exit" -ne 0 ]]; echo $?)"
+
+### Codex's GO-MVP-U1 review (docs/PROGRESS.md session log 2026-09-10T19:05:29-06:00): ###
+### finding 1 — "Add a realistic negative test: new ReplicaSet -> new pod -> ###
+### migration completes." A genuinely NEW ReplicaSet/pod (pod-template-hash ###
+### changes before -> after, correctly identified as CHANGED, never mistaken ###
+### for unchanged) whose pod predates migration completion must still be caught ###
+### — proving the hash-based change-detection does not accidentally weaken the ###
+### ordering check it feeds into. ###
+bindir20=$(mock_bin_dir scenario20)
+write_mock_kubectl "$bindir20"
+MOCK_NEW_RS_ORDERING_VIOLATION=web run_with_mock "$bindir20"
+assert "REPRO CLOSED: new ReplicaSet -> new pod -> migration completes after it -> exits non-zero" \
+  "$([[ "$last_exit" -ne 0 ]]; echo $?)"
+assert "new-RS ordering violation: correctly identified as CHANGED (not excused as unchanged), error names it an ORDERING VIOLATION" \
+  "$([[ "$last_output" == *"ORDERING VIOLATION"* && "$last_output" != *"UNCHANGED by this release"* ]]; echo $?)"
+
+### PRESERVED positive test: a genuinely unchanged workload (identical ###
+### pod-template-hash) alongside a genuinely terminal retained Job — both ###
+### conditions must still be tolerated together, not just individually. ###
+bindir21=$(mock_bin_dir scenario21)
+write_mock_kubectl "$bindir21"
+MOCK_UNCHANGED_WORKLOAD=api MOCK_OUTOFSYNC_RETAINED_JOB_ONLY=1 run_with_mock "$bindir21"
+assert "PRESERVED: unchanged api workload + a terminal retained Job together -> still exits 0" \
+  "$([[ "$last_exit" -eq 0 ]]; echo $?)"
+
+### Finding 2 — Job termination must come from an explicit Complete/Failed ###
+### condition in a SUCCESSFULLY READ, validated Job object — never inferred ###
+### from succeeded/failed counts, which can reflect a "retry gap" (failed on an ###
+### earlier attempt but still retrying, backoffLimit not yet exhausted). A ###
+### query failure while reading the CURRENT release's own migration Job must ###
+### also be rejected, not defaulted to success or failure. ###
+bindir22=$(mock_bin_dir scenario22)
+write_mock_kubectl "$bindir22"
+MOCK_MIGRATE_JOB_NOT_SUCCEEDED=1 run_with_mock "$bindir22"
+assert "REPRO CLOSED: current migration Job has no terminal Complete condition (still retrying) -> exits non-zero" \
+  "$([[ "$last_exit" -ne 0 ]]; echo $?)"
+assert "current migration Job retry gap: error names the missing Complete condition, not a stale success count" \
+  "$([[ "$last_output" == *"no terminal Complete condition"* ]]; echo $?)"
 
 ### Codex's GO-MVP follow-up review (docs/PROGRESS.md session log ###
 ### 2026-09-09T20:55:51-06:00, DEF-013): "all 11 tests use --skip-sync; add ###
@@ -453,9 +537,9 @@ case "\$args" in
   *"get application bedoux-demo"*"jsonpath={.status.sync.revision}"*) echo "\$requested_rev"; exit 0 ;;
   *"patch application bedoux-demo"*) exit 0 ;;
   *"get application bedoux-demo"*) exit 0 ;;
+  *"get job "*"range .status.conditions"*) printf 'Complete' ;;
   *"get job "*)
     case "\$args" in
-      *"jsonpath={.status.succeeded}"*) echo "1" ;;
       *"jsonpath={.status.completionTime}"*) echo "\$migrate_done" ;;
       *) exit 0 ;;
     esac ;;
