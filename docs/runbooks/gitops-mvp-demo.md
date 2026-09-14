@@ -31,14 +31,20 @@ contracts). **This fix is committed and merged into `main`** (GO-MVP closeout, P
 earlier draft of this runbook described it as an uncommitted working-tree edit; that was
 corrected once GO-MVP's PR actually merged it). A real `git clone` of the GitHub remote at or
 after that merge already has this fix — it is no longer a prerequisite gap.
-`gitops-mvp-up.sh` nonetheless still builds a **local-only git snapshot** on every run (this
-checkout's `--app-revision` plus the current `charts/bedoux/` working tree, committed only to a
-throwaway branch inside the snapshot itself, never in this repository's own working tree, and
-never pushed anywhere) and serves it to the in-cluster Argo CD via a `hostPath` mount on the kind
-node, referenced by its in-node path — the real GitHub remote is never contacted by this demo.
-This is a deliberate, independent design choice (fast local iteration on uncommitted
-`apps/api`/`apps/web`/`charts/bedoux` edits without needing to commit or push anything to the real
-remote for every demo run), not a workaround for the now-merged chart fix.
+`gitops-mvp-up.sh` nonetheless still builds a **local-only git snapshot** on every run. The base
+is this checkout's `--app-revision` commit (default: current `HEAD`); the current
+`charts/bedoux/` working tree is then **unconditionally overlaid on top of that base regardless of
+its commit state**, so uncommitted, in-progress chart edits are always picked up. `apps/api`/
+`apps/web` (and everything else outside `charts/bedoux/`) come only from the pinned
+`--app-revision` commit itself — an uncommitted edit there is **not** picked up; commit it locally
+first, then pass its SHA via `--app-revision`. Both the base commit and the chart overlay are
+committed only to a throwaway branch inside the snapshot itself, never in this repository's own
+working tree, and never pushed anywhere — neither the chart overlay nor a local `--app-revision`
+commit requires pushing to the real remote. The snapshot is served to the in-cluster Argo CD via a
+`hostPath` mount on the kind node, referenced by its in-node path — the real GitHub remote is
+never contacted by this demo. This is a deliberate, independent design choice (fast local
+iteration without needing to commit or push anything to the real remote for every demo run), not a
+workaround for the now-merged chart fix.
 
 ## What this deliberately does NOT do
 
@@ -292,10 +298,13 @@ same-day-teardown default.
   ID, not a registry digest.** This is weaker provenance than the full design contract's
   digest-based binding (Gate 1, deferred) — acceptable for a local demo with synthetic data, not
   claimed as production-equivalent.
-- **The Application's source is a local-only git snapshot, not the real GitHub remote**, until
-  the `charts/bedoux` migration-ordering fix above is pushed and reviewed — see "Why a local
-  snapshot" above. Re-run with a real upstream commit once that fix lands; no script change
-  needed, the `file://`-style local-path source pattern also works with a real clone URL.
+- **The Application's source is always a local-only git snapshot, never the real GitHub remote —
+  this is a permanent, deliberate design choice, not a gap waiting on the (already-merged)
+  `charts/bedoux` migration-ordering fix.** See "Why a local snapshot" above. Sourcing this demo
+  directly from a real GitHub remote/branch instead would be a separate, unimplemented change to
+  `gitops-mvp-up.sh`'s Application manifest and repo-server mount — the script does not currently
+  support it, and the local `hostPath` mount path is not a drop-in substitute for a real remote URL
+  without that work.
 - **No admission/signature enforcement is installed.** Anything can run in this namespace.
   Acceptable only because the namespace holds synthetic demo data and is torn down same-session.
 - **No automated recovery of any kind.** A failed sync, a failed migration, or a crashed pod is
