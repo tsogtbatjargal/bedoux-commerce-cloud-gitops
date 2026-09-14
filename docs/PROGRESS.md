@@ -14,7 +14,7 @@ checked here and its evidence is recorded in the session log.
 | Last verified | 2026-09-14T09:46:43-06:00 — Documentation housekeeping: `docs/runbooks/gitops-mvp-demo.md`'s "Why a local snapshot" and "Verification" sections cross-checked directly against `scripts/gitops-mvp-verify.sh --help`'s live output; `git diff --check` and `make docs-check` (or its documented local-doc checks) rerun; DEF-016 marked RESOLVED with evidence. Prior: 2026-09-10T21:37:35-06:00 — PR #92 merge confirmed: `gh pr view 92` reports `state=MERGED`, `mergeCommit.oid=b7e52a9a14f2366609e6e733df0277872a5439b5`, `headRefOid=935b95cc7cacd49c1b86e4676b5644069ec038d1` (the exact reviewed head, unchanged since round 4). All four required checks were re-verified green on that head immediately before the merge was executed. GO-MVP-U1's verifier was hardened across four review rounds ending at 35/35 mock assertions on head `935b95c`. PR #91 (GO-MVP closeout) merged into `main` at `60e7d0757b1394f6d63a63530242eb7fed83eaf5`. No AWS verification. GO-1's third-round local checks (6 suites, 122 assertions, all passing) remain recorded further down this log, still uncommitted in the original checkout (preserved, GO-1 stays paused/deferred) — untouched by any of this. |
 | AWS resources currently live | Last recorded inventory, not refreshed by PH-A: no temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
-| Next operator action | Review and merge (or request changes on) the small follow-up documentation-closeout PR (present-tense checkpoint refresh recording PR #93's merge and completed synchronization; duplicate DEF-016 section in `docs/DEFERRED-WORK.md` labeled historical, text preserved; synchronization-note timezone corrected to 2026-09-14T16:30:03Z / 10:30:03-06:00). PR #93 itself is already merged (`932230b7be36522aad7241e829a977ea35558cb3`) and the original checkout is already synchronized to it — see this file's session log for full evidence; no further sync action is pending. Full GO-1 and the remaining advanced backlog stay deferred — unfinished findings and safe deferral boundaries remain tracked in `docs/DEFERRED-WORK.md` (DEF-001–011, DEF-015 subfinding 3); review that backlog with the owner before activating any of it. Do not mark the original full GO-1 contract complete, activate GO-2, or infer broader new-image/schema support than the one demonstrated update. No AWS session or cluster mutation occurred in this housekeeping item. |
+| Next operator action | Review and merge (or request changes on) the small follow-up documentation-closeout PR (present-tense checkpoint refresh recording PR #93's merge and completed synchronization; duplicate DEF-016 section in `docs/DEFERRED-WORK.md` labeled historical, text preserved; synchronization-note timezone corrected to 2026-09-14T16:30:03Z / 10:30:03-06:00). PR #93 itself is already merged (`932230b7be36522aad7241e829a977ea35558cb3`) and the original checkout is already synchronized to it — see this file's session log for full evidence; no further sync action is pending. Full GO-1 and the remaining advanced backlog stay deferred — unfinished findings and safe deferral boundaries remain tracked in `docs/DEFERRED-WORK.md` (DEF-001–011, DEF-015 subfinding 3); review that backlog with the owner before activating any of it. Do not mark the original full GO-1 contract complete, activate GO-2, or infer broader new-image/schema support than the one demonstrated update. No AWS session or cluster mutation occurred in this housekeeping item. **Addendum (2026-09-14T17:20:57-06:00):** a separate, focused PR fixing DEF-005 (multi-source values lookup) and DEF-006 (real root-to-child Application generation, shared release/image validation) is also open for review — see the 2026-09-14T17:20:57-06:00 session log entry below for full evidence. It does not change or supersede anything described in the rest of this row. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -999,6 +999,114 @@ tree.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-09-14T17:20:57-06:00 — DEF-005/DEF-006 fix: real source binding and root-to-child rendering — Claude
+
+- **Scope:** owner-authorized bounded GO-1 slice following Codex's 2026-09-14T17:09:06-06:00
+  recommendation: fix DEF-005 and DEF-006 and prove the source-binding/root-to-child rendering
+  workflow with local fixtures and regression tests. Isolated worktree
+  `../bedoux-go1-def005-006` (branch `fix/def-005-006-source-binding`) based on current merged
+  `origin/main` (`5a9c925e56c2287e0a4079dedbc60bcda03c2f94`, PR #94). The necessary GO-1 drafts
+  (`scripts/render-gitops-applications.sh`, `scripts/render-gitops-release.sh`, their test
+  suites, `docs/gitops-fixtures/`, `docs/gitops-go1-design-contract.md`) were selectively copied
+  in from this checkout's uncommitted work; unrelated uncommitted drafts (P13 canary rollout,
+  release-attempt-claim/paired-rollout-coordinator/bootstrap-precondition scripts, migration-job
+  decision draft, workflow diagram) were left untouched here, exactly as they are in this
+  checkout. No runtime/cluster change, GO-1 resumption beyond this slice, GO-2 activation or AWS
+  activity.
+- **DEF-005 fixed:** the child Application's values-only source set `path: env` (the values
+  file's directory) while `helm.valueFiles` referenced only the basename (`$values/values.yaml`).
+  Per Argo's multi-source semantics, `$values/...` references resolve from the ref'd source's
+  REPO ROOT, not its `path` — so the real file (`env/values.yaml`) was never actually referenced,
+  and the stray `path` on a `ref`-only source additionally made Argo treat it as a second
+  manifest-generating source. Fixed in `scripts/render-gitops-applications.sh`: the values-only
+  source now carries only `repoURL`/`targetRevision`/`ref` (no `path`), and `helm.valueFiles`
+  uses the full repo-relative path.
+- **DEF-006 fixed:** `render-gitops-applications.sh` previously took the child's
+  release-record/values paths and name directly as CLI flags — rendering two independently
+  parameterized Applications proved nothing about the root's own source producing that child —
+  and re-implemented release-record parsing inline instead of actually reusing
+  `render-gitops-release.sh`'s validation (its header comment claimed reuse; the code did not),
+  never checking `pairedAppRevision` or image repository/digest consistency at all. Fixed by
+  extracting shared validation into `scripts/lib/gitops-release-binding.sh` (sourced by both
+  render scripts) and having `--root-path` name a directory that, at the pinned `--env-revision`,
+  must contain exactly one child-pointer YAML file (`childAppName`/`releaseRecordPath`/
+  `valuesPath`); the script reads that pointer to generate the child. Zero or multiple pointer
+  files are refused by name (multi-child fan-out/App-of-Apps enumeration stays explicitly out of
+  scope for GO-1, per DEF-006's original safe boundary). Worked example added:
+  `docs/gitops-fixtures/dev-root-child-pointer.example.yaml`.
+- **Design contract reconciled:** `docs/gitops-go1-design-contract.md` gained a new,
+  append-only "Corrections applied — fourth round" section (the third round's text is left
+  unchanged; a note there points to the correction) documenting both fixes and clarifying that
+  the third round's "proves how the root passes the same immutable env revision" claim was true
+  only for the env-revision pin, not yet for root-to-child generation.
+- **Regression tests:** `scripts/test-render-gitops-release.sh` — 19/19 assertions still pass
+  unchanged (behavior-preserving refactor onto the shared library).
+  `scripts/test-render-gitops-applications.sh` — rewritten around the root-pointer mechanism, now
+  33 assertions (up from 27): positive root/child pinning and moving-HEAD negative test as
+  before; two new DEF-005 assertions (full-path `valueFiles`, no stray `path` on the values
+  source); DEF-006 assertions for zero pointer files, multiple pointer files (fan-out refused by
+  name), a pointer file missing a required field, and — proving the shared validation is real —
+  an image-digest mismatch reached through the root/pointer path, which the pre-fix script would
+  have rendered without error. Both suites run locally, no cluster, no AWS.
+- **DEF-005 and DEF-006 marked resolved** in `docs/DEFERRED-WORK.md` with evidence pointers to
+  this commit's test output; entries and their gap/boundary text are kept, not deleted, per that
+  file's maintenance rule. GO-1's full design contract remains `IN PROGRESS`/paused; GO-2 is not
+  activated; DEF-001–004/007–011/015 remain deferred and untouched by this slice.
+- **Published** via a focused PR from the isolated worktree onto `main`; stopping here for
+  review as instructed. Not merged by this session.
+
+### 2026-09-14T17:09:06-06:00 — Next-step recommendation after PR #94 — Codex
+
+- **Scope:** owner asks whether to finish GO-1 or start GO-2, and what can be cleaned up.
+  Inspected current checkpoint, expansion-plan dependencies, GO-1 contract, deferred backlog
+  and worktree inventory. Advice only; no phase activated, cleanup, sync or publication.
+- **Recommendation:** resume GO-1 in bounded slices, starting with DEF-005/DEF-006's source
+  binding and actual root-to-child rendering proof, before activating GO-2 repository creation.
+  GO-1's old claims that helpers/models are correct are superseded by the later backlog findings.
+  Reconcile those claims with demonstrated MVP behavior and unresolved design requirements;
+  do not require installing GO-3–GO-7 features merely to review GO-1's design.
+- **Cleanup advice:** preserve dirty GO-1 work in a durable, verified backup/WIP branch before
+  any future checkout cleanup; /tmp alone is not long-term storage. Clean merged PR #92–94
+  worktrees/branches are removal candidates only after current cleanliness and merge checks
+  and owner authorization. Preserve the broken-migration fixture branch, draft diagram/autosave,
+  and recovery backups until their disposition is explicitly approved. No deletion performed.
+- **Next action:** obtain owner approval for the bounded GO-1 source-binding correction;
+  retain DEF-001–004/007–010 and DEF-015 concurrency limits until their dependencies are needed.
+  Full GO-1 completion and GO-2 activation remain separate reviewed decisions. AWS: none.
+
+### 2026-09-14T16:58:48-06:00 — PR #94 already merged; owner-requested verification — Codex
+
+- Owner authorized merging only exact head `0809eb4681e09d759e0445d8efcb605ad527ed65`
+  with all required checks green, then stopping. Pre-flight GitHub read found the PR already
+  MERGED; no merge command was issued in this session. All four exact-head checks SUCCESS.
+- Verified merge commit `5a9c925e56c2287e0a4079dedbc60bcda03c2f94`, mergedAt
+  `2026-09-14T22:56:12Z` / `2026-09-14T16:56:12-06:00`. DEF-016 closeout PR #94 is merged.
+- Local HEAD remains `932230b7be36522aad7241e829a977ea35558cb3`. Existing uncommitted work
+  preserved; only this required local session note appended. No commit, push, synchronization,
+  branch deletion, GO-1 resumption, GO-2 activation or AWS activity. Stopping as requested.
+
+### 2026-09-14T16:53:02-06:00 — PR #94 documentation closeout accepted for merge review — Codex
+
+- **Scope:** phase/PR workflow review of the reported closeout; required local review notes
+  only. No commit, publication, merge, synchronization, runtime change or phase activation.
+  AWS: none. Isolated PR worktree remains clean.
+- **Verified:** GitHub reports PR #94 OPEN/MERGEABLE at exact head
+  `0809eb4681e09d759e0445d8efcb605ad527ed65`; all four required checks SUCCESS in run
+  `34897404781`. Diff touches only START-HERE, PROGRESS and DEFERRED-WORK. The larger
+  additions preserve previously local review history, not advanced GO-1 implementation.
+- **Checks:** candidate diff whitespace, tracked drawio XML/SVG siblings, spine-file presence
+  and actions-check (18 immutable references) pass in the isolated worktree. These are local
+  documentation component checks, not a new runtime/cluster test or a toolbox docs-check run.
+  All 25 unaffected original-checkout files still match the pre-sync SHA-256 manifest.
+- **Conclusion:** DEF-016's requested checkpoint, historical-duplicate label and timezone
+  corrections are present. No remaining merge blocker found in this bounded review. Backup
+  README now exists; its restore example was inspected, not executed. Restore into a fresh
+  isolated worktree if ever needed, rather than extracting old files over current dirty work.
+- **Next action:** recommend owner-authorized merge of PR #94 after rechecking the exact head
+  and required checks. Preserve current uncommitted work; do not infer permission to synchronize
+  this checkout or resume GO-1/GO-2/AWS. After merge, return to owner selection of the next
+  bounded milestone rather than restarting completed MVP implementation.
 
 ### 2026-09-14T15:10:56-06:00 — Bounded documentation closeout after PR #93 merge and sync — Claude
 

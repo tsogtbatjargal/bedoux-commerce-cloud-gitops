@@ -1,0 +1,51 @@
+# GO-1 design fixture — durable release-outcome record (Gate 6a). Actually consumed
+# by scripts/gitops_bootstrap_precondition_check.py's test suite
+# (scripts/test_gitops_bootstrap_precondition.py) — not yet wired into any live
+# bootstrap flow (GO-3 does that).
+#
+# Lives in the env repo, one file per environment, updated ONLY as part of a reviewed
+# Git-repair PR (docs/runbooks/gitops-recovery.md, "Git repair: separate reviewed
+# change") or, for `pending`, as part of the SAME PR that promotes a new releaseId —
+# every promotion writes a `pending` entry for its own releaseId immediately, so a
+# releaseId is never silently absent from this file during the window between "just
+# promoted" and "confirmed healthy or rejected". See
+# docs/gitops-go1-design-contract.md Gate 6a.
+#
+# Corrected per Codex's GO-1 review (docs/PROGRESS.md session log
+# 2026-09-09T11:03:16-06:00): the previous predicate wrongly treated a REJECTED
+# entry's own `supersededBy` field as a live bypass — meaning if the release record
+# still pointed at the OLD rejected releaseId (repair PR not yet merged), the old
+# logic would incorrectly allow bootstrap because a LATER entry happened to be
+# healthy. `supersededBy` is audit metadata only. The corrected predicate
+# (scripts/gitops_bootstrap_precondition_check.py) looks up ONLY the release
+# record's current releaseId and is fail-closed: it proceeds ONLY on an explicit
+# `healthy` entry for that exact releaseId, and refuses on `rejected`, `pending`, or
+# no entry at all (no "missing evidence proceeds" default).
+
+environment: dev
+
+history:
+  - releaseId: "dev-0001"
+    outcome: rejected
+    # migration-failure | signature-rejection | rollout-aborted
+    classification: migration-failure
+    detectedAt: "2026-09-09T00:00:00Z"
+    # Pointer only — never raw logs, secrets or identity output.
+    evidence: "docs/PROGRESS.md session log 2026-09-09T00:00:00-06:00"
+    # Audit trail only. Does NOT authorize bootstrapping dev-0001 — see header note.
+    supersededBy: "dev-0002"
+
+  - releaseId: "dev-0002"
+    outcome: healthy
+    classification: null
+    detectedAt: "2026-09-09T01:00:00Z"
+    evidence: "docs/PROGRESS.md session log 2026-09-09T01:00:00-06:00"
+    supersededBy: null
+
+# Worked example of the fail-closed predicate, both proven by
+# scripts/test_gitops_bootstrap_precondition.py:
+#   - A release record whose releaseId is still "dev-0001" (the rejected one) is
+#     REFUSED, even though this file also shows a healthy dev-0002 elsewhere.
+#   - A release record whose releaseId is "dev-0002" (the actual fix-forward
+#     release, only reachable once a reviewed PR updates the release record itself)
+#     PROCEEDS.

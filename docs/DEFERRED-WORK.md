@@ -1,6 +1,6 @@
 # Deferred work and post-MVP improvements
 
-Last updated: 2026-09-14T13:44:50-06:00.
+Last updated: 2026-09-14T17:20:57-06:00.
 
 The owner requested a working local MVP first, then the unfinished GitOps improvements.
 This file keeps that work discoverable without treating it as fixed or requiring every future
@@ -85,6 +85,14 @@ the investigation history, including issues already fixed that should not be reo
 - **Close with:** full repo-relative `$values/env/values.yaml`, no `path` on a values-only source,
   and tests resolving real nested files at the pinned commit through the Application contract.
 - **Artifact:** `scripts/render-gitops-applications.sh`; [Argo semantics](https://argo-cd.readthedocs.io/en/stable/user-guide/multiple_sources/).
+- **Resolution (2026-09-14T17:20:57-06:00):** fixed. The values-only source now carries only
+  `repoURL`/`targetRevision`/`ref` (no `path`, so it can no longer be treated as a second
+  manifest-generating source), and `helm.valueFiles` references the full repo-relative path
+  (`$values/env/values.yaml`), not a basename. Proven by
+  `scripts/test-render-gitops-applications.sh`'s two DEF-005 assertions, resolving real nested
+  fixture content through the Application contract at a pinned commit. See `docs/PROGRESS.md`
+  session log 2026-09-14T17:20:57-06:00 for full evidence. This entry and its gap/history above
+  are kept, not deleted, per this file's maintenance rule.
 
 ### DEF-006 — Real root-to-child source generation and promotion
 
@@ -99,6 +107,25 @@ the investigation history, including issues already fixed that should not be reo
   without requiring a static file to contain its own commit SHA.
 - **Artifacts:** `scripts/render-gitops-applications.sh`, `scripts/render-gitops-release.sh`,
   `docs/gitops-expansion-plan.md` release-binding requirements.
+- **Resolution (2026-09-14T17:20:57-06:00):** fixed for the one-root/one-child case (multi-child
+  fan-out/real App-of-Apps enumeration remains deferred — see below). `--root-path` is read as a
+  directory that, at the pinned `--env-revision`, must contain exactly one child-pointer YAML
+  file (`docs/gitops-fixtures/dev-root-child-pointer.example.yaml` is a worked example); the
+  renderer reads that pointer to discover the child's `releaseRecordPath`/`valuesPath`/
+  `childAppName` and generates the child from it — the root's own source now actually produces
+  the child, rather than the caller separately naming both. Release-record/values parsing,
+  appRevision/chart-path verification and the `pairedAppRevision`/image repository/digest
+  cross-check are now shared via `scripts/lib/gitops-release-binding.sh`, sourced by both
+  `render-gitops-release.sh` and `render-gitops-applications.sh` — actually reused, not just
+  documented as reused; the child renderer previously skipped this validation entirely. Proven
+  by `scripts/test-render-gitops-applications.sh` (33 assertions): zero/multiple pointer files
+  refused by name, a pointer missing a required field refused, and an image-digest mismatch
+  reached through the root/pointer path now refused (the pre-fix renderer would have rendered it
+  without error). Multi-child fan-out is still explicitly out of scope — this proves one root
+  producing one child, not enumeration across several; still revisit before multi-environment
+  promotion (GO-2/GO-3), per the original boundary above. See `docs/PROGRESS.md` session log
+  2026-09-14T17:20:57-06:00 for full evidence. This entry and its gap/history above are kept,
+  not deleted, per this file's maintenance rule.
 
 ### DEF-007 — Progressive-delivery installation and router-specific evidence
 
@@ -377,6 +404,13 @@ the full gap/fix history stays attached to each ID; each now carries a **Resolut
 
 ### DEF-016 — Refresh MVP runbook after verifier and PR closeout
 
+- **PR #94 review (2026-09-14T16:53:02-06:00):** requested post-sync documentation corrections
+  verified at `0809eb4681e09d759e0445d8efcb605ad527ed65`: checkpoint records PR #93 merged
+  and synchronization complete, duplicate history labeled, UTC/local timestamp corrected.
+  Four CI checks and local documentation component checks pass; 25 unaffected GO-1 files
+  match the backup manifest. No merge blocker found; PR #94 remains OPEN, pending owner
+  merge authorization. This supersedes the pending-fix recommendation in the review below,
+  without changing any advanced-work deferral or claiming the PR is already merged.
 - **Post-sync review (2026-09-14T13:44:50-06:00):** runbook fix remains RESOLVED and PR #93
   is verified merged at `932230b7be36522aad7241e829a977ea35558cb3`; local synchronization and
   saved-work preservation are accepted. Small checkpoint follow-up remains deferred: refresh

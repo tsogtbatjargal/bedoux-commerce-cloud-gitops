@@ -1,0 +1,26 @@
+# GO-1 design fixture — worked example of a root Application's child pointer file
+# (DEF-006 fix). In the real env-repo layout this lives at, e.g., `apps/dev/` (the
+# directory the root Application's own source points at via --root-path);
+# scripts/render-gitops-applications.sh reads it — at the caller's pinned
+# --env-revision, never HEAD — to generate the child Application, instead of the
+# caller naming the release record/values paths directly. See
+# docs/gitops-go1-design-contract.md Gate 1 and
+# scripts/test-render-gitops-applications.sh for the regression tests that
+# actually exercise this file's format (an equivalent fixture built inline in an
+# isolated scratch repo, not this file itself — this file is documentation of the
+# real-repo layout).
+#
+# Exactly one pointer file per --root-path is supported today: multiple pointer
+# files (real App-of-Apps fan-out across several children) are refused by name —
+# see DEF-006 in docs/DEFERRED-WORK.md for the deferred multi-environment
+# promotion work this intentionally does not claim.
+
+childAppName: dev-child
+
+# Both paths below are resolved within the SAME pinned --env-revision as this
+# pointer file itself (git show <env-revision>:<path>), matching
+# scripts/render-gitops-release.sh's existing binding contract exactly —
+# scripts/render-gitops-applications.sh now calls that same shared validation
+# (scripts/lib/gitops-release-binding.sh) rather than a separate implementation.
+releaseRecordPath: env/dev-release-record.yaml
+valuesPath: env/dev-values.yaml

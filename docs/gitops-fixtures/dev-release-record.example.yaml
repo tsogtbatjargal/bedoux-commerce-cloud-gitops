@@ -1,0 +1,43 @@
+# GO-1 design fixture — NOT consumed by any live tooling yet except the local
+# validation tools under scripts/ (render-gitops-release.sh,
+# gitops_bootstrap_precondition_check.py), which exist precisely to prove this
+# fixture's binding claims for real rather than by assertion. See
+# docs/gitops-go1-design-contract.md Gate 1.
+#
+# appRevision below is this repository's actual HEAD commit at the time this fixture
+# was written (2c1ec6b0aab1f1ea8d9612367831270719841f03) — a real, dereferenceable
+# 40-hex-char git SHA-1, not a fabricated placeholder, so
+# scripts/render-gitops-release.sh can actually `git archive` this exact commit and
+# prove the chart it extracts is independent of the current (possibly dirty)
+# working tree. If this repository's history moves on, re-run
+# scripts/test-render-gitops-release.sh to see the current pinned/HEAD relationship;
+# the fixture does not need updating just because HEAD advances further.
+
+environment: dev
+
+appRevision: "2c1ec6b0aab1f1ea8d9612367831270719841f03"
+
+chart:
+  path: charts/bedoux
+  # Deliberately no independent chart SemVer field: GO-1 decided (Q4) to bind the
+  # chart 1:1 to appRevision rather than version it separately. Revisit only through
+  # a reviewed ADR change, not silently.
+
+# Real 64-hex-character SHA256 digests (sha256sum of fixed fixture strings — not
+# fabricated to look plausible, actually computed). Corrected per Codex's review,
+# which found the previous fixture's digests were 60 characters, not 64.
+images:
+  api: "<ACCOUNT_ID>.dkr.ecr.ca-central-1.amazonaws.com/bedoux-api@sha256:6860a9c73b350f802da0dc943c3eae12d1bad948db9d49ea70491014a6c9089d"
+  web: "<ACCOUNT_ID>.dkr.ecr.ca-central-1.amazonaws.com/bedoux-web@sha256:17ad7c1067914f3af78748953a81410ff47c4067aeaca2e04cd13b00819d63ea"
+
+# Short, monotonic, human-reviewable release identity. Used as the migration Job's
+# name suffix so re-syncing the same release record never regenerates or retries a
+# terminally failed Job — a new releaseId only ever comes from a new reviewed PR.
+releaseId: "dev-0001"
+
+# Set by the "Prepare release" CI action from the signed provenance it already
+# verifies today (deploy-learning.yml); recorded here so the release record is
+# self-describing without re-deriving trust from Git history alone.
+signedBy:
+  workflow: "https://github.com/bedoux-tech/bedoux-commerce-cloud/.github/workflows/deploy-learning.yml@refs/heads/main"
+  issuer: "https://token.actions.githubusercontent.com"
