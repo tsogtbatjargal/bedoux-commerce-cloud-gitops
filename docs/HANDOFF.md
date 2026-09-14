@@ -25,9 +25,14 @@ LATEST OWNER DIRECTION — 2026-09-10, SUPERSEDES THE HISTORICAL PLANNING CHECKP
   a real version A->B application update live-demonstrated on a real kind cluster with a
   surviving synthetic order, migration ordering plus a controlled migration failure/recovery
   live-demonstrated, and the evidence packaged (docs/runbooks/gitops-mvp-demo.md's "GO-MVP-U1"
-  section, PROGRESS's 2026-09-10T14:45:00-06:00 session log entry). A PR from
-  feature/gitops-version-update is open for owner review; this session stopped there and did
-  NOT merge it — do not infer merge or completion without checking the PR's actual state.
+  section, PROGRESS's 2026-09-10T14:45:00-06:00 session log entry). Its verifier was then
+  hardened across four Codex review rounds (35/35 mock assertions in the final round). **PR #92
+  (`feature/gitops-version-update` -> `main`) was merged by explicit owner authorization at
+  reviewed head `935b95cc7cacd49c1b86e4676b5644069ec038d1`, producing merge commit
+  `b7e52a9a14f2366609e6e733df0277872a5439b5`** (`mergedAt` 2026-09-10T21:37:35-06:00) — GO-MVP-U1
+  is complete and merged into `main`. Always confirm the current PR/merge state yourself
+  (`gh pr view <n> --json state,mergedAt,mergeCommit`) rather than trusting this note if more
+  time has passed since it was written.
 - Read docs/DEFERRED-WORK.md and maintain it whenever unfinished work is deferred. DEF-012–014
   are Resolved with evidence links; DEF-015 is now updated by subfinding (startup inventory,
   the real-update proof, and migration ordering/failure/recovery are closed for the demonstrated

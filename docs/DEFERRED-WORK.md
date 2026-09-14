@@ -1,6 +1,6 @@
 # Deferred work and post-MVP improvements
 
-Last updated: 2026-09-10T21:37:35-06:00.
+Last updated: 2026-09-14T09:46:43-06:00.
 
 The owner requested a working local MVP first, then the unfinished GitOps improvements.
 This file keeps that work discoverable without treating it as fixed or requiring every future
@@ -377,25 +377,43 @@ the full gap/fix history stays attached to each ID; each now carries a **Resolut
 
 ### DEF-016 — Refresh MVP runbook after verifier and PR closeout
 
-- **Status:** DEFERRED; non-blocking. Carried forward at GO-MVP-U1's PR #92 merge closeout
-  (2026-09-10T21:37:35-06:00) from a note found in unrelated, uncommitted full-GO-1 working-tree
-  content (never itself committed) so it is not lost. Updated: 2026-09-10T21:37:35-06:00.
-- **Gap:** `docs/runbooks/gitops-mvp-demo.md` still describes GO-MVP's chart fix as an uncommitted
-  edit even though PR #91 merged it, and its verification narrative predates the per-workload
+- **Status:** RESOLVED (documentation-only bounded housekeeping item, 2026-09-14T09:46:43-06:00; see below).
+  Carried forward at GO-MVP-U1's PR #92 merge closeout (2026-09-10T21:37:35-06:00) from a note
+  found in unrelated, uncommitted full-GO-1 working-tree content (never itself committed) so it
+  was not lost. Updated: 2026-09-14T09:46:43-06:00.
+- **Gap:** `docs/runbooks/gitops-mvp-demo.md` still described GO-MVP's chart fix as an uncommitted
+  edit even though PR #91 merged it, and its verification narrative predated the per-workload
   ordering/retained-Job checks and the explicit `--skip-sync` status-only boundary added across
   GO-MVP-U1's four verifier-hardening rounds (see DEF-015 subfinding 2's round 2–4 notes and
   `docs/PROGRESS.md`'s 2026-09-10T18:00:00-06:00, 19:30:00-06:00, and 20:15:00-06:00 session log
   entries).
-- **While deferred:** rely on `scripts/gitops-mvp-verify.sh --help` for the current, accurate
-  behavior contract rather than the runbook's narrative; a default (non-`--skip-sync`) triggered
-  sync is required for this run's ordering/unchanged-workload evidence, while `--skip-sync` is
-  status-only and never a release-acceptance claim. The demo's local-snapshot operation is
-  unaffected; this is a documentation-accuracy gap, not a functional one.
-- **Revisit:** before relying on `docs/runbooks/gitops-mvp-demo.md` as an operator-facing how-to
-  for a fresh demo run, or at the next GO-MVP-U1-adjacent milestone closeout.
+- **Resolution:** `docs/runbooks/gitops-mvp-demo.md`'s "Why a local snapshot" section now states
+  the `migration.gitopsMode` chart fix is committed and merged (PR #91, merge commit
+  `60e7d0757b1394f6d63a63530242eb7fed83eaf5`), not an uncommitted working-tree edit, and clarifies
+  the local-snapshot mechanism is an independent design choice for fast iteration, not a
+  workaround for that now-merged fix. Its "Verification" section now describes the current
+  behavior accurately: default (triggered-sync) mode's retained-Job sync/health tolerance (only a
+  positively-identified, terminal, non-current-release Job explains OutOfSync/Degraded — never any
+  other drift or an unhealthy current resource), per-workload pod-template-hash before/after
+  comparison (proving CHANGED vs. UNCHANGED, checked across every current-rollout replica when
+  changed), and `--skip-sync`'s explicit status-only contract (no pre-sync sample, ordering/
+  unchanged-workload status reported as `UNVERIFIED (--skip-sync)`, final message tagged
+  `STATUS ONLY`, never a release-acceptance claim) — cross-checked directly against
+  `scripts/gitops-mvp-verify.sh --help`'s current output. `START-HERE.md` and `docs/HANDOFF.md`
+  were also refreshed to record PR #92's actual merge (head `935b95cc7cacd49c1b86e4676b5644069ec038d1`,
+  merge commit `b7e52a9a14f2366609e6e733df0277872a5439b5`) rather than describing it as still open.
+  No functional/runtime change — documentation only. See `docs/PROGRESS.md`'s 2026-09-14 session
+  log entry for the PR and CI evidence.
+- **While deferred (historical, prior to resolution above):** rely on
+  `scripts/gitops-mvp-verify.sh --help` for the current, accurate behavior contract rather than
+  the runbook's narrative; a default (non-`--skip-sync`) triggered sync is required for this run's
+  ordering/unchanged-workload evidence, while `--skip-sync` is status-only and never a
+  release-acceptance claim. The demo's local-snapshot operation was unaffected; this was a
+  documentation-accuracy gap, not a functional one.
+- **Revisit:** if the verifier's behavior changes again without a matching runbook update.
 - **Close with:** `docs/runbooks/gitops-mvp-demo.md` updated to describe the chart fix as merged
   (not uncommitted) and to describe the current ordering/retained-Job/`--skip-sync` behavior
-  accurately; no functional change implied or required.
+  accurately; no functional change implied or required. — **Done, see Resolution above.**
 
 ## New-item template
 
@@ -417,4 +435,6 @@ Use the next unused `DEF-NNN` ID; keep IDs stable when the title changes.
 
 DEF-012, DEF-013 and DEF-014 are resolved; their full gap/fix history and Resolution evidence
 are kept in place under "Captured MVP findings" above rather than duplicated here, per the
-maintenance rule against silently deleting history. No other items are resolved.
+maintenance rule against silently deleting history. DEF-016 is also resolved (documentation-only
+runbook refresh, 2026-09-14); its full gap/fix history and Resolution evidence are kept in place
+under its own section above. No other items are resolved.

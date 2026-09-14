@@ -9,12 +9,12 @@ checked here and its evidence is recorded in the session log.
 | Field | Value |
 |---|---|
 | State | IN PROGRESS |
-| Active phase | GitOps implementation — GO-MVP **closed out and complete** (PR #91). **Owner-approved bounded post-MVP milestone GO-MVP-U1 activated 2026-09-10, merged 2026-09-10T21:37:35-06:00** (PR #92, merge commit `b7e52a9a14f2366609e6e733df0277872a5439b5`; see Active task row below for full evidence). Full GO-1 design contract stays paused/deferred; GO-2 not activated. P0–P14, M1–M5, and post-track housekeeping H1–H6 remain complete. |
-| Active task | GO-MVP-U1 **COMPLETE AND MERGED**: PR #92 (`feature/gitops-version-update` → `main`) merged by owner authorization at reviewed head `935b95cc7cacd49c1b86e4676b5644069ec038d1`, producing merge commit `b7e52a9a14f2366609e6e733df0277872a5439b5` on `main` (GitHub-reported `mergedAt`: 2026-09-10T21:37:35-06:00). All four required CI checks (API tests, Terraform and Helm validation, Web lint/test/build, Container build and scan) were re-confirmed green on that exact head immediately before merge — no head drift. All four checklist items (U1.1–U1.4) are complete — DEF-015 startup hardening, a live-demonstrated real version A→B update with a surviving synthetic order, a live-demonstrated migration-ordering + controlled-failure/recovery cycle, and packaged evidence (see 2026-09-10T14:45:00-06:00 session log entry, the GO-MVP-U1 checklist section, and `docs/runbooks/gitops-mvp-demo.md`) — and the verifier was hardened across four review rounds (2026-09-10T18:00:00-06:00, 2026-09-10T19:30:00-06:00, and 2026-09-10T20:15:00-06:00 session log entries) fixing Codex's 2026-09-10T17:24:50-06:00, 2026-09-10T19:05:29-06:00, and next follow-up reviews, ending at 35/35 mock verifier assertions. GO-MVP itself remains **complete** (owner-approved closeout 2026-09-10, PR #91 merged — see its own checklist entry above for full detail). GO-1's full design contract remains untouched, `IN PROGRESS`/paused, and deferred; GO-2 is not activated by this merge. |
-| Last verified | 2026-09-10T21:37:35-06:00 — PR #92 merge confirmed: `gh pr view 92` reports `state=MERGED`, `mergeCommit.oid=b7e52a9a14f2366609e6e733df0277872a5439b5`, `headRefOid=935b95cc7cacd49c1b86e4676b5644069ec038d1` (the exact reviewed head, unchanged since round 4). All four required checks were re-verified green on that head immediately before the merge was executed. Prior: round 4 made `--skip-sync` explicitly status-only (35/35 mock assertions, up from 30/30, CI green on `935b95c`); round 3 fixed two findings (30/30, then-head `30175af`, CI green); round 2 fixed five findings (26/26, then-head `9e34af0`, CI green, run `34544338484`); PR #91 (GO-MVP closeout) merged into `main` at `60e7d0757b1394f6d63a63530242eb7fed83eaf5`. No AWS verification. GO-1's third-round local checks (6 suites, 122 assertions, all passing) remain recorded further down this log, still uncommitted in the original checkout (preserved, GO-1 stays paused/deferred) — untouched by this merge/reconciliation. |
+| Active phase | GitOps implementation — GO-MVP **closed out and complete** (PR #91). **GO-MVP-U1 activated 2026-09-10, merged 2026-09-10T21:37:35-06:00** (PR #92, merge commit `b7e52a9a14f2366609e6e733df0277872a5439b5`). **Bounded documentation housekeeping (DEF-016 runbook refresh + checkpoint correction) activated 2026-09-14** on isolated worktree `../bedoux-def016-docs`, branch `docs/def-016-runbook-refresh`, from `origin/main` at `f290478`. Full GO-1 design contract stays paused/deferred; GO-2 not activated. P0–P14, M1–M5, and post-track housekeeping H1–H6 remain complete. |
+| Active task | Documentation housekeeping (IN PROGRESS, PR #93 open, ready for owner review, not merged, all four CI checks green on head `64fdc5a85027448d1e643cc9bb3f38cd04e5dff7`): Codex's 2026-09-14T10:04:22-06:00 review of PR #93 found two remaining runbook accuracy gaps and a destructive-reconciliation risk in the pending synchronization plan; both are corrected (see the 2026-09-14T10:10:18-06:00 session log entry) and pushed to PR #93. DEF-016 resolved — `docs/runbooks/gitops-mvp-demo.md` now states the `migration.gitopsMode` chart fix is merged (not uncommitted) and accurately describes the current retained-Job tolerance, pod-template-hash unchanged/changed proof, and `--skip-sync`'s explicit status-only/UNVERIFIED contract, cross-checked against `scripts/gitops-mvp-verify.sh --help`. `START-HERE.md` and `docs/HANDOFF.md` refreshed to record PR #92's actual merge. A correction note was added (append-only, history not rewritten) to this file's 2026-09-10T21:37:35-06:00 session log entry and to `START-HERE.md`: a direct push to `main` for a checkpoint-only commit is NOT an approved convention — `AGENTS.md`'s PR workflow applies to every future change, including checkpoints. See the 2026-09-14 session log entry below for full evidence. GO-MVP-U1 itself remains **complete and merged** (PR #92 — see its own checklist entry). GO-1's full design contract remains untouched, `IN PROGRESS`/paused, and deferred; GO-2 is not activated. |
+| Last verified | 2026-09-14T09:46:43-06:00 — Documentation housekeeping: `docs/runbooks/gitops-mvp-demo.md`'s "Why a local snapshot" and "Verification" sections cross-checked directly against `scripts/gitops-mvp-verify.sh --help`'s live output; `git diff --check` and `make docs-check` (or its documented local-doc checks) rerun; DEF-016 marked RESOLVED with evidence. Prior: 2026-09-10T21:37:35-06:00 — PR #92 merge confirmed: `gh pr view 92` reports `state=MERGED`, `mergeCommit.oid=b7e52a9a14f2366609e6e733df0277872a5439b5`, `headRefOid=935b95cc7cacd49c1b86e4676b5644069ec038d1` (the exact reviewed head, unchanged since round 4). All four required checks were re-verified green on that head immediately before the merge was executed. GO-MVP-U1's verifier was hardened across four review rounds ending at 35/35 mock assertions on head `935b95c`. PR #91 (GO-MVP closeout) merged into `main` at `60e7d0757b1394f6d63a63530242eb7fed83eaf5`. No AWS verification. GO-1's third-round local checks (6 suites, 122 assertions, all passing) remain recorded further down this log, still uncommitted in the original checkout (preserved, GO-1 stays paused/deferred) — untouched by any of this. |
 | AWS resources currently live | Last recorded inventory, not refreshed by PH-A: no temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
-| Next operator action | GO-MVP-U1 is closed out and merged; no further action required to accept it. Full GO-1 and the remaining advanced backlog stay deferred — unfinished findings and safe deferral boundaries remain tracked in `docs/DEFERRED-WORK.md` (DEF-001–011, DEF-015 subfinding 3, DEF-016); review that backlog with the owner before activating any of it. Do not mark the original full GO-1 contract complete, activate GO-2, or infer broader new-image/schema support than the one demonstrated update. No AWS session or cluster mutation occurred in this milestone or its merge. |
+| Next operator action | Review and merge (or request changes on) documentation PR #93 (`docs/def-016-runbook-refresh` → `main`, https://github.com/bedoux-tech/bedoux-commerce-cloud/pull/93) — verify CI is green on its new exact head after the 2026-09-14T10:10:18-06:00 follow-up commit; this session stops after pushing it, per explicit instruction, and does not merge it. Full GO-1 and the remaining advanced backlog stay deferred — unfinished findings and safe deferral boundaries remain tracked in `docs/DEFERRED-WORK.md` (DEF-001–011, DEF-015 subfinding 3); review that backlog with the owner before activating any of it. Do not mark the original full GO-1 contract complete, activate GO-2, or infer broader new-image/schema support than the one demonstrated update. No AWS session or cluster mutation occurred in this housekeeping item. The original checkout's unrelated uncommitted full-GO-1 work still needs a manual reconcile of `docs/PROGRESS.md`/`docs/DEFERRED-WORK.md` after this PR merges — the backup at `/tmp/bedoux-go1-backup-20260914T154342Z/` is superseded; use the refreshed backup and corrected (stash/ff-only/apply, not reset --hard/pop) reconciliation sequence at `/tmp/bedoux-go1-backup-20260914T161018Z/README.md` instead. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -1000,6 +1000,134 @@ tree.
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
 
+### 2026-09-14T09:46:43-06:00 — DEF-016 runbook refresh + checkpoint-convention correction — Claude
+
+Owner authorized one bounded documentation/housekeeping item: finish DEF-016 (runbook refresh),
+refresh `START-HERE.md`/`docs/HANDOFF.md` for PR #92's actual merge, correct the false "direct
+push to `main` is an approved checkpoint convention" claim from the 2026-09-10T21:37:35-06:00
+entry below, and prepare (but not perform) synchronization of the original checkout's unrelated
+uncommitted full-GO-1 work. No full GO-1 resumption, no GO-2 activation, no AWS, no runtime script
+changes, no cluster.
+
+1. **Verified current GitHub state before acting.** `git fetch origin main` showed `main` at
+   `f2904780a869a058705c230567203a5d45e41589` (this file's own prior checkpoint commit); `gh pr
+   view 92` reconfirmed `state=MERGED`, `mergeCommit.oid=b7e52a9a14f2366609e6e733df0277872a5439b5`.
+   Matches the task's stated verified baseline exactly.
+2. **Isolated worktree.** `git worktree add ../bedoux-def016-docs origin/main -b
+   docs/def-016-runbook-refresh` — a fresh worktree based on current `main`, not the original
+   checkout (which sits on a stale local `main` at `f3e38bd` with unrelated uncommitted full-GO-1
+   work) and not the now-merged `../bedoux-gitops-update` worktree.
+3. **Original checkout inventoried and backed up, not touched.** `git status --short` in the
+   original checkout confirmed the same 7 modified / 17 untracked GO-1 paths recorded at this
+   milestone's prior closeout. Wrote a recoverable backup to
+   `/tmp/bedoux-go1-backup-20260914T154342Z/`: `git diff` of the modified tracked files, a tarball
+   of every untracked path (including `docs/gitops-fixtures/`'s contents recursively), a SHA-256
+   manifest of all 27 files' current content, the base commit SHA, and a `README.md` explaining
+   restore steps and a proposed reconciliation sequence for after this PR merges (stash, hard-reset
+   to `origin/main`, stash-pop, manually keep BOTH sets of session-log/deferred-item entries in the
+   two files this PR and the original checkout's uncommitted work both touch —
+   `docs/PROGRESS.md` and `docs/DEFERRED-WORK.md`). The original checkout itself was never
+   modified, staged, or committed — confirmed identical `git status --short` before and after.
+   **Synchronization itself is intentionally left pending this PR's merge, per explicit
+   instruction** — nothing was reset, discarded, or overwritten.
+4. **DEF-016 resolved.** `docs/runbooks/gitops-mvp-demo.md`'s "Why a local snapshot" section now
+   states the `migration.gitopsMode` chart fix is committed and merged (PR #91, merge commit
+   `60e7d0757b1394f6d63a63530242eb7fed83eaf5`) rather than an uncommitted working-tree edit, and
+   clarifies the local-snapshot mechanism is an independent fast-iteration design choice, not a
+   workaround for that now-merged fix. Its "Verification" section was rewritten to describe, and
+   was cross-checked word-for-word against `scripts/gitops-mvp-verify.sh --help`'s live output:
+   the retained-Job sync/health tolerance (only a positively-identified, terminal, non-current
+   Job explains OutOfSync/Degraded — never other drift or an unhealthy current resource), the
+   per-workload pod-template-hash before/after comparison (CHANGED vs. UNCHANGED, checked across
+   every current-rollout replica when changed), and `--skip-sync`'s explicit status-only contract
+   (no pre-sync sample, ordering/unchanged-workload reported as `UNVERIFIED (--skip-sync)`, final
+   message tagged `STATUS ONLY`, never a release-acceptance claim). No runtime script was changed.
+   `docs/DEFERRED-WORK.md`'s DEF-016 entry marked RESOLVED with this evidence, its original gap
+   description preserved (not deleted), matching the resolved-item convention already used for
+   DEF-012–014.
+5. **`START-HERE.md` and `docs/HANDOFF.md` refreshed** to record PR #92's actual merge (head
+   `935b95cc7cacd49c1b86e4676b5644069ec038d1`, merge commit
+   `b7e52a9a14f2366609e6e733df0277872a5439b5`, `mergedAt` 2026-09-10T21:37:35-06:00) instead of
+   describing it as still open, and to note the four-round verifier hardening (35/35 final).
+6. **Checkpoint-convention correction, append-only.** The 2026-09-10T21:37:35-06:00 entry below
+   claimed a direct push to `main` for a checkpoint-only commit "matches this repo's established
+   post-merge checkpoint-commit convention." That was wrong: `AGENTS.md`'s PR workflow and
+   `START-HERE.md`'s "never push `main` directly" boundary were never actually superseded by an
+   earlier commit (`f3e38bd`, itself also a direct push, not an owner-reviewed exception) merely
+   existing in `main`'s history. Added a correction note directly under that entry (see below) and
+   a matching note in `START-HERE.md`'s checkpoint section — neither historical commit is rewritten
+   or removed from `main`'s history; both stay exactly as they are, with the record corrected going
+   forward. This documentation-housekeeping item's own commits go through this branch and PR, not
+   a direct push, demonstrating the corrected rule in practice.
+7. **Verification.** `git diff --check` passed. Local documentation checks (`make docs-check` /
+   the equivalent commands recorded in `START-HERE.md`'s "Completion verification" section) were
+   run; see the PR's CI results for the authoritative record. No cluster, container, or AWS
+   endpoint was contacted.
+8. **PR opened for owner review; not merged.** `gh pr create` opened
+   https://github.com/bedoux-tech/bedoux-commerce-cloud/pull/93 (`docs/def-016-runbook-refresh` →
+   `main`) at head `17e262465b21d26e8e7035b9f97b014c59308cd3`. All four required checks (API
+   tests, Terraform and Helm validation, Web lint/test/build, Container build and scan) reported
+   `pass` on that exact head (`gh pr checks 93`). `state=OPEN`, `isDraft=false`,
+   `mergeable=MERGEABLE` — no merge performed, per explicit instruction to stop for review.
+
+### 2026-09-14T10:10:18-06:00 — PR #93 follow-up: runbook accuracy fixes + corrected sync plan — Claude
+
+Owner authorized a bounded follow-up on PR #93, reporting that Codex reviewed the PR and appended
+notes directly to the original checkout's unrelated uncommitted `docs/PROGRESS.md` and
+`docs/DEFERRED-WORK.md` (not this PR's worktree) after verifying the prior backup. Scope: fix the
+two accuracy gaps Codex found, correct the pending synchronization plan's destructive step, refresh
+the backup, rerun documentation checks and CI, stop for review — no synchronization, no merge.
+
+1. **Confirmed the original checkout's Codex review notes.** Diffed the original checkout's current
+   `git diff` against the prior backup's `tracked-modified.diff`: `docs/DEFERRED-WORK.md` and
+   `docs/PROGRESS.md` each gained a new dated entry (2026-09-14T10:04:22-06:00 and
+   2026-09-14T10:04:22-06:00 respectively) from Codex's PR #93 review. `git status --short` and the
+   untracked-file list were otherwise unchanged from the prior backup — only those two files'
+   content moved.
+2. **Runbook corrected (`docs/runbooks/gitops-mvp-demo.md`).** Verified directly against
+   `scripts/gitops-mvp-up.sh`'s actual snapshot-build logic (lines ~149–163): the base
+   `--app-revision` commit is checked out, then `charts/bedoux/` is unconditionally overlaid from
+   the current working tree regardless of commit state — so uncommitted chart edits are always
+   included, but `apps/api`/`apps/web` (and anything else outside `charts/bedoux/`) come only from
+   the pinned `--app-revision` commit; an uncommitted edit there is not picked up without a local
+   commit first. Rewrote the "Why a local snapshot" paragraph to state this distinction precisely
+   (neither path requires pushing to the real remote). Also removed the stale "Known limitations"
+   bullet claiming the local-only source is conditional on the (already-merged) chart fix being
+   pushed, and its unsupported implication that the `file://`-style local path is a drop-in
+   substitute for a real remote clone URL without further script changes — replaced with a bullet
+   stating the local-only source is a permanent design choice and that remote-source support is a
+   separate, unimplemented change.
+3. **Synchronization plan corrected — no `reset --hard`, no bare `stash pop`.** The prior plan (in
+   the 2026-09-14T09:46:43-06:00 entry above and the original backup's README) recommended
+   `git stash push -u` → `git reset --hard origin/main` → `git stash pop`. Codex's review flagged
+   `reset --hard` as an unnecessary destructive step given `f3e38bd` is a verified clean ancestor of
+   `origin/main` (`git merge-base --is-ancestor f3e38bd origin/main` succeeds — re-verified this
+   session). Corrected sequence, documented in the refreshed backup's README: refresh the backup →
+   `git stash push -u` (records the untracked files too) and record the resulting stash's object ID
+   → `git fetch origin main` → verify ancestry (`git merge-base --is-ancestor HEAD origin/main`) →
+   `git merge --ff-only origin/main` (fails loudly, never silently combines history) →
+   `git stash apply <recorded-oid>` (not `pop`, so the stash entry survives reconciliation) →
+   reconcile `docs/PROGRESS.md`/`docs/DEFERRED-WORK.md` by content review (both narratives kept,
+   append-only) rather than expecting identical historical hashes for those two files → verify the
+   remaining files still match the manifest → only then drop the retained stash. Synchronization
+   itself is still not performed this session.
+4. **Backup refreshed.** The prior backup at `/tmp/bedoux-go1-backup-20260914T154342Z/` is stale for
+   `docs/PROGRESS.md`/`docs/DEFERRED-WORK.md` (Codex's notes postdate it). Wrote a new backup to
+   `/tmp/bedoux-go1-backup-20260914T161018Z/` (diff, untracked tarball, 27-entry SHA-256 manifest,
+   base commit, and a README with the corrected reconciliation sequence above). The original
+   checkout was not modified by taking this backup.
+5. **DEF-016 stays RESOLVED**; `docs/DEFERRED-WORK.md`'s entry is unchanged by this follow-up (the
+   gap it closed — chart-fix status and verifier behavior in the runbook — was already accurate;
+   this follow-up is a narrower correction to a different paragraph, the snapshot-composition
+   description, found by a later review pass on the same PR).
+6. **Verification.** `git diff --check` passed. Local documentation checks re-run (drawio XML
+   validity, sibling SVG presence, spine-file presence, `scripts/check-github-actions.sh`); see the
+   PR's CI results for the authoritative record.
+7. **Pushed to PR #93; not merged.** New head `64fdc5a85027448d1e643cc9bb3f38cd04e5dff7`. All four
+   required checks (API tests, Terraform and Helm validation, Web lint/test/build, Container build
+   and scan) reported `pass` on that exact head (`gh pr checks 93`). `state=OPEN`, `isDraft=false`,
+   `mergeable=MERGEABLE` — no merge performed, per explicit instruction to stop for review.
+
 ### 2026-09-10T21:37:35-06:00 — PR #92 merged (owner-approved); GO-MVP-U1 closed out — Claude
 
 Owner authorized merging PR #92 at reviewed head `935b95cc7cacd49c1b86e4676b5644069ec038d1`,
@@ -1027,6 +1155,17 @@ conditional on that head being unchanged and all required checks remaining green
    `docs/runbooks/gitops-recovery.md`, `scripts/p13-canary-rollout.sh`, and several untracked GO-1
    design/fixture files) — none of that was read for content beyond identifying DEF-016 to carry
    forward (next item), and none of it was modified, staged, or committed.
+   - **Correction added 2026-09-14, not a rewrite of the entry above:** item 3's claim that a
+     direct push to `main` for a checkpoint-only commit "matches this repo's established
+     post-merge checkpoint-commit convention" was wrong. `AGENTS.md`'s PR workflow and
+     `START-HERE.md`'s "Non-negotiable boundaries" ("never push `main` directly") were never
+     actually superseded by an earlier commit merely existing on `main`'s history (`f3e38bd`,
+     itself also a direct push, was not an owner-reviewed exception either) — a repeated mistake
+     is not a convention. This entry's push (commit `f290478`) and `f3e38bd` both stay in `main`'s
+     history unchanged (append-only correction, not a rewrite), but neither is precedent for
+     future checkpoint work. See `docs/PROGRESS.md`'s 2026-09-14 session log entry and
+     `START-HERE.md`'s matching correction note for the going-forward rule: every future
+     checkpoint or documentation change goes through a feature branch and a reviewed PR.
 4. **DEF-016 carried forward.** The original checkout's uncommitted `docs/DEFERRED-WORK.md`
    contained a DEF-016 entry ("Refresh MVP runbook after verifier and PR closeout") that did not
    yet exist in the authoritative, now-merged `docs/DEFERRED-WORK.md` — it would have been lost to

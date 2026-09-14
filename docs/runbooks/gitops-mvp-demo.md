@@ -26,16 +26,25 @@ under Argo CD (not present under the legacy Helm CLI path) — see
 header comment for the full live-reproduced detail. The fix is a small, backward-compatible,
 opt-in chart change (`migration.gitopsMode`, default `false`; legacy Helm CLI behavior is
 byte-for-byte unchanged — `python3 scripts/test_helm_render.py` still passes all 17 render
-contracts). That fix is, as of this writing, **an uncommitted, dirty working-tree edit in this
-checkout** (`git status` shows it modified, not committed — an earlier draft of this runbook
-wrongly said "committed in this working tree"; corrected per Codex's
-2026-09-09T20:27:22-06:00 review) — it is not pushed to the real GitHub remote, and
-`gitops-mvp-up.sh` does not commit or push it on your behalf; that is a separate, explicit
-action. Until it happens, `gitops-mvp-up.sh` builds a **local-only git snapshot** (this
-checkout's `--app-revision` plus the current `charts/bedoux/` working tree, committed only to a
-throwaway branch inside the snapshot itself, never in this repository's own working tree, and
-never pushed anywhere) and serves it to the in-cluster Argo CD via a `hostPath` mount on the kind
-node, referenced by its in-node path — the real GitHub remote is never contacted by this demo.
+contracts). **This fix is committed and merged into `main`** (GO-MVP closeout, PR #91,
+`feature/gitops-mvp` → `main`, merge commit `60e7d0757b1394f6d63a63530242eb7fed83eaf5` — an
+earlier draft of this runbook described it as an uncommitted working-tree edit; that was
+corrected once GO-MVP's PR actually merged it). A real `git clone` of the GitHub remote at or
+after that merge already has this fix — it is no longer a prerequisite gap.
+`gitops-mvp-up.sh` nonetheless still builds a **local-only git snapshot** on every run. The base
+is this checkout's `--app-revision` commit (default: current `HEAD`); the current
+`charts/bedoux/` working tree is then **unconditionally overlaid on top of that base regardless of
+its commit state**, so uncommitted, in-progress chart edits are always picked up. `apps/api`/
+`apps/web` (and everything else outside `charts/bedoux/`) come only from the pinned
+`--app-revision` commit itself — an uncommitted edit there is **not** picked up; commit it locally
+first, then pass its SHA via `--app-revision`. Both the base commit and the chart overlay are
+committed only to a throwaway branch inside the snapshot itself, never in this repository's own
+working tree, and never pushed anywhere — neither the chart overlay nor a local `--app-revision`
+commit requires pushing to the real remote. The snapshot is served to the in-cluster Argo CD via a
+`hostPath` mount on the kind node, referenced by its in-node path — the real GitHub remote is
+never contacted by this demo. This is a deliberate, independent design choice (fast local
+iteration without needing to commit or push anything to the real remote for every demo run), not a
+workaround for the now-merged chart fix.
 
 ## What this deliberately does NOT do
 
@@ -109,14 +118,41 @@ script never invokes it for you.
 scripts/gitops-mvp-verify.sh
 ```
 
-Triggers exactly one manual sync (`kubectl ... patch application bedoux-demo ... operation.sync`),
-waits for the Application to report `Synced`+`Healthy`, then reads real object timestamps to
-report whether the migration Job actually completed before the first `api` pod was created for
-**this run** — printed honestly either way, never assumed from the chart's hook annotation alone
-(Argo CD's Helm-hook-to-Argo-hook translation for `post-install,pre-upgrade` is not guaranteed to
-behave identically to a plain `helm install`; see "Known limitations" below). Then starts
-`kubectl port-forward` for `web` (`http://127.0.0.1:8080/`) and `api`
-(`http://127.0.0.1:8000/health`) and curls both once. Press Ctrl-C to stop the port-forwards.
+Run `scripts/gitops-mvp-verify.sh --help` for the authoritative, current flag/behavior contract —
+this section summarizes it, but the script's own `--help` is what to trust if they ever drift.
+
+By default (no `--skip-sync`), triggers exactly one manual sync
+(`kubectl ... patch application bedoux-demo ... operation.sync`) and only reports success once
+real, current-release cluster state confirms it:
+
+- The Application reaches `Synced`+`Healthy` for the exact requested revision, or is tolerated
+  `OutOfSync`/`Degraded` ONLY when every explanation is a positively-identified, terminal (Complete
+  or Failed, from the Job's own `status.conditions`, never a succeeded/failed count that could
+  reflect a still-retrying Job), retained PRIOR-release migration Job — this MVP deliberately never
+  prunes old per-tag Jobs, so a real image-tag update permanently leaves them as "extra" resources
+  even once the CURRENT release is genuinely healthy. Any other drift, or an unhealthy
+  current-release resource, still fails — retained-Job tolerance is never used to excuse a real
+  problem.
+- For each of `api`/`web`, a pod-template-hash sample taken before the trigger is compared to the
+  one active after it: a genuine match proves that workload was left UNCHANGED by this release (not
+  applicable to it, not a violation); a genuine change is then checked for ordering across EVERY
+  current-rollout replica — migration must have completed at/before all of them.
+- Migration-before-workload ordering is reported from real object timestamps for **this run**,
+  never assumed from the chart's hook annotation alone (Argo CD's Helm-hook-to-Argo-hook
+  translation for `post-install,pre-upgrade` is not guaranteed to behave identically to a plain
+  `helm install`; see "Known limitations" below).
+
+**`--skip-sync` is explicitly status-only.** It never triggers a sync, so there is no genuine
+before/after sample to compare — it never claims a workload is unchanged, never evaluates
+ordering as a pass/fail, and always reports per-workload migration-ordering status as
+`UNVERIFIED (--skip-sync)`. Its final summary line is tagged `STATUS ONLY` and is never a full
+release-acceptance claim; it only confirms the Application's current sync/health/revision status
+and the current migration Job's own terminal condition. Use it to peek at current state without
+triggering a new sync — not as proof an update behaved correctly.
+
+Then, unless `--no-port-forward` is passed, starts `kubectl port-forward` for `web`
+(`http://127.0.0.1:8080/`) and `api` (`http://127.0.0.1:8000/health`) and curls both once, plus
+the DB-backed `/products` endpoint. Press Ctrl-C to stop the port-forwards.
 
 ## Demo: one Git change, one sync, one visible update
 
@@ -262,10 +298,13 @@ same-day-teardown default.
   ID, not a registry digest.** This is weaker provenance than the full design contract's
   digest-based binding (Gate 1, deferred) — acceptable for a local demo with synthetic data, not
   claimed as production-equivalent.
-- **The Application's source is a local-only git snapshot, not the real GitHub remote**, until
-  the `charts/bedoux` migration-ordering fix above is pushed and reviewed — see "Why a local
-  snapshot" above. Re-run with a real upstream commit once that fix lands; no script change
-  needed, the `file://`-style local-path source pattern also works with a real clone URL.
+- **The Application's source is always a local-only git snapshot, never the real GitHub remote —
+  this is a permanent, deliberate design choice, not a gap waiting on the (already-merged)
+  `charts/bedoux` migration-ordering fix.** See "Why a local snapshot" above. Sourcing this demo
+  directly from a real GitHub remote/branch instead would be a separate, unimplemented change to
+  `gitops-mvp-up.sh`'s Application manifest and repo-server mount — the script does not currently
+  support it, and the local `hostPath` mount path is not a drop-in substitute for a real remote URL
+  without that work.
 - **No admission/signature enforcement is installed.** Anything can run in this namespace.
   Acceptable only because the namespace holds synthetic demo data and is torn down same-session.
 - **No automated recovery of any kind.** A failed sync, a failed migration, or a crashed pod is

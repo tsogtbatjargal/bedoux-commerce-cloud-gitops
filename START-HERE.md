@@ -24,14 +24,29 @@ This file is the entry point for a new Claude Code, Codex, OpenClaw, or human se
   (branch `feature/gitops-version-update`, from `main` at `f3e38bd`) — DEF-015's startup
   inventory-error branch hardened, a real version A→B application update live-demonstrated with
   a surviving synthetic order, migration ordering plus a controlled migration failure/recovery
-  live-demonstrated, and the evidence packaged in `docs/runbooks/gitops-mvp-demo.md`'s "GO-MVP-U1"
-  section and `docs/PROGRESS.md`'s 2026-09-10T14:45:00-06:00 session log entry. A PR from
-  `feature/gitops-version-update` is open for owner review; **this session stopped there and did
-  not merge it.** Full GO-1 and the remaining advanced GitOps backlog (DEF-001–011, DEF-015
-  subfinding 3) remain explicitly deferred — not activated by either milestone. Read
+  live-demonstrated, its verifier hardened across four Codex review rounds (35/35 mock
+  assertions in the final round), and the evidence packaged in
+  `docs/runbooks/gitops-mvp-demo.md`'s "GO-MVP-U1" section and `docs/PROGRESS.md`'s
+  2026-09-10T14:45:00-06:00 session log entry. **PR #92 (`feature/gitops-version-update` →
+  `main`) was merged by explicit owner authorization on 2026-09-10T21:37:35-06:00 at reviewed
+  head `935b95cc7cacd49c1b86e4676b5644069ec038d1`, producing merge commit
+  `b7e52a9a14f2366609e6e733df0277872a5439b5` — GO-MVP-U1 is complete and merged.** Full GO-1 and
+  the remaining advanced GitOps backlog (DEF-001–011, DEF-015 subfinding 3, DEF-016) remain
+  explicitly deferred — not activated by either milestone or its merge. Read
   `docs/DEFERRED-WORK.md` for unfinished findings, safe interim boundaries and revisit criteria;
   update it whenever additional work is deferred. Neither milestone marks the full GO-1 contract
   complete, activates GO-2, or bypasses the explicit implementation gate in `docs/PROGRESS.md`.
+- **Checkpoint-commit convention correction (2026-09-14):** a prior session's PROGRESS.md entry
+  wrongly described a direct push of a checkpoint-only commit to `main` (`f290478`, reconciling
+  PR #92's merge SHA) as matching an "established convention" set by an earlier direct-to-main
+  checkpoint commit (`f3e38bd`, after PR #91). Both were mistaken: `AGENTS.md`'s PR workflow and
+  this file's own "Non-negotiable boundaries" section ("never push `main` directly") were not
+  actually superseded by either commit sitting on `main`'s history — a commit existing on `main`
+  is not itself authorization to keep doing that. The historical commits are NOT rewritten (the
+  append-only session log is corrected in place with a note, not deleted — see
+  `docs/PROGRESS.md`'s session log for the correction entry). **Every future checkpoint or
+  documentation change, including routine post-merge reconciliation, goes through a feature
+  branch and a reviewed PR — no exceptions for "just a checkpoint update."**
 - Continuation target: `nomad`, app clone
   `/var/home/tsogtb/src/github.com/bedoux-tech/bedoux-commerce-cloud`. Read-only verification
   initially found it stale at `0c1c285`; the authorized update after PR #89 brought it cleanly
