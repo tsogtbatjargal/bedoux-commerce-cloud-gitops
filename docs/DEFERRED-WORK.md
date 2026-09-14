@@ -1,6 +1,6 @@
 # Deferred work and post-MVP improvements
 
-Last updated: 2026-09-14T09:46:43-06:00.
+Last updated: 2026-09-14T13:44:50-06:00.
 
 The owner requested a working local MVP first, then the unfinished GitOps improvements.
 This file keeps that work discoverable without treating it as fixed or requiring every future
@@ -377,6 +377,14 @@ the full gap/fix history stays attached to each ID; each now carries a **Resolut
 
 ### DEF-016 — Refresh MVP runbook after verifier and PR closeout
 
+- **Post-sync review (2026-09-14T13:44:50-06:00):** runbook fix remains RESOLVED and PR #93
+  is verified merged at `932230b7be36522aad7241e829a977ea35558cb3`; local synchronization and
+  saved-work preservation are accepted. Small checkpoint follow-up remains deferred: refresh
+  PROGRESS's stale open-PR/pending-sync status, visibly label the duplicate historical DEF-016
+  section without removing review text, and correct the synchronization note's UTC/local time.
+  Until then use PROGRESS's dated synchronization review for current state. Revisit at the next
+  documentation closeout; close with consistent present-tense checkpoint/history labels in a
+  focused reviewed PR. No runtime changes or phase activation are authorized by this note.
 - **Status:** RESOLVED (documentation-only bounded housekeeping item, 2026-09-14T09:46:43-06:00; see below).
   Carried forward at GO-MVP-U1's PR #92 merge closeout (2026-09-10T21:37:35-06:00) from a note
   found in unrelated, uncommitted full-GO-1 working-tree content (never itself committed) so it
@@ -414,6 +422,119 @@ the full gap/fix history stays attached to each ID; each now carries a **Resolut
 - **Close with:** `docs/runbooks/gitops-mvp-demo.md` updated to describe the chart fix as merged
   (not uncommitted) and to describe the current ordering/retained-Job/`--skip-sync` behavior
   accurately; no functional change implied or required. — **Done, see Resolution above.**
+
+<!-- Synchronization note (merge sync 2026-09-14T16:30:03Z / 2026-09-14T10:30:03-06:00 -- corrected 2026-09-14, an earlier version of this note mislabeled the merge time as 16:30:03-06:00): the review notes immediately below were recorded directly in this checkout's local, uncommitted docs/DEFERRED-WORK.md by Codex across several PR #92 reviews, before this checkout was synchronized to main. They predate and are superseded by the resolved summary above (see also docs/PROGRESS.md's 2026-09-10T17:24:50-06:00 through 21:35:39-06:00 session log entries for the authoritative, already-merged record of the same work). Preserved verbatim, append-only, per the maintenance rule against silently deleting history. -->
+
+- **Latest PR #92 review (2026-09-10T21:35:39-06:00):** bounded skip-sync mode finding
+  CLOSED at `935b95cc7cacd49c1b86e4676b5644069ec038d1`. No pre-sync hash capture in
+  status-only mode; both workloads report UNVERIFIED and final output explicitly disclaims
+  release acceptance. Trigger-aware mocks preserve ordering checks in normal sync mode.
+  Independent prior counterexample now produces only status/UNVERIFIED evidence. All 35
+  verifier assertions and other local MVP/Helm suites pass; four exact-head CI checks green.
+  No remaining blocker found in this bounded follow-up; recommend owner-authorized merge,
+  not an executed merge. Multi-cluster/broader-shape limitations remain deferred. Original
+  live evidence unchanged; isolated worktree retains authoritative U1 state. Runbook drift
+  is tracked separately as non-blocking DEF-016.
+- **PR #92 review (2026-09-10T21:09:26-06:00):** at head `30175af`, explicit
+  Complete/Failed conditions address the retry-gap finding, and before/after template hashes
+  address the triggered-sync counterexample. All 30 verifier assertions pass. One bounded P2
+  mode-contract issue remains: `--skip-sync` captures both hashes after an already-completed
+  deployment, yet calls their equality proof the release left the workload unchanged and
+  bypasses ordering. A stable mock with a new RS at 00:00:30Z, its pod at 00:01:00Z and migration
+  completion at 00:02:00Z exits 0 with UNCHANGED/ALL NON-HTTP CHECKS PASSED. No sync was triggered.
+  Smallest correction: make skip-sync explicitly status-only, reporting ordering unverified
+  without release-acceptance/unchanged-by-release claims; no durable evidence framework needed.
+  Add a stable post-deployment regression, and make transition mocks change state only after
+  an actual sync trigger. Preserve original live evidence; no new live run needed for this fix.
+  This review note does not replace the isolated worktree checkpoint or authorize merge/GO-2.
+- **PR #92 review (2026-09-10T19:05:29-06:00):** at head `e40025f` (verifier code
+  unchanged from `aadff46`), failed/empty resource-list checks and naming/group restrictions
+  are improved; all 26 verifier assertions pass. Two reproduced blockers remain within U1:
+  (1) an RS created before migration completion is automatically called unchanged, so a NEW
+  release deployed prematurely bypasses ordering altogether; (2) failed-pod counts plus
+  zero active pods do not prove Job termination, and failed direct reads still default to zero.
+  Mocks for an early new RS, a Job between retries, and a failed active-status read all exit 0.
+  Require independent before/after workload identity to prove unchanged, and explicit true
+  Complete/Failed Job conditions from a successful validated read. Do not infer either from
+  the timestamps/counters whose safety is being tested. Keep previous live evidence unchanged.
+- **Host closeout update:** inotify is independently confirmed restored to 128. No new live
+  cluster run is needed merely to reproduce these verifier defects; add realistic local cases
+  including RS creation before its pod, both preceding migration completion. Preserve valid
+  truly unchanged workloads and terminal retained-Job recovery as positive controls.
+- **PR #92 review (2026-09-10T17:24:50-06:00):** GO-MVP-U1 is active on the separate
+  `feature/gitops-version-update` worktree; this main-worktree note does not replace its
+  checkpoint or imply merge. Startup inventory refusal is correctly implemented at candidate
+  head `2bfe8e0f17960b6516b38bf02e91353d7cdab99d`, and the reported A/B/order/failure demo is
+  useful evidence. However, verifier subfindings are not ready to close: the new retained-Job
+  predicate returns success on failed/empty resource reads, permits ANY non-current Job, and
+  uses sync status alone to excuse Degraded health without examining resource health. Mocks
+  independently return exit 0 for these cases. Selecting the newest Running pod also hides an
+  earlier current-release replica created before migration completion; it does not identify
+  the advancing ReplicaSet/image. Fix these bounded U1 verification gaps before merging #92;
+  preserve the original scaling MVP closeout and keep multi-cluster work deferred.
+- **Required regression evidence for candidate closure:** failed/empty/malformed resource
+  reads refuse; a positively identified retained migration Job is tolerated, an unrelated Job
+  or unhealthy current resource is not; health and sync reasons are checked independently;
+  ordering selects actual current-rollout members and catches one early replica even if
+  another was created later. Distinguish deliberately unchanged workloads from advancing ones.
+- **Status:** DEFERRED; non-blocking for the demonstrated single-cluster scaling-only MVP.
+  Source: Codex review 2026-09-10T09:20:38-06:00 in `PROGRESS.md`.
+- **Gap:** startup still branches to creation on a failed `kind get clusters` pipeline rather
+  than distinguishing error from absence; test coverage does not yet include that branch.
+  Verification still selects `.items[0]` for pod ordering and does not demonstrate all
+  new-image/migration-update shapes. Multiple demo clusters can share the base-SHA image tags;
+  a tag is not exclusive per-cluster ownership.
+- **While deferred:** one demo cluster at a time; confirm successful read-only kind inventory
+  before startup and stop on failure; review cleanup's exact tags and preserve anything shared.
+  Use only the demonstrated chart-scaling update, not arbitrary source/schema updates.
+  Explicitly report skipped image cleanup; inspect exact leftovers manually when needed.
+- **Revisit:** before adding multiple concurrent demos or claiming new-image/schema deployment
+  support, or when startup inventory fails.
+- **Close with:** startup inventory-error test proving no creation is attempted; scoped image
+  ownership for any supported concurrency; appropriate current-workload ordering evidence and
+  a same-cluster new-image/migration update test. No advanced GO-1 automation is implied.
+
+### DEF-016 (historical duplicate — superseded by the DEF-016 section above; preserved verbatim, not deleted) — Refresh MVP runbook after verifier and PR closeout
+
+- **Follow-up review (2026-09-14T10:28:30-06:00):** remaining PR #93 documentation findings
+  closed at `5eb7a76e84ebaabc51a84eff17e01db5348ad021`. Snapshot description distinguishes
+  committed app source from the working-tree chart overlay; stale remote-source transition
+  removed. Pending synchronization now uses ancestry-checked fast-forward and retained stash
+  apply with content reconciliation. Four CI checks and local documentation checks pass;
+  all 27 refreshed-backup hashes matched before these required review notes were appended.
+  Recommend owner-approved merge, then refresh the backup before synchronization. No merge
+  or synchronization performed in this review; retain historical findings below as evidence.
+- **PR #93 review (2026-09-14T10:04:22-06:00):** head `14a4f3b` is OPEN/MERGEABLE with
+  all four CI checks green; documentation component checks pass. Two narrow corrections remain
+  before recommending merge: runbook lines 39–41 incorrectly include uncommitted apps/api and
+  apps/web edits in the snapshot (only charts/bedoux is overlaid; app changes require a local
+  commit selected by --app-revision); lines 295–298 still make local snapshots conditional on
+  the already-merged chart fix and imply remote-source support without a script change.
+  Also revise the pending synchronization plan in PROGRESS and the backup README to use a
+  checked fast-forward and retained stash apply instead of recommending hard reset/stash pop.
+  All 27 backup manifest hashes matched before this review appended local notes; refresh the
+  backup before synchronization and compare reconciled PROGRESS/DEFERRED semantically.
+- **Closeout review (2026-09-14T08:44:32-06:00):** remote `main` at `f290478` carries
+  this entry and correctly records PR #92 merged at `b7e52a9`. Its `START-HERE.md` and
+  `docs/HANDOFF.md` still say the U1 PR is open; include those checkpoint statements in the
+  next documentation refresh. The merge log calls direct main publication an established
+  convention, contrary to START-HERE and the PR workflow's no-direct-main rule; correct that
+  description and use a feature branch/PR for future checkpoint changes. No history rewrite
+  is needed. This original checkout is still at `f3e38bd` with saved GO-1 changes: consult
+  committed remote progress for current state and preserve those changes during any later sync.
+- **Status:** DEFERRED; non-blocking for the reviewed local MVP/U1. Updated:
+  2026-09-10T21:35:39-06:00.
+- **Gap:** `docs/runbooks/gitops-mvp-demo.md` still describes the chart fix as an uncommitted
+  edit although PR #91 merged it, and its verification narrative predates the current
+  per-workload ordering/retained-Job checks and explicit skip-sync status-only boundary.
+- **While deferred:** use the current verifier's `--help`; default triggered sync supplies
+  this run's ordering evidence, while `--skip-sync` is status-only and never release acceptance.
+  Local snapshot operation remains the implemented demo source; a documentation refresh does
+  not authorize switching to a remote repository or enabling automated reconciliation.
+- **Revisit:** next documentation/merge closeout or before handing the runbook to a new operator.
+- **Close with:** reconcile present-tense instructions with committed code and merged PR state;
+  distinguish historical live evidence from current mock tests; document both verifier modes.
+- **Source:** Codex PR #92 review at `935b95c`, PROGRESS session 2026-09-10T21:35:39-06:00.
 
 ## New-item template
 

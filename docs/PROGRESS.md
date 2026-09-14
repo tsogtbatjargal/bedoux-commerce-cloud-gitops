@@ -9,12 +9,12 @@ checked here and its evidence is recorded in the session log.
 | Field | Value |
 |---|---|
 | State | IN PROGRESS |
-| Active phase | GitOps implementation — GO-MVP **closed out and complete** (PR #91). **GO-MVP-U1 activated 2026-09-10, merged 2026-09-10T21:37:35-06:00** (PR #92, merge commit `b7e52a9a14f2366609e6e733df0277872a5439b5`). **Bounded documentation housekeeping (DEF-016 runbook refresh + checkpoint correction) activated 2026-09-14** on isolated worktree `../bedoux-def016-docs`, branch `docs/def-016-runbook-refresh`, from `origin/main` at `f290478`. Full GO-1 design contract stays paused/deferred; GO-2 not activated. P0–P14, M1–M5, and post-track housekeeping H1–H6 remain complete. |
-| Active task | Documentation housekeeping (IN PROGRESS, PR #93 open, ready for owner review, not merged, all four CI checks green on head `64fdc5a85027448d1e643cc9bb3f38cd04e5dff7`): Codex's 2026-09-14T10:04:22-06:00 review of PR #93 found two remaining runbook accuracy gaps and a destructive-reconciliation risk in the pending synchronization plan; both are corrected (see the 2026-09-14T10:10:18-06:00 session log entry) and pushed to PR #93. DEF-016 resolved — `docs/runbooks/gitops-mvp-demo.md` now states the `migration.gitopsMode` chart fix is merged (not uncommitted) and accurately describes the current retained-Job tolerance, pod-template-hash unchanged/changed proof, and `--skip-sync`'s explicit status-only/UNVERIFIED contract, cross-checked against `scripts/gitops-mvp-verify.sh --help`. `START-HERE.md` and `docs/HANDOFF.md` refreshed to record PR #92's actual merge. A correction note was added (append-only, history not rewritten) to this file's 2026-09-10T21:37:35-06:00 session log entry and to `START-HERE.md`: a direct push to `main` for a checkpoint-only commit is NOT an approved convention — `AGENTS.md`'s PR workflow applies to every future change, including checkpoints. See the 2026-09-14 session log entry below for full evidence. GO-MVP-U1 itself remains **complete and merged** (PR #92 — see its own checklist entry). GO-1's full design contract remains untouched, `IN PROGRESS`/paused, and deferred; GO-2 is not activated. |
+| Active phase | GitOps implementation — GO-MVP **closed out and complete** (PR #91). **GO-MVP-U1 activated 2026-09-10, merged 2026-09-10T21:37:35-06:00** (PR #92, merge commit `b7e52a9a14f2366609e6e733df0277872a5439b5`). **Bounded documentation housekeeping (DEF-016 runbook refresh + checkpoint correction) activated 2026-09-14, merged 2026-09-14T16:30:03Z / 10:30:03-06:00** (PR #93, merge commit `932230b7be36522aad7241e829a977ea35558cb3`) from isolated worktree `../bedoux-def016-docs`, branch `docs/def-016-runbook-refresh`. The original checkout is synchronized to that commit; a small follow-up documentation-closeout PR (present-tense checkpoint refresh, historical DEF-016 duplicate labeling, timezone correction) is tracked separately. Full GO-1 design contract stays paused/deferred; GO-2 not activated. P0–P14, M1–M5, and post-track housekeeping H1–H6 remain complete. |
+| Active task | Documentation housekeeping **COMPLETE**: PR #93 (`docs/def-016-runbook-refresh` → `main`) was merged by explicit owner authorization at reviewed head `5eb7a76e84ebaabc51a84eff17e01db5348ad021`, merge commit `932230b7be36522aad7241e829a977ea35558cb3` (GitHub `mergedAt` 2026-09-14T16:30:03Z / 2026-09-14T10:30:03-06:00). The original checkout was synchronized to that commit via a checked fast-forward (`git merge --ff-only origin/main`, never `reset --hard`); the stash holding its unrelated uncommitted full-GO-1 work was reapplied by recorded object ID, reconciled (both narratives preserved, append-only) and, after all 25 unaffected files verified byte-identical against the refreshed backup manifest, dropped. See the 2026-09-14 session log entries below for full evidence. A small follow-up documentation closeout (present-tense checkpoint refresh, duplicate DEF-016 labeled historical, synchronization-note timezone correction) is tracked separately, publishing only through its own focused PR. DEF-016 resolved — `docs/runbooks/gitops-mvp-demo.md` now states the `migration.gitopsMode` chart fix is merged (not uncommitted) and accurately describes the current retained-Job tolerance, pod-template-hash unchanged/changed proof, and `--skip-sync`'s explicit status-only/UNVERIFIED contract, cross-checked against `scripts/gitops-mvp-verify.sh --help`. `START-HERE.md` and `docs/HANDOFF.md` refreshed to record PR #92's actual merge. A correction note was added (append-only, history not rewritten) to this file's 2026-09-10T21:37:35-06:00 session log entry and to `START-HERE.md`: a direct push to `main` for a checkpoint-only commit is NOT an approved convention — `AGENTS.md`'s PR workflow applies to every future change, including checkpoints. See the 2026-09-14 session log entry below for full evidence. GO-MVP-U1 itself remains **complete and merged** (PR #92 — see its own checklist entry). GO-1's full design contract remains untouched, `IN PROGRESS`/paused, and deferred; GO-2 is not activated. |
 | Last verified | 2026-09-14T09:46:43-06:00 — Documentation housekeeping: `docs/runbooks/gitops-mvp-demo.md`'s "Why a local snapshot" and "Verification" sections cross-checked directly against `scripts/gitops-mvp-verify.sh --help`'s live output; `git diff --check` and `make docs-check` (or its documented local-doc checks) rerun; DEF-016 marked RESOLVED with evidence. Prior: 2026-09-10T21:37:35-06:00 — PR #92 merge confirmed: `gh pr view 92` reports `state=MERGED`, `mergeCommit.oid=b7e52a9a14f2366609e6e733df0277872a5439b5`, `headRefOid=935b95cc7cacd49c1b86e4676b5644069ec038d1` (the exact reviewed head, unchanged since round 4). All four required checks were re-verified green on that head immediately before the merge was executed. GO-MVP-U1's verifier was hardened across four review rounds ending at 35/35 mock assertions on head `935b95c`. PR #91 (GO-MVP closeout) merged into `main` at `60e7d0757b1394f6d63a63530242eb7fed83eaf5`. No AWS verification. GO-1's third-round local checks (6 suites, 122 assertions, all passing) remain recorded further down this log, still uncommitted in the original checkout (preserved, GO-1 stays paused/deferred) — untouched by any of this. |
 | AWS resources currently live | Last recorded inventory, not refreshed by PH-A: no temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
-| Next operator action | Review and merge (or request changes on) documentation PR #93 (`docs/def-016-runbook-refresh` → `main`, https://github.com/bedoux-tech/bedoux-commerce-cloud/pull/93) — verify CI is green on its new exact head after the 2026-09-14T10:10:18-06:00 follow-up commit; this session stops after pushing it, per explicit instruction, and does not merge it. Full GO-1 and the remaining advanced backlog stay deferred — unfinished findings and safe deferral boundaries remain tracked in `docs/DEFERRED-WORK.md` (DEF-001–011, DEF-015 subfinding 3); review that backlog with the owner before activating any of it. Do not mark the original full GO-1 contract complete, activate GO-2, or infer broader new-image/schema support than the one demonstrated update. No AWS session or cluster mutation occurred in this housekeeping item. The original checkout's unrelated uncommitted full-GO-1 work still needs a manual reconcile of `docs/PROGRESS.md`/`docs/DEFERRED-WORK.md` after this PR merges — the backup at `/tmp/bedoux-go1-backup-20260914T154342Z/` is superseded; use the refreshed backup and corrected (stash/ff-only/apply, not reset --hard/pop) reconciliation sequence at `/tmp/bedoux-go1-backup-20260914T161018Z/README.md` instead. |
+| Next operator action | Review and merge (or request changes on) the small follow-up documentation-closeout PR (present-tense checkpoint refresh recording PR #93's merge and completed synchronization; duplicate DEF-016 section in `docs/DEFERRED-WORK.md` labeled historical, text preserved; synchronization-note timezone corrected to 2026-09-14T16:30:03Z / 10:30:03-06:00). PR #93 itself is already merged (`932230b7be36522aad7241e829a977ea35558cb3`) and the original checkout is already synchronized to it — see this file's session log for full evidence; no further sync action is pending. Full GO-1 and the remaining advanced backlog stay deferred — unfinished findings and safe deferral boundaries remain tracked in `docs/DEFERRED-WORK.md` (DEF-001–011, DEF-015 subfinding 3); review that backlog with the owner before activating any of it. Do not mark the original full GO-1 contract complete, activate GO-2, or infer broader new-image/schema support than the one demonstrated update. No AWS session or cluster mutation occurred in this housekeeping item. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -1000,6 +1000,73 @@ tree.
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
 
+### 2026-09-14T15:10:56-06:00 — Bounded documentation closeout after PR #93 merge and sync — Claude
+
+Owner authorized a bounded documentation closeout responding to Codex's 2026-09-14T13:44:50-06:00
+review: update the present-tense checkpoint with PR #93's verified merge and completed
+synchronization, label the duplicate DEF-016 section as historical (text preserved, not deleted),
+and correct the synchronization note's UTC/local timezone pairing (`2026-09-14T16:30:03Z` /
+`2026-09-14T10:30:03-06:00`, not `2026-09-14T16:30:03-06:00`). Publish only these scoped changes
+through a focused PR; preserve all unrelated uncommitted GO-1 work untouched; no runtime changes,
+GO-1 resumption, GO-2 activation, or AWS.
+
+1. **Fixed the timezone bug in both synchronization notes.** The append-only correction notes
+   added to `docs/PROGRESS.md` and `docs/DEFERRED-WORK.md` during the prior session's
+   reconciliation both mislabeled the merge time as `2026-09-14T16:30:03-06:00`; the GitHub
+   `mergedAt` value (`2026-09-14T16:30:03Z`) is UTC, so the correct local time is
+   `2026-09-14T10:30:03-06:00`. Corrected both notes in place (not deleted, not silently
+   rewritten — the correction is visible inline).
+2. **Labeled the duplicate DEF-016 section as historical.** `docs/DEFERRED-WORK.md`'s second
+   `### DEF-016` header (the one carrying the original checkout's own local Codex review-note
+   history, superseded by the resolved DEF-016 section above it) now reads "DEF-016 (historical
+   duplicate — superseded by the DEF-016 section above; preserved verbatim, not deleted)". No
+   review text was removed.
+3. **Refreshed the present-tense checkpoint.** `START-HERE.md`'s "Current checkpoint" section
+   gained a new bullet recording PR #93's actual merge (head `5eb7a76e84ebaabc51a84eff17e01db5348ad021`,
+   merge commit `932230b7be36522aad7241e829a977ea35558cb3`, `mergedAt` 2026-09-14T16:30:03Z /
+   10:30:03-06:00) and the completed original-checkout synchronization (checked fast-forward,
+   recorded-stash reapply, all 25 unaffected files verified byte-identical, stash dropped only
+   after verification). `docs/PROGRESS.md`'s overall status table (Active phase/Active task/Next
+   operator action rows) updated to match — no longer describing PR #93 as open or synchronization
+   as pending.
+4. **Scope discipline.** Only `START-HERE.md`, `docs/PROGRESS.md`, and `docs/DEFERRED-WORK.md`
+   are touched by this closeout — the same three files already carrying the GO-MVP-U1/DEF-016/PR
+   #93 narrative, not the unrelated full-GO-1 design-contract files (`docs/TEST-PLAN.md`,
+   `docs/decisions/README.md`, `docs/gitops-expansion-plan.md`, `docs/runbooks/gitops-recovery.md`,
+   `scripts/p13-canary-rollout.sh`, ADR 0027 draft, the GO-1 design contract doc,
+   `docs/gitops-fixtures/`, and the deferred automation scripts/tests), which remain uncommitted
+   and untouched in the original checkout.
+5. **Published via an isolated worktree and PR, not a direct push.** See below for the PR link,
+   head, and CI result — this session stops for owner review, per explicit instruction.
+
+### 2026-09-14T13:44:50-06:00 — PR #93 synchronization preservation review — Codex
+
+- **Scope:** read-only merge/preservation review plus required local review notes. No commit,
+  push, checkout synchronization, runtime change, cluster action or phase activation. AWS: none.
+- **Verified:** GitHub reports PR #93 MERGED at 2026-09-14T16:30:03Z, reviewed head
+  `5eb7a76e84ebaabc51a84eff17e01db5348ad021`, merge commit
+  `932230b7be36522aad7241e829a977ea35558cb3`. Local HEAD and origin/main both equal that
+  merge commit; reflog records `merge origin/main: Fast-forward`. The GitHub merge itself
+  has two parents (a merge commit); only the subsequent local synchronization was fast-forward.
+- **Preservation:** all 25 unaffected files match the refreshed backup manifest in
+  `/tmp/bedoux-go1-backup-20260914T163003Z/`. Pre-review status matches the saved snapshot;
+  index and stash list are empty. Compared the saved stash object with current documents:
+  inspected Codex review blocks remain verbatim, all locally added nonempty backlog lines
+  remain, and upstream narrative lines remain (the backlog's Last updated timestamp changed).
+  `git diff --check` passes. This is content evidence, not merely a matching status listing.
+- **Checks after notes:** diff whitespace and actions-check pass (18 immutable action refs).
+  Full docs-check could not run: `toolbox run -c bedoux-aws /usr/bin/make docs-check`
+  reports the bedoux-aws container is absent. No toolbox/container was created for this review.
+- **Remaining documentation follow-up (DEF-016):** synchronization is accepted, but the overall
+  status table still says PR #93 is open and synchronization pending. Refresh the present-tense
+  checkpoint in a focused documentation PR; label the duplicate DEF-016 section as historical
+  without deleting its review text. Correct synchronization-note timezone: the verified merge
+  occurred at 16:30:03Z / 10:30:03-06:00, not 16:30:03-06:00. The new backup has artifacts and
+  manifest but no README; retain it and add restore guidance if it will be relied on later.
+- **Next action:** owner-directed documentation closeout only; no new MVP runtime blocker found.
+  GO-1 remains paused, GO-2 not activated, AWS deferred. These review notes now postdate the
+  pre-sync backup; do not treat that older manifest as a snapshot of the updated review docs.
+
 ### 2026-09-14T09:46:43-06:00 — DEF-016 runbook refresh + checkpoint-convention correction — Claude
 
 Owner authorized one bounded documentation/housekeeping item: finish DEF-016 (runbook refresh),
@@ -1502,6 +1569,245 @@ confirmed, or the next session's `START-HERE.md` resume check if not.
   PATH; `kind get clusters` confirmed empty before starting. No AWS credentials used or needed.
 - **Next action:** GO-MVP-U1.1 — harden `scripts/gitops-mvp-up.sh`'s kind-inventory branch
   (DEF-015) and add a regression test. AWS: none.
+<!-- Synchronization note (merge sync 2026-09-14T16:30:03Z / 2026-09-14T10:30:03-06:00 -- corrected 2026-09-14, an earlier version of this note mislabeled the merge time as 16:30:03-06:00): the entries immediately below this point through the next '### 2026-09-10T17:24:50' entry are Codex review notes that were recorded directly in this checkout's local, uncommitted docs/PROGRESS.md while Claude's actual work happened in isolated PR worktrees (now merged via PR #91/#92/#93). Preserved verbatim, append-only, not reordered into strict chronological order with the entries above. -->
+
+### 2026-09-14T10:28:30-06:00 — PR #93 follow-up accepted for merge review — Codex
+
+- **Scope:** reviewed the requested documentation/synchronization-plan follow-up using the
+  existing phase/PR workflow. No implementation change, merge, publication, synchronization,
+  cluster or AWS activity. Only required local review notes changed; PR worktree remains clean.
+- **Verified:** GitHub reports PR #93 OPEN/MERGEABLE at
+  `5eb7a76e84ebaabc51a84eff17e01db5348ad021`; all four checks SUCCESS (run 34867701184).
+  Reviewed the follow-up diff and refreshed backup README. Documentation checks (drawio XML,
+  sibling SVGs, spine files, 18 immutable action references) and diff whitespace checks pass.
+- **Findings closed:** runbook now distinguishes committed --app-revision source from the
+  uncommitted chart overlay and removes the stale chart-fix/remote-URL limitation. Pending
+  synchronization uses a fresh backup, recorded stash ID, ancestry check, merge --ff-only,
+  stash apply, and content review of the two overlapping documents before stash cleanup.
+  No remaining merge blocker found in this bounded follow-up; DEF-016 closure supported.
+- **Backup evidence:** all 27 SHA-256 manifest entries at
+  `/tmp/bedoux-go1-backup-20260914T161018Z/` matched before this review appended notes.
+  Refresh the backup immediately before synchronization to include these latest notes.
+  Original local main remains f3e38bd; ancestry to f290478 verified. Recheck against actual
+  merged remote main at synchronization time. Preserve the stash until reconciliation is verified.
+- **Next action:** recommend owner-authorized merge of PR #93 after checking head/checks,
+  followed by the prepared synchronization when authorized. Record actual merge evidence;
+  any published checkpoint change goes through a PR. Full GO-1/GO-2 remain paused/not activated.
+
+### 2026-09-14T10:04:22-06:00 — PR #93 documentation and backup review — Codex
+
+- **Scope:** reviewed owner's PR #93 report using the phase/PR review workflow. No runtime
+  changes, merge, push, checkout synchronization, cluster or AWS activity. Only required review
+  notes in the original checkout changed; the isolated documentation worktree remains clean.
+- **Verified:** GitHub reports OPEN/MERGEABLE at `14a4f3b5e40687ce7902c66c2bdd26ae318ee9ea`,
+  based on `f290478`; all four CI checks SUCCESS (run 34864911877). Reviewed the five-file diff.
+  Documentation component checks (XML, SVG siblings, spine, immutable action references) and
+  `git diff f290478..14a4f3b --check` pass. No runtime tests rerun for documentation-only changes.
+- **Backup:** read README, listed tar contents, and ran `sha256sum -c` against the original
+  checkout: all 27 files match. This is stronger evidence than an unchanged git-status listing.
+  This review subsequently appends PROGRESS/DEFERRED notes, so refresh the backup before any
+  synchronization; do not expect those two files to retain old hashes after reconciliation.
+- **Findings:** runbook lines 39–41 claim fast iteration on uncommitted app source, but up.sh
+  checks out a committed appRevision and overlays only charts/bedoux. Correct the distinction:
+  chart edits may be uncommitted, app edits require a local commit, neither requires a push.
+  Known limitations lines 295–298 still say the snapshot exists until the chart fix is pushed
+  and imply a remote URL works without changes; remove this stale unsupported transition claim.
+  The remaining synchronization plan unnecessarily recommends reset --hard; ancestry check
+  confirms f3e38bd is an ancestor of f290478. Recommend fresh backup, retained stash including
+  untracked files, fetch, ancestry/clean-state checks, merge --ff-only, stash apply by recorded
+  object ID, manual reconciliation, then verification before any stash removal. No reset
+  authorization inferred. Record changes to the plan in PROGRESS and its backup README.
+- **Next action:** small documentation correction on PR #93, then recheck CI and stop for merge
+  review. Existing corrected verifier behavior and PR #92 merge are accepted. DEF-016 updated
+  with remaining documentation findings; full GO-1 and GO-2 remain paused/not activated.
+
+### 2026-09-14T08:44:32-06:00 — Completed PR #92 closeout inspected — Codex
+
+- **Scope:** owner says the previous process is done and requests inspection of how it was
+  completed. Continued the phase/PR workflow review; no implementation, branch update,
+  publication, cluster or AWS activity. Only required local review/backlog notes changed.
+- **Verified:** GitHub reports PR #92 MERGED at `b7e52a9a14f2366609e6e733df0277872a5439b5`
+  on 2026-09-11T03:37:35Z, from reviewed head `935b95c`; all four checks on that head SUCCESS.
+  GitHub's current main is `f2904780a869a058705c230567203a5d45e41589`. Inspected its two-file
+  documentation diff: PROGRESS marks U1 COMPLETE AND MERGED, and DEFERRED-WORK carries DEF-016.
+  `git diff b7e52a9..f290478 --check` passes. No reason to repeat the completed implementation.
+- **Remaining handoff gaps:** committed START-HERE and HANDOFF still describe the U1 PR as
+  open. The merge log explicitly records a direct main push for the checkpoint, contrary to
+  the documented PR workflow; an earlier occurrence does not establish an exception. Record
+  and correct the description during the next documentation PR; do not rewrite valid history.
+  Added these details to existing DEF-016, retaining its non-blocking status for the MVP.
+- **Local state:** original checkout is still `f3e38bd`, with saved modified/untracked GO-1
+  work. It was not synchronized in this review. Matching git-status listings alone cannot
+  establish the earlier byte-for-byte preservation claim; no pre-merge content hashes were
+  provided. Current remote PROGRESS owns merged U1 state; this local note does not reopen it.
+- **Next action:** optional bounded documentation/handoff cleanup via a feature branch and
+  PR, plus deliberate checkout synchronization preserving saved work when requested. Full GO-1
+  and GO-2 remain paused/not activated. No runtime or live teardown claims added by this review.
+
+### 2026-09-10T21:35:39-06:00 — PR #92 round 4 accepted for bounded MVP scope — Codex
+
+- **Scope:** owner requested review of Claude's round-4 correction. Reviewed isolated worktree
+  diff `30175af..935b95cc7cacd49c1b86e4676b5644069ec038d1`, checkpoint, script, tests and
+  runbook. Phase-orchestrator/PR workflow skills governed evidence and authorization;
+  aws-session-guardrail restricted Kubernetes-related checks to mocks/local Helm rendering.
+  No implementation change, commit, push, merge, remote review, cluster run or AWS activity.
+  Only required notes in this original checkout changed; isolated worktree remains clean.
+- **Verified:** GitHub PR #92 OPEN/MERGEABLE at exact head `935b95c`; all four CI checks
+  SUCCESS, run 34558808412. Local verifier 35, inventory 6, ownership 5, down 17 and chart 18
+  assertions pass (81 total); existing Helm 17 render contracts and 6 negative fixtures pass.
+  Candidate diff whitespace, actions-check (18 immutable references), and committed-tree
+  docs-check equivalent pass. Untracked original-checkout diagram remains untouched.
+- **Finding closed:** skip-sync no longer captures pre-sync hashes or claims unchanged-by-release
+  or ordering success/failure. Independent prior stable early-pod counterexample now exits 0
+  with per-workload UNVERIFIED and final STATUS ONLY/no-release-acceptance explanation.
+  Normal-sync transition mocks change ReplicaSet state only after the patch trigger; ordering
+  negatives and valid unchanged/retained-terminal-Job positives remain passing. No remaining
+  blocker found in this bounded follow-up. Original live-demo evidence not rerun or expanded.
+- **Non-blocking follow-up:** DEF-016 records stale runbook claims (chart fix still called
+  uncommitted; verification description lacks current mode boundary). Use current script help
+  meanwhile; do not turn documentation cleanup into new GitOps implementation scope.
+- **Next action:** recommend owner-authorized PR #92 merge after rechecking exact head/checks,
+  then record actual merge/checkpoint state while preserving dirty full-GO-1 files and diagram.
+  This is a recommendation, not merge authority or an executed merge. Full GO-1 remains paused;
+  GO-2 and AWS remain unactivated. DEF-015 bounded review finding closed, broader limitations
+  remain deferred; isolated worktree checkpoint still owns U1 execution state.
+
+### 2026-09-10T21:09:26-06:00 — PR #92 hash/terminal-condition review: skip-sync evidence boundary — Codex
+
+- **Scope:** reviewed owner-supplied Claude outcome at isolated worktree head
+  `30175af3f5fe1dd98ef3a0dca34c777f4c36a54c`. Used phase-orchestrator,
+  github-pr-branch-workflow and aws-session-guardrail for checkpoint/PR review and local
+  mock/render tests only. No implementation changes, commit, push, merge, remote review,
+  cluster run or AWS activity. Only required review notes in this original checkout changed;
+  isolated PR worktree remains clean and authoritative for U1 execution state.
+- **Verified:** read-only GitHub query confirms PR #92 OPEN/MERGEABLE at that exact head;
+  all four checks SUCCESS (run 34556567486). Local suites pass: verify 30, inventory 6,
+  ownership 5, down 17, chart 18 (76 assertions total); existing Helm 17 contracts and
+  6 negative fixtures pass. Candidate diff whitespace check, actions-check (18 immutable
+  references), and committed-tree docs-check equivalent pass. No new live evidence claimed.
+- **Fixed findings credited:** explicit terminal Complete/Failed Job conditions replace
+  retry-unsafe counters; pre/post template hashes correctly catch the tested early new
+  rollout when this verifier triggers the sync. Previous live-demo evidence is unchanged.
+- **Remaining P2:** skip-sync takes both hash samples after an already-deployed release.
+  Their equality proves stability during inspection, not that the release left workloads
+  unchanged. An independent stable kubectl mock (RS 00:00:30Z, pod 00:01:00Z, migration
+  completion 00:02:00Z) running `--skip-sync --no-port-forward` returns 0 and reports
+  both workloads UNCHANGED/ALL NON-HTTP CHECKS PASSED, bypassing the ordering violation.
+  Existing hash-transition mocks also change hashes between reads without a sync trigger,
+  so they do not cover this steady post-deployment inspection case.
+- **Next action:** bounded mode-contract correction before accepting the verifier claims:
+  make skip-sync status-only with ordering explicitly unverified, not release acceptance;
+  add the stable regression and trigger-aware transition tests. No durable baseline subsystem
+  or new cluster needed. Updated DEF-015; full GO-1 remains paused, GO-2 not activated, PR not
+  merged. Preserve unrelated dirty GO-1 files and in-progress diagram.
+
+### 2026-09-10T19:05:29-06:00 — PR #92 verifier follow-up: two remaining false-success paths — Codex
+
+- **Scope:** owner requested review of Claude's verifier-hardening outcome. Read the separate
+  U1 worktree's active checkpoint, code and tests; no implementation changes, branch changes,
+  commit, push, merge, remote review submission or cluster mutation. Used phase-orchestrator,
+  github-pr-branch-workflow and aws-session-guardrail. Only this required local log and the
+  existing DEF-015 note changed in the original writable checkout; isolated worktree preserved.
+  AWS: none.
+- **Actual PR head:** approved read-only `gh pr view 92` outside the sandbox confirms OPEN,
+  MERGEABLE at **`e40025fef607318db9acb28b4d44fa6f670e3274`**, all four checks SUCCESS, run
+  **34548761915**. This supersedes the relayed `aadff46` head; the only additional change is
+  12 documentation lines recording owner-confirmed sysctl restoration. Verifier code is the
+  same. <https://github.com/bedoux-tech/bedoux-commerce-cloud/pull/92>.
+- **Independent checks:** verifier 26, chart 18, cleanup 17, ownership 5, inventory 6 =
+  **72 local assertions pass**; existing Helm suite **17 contracts + 6 negative fixtures** pass.
+  Exact-head committed-tree docs-check equivalent passes (tracked XML, SVG siblings, spine,
+  18 immutable action pins), diff whitespace check passes. Host inotify setting independently
+  reads **128**, closing the prior restoration concern. No fresh cluster inventory or live
+  deployment was performed; earlier A/B/order/failure evidence is retained as reported.
+- **P1 — premature new rollout classified as unchanged (`verify.sh:395–397`).** The script
+  now treats `rs_created < migrate_done` as proof the release did not change the workload,
+  then skips every pod check. That is also the exact temporal shape of a genuine ordering
+  violation. A realistic mock with new RS creation 00:00:30, its new pod creation 00:01:00,
+  and migration completion 00:02:00 exits 0, prints UNCHANGED for api/web, and reports all
+  non-HTTP checks passed. No previous/desired pod-template comparison or release identity is
+  requested to distinguish the two cases. The current negative test instead dates a pod
+  before the newly-created RS, so it does not exercise this ordinary controller-created
+  ordering failure. Prove unchanged independently of the timing test (reviewed before/after
+  template/revision evidence), identify actual Deployment-owned current RS/pods, and reject
+  an early new rollout. If identity is ambiguous, do not choose a newer RS or waive ordering
+  merely because its timestamp is inconvenient. Keep genuine unchanged-workload coverage.
+- **P1 — retrying Job misclassified as terminal (`verify.sh:183–187`).** A mock old migration
+  Job with succeeded=0, failed=1, active=0 and no terminal condition is called terminal and
+  verification exits 0. Those counters can describe the interval before the Job's next retry;
+  failed pods are not the Job's terminal Failed condition. A second mock fails the active
+  query outright; `|| true` plus `${j_active:-0}` again accepts it as terminal, exit 0.
+  Read/validate one Job response and require a true Complete or Failed condition, keeping
+  query failures/unknown data separate from legitimate absent zero counters. Primary source:
+  <https://kubernetes.io/docs/concepts/workloads/controllers/job/> (pod backoff and terminal
+  Job conditions). Positive terminal-success/terminal-failure recovery cases should remain.
+- **Recommendation:** keep PR #92 open for these two bounded corrections with regression
+  tests; no further architecture work, new cluster exercise, full GO-1 reopening or GO-2
+  activation is requested. Resource-list error handling and direct availability checks are
+  genuine improvements, but passing the existing fixtures does not close the two independently
+  reproduced paths above. Update DEF-015/PR evidence without claiming new live verification.
+
+### 2026-09-10T17:24:50-06:00 — PR #92 / GO-MVP-U1 review: verifier changes need correction — Codex
+
+- **Scope:** owner requested review of Claude's U1 result. Read the isolated worktree's U1
+  checkpoint and reviewed `main...feature/gitops-version-update`; did not activate U1 from
+  this older main-worktree checkpoint. Used phase-orchestrator, github-pr-branch-workflow and
+  aws-session-guardrail for review/local-test boundaries. No code edits, cluster operations,
+  commits, push, remote review submission or merge. Only this required log and DEF-015 review
+  note changed in the original writable checkout; isolated PR worktree and unrelated dirty
+  GO-1 work preserved. AWS: none.
+- **Live GitHub verification:** sandbox requests failed on network access; an approved read-only
+  outside-sandbox `gh pr view 92` succeeded. PR remains OPEN and MERGEABLE at
+  **`2bfe8e0f17960b6516b38bf02e91353d7cdab99d`**, matching the clean isolated worktree HEAD.
+  All four checks SUCCESS, run **34540786559**, including Terraform and Helm validation.
+  <https://github.com/bedoux-tech/bedoux-commerce-cloud/pull/92>. The PR's checkpoint still
+  records prior head `774006c` / run `34540241763`; refresh it when recording the review fix.
+- **Positive findings:** startup explicitly captures failed kind inventory before deciding
+  creation/reuse; all 6 inventory and 5 ownership assertions pass. Existing cleanup's 17
+  assertions pass. Nullable `orders.note` migration, API version field and footer are focused
+  changes. The documented A→B order-preservation and failed-migration/recovery run is useful
+  operator evidence, not independently rerun by this review. Controlled broken-migration commit
+  remains on its separate branch, not in the PR diff. Chart templates are unchanged by #92.
+- **P1 — retained-Job exception is fail-open (`scripts/gitops-mvp-verify.sh:117–130`).**
+  `bad=0` plus process substitution ending in `|| true` returns success when reading
+  `.status.resources` fails or returns no entries. ANY `kind=Job` with name different from
+  the current migration is excused, without establishing it is a retained migration belonging
+  to this Application. Independent shell-function kubectl mocks, using `--skip-sync
+  --no-port-forward`, confirmed exit 0 and ALL NON-HTTP CHECKS PASSED for: resource query
+  error, empty resource list, and `Job|unrelated-backup-job|OutOfSync`, while the other checks
+  report healthy/current success. Require valid evidence and positive retained-Job identity;
+  do not turn unknown state into an exception.
+- **P1 — sync evidence does not establish health (`verify.sh:168–178`).** The same predicate
+  excuses aggregate Degraded health, but it never requests resource health and skips every
+  Synced resource. A Synced resource can still be unhealthy. A mock reporting aggregate
+  Degraded with Synced current resources and one old OutOfSync Job passes; the predicate
+  cannot distinguish a degraded current Postgres/other resource because it discards health
+  entirely. API/web rollout checks do not establish every current resource's health. Check
+  per-resource sync and health independently, and tolerate only positively identified retained
+  Jobs as the causes. Add both allowed-old-failed-Job and refused-current-unhealthy fixtures.
+- **P2 — newest pod is not proof of migration ordering (`verify.sh:259–270`).** `sort | tail
+  -1` chooses the latest timestamp among label-matched Running pods, not the current rollout's
+  members or earliest advancing replica. A mock with migration completion at 20:01 and
+  matching Running pods at 20:00 and 20:02 reports ordering satisfied/exit 0. It cannot tell
+  whether 20:00 is an allowed old release or a violating new-release replica. Identify the
+  current ReplicaSet/revision/image, then verify the relevant advancing pods (including an
+  early replica); handle unchanged workloads explicitly. This is U1's promised verification,
+  not a request for advanced rollout automation.
+- **Docs/host checks:** committed-tree docs-check equivalent passes at the exact head
+  (tracked drawio XML, SVG siblings, spine files, 18 pinned actions); diff whitespace check
+  passes. Unrelated untracked diagram untouched. `/proc/sys/fs/inotify/max_user_instances`
+  currently reads **1024**; restoration to the recorded 128 is still pending, matching the
+  PR's explicit owner-confirmation gap. No sudo/sysctl write or fresh cluster inventory was
+  attempted. Do not infer all host cleanup is complete from the reported cluster teardown.
+- **Completed independent suite rerun:** all five local MVP suites pass: chart 18, verifier
+  16, cleanup 17, ownership 5, inventory 6 = **62 assertions** (the PR log's chart count of
+  19 is off by one). Existing Helm suite passes **17 contracts + 6 negative fixtures**.
+  The verifier's non-Job-drift test consumes the full 300-second deadline before passing its
+  rejection assertion. These green suites do not cover the five independently reproduced
+  false-success cases above. Final diff whitespace check also passes.
+- **Recommendation:** request only bounded verifier corrections and regression tests on PR
+  #92; refresh exact-head evidence and confirm owner-run sysctl restoration, then re-review.
+  Do not merge yet, reopen full GO-1, activate GO-2 or discard the useful live-demo evidence.
 
 ### 2026-09-10T11:19:10-06:00 — PR #91 merged: GO-MVP closed out — Claude
 

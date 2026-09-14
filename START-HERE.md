@@ -47,6 +47,20 @@ This file is the entry point for a new Claude Code, Codex, OpenClaw, or human se
   `docs/PROGRESS.md`'s session log for the correction entry). **Every future checkpoint or
   documentation change, including routine post-merge reconciliation, goes through a feature
   branch and a reviewed PR — no exceptions for "just a checkpoint update."**
+- **DEF-016 documentation-housekeeping PR merged; original checkout synchronized (2026-09-14):**
+  PR #93 (`docs/def-016-runbook-refresh` → `main`) — `docs/runbooks/gitops-mvp-demo.md`'s stale
+  chart-fix/verification narrative refreshed and DEF-016 resolved — was merged by explicit owner
+  authorization at reviewed head `5eb7a76e84ebaabc51a84eff17e01db5348ad021`, producing merge
+  commit `932230b7be36522aad7241e829a977ea35558cb3` (GitHub `mergedAt` 2026-09-14T16:30:03Z /
+  2026-09-14T10:30:03-06:00). The original checkout (unrelated, uncommitted full-GO-1 work) was
+  then synchronized to that commit via a checked fast-forward (never `reset --hard`): a recorded
+  `git stash` held the uncommitted work, `origin/main` ancestry was verified before
+  `git merge --ff-only`, then the stash was reapplied by its recorded object ID (`git stash
+  apply`, not `pop`). The only files touched by that reapply were `docs/PROGRESS.md` and
+  `docs/DEFERRED-WORK.md` (both this PR and the original checkout's own review notes modify
+  them); all 25 other modified/untracked GO-1 paths verified byte-identical against a SHA-256
+  manifest before the stash was dropped. See `docs/PROGRESS.md`'s 2026-09-14 session log entries
+  for full evidence. Full GO-1 and GO-2 remain untouched and deferred throughout.
 - Continuation target: `nomad`, app clone
   `/var/home/tsogtb/src/github.com/bedoux-tech/bedoux-commerce-cloud`. Read-only verification
   initially found it stale at `0c1c285`; the authorized update after PR #89 brought it cleanly
