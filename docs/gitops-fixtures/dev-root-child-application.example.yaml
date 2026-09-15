@@ -1,0 +1,66 @@
+# GO-1 design fixture — worked example of a checked-in CHILD Application manifest
+# (DEF-006 fix, corrected 2026-09-14). In the real env-repo layout this lives at,
+# e.g., `apps/dev/dev-child.yaml` (inside the directory the root Application's own
+# source points at via --root-path). This is a real, already-rendered Argo CD
+# `Application` resource — the exact kind of artifact a "prepare release" step
+# would commit into the env-repo, and the exact kind of resource a genuine Argo
+# App-of-Apps sync of the root applies verbatim (Argo's own real mechanism for
+# "root generates child": sync a directory, apply whatever Application manifests
+# are found there — no bespoke script-side format, no ApplicationSet/CRD needed).
+#
+# scripts/render-gitops-applications.sh discovers this file at the caller's pinned
+# --root-path/--env-revision, then independently re-derives the release binding
+# from the two provenance annotations below (read at THIS manifest's own
+# spec.sources[1].targetRevision, not the root's --env-revision — see the script's
+# header comment for why a checked-in file cannot contain the hash of the commit
+# that first introduces it) and structurally cross-checks that this manifest's own
+# spec.sources match that independently-derived binding field-for-field, including
+# the DEF-005 checks (no 'path' on the values-only source; helm.valueFiles names
+# the full repo-relative path, not a basename). See
+# docs/gitops-go1-design-contract.md Gate 1 and
+# scripts/test-render-gitops-applications.sh for the regression tests that
+# actually exercise this format (an equivalent fixture built inline in an isolated
+# scratch repo, not this file itself — this file is documentation of the
+# real-repo layout).
+#
+# Exactly one child Application manifest per --root-path is supported today:
+# multiple manifests (real App-of-Apps fan-out across several children) are
+# refused by name — see DEF-006 in docs/DEFERRED-WORK.md for the deferred
+# multi-environment promotion work this intentionally does not claim.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: dev-child
+  namespace: argocd
+  annotations:
+    # Both paths below are resolved within THIS manifest's own values-only source
+    # targetRevision (spec.sources[1].targetRevision below), which must be an
+    # ancestor-or-equal of whatever --env-revision the caller pins the root to.
+    gitops.bedoux/release-record-path: env/dev-release-record.yaml
+    gitops.bedoux/values-path: env/dev-values.yaml
+spec:
+  project: default
+  sources:
+    - repoURL: git@example.invalid:bedoux-commerce-cloud.git
+      # Pinned to the release record's own appRevision — an exact 40-hex commit
+      # SHA, never HEAD/a branch. Shortened here for readability; the real value
+      # is a full SHA-1.
+      targetRevision: 0123456789abcdef0123456789abcdef01234567
+      path: charts/bedoux
+      helm:
+        valueFiles:
+          # DEF-005: the FULL repo-relative path from the ref source's repo root,
+          # never a basename-only reference.
+          - $values/env/dev-values.yaml
+    - repoURL: git@example.invalid:bedoux-commerce-env.git
+      # The commit this manifest's authoring "prepare release" step actually
+      # pinned the env-values to when it was committed. DEF-005: no 'path' key
+      # here — that would also make Argo treat this as a second
+      # manifest-generating source, not a pure values reference.
+      targetRevision: fedcba9876543210fedcba9876543210fedcba9
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: bedoux-dev
+  syncPolicy: {}

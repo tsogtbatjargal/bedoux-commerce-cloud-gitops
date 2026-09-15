@@ -62,6 +62,151 @@ print(d if isinstance(d, str) else (d or ""))
 ' "$1" "$2"
 }
 
+gob_yaml_get_annotation() {
+  # $1 = manifest content, $2 = annotation key (may contain '.' or '/', so this
+  # does an exact single-key lookup under metadata.annotations rather than
+  # gob_yaml_get's dotted-path traversal).
+  python3 -c '
+import sys, yaml
+d = yaml.safe_load(sys.argv[1]) or {}
+ann = ((d.get("metadata") or {}).get("annotations") or {}) if isinstance(d, dict) else {}
+val = ann.get(sys.argv[2], "") if isinstance(ann, dict) else ""
+print(val or "")
+' "$1" "$2"
+}
+
+gob_child_values_revision() {
+  # $1 = child Application manifest content. Prints spec.sources[1].targetRevision
+  # (the values-only source's OWN pinned commit, as literally checked into the
+  # manifest) or an empty string if absent/malformed. This is read from the
+  # manifest itself, not assumed equal to the root's own --env-revision: the root's
+  # --env-revision only governs which commit's directory listing is used to
+  # discover the child manifest, not what revision the child's own values source
+  # was pinned to when it was authored (a checked-in manifest cannot contain the
+  # hash of the commit that first introduces it, so the two are necessarily
+  # allowed to differ; render-gitops-applications.sh separately enforces that this
+  # revision is an ancestor-or-equal of --env-revision).
+  python3 -c '
+import sys, yaml
+d = yaml.safe_load(sys.argv[1]) or {}
+try:
+    sources = (d.get("spec") or {}).get("sources") or []
+    print((sources[1] or {}).get("targetRevision", "") or "")
+except Exception:
+    print("")
+' "$1"
+}
+
+gob_validate_child_manifest() {
+  # $1 = child manifest content (as checked into the env-repo under the root
+  # Application's own --root-path — the actual artifact a real Argo app-of-apps
+  # sync of the root would apply, not something this tooling fabricates).
+  # $2 = app_repo_url, $3 = app_revision, $4 = chart_path, $5 = values_path,
+  # $6 = env_repo_url, $7 = values_revision — the independently-derived expected
+  # binding (from the release record + values cross-check, evaluated at the
+  # manifest's OWN values-source revision — see gob_child_values_revision) this
+  # manifest must structurally match field-for-field. Prints nothing on success;
+  # on failure
+  # prints a REFUSE message and returns 1. This is the DEF-005/DEF-006
+  # structural check: it parses YAML (not raw text/line-adjacency) and fails
+  # closed on any injected/extra/missing field, including an injected 'path' on
+  # the values-only source.
+  GOB_CHILD_CONTENT="$1" GOB_APP_REPO_URL="$2" GOB_APP_REVISION="$3" GOB_CHART_PATH="$4" \
+  GOB_VALUES_PATH="$5" GOB_ENV_REPO_URL="$6" GOB_ENV_REVISION="$7" python3 <<'PYEOF'
+import os, sys, yaml
+
+content = os.environ["GOB_CHILD_CONTENT"]
+app_repo_url = os.environ["GOB_APP_REPO_URL"]
+app_revision = os.environ["GOB_APP_REVISION"]
+chart_path = os.environ["GOB_CHART_PATH"]
+values_path = os.environ["GOB_VALUES_PATH"]
+env_repo_url = os.environ["GOB_ENV_REPO_URL"]
+env_revision = os.environ["GOB_ENV_REVISION"]
+
+def refuse(msg):
+    print("REFUSE: " + msg, file=sys.stderr)
+    sys.exit(1)
+
+try:
+    doc = yaml.safe_load(content)
+except yaml.YAMLError as exc:
+    refuse("child Application manifest is not valid YAML: %s" % exc)
+
+if not isinstance(doc, dict) or doc.get("kind") != "Application" or not str(doc.get("apiVersion", "")).startswith("argoproj.io/"):
+    kind = doc.get("kind") if isinstance(doc, dict) else None
+    refuse("child manifest under --root-path is not a valid Argo CD Application manifest (kind=%r); a real Argo app-of-apps sync would refuse to reconcile this resource as an Application" % (kind,))
+
+sources = (doc.get("spec") or {}).get("sources")
+if not isinstance(sources, list) or len(sources) != 2:
+    refuse("child Application manifest spec.sources must be a 2-item list (chart source, values-only source); got %r" % (sources,))
+
+chart_src, values_src = sources[0], sources[1]
+
+if chart_src.get("repoURL") != app_repo_url:
+    refuse("child Application chart source repoURL %r does not match the expected app-repo URL %r" % (chart_src.get("repoURL"), app_repo_url))
+if chart_src.get("targetRevision") != app_revision:
+    refuse("child Application chart source targetRevision %r does not match the release record's own pinned appRevision %r" % (chart_src.get("targetRevision"), app_revision))
+if chart_src.get("path") != chart_path:
+    refuse("child Application chart source path %r does not match the release record's chart.path %r" % (chart_src.get("path"), chart_path))
+want_value_files = ["$values/" + values_path]
+got_value_files = (chart_src.get("helm") or {}).get("valueFiles")
+if got_value_files != want_value_files:
+    refuse("child Application chart source helm.valueFiles %r does not match the expected full repo-relative reference %r (DEF-005: a basename-only reference resolves from the ref source's repo root, not the values file's actual directory)" % (got_value_files, want_value_files))
+
+if values_src.get("repoURL") != env_repo_url:
+    refuse("child Application values-only source repoURL %r does not match the expected env-repo URL %r" % (values_src.get("repoURL"), env_repo_url))
+if values_src.get("targetRevision") != env_revision:
+    refuse("child Application values-only source targetRevision %r does not match the pinned --env-revision %r the root Application itself is pinned to" % (values_src.get("targetRevision"), env_revision))
+if values_src.get("ref") != "values":
+    refuse("child Application values-only source ref %r is not 'values'" % (values_src.get("ref"),))
+if "path" in values_src:
+    refuse("DEF-005 violation - child Application values-only source (ref: values) declares a 'path' key (%r); this makes Argo treat it as a second manifest-generating source, not a pure values reference, per https://argo-cd.readthedocs.io/en/stable/user-guide/multiple_sources/#values-files-from-external-git-repository" % (values_src.get("path"),))
+
+sys.exit(0)
+PYEOF
+}
+
+gob_render_workload_manifests() {
+  # $1 = app_repo, $2 = app_revision, $3 = chart_path, $4 = values_content,
+  # $5 = release_id (helm release name), $6 = out_dir (optional; default mktemp
+  # -d, removed on return unless explicitly given). Prints rendered workload
+  # manifests (helm template output) to stdout. Shared by both render scripts so
+  # "resolved pinned chart/values -> workload manifests" goes through the exact
+  # same extraction + template step everywhere, never a second implementation.
+  local app_repo="$1" app_revision="$2" chart_path="$3" values_content="$4" release_id="$5"
+  local out_dir="${6:-}" keep_out_dir=true
+  if [[ -z "$out_dir" ]]; then
+    out_dir=$(mktemp -d)
+    keep_out_dir=false
+  fi
+  mkdir -p "$out_dir"
+
+  if ! git -C "$app_repo" archive "$app_revision" -- "$chart_path" | tar -x -C "$out_dir"; then
+    echo "REFUSE: git archive/extract of '$chart_path' at '$app_revision' from '$app_repo' failed" >&2
+    [[ "$keep_out_dir" == false ]] && rm -rf "$out_dir"
+    return 1
+  fi
+
+  local pinned_chart_dir="$out_dir/$chart_path"
+  if [[ ! -f "$pinned_chart_dir/values.yaml" ]]; then
+    echo "REFUSE: extracted chart at '$pinned_chart_dir' has no values.yaml; extraction did not produce a usable chart" >&2
+    [[ "$keep_out_dir" == false ]] && rm -rf "$out_dir"
+    return 1
+  fi
+
+  local pinned_values_file="$out_dir/__pinned_values.yaml"
+  printf '%s' "$values_content" > "$pinned_values_file"
+
+  if ! helm template "$release_id" "$pinned_chart_dir" -f "$pinned_chart_dir/values.yaml" -f "$pinned_values_file"; then
+    echo "REFUSE: helm template failed for the pinned chart + paired values" >&2
+    [[ "$keep_out_dir" == false ]] && rm -rf "$out_dir"
+    return 1
+  fi
+
+  [[ "$keep_out_dir" == false ]] && rm -rf "$out_dir"
+  return 0
+}
+
 gob_read_release_record() {
   # $1 = env_repo, $2 = env_revision, $3 = release_record_path.
   # On success, sets (globals, caller's shell): gob_release_content,

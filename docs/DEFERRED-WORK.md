@@ -1,6 +1,6 @@
 # Deferred work and post-MVP improvements
 
-Last updated: 2026-09-14T17:20:57-06:00.
+Last updated: 2026-09-14T18:24:47-06:00.
 
 The owner requested a working local MVP first, then the unfinished GitOps improvements.
 This file keeps that work discoverable without treating it as fixed or requiring every future
@@ -126,6 +126,35 @@ the investigation history, including issues already fixed that should not be reo
   promotion (GO-2/GO-3), per the original boundary above. See `docs/PROGRESS.md` session log
   2026-09-14T17:20:57-06:00 for full evidence. This entry and its gap/history above are kept,
   not deleted, per this file's maintenance rule.
+- **Correction — DEF-006 reopened (2026-09-14, later same day):** the resolution immediately
+  above was premature. The "child-pointer YAML file" format it describes
+  (`childAppName`/`releaseRecordPath`/`valuesPath`) is **not** something real Argo CD understands.
+  A genuine Argo App-of-Apps sync of the root Application (`source.path` = `--root-path`) applies
+  whatever it finds there as Kubernetes resources; that pointer file is not a valid `Application`
+  manifest, so nothing in actual Argo semantics turns it into the child. The root and child text
+  emitted by that revision of `render-gitops-applications.sh` were only two independently
+  parameterized renders that happened to agree with each other — not proof that the root's own
+  source produces the child through any mechanism Argo itself implements. DEF-006 is now
+  **re-resolved**, this time via an actual Argo-supported generation mechanism (real App-of-Apps):
+  `--root-path` must contain, at `--env-revision`, exactly one already-rendered, checked-in
+  `Application` manifest for the child (`docs/gitops-fixtures/dev-root-child-application.example.yaml`
+  is the current worked example — the prior pointer-file fixture is kept, with its own correction
+  note, not deleted). `scripts/render-gitops-applications.sh` discovers that manifest, independently
+  re-derives the release binding from two provenance annotations
+  (`gitops.bedoux/release-record-path`, `gitops.bedoux/values-path`) resolved at the manifest's OWN
+  values-source revision (never assumed equal to `--env-revision`; required to be a pinned, existing
+  commit that is an ancestor-or-equal of `--env-revision`), and structurally validates — via a real
+  YAML parse (`scripts/lib/gitops-release-binding.sh`'s `gob_validate_child_manifest`), not
+  line-adjacency — that the checked-in manifest's `spec.sources` match that independently-derived
+  binding field-for-field, including rejecting an injected `path` on the values-only source. It then
+  proves "resolved pinned chart/values → workload manifests" by running the same `helm template` step
+  `render-gitops-release.sh` uses (`gob_render_workload_manifests`, now shared by both scripts).
+  Broken-root (YAML present but not a valid `Application` manifest) and moving-branch negative tests
+  were added. Proven by `scripts/test-render-gitops-applications.sh` (36 assertions), now wired into
+  `.github/workflows/pr-validation.yml`'s "Terraform and Helm validation" job alongside
+  `scripts/test-render-gitops-release.sh`, both confirmed green in CI. Multi-child fan-out remains
+  explicitly out of scope, per the original boundary above. This correction and both resolutions
+  above are kept, not deleted, per this file's maintenance rule.
 
 ### DEF-007 — Progressive-delivery installation and router-specific evidence
 

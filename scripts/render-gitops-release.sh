@@ -128,27 +128,9 @@ record_web_digest="${gob_release_web_image##*@}"
 if [[ -z "$out_dir" ]]; then
   out_dir=$(mktemp -d)
 fi
-mkdir -p "$out_dir"
-
-if ! git -C "$app_repo" archive "$app_revision" -- "$chart_path" | tar -x -C "$out_dir"; then
-  echo "REFUSE: git archive/extract of '$chart_path' at '$app_revision' from '$app_repo' failed" >&2
-  [[ "$keep_out_dir" == false ]] && rm -rf "$out_dir"
-  exit 1
-fi
-
-pinned_chart_dir="$out_dir/$chart_path"
-if [[ ! -f "$pinned_chart_dir/values.yaml" ]]; then
-  echo "REFUSE: extracted chart at '$pinned_chart_dir' has no values.yaml; extraction did not produce a usable chart" >&2
-  [[ "$keep_out_dir" == false ]] && rm -rf "$out_dir"
-  exit 1
-fi
-
-pinned_values_file="$out_dir/__pinned_values.yaml"
-printf '%s' "$gob_values_content" > "$pinned_values_file"
 
 echo "Rendering release '$release_id': chart pinned at appRevision $app_revision ($chart_path in $app_repo), values pinned at envRevision $env_revision ($values_path in $env_repo), image digests cross-checked (api=$record_api_digest web=$record_web_digest)" >&2
-if ! helm template "$release_id" "$pinned_chart_dir" -f "$pinned_chart_dir/values.yaml" -f "$pinned_values_file"; then
-  echo "REFUSE: helm template failed for the pinned chart + paired values" >&2
+if ! gob_render_workload_manifests "$app_repo" "$app_revision" "$chart_path" "$gob_values_content" "$release_id" "$out_dir"; then
   [[ "$keep_out_dir" == false ]] && rm -rf "$out_dir"
   exit 1
 fi

@@ -1,3 +1,19 @@
+# CORRECTION (2026-09-14, DEF-006 reopened/re-fixed): this bespoke "pointer file"
+# format is NOT what scripts/render-gitops-applications.sh reads anymore. A real
+# Argo App-of-Apps sync of the root would try to apply this file itself as a
+# Kubernetes resource — it is not a valid Application manifest, so nothing in
+# actual Argo semantics would turn it into a child. That made the prior claim
+# below ("scripts/render-gitops-applications.sh reads it ... to generate the
+# child Application") describe a script-only convention, not an Argo-supported
+# generation mechanism. This file is kept, unmodified below, as a historical
+# record of that prior (corrected) design. The current worked example is
+# docs/gitops-fixtures/dev-root-child-application.example.yaml — a real,
+# already-rendered Argo CD Application manifest, which is what a real App-of-Apps
+# sync of the root actually applies. See docs/gitops-go1-design-contract.md's
+# "fifth round" corrections section for the full reconciliation note.
+#
+# --- Original text below, unmodified ---
+#
 # GO-1 design fixture — worked example of a root Application's child pointer file
 # (DEF-006 fix). In the real env-repo layout this lives at, e.g., `apps/dev/` (the
 # directory the root Application's own source points at via --root-path);

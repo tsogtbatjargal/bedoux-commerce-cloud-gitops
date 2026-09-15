@@ -1,17 +1,70 @@
 # GO-1 design contract
 
-Status: **Reopened for correction a fourth time on 2026-09-14.** No repository has been created,
+Status: **Reopened for correction a fifth time on 2026-09-14.** No repository has been created,
 no controller installed, no cluster or AWS resource touched to produce this document. Every check
-below ran locally against this repository's existing files. Four independent review rounds have
-found and closed real defects — see all four "Corrections applied" sections below, most recently
-the fourth-round fixes (DEF-005: the multi-source values lookup was actually broken — basename-only
-`$values/values.yaml` resolves from the repo root, not the values file's real directory, and a
-`path` on the values-only source also made Argo treat it as manifest-generating; DEF-006: rendering
-the root and child Applications from two independently supplied sets of CLI flags did not prove the
-root's own source produces the child, and the child renderer had a separate, weaker release/image
-validation than `render-gitops-release.sh` instead of actually reusing it) that address
-`docs/DEFERRED-WORK.md`'s DEF-005/DEF-006 entries. **Still not marked COMPLETE** — GO-1 remains
-`IN PROGRESS` pending owner re-review; GO-2 remains inactive; ADR 0026/0027 remain Proposed.
+below ran locally against this repository's existing files. Five independent review rounds have
+found and closed real defects — see all five "Corrections applied" sections below. The fourth
+round's DEF-006 fix was itself premature: it generated the child from a bespoke, non-Argo "pointer
+file" format that real Argo semantics cannot turn into a child Application — see the fifth-round
+section immediately below for the corrected fix, which uses App-of-Apps, Argo's own native
+mechanism for a root Application generating children. DEF-005 (the multi-source values lookup fix)
+was correct in the fourth round and is unchanged. These address `docs/DEFERRED-WORK.md`'s
+DEF-005/DEF-006 entries. **Still not marked COMPLETE** — GO-1 remains `IN PROGRESS` pending owner
+re-review; GO-2 remains inactive; ADR 0026/0027 remain Proposed.
+
+## Corrections applied — fifth round (DEF-006 re-fix: real Argo-supported generation mechanism, 2026-09-14, later same day)
+
+1. **The fourth round's DEF-006 fix did not use an actual Argo-supported generation mechanism.**
+   `--root-path` pointed at a directory containing a bespoke YAML document
+   (`childAppName`/`releaseRecordPath`/`valuesPath`) that only `render-gitops-applications.sh`
+   itself knew how to interpret. The rendered root Application's own `source.path` was set to that
+   same directory — but a real Argo CD sync of that root would try to apply the pointer file itself
+   as a Kubernetes resource. It is not a valid `Application` manifest, so nothing in actual Argo
+   semantics would turn it into the child. The root and child text this script emitted were only two
+   independently parameterized renders that happened to agree with each other; nothing about them
+   proved the root's own source produces the child through any mechanism Argo itself implements.
+   `docs/DEFERRED-WORK.md`'s DEF-006 entry carries a correction note reopening it for this reason.
+2. **Fixed via App-of-Apps — Argo's own native root-generates-children mechanism.** A root
+   Application whose `source.path` is a directory of other, already-rendered `Application` manifests
+   is a real, first-class Argo CD pattern (no ApplicationSet/CRD needed): a sync of the root applies
+   whatever valid `Application` manifests it finds there, verbatim. `--root-path` must now contain,
+   at `--env-revision`, exactly one such checked-in child `Application` manifest — the same kind of
+   artifact a real "prepare release" step would commit into the env-repo
+   (`docs/gitops-fixtures/dev-root-child-application.example.yaml` is the current worked example;
+   the prior pointer-file fixture is kept, with its own correction note, per the append-only
+   convention). `render-gitops-applications.sh` discovers that manifest and prints it verbatim as the
+   child — it does not re-template it.
+3. **Structural, not line-adjacency, validation — and it fails closed on tampering.** The checked-in
+   child manifest carries two provenance annotations (`gitops.bedoux/release-record-path`,
+   `gitops.bedoux/values-path`), resolved at the manifest's OWN values-only source
+   `targetRevision` — never assumed equal to the caller's `--env-revision`, since a checked-in file
+   cannot contain the hash of the commit that first introduces it. That revision must be a
+   well-formed, existing, non-moving commit SHA that is an ancestor-or-equal of `--env-revision`
+   (`git merge-base --is-ancestor`), refused otherwise. `scripts/lib/gitops-release-binding.sh`'s new
+   `gob_validate_child_manifest` then parses the checked-in manifest's `spec.sources` as real YAML
+   (not raw text) and structurally cross-checks every field — `repoURL`/`targetRevision`/`path`/
+   `helm.valueFiles` on the chart source, `repoURL`/`targetRevision`/`ref`/absence-of-`path` on the
+   values-only source — against the independently-derived release binding, failing closed on any
+   mismatch, including a `path` deliberately injected onto the values-only source (proven by a
+   dedicated negative test, not just the general field-comparison).
+4. **Proves the full local chain: pinned root source → generated child → resolved pinned
+   chart/values → workload manifests.** `scripts/lib/gitops-release-binding.sh`'s new
+   `gob_render_workload_manifests` (the extraction + `helm template` step, now shared by both
+   `render-gitops-release.sh` and `render-gitops-applications.sh` rather than duplicated) runs after
+   the structural cross-check succeeds, so a single invocation of
+   `scripts/render-gitops-applications.sh` demonstrates every link in that chain end to end, locally,
+   with no cluster.
+5. **New negative tests.** Broken-root (YAML present under `--root-path` but none of it a valid
+   `Application` manifest — refused, naming what a real Argo sync would also refuse to reconcile)
+   and a moving-branch test (re-rendering at the same pinned `--env-revision` after the scratch
+   repo's branch advances is byte-identical; explicit rendering at the new revision differs), in
+   addition to the retained zero/multiple-child-manifest, missing-annotation, and shared
+   image-digest-mismatch tests. `scripts/test-render-gitops-applications.sh` now has 36 assertions.
+6. **Both renderer test suites wired into CI.** `.github/workflows/pr-validation.yml`'s "Terraform
+   and Helm validation" job (which already installs Helm) now runs
+   `scripts/test-render-gitops-release.sh` and `scripts/test-render-gitops-applications.sh`
+   (plus `--help`/`bash -n` smoke checks on both renderer scripts and the shared library) on every
+   PR; confirmed green in CI for this change.
 
 ## Corrections applied — fourth round (DEF-005/DEF-006 fix, 2026-09-14)
 

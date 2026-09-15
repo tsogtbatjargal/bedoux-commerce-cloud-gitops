@@ -14,7 +14,7 @@ checked here and its evidence is recorded in the session log.
 | Last verified | 2026-09-14T09:46:43-06:00 — Documentation housekeeping: `docs/runbooks/gitops-mvp-demo.md`'s "Why a local snapshot" and "Verification" sections cross-checked directly against `scripts/gitops-mvp-verify.sh --help`'s live output; `git diff --check` and `make docs-check` (or its documented local-doc checks) rerun; DEF-016 marked RESOLVED with evidence. Prior: 2026-09-10T21:37:35-06:00 — PR #92 merge confirmed: `gh pr view 92` reports `state=MERGED`, `mergeCommit.oid=b7e52a9a14f2366609e6e733df0277872a5439b5`, `headRefOid=935b95cc7cacd49c1b86e4676b5644069ec038d1` (the exact reviewed head, unchanged since round 4). All four required checks were re-verified green on that head immediately before the merge was executed. GO-MVP-U1's verifier was hardened across four review rounds ending at 35/35 mock assertions on head `935b95c`. PR #91 (GO-MVP closeout) merged into `main` at `60e7d0757b1394f6d63a63530242eb7fed83eaf5`. No AWS verification. GO-1's third-round local checks (6 suites, 122 assertions, all passing) remain recorded further down this log, still uncommitted in the original checkout (preserved, GO-1 stays paused/deferred) — untouched by any of this. |
 | AWS resources currently live | Last recorded inventory, not refreshed by PH-A: no temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
-| Next operator action | Review and merge (or request changes on) the small follow-up documentation-closeout PR (present-tense checkpoint refresh recording PR #93's merge and completed synchronization; duplicate DEF-016 section in `docs/DEFERRED-WORK.md` labeled historical, text preserved; synchronization-note timezone corrected to 2026-09-14T16:30:03Z / 10:30:03-06:00). PR #93 itself is already merged (`932230b7be36522aad7241e829a977ea35558cb3`) and the original checkout is already synchronized to it — see this file's session log for full evidence; no further sync action is pending. Full GO-1 and the remaining advanced backlog stay deferred — unfinished findings and safe deferral boundaries remain tracked in `docs/DEFERRED-WORK.md` (DEF-001–011, DEF-015 subfinding 3); review that backlog with the owner before activating any of it. Do not mark the original full GO-1 contract complete, activate GO-2, or infer broader new-image/schema support than the one demonstrated update. No AWS session or cluster mutation occurred in this housekeeping item. **Addendum (2026-09-14T17:20:57-06:00):** a separate, focused PR fixing DEF-005 (multi-source values lookup) and DEF-006 (real root-to-child Application generation, shared release/image validation) is also open for review — see the 2026-09-14T17:20:57-06:00 session log entry below for full evidence. It does not change or supersede anything described in the rest of this row. |
+| Next operator action | Review and merge (or request changes on) the small follow-up documentation-closeout PR (present-tense checkpoint refresh recording PR #93's merge and completed synchronization; duplicate DEF-016 section in `docs/DEFERRED-WORK.md` labeled historical, text preserved; synchronization-note timezone corrected to 2026-09-14T16:30:03Z / 10:30:03-06:00). PR #93 itself is already merged (`932230b7be36522aad7241e829a977ea35558cb3`) and the original checkout is already synchronized to it — see this file's session log for full evidence; no further sync action is pending. Full GO-1 and the remaining advanced backlog stay deferred — unfinished findings and safe deferral boundaries remain tracked in `docs/DEFERRED-WORK.md` (DEF-001–011, DEF-015 subfinding 3); review that backlog with the owner before activating any of it. Do not mark the original full GO-1 contract complete, activate GO-2, or infer broader new-image/schema support than the one demonstrated update. No AWS session or cluster mutation occurred in this housekeeping item. **Addendum (2026-09-14T17:20:57-06:00):** a separate, focused PR fixing DEF-005 (multi-source values lookup) and DEF-006 (real root-to-child Application generation, shared release/image validation) is also open for review — see the 2026-09-14T17:20:57-06:00 session log entry below for full evidence. It does not change or supersede anything described in the rest of this row. **Addendum (2026-09-14T18:24:47-06:00):** that PR's DEF-006 fix was corrected the same day — the original fix did not use an actual Argo-supported generation mechanism; it now uses App-of-Apps. See the 2026-09-14T18:24:47-06:00 session log entry for full evidence. PR #95 remains open, unmerged, awaiting review. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -999,6 +999,65 @@ tree.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-09-14T18:24:47-06:00 — DEF-006 re-fix: real Argo-supported generation mechanism (App-of-Apps), correcting the entry below — Claude
+
+- **Scope:** bounded follow-up on the same PR (#95, branch `fix/def-005-006-source-binding`,
+  same isolated worktree `../bedoux-go1-def005-006`), per owner instruction: the DEF-006 fix
+  recorded in the 2026-09-14T17:20:57-06:00 entry immediately below was premature — its
+  "child pointer YAML" format is not something real Argo CD understands, so nothing about that
+  revision proved the root's own source produces the child through any mechanism Argo itself
+  implements. This entry corrects that and does NOT delete or rewrite the entry below; it adds a
+  new one, per this file's append-only convention. DEF-005 was correct then and is unchanged.
+- **What changed:** `--root-path` must now contain, at `--env-revision`, exactly one already-
+  rendered, checked-in Argo CD `Application` manifest for the child (real App-of-Apps — Argo's own
+  native mechanism: a sync of the root applies whatever `Application` manifests are found under
+  its `source.path`, verbatim, no ApplicationSet/CRD needed). `scripts/render-gitops-applications.sh`
+  discovers that manifest, reads two provenance annotations
+  (`gitops.bedoux/release-record-path`, `gitops.bedoux/values-path`) resolved at the manifest's OWN
+  values-only source `targetRevision` (required to be a pinned, existing commit that is an
+  ancestor-or-equal of `--env-revision` — `git merge-base --is-ancestor` — never assumed equal to
+  it, since a checked-in file cannot contain the hash of the commit that first introduces it), and
+  structurally validates (`scripts/lib/gitops-release-binding.sh`'s new `gob_validate_child_manifest`,
+  a real YAML parse, not line-adjacency) that the manifest's own `spec.sources` match the
+  independently-derived release binding field-for-field — including rejecting an injected `path` on
+  the values-only source. It then runs the same `helm template` step `render-gitops-release.sh` uses
+  (new shared `gob_render_workload_manifests`) to prove "resolved pinned chart/values → workload
+  manifests," completing the full local chain: pinned root source → generated (checked-in, App-of-
+  Apps-applied) child → resolved pinned chart/values → workload manifests, in one script
+  invocation, no cluster.
+- **New negative tests:** broken-root (YAML present under `--root-path`, none of it a valid
+  `Application` manifest — refused, naming what a real Argo sync would also refuse to reconcile) and
+  a moving-branch test (re-render at the same pinned `--env-revision`, after the scratch repo's
+  branch advances, is byte-identical to the first render; explicit render at the new revision
+  differs). Retained: zero/multiple-child-manifest refusal, missing-provenance-annotation refusal,
+  and the shared image-digest-mismatch cross-check (now reached through a two-commit fixture: the
+  mismatched values file committed first, then a child manifest whose values-source revision points
+  back at that commit — avoiding the same "a commit can't contain its own hash" problem the design
+  itself has to handle). `scripts/test-render-gitops-applications.sh`: 36/36 assertions pass.
+  `scripts/test-render-gitops-release.sh`: 19/19 assertions pass, unaffected (its inline chart-
+  archive/helm-template logic was refactored to call the new shared `gob_render_workload_manifests`
+  instead of duplicating it; behavior-preserving, verified by rerunning its full suite before and
+  after).
+- **CI:** both renderer test suites (plus `--help`/`bash -n` smoke checks on both scripts and the
+  shared library) wired into `.github/workflows/pr-validation.yml`'s "Terraform and Helm validation"
+  job, which already installs Helm — confirmed by rerunning both suites locally before pushing; CI
+  status on the updated PR head is tracked in this same session's follow-up, not fabricated here.
+- **Docs corrected (append-only, nothing deleted):** `docs/gitops-go1-design-contract.md` gained a
+  new "fifth round" corrections section (inserted before the now-historical "fourth round" section,
+  which is left unchanged) and its status line now says "Reopened ... a fifth time." A new
+  correction note was appended to `docs/DEFERRED-WORK.md`'s DEF-006 entry, directly after (not
+  replacing) its prior "Resolution" line, stating the prior resolution was premature and pointing at
+  the real fix. `docs/gitops-fixtures/dev-root-child-pointer.example.yaml` (the old, non-Argo pointer
+  format) was kept with a correction header at the top explaining why it no longer matches the
+  script; a new `docs/gitops-fixtures/dev-root-child-application.example.yaml` documents the current,
+  real child-manifest format.
+- **Not done, deliberately:** no cluster, no remote env-repo, no Argo CD installation, no AWS
+  activity, no GO-2 activation, no resumption of full GO-1 beyond this DEF-005/DEF-006 slice.
+  Multi-child fan-out (real App-of-Apps enumeration across several children) remains explicitly out
+  of scope and untouched.
+- **Next action:** push these commits to the existing PR #95 branch, confirm CI green on the updated
+  head, and stop for owner review — do not merge, do not mark GO-1 complete, do not activate GO-2.
 
 ### 2026-09-14T17:20:57-06:00 — DEF-005/DEF-006 fix: real source binding and root-to-child rendering — Claude
 
