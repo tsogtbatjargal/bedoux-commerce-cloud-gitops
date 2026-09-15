@@ -142,6 +142,33 @@ if not isinstance(sources, list) or len(sources) != 2:
 
 chart_src, values_src = sources[0], sources[1]
 
+# Every field on both sources must be one this tooling actually validates and
+# renders. Argo CD's Application/multi-source schema allows many more fields on a
+# source (helm.parameters, helm.values/valuesObject, helm.releaseName,
+# helm.version, helm.skipCrds, helm.ignoreMissingValueFiles, helm.fileParameters,
+# kustomize, directory, plugin, chart) that this tooling does not evaluate before
+# running its own `helm template` proof step — a checked-in manifest declaring one
+# of these would render, in a real Argo sync, with different effective values than
+# what this script's own workload-manifest rendering proves. Refuse closed rather
+# than silently rendering a proof that does not match what Argo would actually do.
+ALLOWED_CHART_SOURCE_KEYS = {"repoURL", "targetRevision", "path", "helm"}
+ALLOWED_CHART_HELM_KEYS = {"valueFiles"}
+ALLOWED_VALUES_SOURCE_KEYS = {"repoURL", "targetRevision", "ref"}
+
+if "path" in values_src:
+    refuse("DEF-005 violation - child Application values-only source (ref: values) declares a 'path' key (%r); this makes Argo treat it as a second manifest-generating source, not a pure values reference, per https://argo-cd.readthedocs.io/en/stable/user-guide/multiple_sources/#values-files-from-external-git-repository" % (values_src.get("path"),))
+
+extra_chart_keys = set(chart_src.keys()) - ALLOWED_CHART_SOURCE_KEYS
+if extra_chart_keys:
+    refuse("unsupported field(s) on child Application chart source: %r. This tooling only validates/renders %r; an unsupported field (e.g. a Kustomize/plugin/directory source type, or a chart-repo 'chart' reference) would make a real Argo sync's effective output diverge from what this script's helm-template proof renders. Reject the override or extend this tooling to actually validate and render its effective value before accepting it." % (sorted(extra_chart_keys), sorted(ALLOWED_CHART_SOURCE_KEYS)))
+chart_helm = chart_src.get("helm") or {}
+extra_helm_keys = set(chart_helm.keys()) - ALLOWED_CHART_HELM_KEYS
+if extra_helm_keys:
+    refuse("unsupported Helm override field(s) on child Application chart source: %r. This tooling only validates/renders %r (helm.parameters/values/valuesObject/releaseName/etc. are not evaluated before this script's own helm-template proof step, so they would silently diverge from what a real Argo sync actually renders)." % (sorted(extra_helm_keys), sorted(ALLOWED_CHART_HELM_KEYS)))
+extra_values_keys = set(values_src.keys()) - ALLOWED_VALUES_SOURCE_KEYS
+if extra_values_keys:
+    refuse("unsupported field(s) on child Application values-only source: %r. This tooling only validates/renders %r on the values-only (ref: values) source." % (sorted(extra_values_keys), sorted(ALLOWED_VALUES_SOURCE_KEYS)))
+
 if chart_src.get("repoURL") != app_repo_url:
     refuse("child Application chart source repoURL %r does not match the expected app-repo URL %r" % (chart_src.get("repoURL"), app_repo_url))
 if chart_src.get("targetRevision") != app_revision:
@@ -149,7 +176,7 @@ if chart_src.get("targetRevision") != app_revision:
 if chart_src.get("path") != chart_path:
     refuse("child Application chart source path %r does not match the release record's chart.path %r" % (chart_src.get("path"), chart_path))
 want_value_files = ["$values/" + values_path]
-got_value_files = (chart_src.get("helm") or {}).get("valueFiles")
+got_value_files = chart_helm.get("valueFiles")
 if got_value_files != want_value_files:
     refuse("child Application chart source helm.valueFiles %r does not match the expected full repo-relative reference %r (DEF-005: a basename-only reference resolves from the ref source's repo root, not the values file's actual directory)" % (got_value_files, want_value_files))
 
@@ -159,8 +186,6 @@ if values_src.get("targetRevision") != env_revision:
     refuse("child Application values-only source targetRevision %r does not match the pinned --env-revision %r the root Application itself is pinned to" % (values_src.get("targetRevision"), env_revision))
 if values_src.get("ref") != "values":
     refuse("child Application values-only source ref %r is not 'values'" % (values_src.get("ref"),))
-if "path" in values_src:
-    refuse("DEF-005 violation - child Application values-only source (ref: values) declares a 'path' key (%r); this makes Argo treat it as a second manifest-generating source, not a pure values reference, per https://argo-cd.readthedocs.io/en/stable/user-guide/multiple_sources/#values-files-from-external-git-repository" % (values_src.get("path"),))
 
 sys.exit(0)
 PYEOF

@@ -16,7 +16,16 @@
 # that first introduces it) and structurally cross-checks that this manifest's own
 # spec.sources match that independently-derived binding field-for-field, including
 # the DEF-005 checks (no 'path' on the values-only source; helm.valueFiles names
-# the full repo-relative path, not a basename). See
+# the full repo-relative path, not a basename); and, as of the 2026-09-14 bounded
+# follow-up, both sources are also checked against an explicit key allowlist —
+# repoURL/targetRevision/path/helm.valueFiles on the chart source,
+# repoURL/targetRevision/ref on the values-only source — so an unsupported
+# Helm/source override (e.g. helm.parameters, kustomize, directory, plugin, a
+# Helm-repo 'chart' reference) is refused rather than silently rendered without
+# its effect. --root-path must contain EXACTLY this one file and nothing else,
+# non-recursively (no nested directory, no other resource alongside it) — a real
+# Argo sync of the root, with no 'directory: {recurse: true}' on it, would apply
+# every entry it finds directly under --root-path, not just this one. See
 # docs/gitops-go1-design-contract.md Gate 1 and
 # scripts/test-render-gitops-applications.sh for the regression tests that
 # actually exercise this format (an equivalent fixture built inline in an isolated

@@ -94,23 +94,27 @@ Required:
                         env-values source. Never HEAD, never a branch/tag name —
                         refused before touching git if not an exact 40-hex SHA.
   --root-path PATH     Path, within --env-revision, the root Application's own
-                        source points at. Must contain EXACTLY ONE checked-in
+                        source points at. The rendered root below carries no
+                        'directory: {recurse: true}' (Argo's default is
+                        non-recursive), so discovery here is non-recursive too —
+                        matching what a real sync would actually do — and looks
+                        ONLY at entries directly inside --root-path. That
+                        directory must contain EXACTLY ONE entry: a checked-in
                         Argo CD Application manifest for the child (kind:
                         Application) — the real App-of-Apps mechanism: a sync of
-                        the root applies whatever manifests are found here
-                        verbatim. That manifest must carry two annotations:
+                        the root applies whatever it finds here verbatim, so any
+                        nested subdirectory or additional file alongside the
+                        child manifest is refused as an unexpected resource a
+                        real sync would also apply, not silently ignored. That
+                        manifest must carry two annotations:
                         gitops.bedoux/release-record-path and
                         gitops.bedoux/values-path, each a path within the
                         manifest's OWN values-only source targetRevision (an
                         ancestor-or-equal of --env-revision — see below), so this
                         script can independently re-derive and structurally
-                        cross-check its bound sources.
-                        Zero or more than one Application manifest, or one
-                        missing the annotations, or one whose sources do not
-                        structurally match the independently-derived binding, is
-                        refused. Real multi-child fan-out (enumerating many child
-                        Applications) is explicitly out of scope for GO-1; see
-                        DEF-006 in docs/DEFERRED-WORK.md.
+                        cross-check its bound sources. Real multi-child fan-out
+                        (enumerating many child Applications) is explicitly out
+                        of scope for GO-1; see DEF-006 in docs/DEFERRED-WORK.md.
   --root-app-name NAME  metadata.name for the rendered root Application.
   --env-repo-url URL    repoURL for the env-repo source(s).
   --app-repo-url URL    repoURL for the app-repo (chart) source.
@@ -125,19 +129,23 @@ Options:
 
 Refuses (non-zero exit, no manifest emitted) on any of: malformed --env-revision
 (including the literal strings "HEAD", "main", "master", or any non-40-hex value);
---env-revision does not exist as a commit; zero, multiple, or structurally invalid
-(not kind: Application) manifests under --root-path at --env-revision; the child
-manifest is missing its release-record-path/values-path provenance annotations;
-the child manifest's own values-only source targetRevision is malformed, a
-moving reference, does not exist as a commit, or is not an ancestor-or-equal of
+--env-revision does not exist as a commit; --root-path missing/empty at
+--env-revision; a nested subdirectory directly under --root-path; zero, multiple,
+or any entry alongside the child manifest under --root-path (a real Argo sync
+would apply all of them, not just the intended child); a non-.yaml/.yml or
+structurally invalid (not kind: Application) manifest; the child manifest is
+missing its release-record-path/values-path provenance annotations; the child
+manifest's own values-only source targetRevision is malformed, a moving
+reference, does not exist as a commit, or is not an ancestor-or-equal of
 --env-revision; the release record it points at cannot be read or is missing
 required fields; malformed/nonexistent appRevision; chart path missing at
 appRevision; the values file cannot be read; pairedAppRevision missing or
 mismatched; either image's repository or digest in the values file not matching
 the release record; the checked-in child manifest's spec.sources do not
 structurally match the independently-derived binding (including an injected
-'path' on the values-only source); helm template failing against the resolved
-chart/values.
+'path' on the values-only source, or any unsupported Helm/source override field
+this tooling does not itself validate and render); helm template failing against
+the resolved chart/values.
 EOF
 }
 
@@ -184,36 +192,56 @@ gob_require_commit "--env-revision" "$env_repo" "$env_revision" || exit 1
 # --- App-of-Apps discovery: find the single child Application manifest under ---
 # --- --root-path at the pinned --env-revision. This is the real generation step ---
 # --- (DEF-006) — a sync of the root by actual Argo CD would apply exactly this. ---
-mapfile -t candidate_files < <(
-  git -C "$env_repo" ls-tree -r --name-only "$env_revision" -- "$root_path" 2>/dev/null \
-    | grep -E '\.ya?ml$' || true
+# --- The emitted root Application below carries no 'directory: {recurse: true}' ---
+# --- (the field is omitted entirely, so Argo's own default — non-recursive — ---
+# --- applies): a real sync of that root only ever looks at entries DIRECTLY ---
+# --- inside --root-path, never nested subdirectories, and applies EVERY valid ---
+# --- resource it finds there, not just ones named like a pointer/manifest. ---
+# --- Discovery below is therefore also non-recursive, and treats ANY additional ---
+# --- entry alongside the one child manifest — nested directory or extra file — ---
+# --- as a mismatch worth refusing on, not silently ignoring. ---
+mapfile -t root_entries < <(
+  git -C "$env_repo" ls-tree "${env_revision}:${root_path}" 2>/dev/null || true
 )
-
-if [[ "${#candidate_files[@]}" -eq 0 ]]; then
-  echo "REFUSE: no child Application manifest found under --root-path '$root_path' at env-revision '$env_revision'. A real Argo App-of-Apps sync of the root applies whatever manifests are checked in there; this script refuses to invent one." >&2
+if [[ "${#root_entries[@]}" -eq 0 ]]; then
+  echo "REFUSE: --root-path '$root_path' does not exist (or is empty) at env-revision '$env_revision'. A real Argo App-of-Apps sync of the root applies whatever is checked in there; this script refuses to invent a child." >&2
   exit 1
 fi
 
-child_manifest_files=()
-for f in "${candidate_files[@]}"; do
-  content=$(gob_show "$env_repo" "$env_revision" "$f") || exit 1
-  kind=$(gob_yaml_get "$content" kind)
-  if [[ "$kind" == "Application" ]]; then
-    child_manifest_files+=("$f")
+nested_dirs=()
+top_level_files=()
+for entry in "${root_entries[@]}"; do
+  entry_type=$(awk '{print $2}' <<<"$entry")
+  entry_name=$(cut -f2 <<<"$entry")
+  if [[ "$entry_type" == "tree" ]]; then
+    nested_dirs+=("$entry_name")
+  else
+    top_level_files+=("$entry_name")
   fi
 done
 
-if [[ "${#child_manifest_files[@]}" -eq 0 ]]; then
-  echo "REFUSE: --root-path '$root_path' at env-revision '$env_revision' contains YAML (${candidate_files[*]}) but none of it is a valid Argo CD Application manifest (kind: Application). A real Argo App-of-Apps sync of the root would refuse to reconcile whatever is there as a child Application." >&2
+if [[ "${#nested_dirs[@]}" -gt 0 ]]; then
+  echo "REFUSE: --root-path '$root_path' at env-revision '$env_revision' contains nested director(y/ies) (${nested_dirs[*]}). The root Application rendered below has no 'directory: {recurse: true}' (Argo's default is non-recursive), so a real sync of it would never look inside these — discovery must match that, not silently traverse into them. Either flatten --root-path to contain only the single child Application manifest, or this tooling needs an explicit, reviewed decision to opt into recursive discovery (not made yet — see DEF-006 in docs/DEFERRED-WORK.md)." >&2
   exit 1
 fi
-if [[ "${#child_manifest_files[@]}" -gt 1 ]]; then
-  echo "REFUSE: ${#child_manifest_files[@]} child Application manifests found under --root-path '$root_path' at env-revision '$env_revision' (${child_manifest_files[*]}). Multi-child fan-out (real App-of-Apps enumeration across several children) is explicitly out of scope for GO-1 (DEF-006's safe boundary while deferred: one directly managed Application) — deferred to GO-2/GO-3. Point --root-path at a directory containing exactly one child Application manifest." >&2
-  exit 1
-fi
-pointer_path="${child_manifest_files[0]}"
 
+if [[ "${#top_level_files[@]}" -gt 1 ]]; then
+  echo "REFUSE: --root-path '$root_path' at env-revision '$env_revision' contains ${#top_level_files[@]} entries (${top_level_files[*]}), not exactly one. A real Argo App-of-Apps sync of the root applies EVERY resource it finds directly under --root-path, not just an intended child Application — every one of these would be an unexpected resource applied alongside (or instead of) the child, and real multi-child fan-out (App-of-Apps enumeration across several children) is explicitly out of scope for GO-1 — deferred to GO-2/GO-3. Point --root-path at a directory containing exactly the one child Application manifest and nothing else." >&2
+  exit 1
+fi
+pointer_path="${root_path%/}/${top_level_files[0]}"
+
+if [[ "$pointer_path" != *.yaml && "$pointer_path" != *.yml ]]; then
+  echo "REFUSE: the single entry under --root-path '$root_path' at env-revision '$env_revision' ('$pointer_path') is not a .yaml/.yml file, so it cannot be a valid Argo CD Application manifest." >&2
+  exit 1
+fi
 child_manifest_content=$(gob_show "$env_repo" "$env_revision" "$pointer_path") || exit 1
+child_kind=$(gob_yaml_get "$child_manifest_content" kind)
+if [[ "$child_kind" != "Application" ]]; then
+  echo "REFUSE: --root-path '$root_path' at env-revision '$env_revision' contains YAML ('$pointer_path') but it is not a valid Argo CD Application manifest (kind: Application; got kind='$child_kind'). A real Argo App-of-Apps sync of the root would refuse to reconcile whatever is there as a child Application." >&2
+  exit 1
+fi
+
 child_app_name=$(gob_yaml_get "$child_manifest_content" metadata.name)
 release_record_path=$(gob_yaml_get_annotation "$child_manifest_content" "gitops.bedoux/release-record-path")
 values_path=$(gob_yaml_get_annotation "$child_manifest_content" "gitops.bedoux/values-path")

@@ -57,7 +57,37 @@ name: bedoux
 version: 0.1.0
 EOF
 cat >"$scratch/charts/bedoux/values.yaml" <<'EOF'
-replicaCount: 1
+api:
+  image:
+    repository: example.invalid/bedoux-api
+    digest: ""
+web:
+  image:
+    repository: example.invalid/bedoux-web
+    digest: ""
+EOF
+cat >"$scratch/charts/bedoux/templates/deployment.yaml" <<'EOF'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bedoux-api
+spec:
+  template:
+    spec:
+      containers:
+        - name: api
+          image: "{{ .Values.api.image.repository }}@{{ .Values.api.image.digest }}"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bedoux-web
+spec:
+  template:
+    spec:
+      containers:
+        - name: web
+          image: "{{ .Values.web.image.repository }}@{{ .Values.web.image.digest }}"
 EOF
 git -C "$scratch" init -q
 git -C "$scratch" config user.email test@example.invalid
@@ -180,14 +210,17 @@ assert "positive: child's env-values source targetRevision is revision A0 (the r
   "$(printf '%s' "$out1" | awk '/name: dev-child/,0' | grep -q "targetRevision: $revision_a0"; echo $?)"
 assert "positive: child's chart source targetRevision is the release record's own appRevision SHA" \
   "$(printf '%s' "$out1" | grep -q "targetRevision: $pinned_app_sha"; echo $?)"
-assert "positive: workload manifests are rendered from the pinned chart (helm template ran; the scratch chart has no templates so helm prints a NOTES/empty-manifest banner, not an error)" \
-  "$([[ "$exit1" -eq 0 ]]; echo $?)"
+assert "positive: workload manifests contain the pinned api image repository@digest (nonempty template rendered, not a NOTES/empty banner)" \
+  "$([[ "$out1" == *"example.invalid/bedoux-api@${api_digest}"* ]]; echo $?)"
+assert "positive: workload manifests contain the pinned web image repository@digest" \
+  "$([[ "$out1" == *"example.invalid/bedoux-web@${web_digest}"* ]]; echo $?)"
+assert "positive: workload manifests contain both Deployment kinds (api and web), rendered in the full root+child+workload rendering context" \
+  "$([[ "$out1" == *"name: bedoux-api"* && "$out1" == *"name: bedoux-web"* ]]; echo $?)"
 
 ### DEF-005: the checked-in child manifest's values-only source must carry NO ###
 ### 'path' field, and helm.valueFiles must reference the FULL repo-relative path. ###
 ### This is now a STRUCTURAL YAML check (scripts/lib/gitops-release-binding.sh's ###
 ### gob_validate_child_manifest), not an order-dependent awk/grep scan of raw text. ###
-child_block=$(printf '%s' "$out1" | awk '/name: dev-child/,/^apiVersion: v2|^Resolving|^NOTES|^---$/')
 assert "DEF-005: helm.valueFiles references the full repo-relative values path" \
   "$([[ "$out1" == *'$values/env/values.yaml'* ]]; echo $?)"
 
@@ -269,8 +302,27 @@ out_zero=$("$render" --env-revision "$revision_a" --app-repo "$scratch" --env-re
   --app-repo-url "$app_repo_url" --root-path apps/empty 2>&1); exit_zero=$?
 set -e
 assert "DEF-006 (zero child manifests): non-zero exit" "$([[ "$exit_zero" -ne 0 ]]; echo $?)"
-assert "DEF-006 (zero child manifests): error says none found" \
-  "$([[ "$out_zero" == *"no child Application manifest found"* ]]; echo $?)"
+assert "DEF-006 (zero child manifests): error says the path is missing/empty" \
+  "$([[ "$out_zero" == *"does not exist (or is empty)"* ]]; echo $?)"
+
+### NESTED-DIRECTORY negative test: --root-path contains a subdirectory. The root ###
+### Application rendered below carries no 'directory: {recurse: true}', so a real ###
+### Argo sync of it would never look inside a nested directory — discovery must ###
+### refuse rather than silently traversing into (DEF-006's "including nested ###
+### files" requirement) or silently ignoring it. ###
+mkdir -p "$scratch/apps/nested/inner"
+write_child_manifest nested-child env/release-record.yaml env/values.yaml "$revision_a0" bedoux-dev \
+  >"$scratch/apps/nested/inner/dev-child.yaml"
+git -C "$scratch" add -A && git -C "$scratch" commit -q -m "revision NESTED: child manifest one directory too deep"
+revision_nested=$(git -C "$scratch" rev-parse HEAD)
+set +e
+out_nested=$("$render" --env-revision "$revision_nested" --app-repo "$scratch" --env-repo "$scratch" \
+  --root-app-name dev-root --env-repo-url "$env_repo_url" \
+  --app-repo-url "$app_repo_url" --root-path apps/nested 2>&1); exit_nested=$?
+set -e
+assert "nested-directory negative test: non-zero exit" "$([[ "$exit_nested" -ne 0 ]]; echo $?)"
+assert "nested-directory negative test: error names the nested directory and the non-recursive root" \
+  "$([[ "$out_nested" == *"nested director"* && "$out_nested" == *"recurse"* ]]; echo $?)"
 
 ### BROKEN-ROOT negative test: --root-path contains YAML, but none of it is a ###
 ### valid Argo CD Application manifest (e.g. some other resource kind entirely). ###
@@ -296,7 +348,33 @@ out_broken=$("$render" --env-revision "$revision_broken" --app-repo "$scratch" -
 set -e
 assert "broken-root negative test: non-zero exit" "$([[ "$exit_broken" -ne 0 ]]; echo $?)"
 assert "broken-root negative test: error says the YAML found is not a valid Application manifest" \
-  "$([[ "$out_broken" == *"none of it is a valid Argo CD Application manifest"* ]]; echo $?)"
+  "$([[ "$out_broken" == *"is not a valid Argo CD Application manifest"* ]]; echo $?)"
+
+### UNEXPECTED-RESOURCE negative test: --root-path contains the child Application ###
+### manifest PLUS an unrelated extra resource alongside it. A real Argo sync of ###
+### the root would apply BOTH — this must be refused, not silently proceed with ###
+### just the Application (DEF-006's "unexpected resources" requirement). ###
+mkdir -p "$scratch/apps/extra-resource"
+write_child_manifest extra-child env/release-record.yaml env/values.yaml "$revision_a0" bedoux-dev \
+  >"$scratch/apps/extra-resource/dev-child.yaml"
+cat >"$scratch/apps/extra-resource/unrelated-configmap.yaml" <<'EOF'
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: unrelated
+data:
+  oops: "a real Argo sync of the root would apply this alongside the child Application"
+EOF
+git -C "$scratch" add -A && git -C "$scratch" commit -q -m "revision EXTRA: child manifest plus an unrelated extra resource"
+revision_extra=$(git -C "$scratch" rev-parse HEAD)
+set +e
+out_extra=$("$render" --env-revision "$revision_extra" --app-repo "$scratch" --env-repo "$scratch" \
+  --root-app-name dev-root --env-repo-url "$env_repo_url" \
+  --app-repo-url "$app_repo_url" --root-path apps/extra-resource 2>&1); exit_extra=$?
+set -e
+assert "unexpected-resource negative test: non-zero exit" "$([[ "$exit_extra" -ne 0 ]]; echo $?)"
+assert "unexpected-resource negative test: error names the extra file and warns a real Argo sync would also apply it" \
+  "$([[ "$out_extra" == *"unrelated-configmap.yaml"* && "$out_extra" == *"unexpected resource"* ]]; echo $?)"
 
 ### DEF-006: MORE THAN ONE child Application manifest under --root-path is ###
 ### refused (no App-of-Apps fan-out claim yet). ###
@@ -312,6 +390,11 @@ assert "DEF-006 (multiple child manifests): error names fan-out as out of scope"
   "$([[ "$out_multi" == *"App-of-Apps"* ]]; echo $?)"
 assert "DEF-006 (multiple child manifests): revision A (only one child manifest there) is unaffected" \
   "$([[ "$out1" == "$out2" ]]; echo $?)"
+
+# Remove the second manifest again so later tests reusing apps/dev (via
+# common_render_args) see exactly one entry, as apps/dev did at revision A/B.
+git -C "$scratch" rm -q "apps/dev/dev-child-2.yaml"
+git -C "$scratch" commit -q -m "revision C-cleanup: remove the second apps/dev child manifest again"
 
 ### Negative: child manifest missing its provenance annotations. ###
 mkdir -p "$scratch/apps/noannotations"
@@ -380,6 +463,113 @@ assert "DEF-006 shared validation (image digest mismatch, via the root/child pat
   "$([[ "$exit_mismatch" -ne 0 ]]; echo $?)"
 assert "DEF-006 shared validation: error names the digest mismatch, same wording render-gitops-release.sh uses" \
   "$([[ "$out_mismatch" == *"mismatched API image digest"* ]]; echo $?)"
+
+### UNSUPPORTED HELM OVERRIDE negative test: the checked-in child manifest's chart ###
+### source declares helm.parameters (an inline value override this tooling does not ###
+### evaluate before its own helm-template proof step). Must be refused, not silently ###
+### rendered as if that override did not exist — a real Argo sync WOULD apply it, so ###
+### rendering without it would prove a different effective output than Argo's own. ###
+mkdir -p "$scratch/apps/override"
+cat >"$scratch/apps/override/dev-child.yaml" <<EOF
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: override-child
+  namespace: argocd
+  annotations:
+    gitops.bedoux/release-record-path: env/release-record.yaml
+    gitops.bedoux/values-path: env/values.yaml
+spec:
+  project: default
+  sources:
+    - repoURL: ${app_repo_url}
+      targetRevision: ${pinned_app_sha}
+      path: charts/bedoux
+      helm:
+        valueFiles:
+          - \$values/env/values.yaml
+        parameters:
+          - name: api.image.tag
+            value: unreviewed-override
+    - repoURL: ${env_repo_url}
+      targetRevision: ${revision_a0}
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: bedoux-dev
+  syncPolicy: {}
+EOF
+git -C "$scratch" add -A && git -C "$scratch" commit -q -m "revision OVERRIDE: child manifest with an unsupported helm.parameters override"
+revision_override=$(git -C "$scratch" rev-parse HEAD)
+set +e
+out_override=$("$render" --env-revision "$revision_override" --app-repo "$scratch" --env-repo "$scratch" \
+  --root-app-name dev-root --env-repo-url "$env_repo_url" \
+  --app-repo-url "$app_repo_url" --root-path apps/override 2>&1); exit_override=$?
+set -e
+assert "unsupported-helm-override negative test: non-zero exit" "$([[ "$exit_override" -ne 0 ]]; echo $?)"
+assert "unsupported-helm-override negative test: error names the unsupported field" \
+  "$([[ "$out_override" == *"unsupported Helm override field"* && "$out_override" == *"parameters"* ]]; echo $?)"
+
+### CHILD-PIN UPDATE DEMONSTRATION: a reviewed release promotion updates the ###
+### checked-in child manifest under the SAME --root-path to point at NEW, newer ###
+### image digests (same chart/appRevision — only the images changed) — modeling a ###
+### real "prepare release" -> env PR -> merge flow. Rendering at the NEW pin must ###
+### produce workload manifests with the NEW digests; rendering again at the ###
+### PREVIOUS, already-reviewed root pin (revision A, untouched, still in history) ###
+### must remain byte-identical to the original render — a later promotion must ###
+### never retroactively change what an earlier, already-approved pin renders. ###
+api_digest2="sha256:$(python3 -c "import hashlib;print(hashlib.sha256(b'apps-api-promoted').hexdigest())")"
+web_digest2="sha256:$(python3 -c "import hashlib;print(hashlib.sha256(b'apps-web-promoted').hexdigest())")"
+cat >"$scratch/env/release-record.yaml" <<EOF
+environment: dev
+appRevision: "$pinned_app_sha"
+chart:
+  path: charts/bedoux
+releaseId: "dev-0003"
+images:
+  api: "example.invalid/bedoux-api@${api_digest2}"
+  web: "example.invalid/bedoux-web@${web_digest2}"
+EOF
+cat >"$scratch/env/values.yaml" <<EOF
+pairedAppRevision: "$pinned_app_sha"
+api:
+  image:
+    repository: example.invalid/bedoux-api
+    digest: "${api_digest2}"
+web:
+  image:
+    repository: example.invalid/bedoux-web
+    digest: "${web_digest2}"
+EOF
+git -C "$scratch" add -A
+git -C "$scratch" commit -q -m "revision G0: dev-0003 reviewed promotion, new image digests, same appRevision"
+revision_g0=$(git -C "$scratch" rev-parse HEAD)
+write_child_manifest dev-child env/release-record.yaml env/values.yaml "$revision_g0" bedoux-dev \
+  >"$scratch/apps/dev/dev-child.yaml"
+git -C "$scratch" add -A
+git -C "$scratch" commit -q -m "revision G: checked-in dev-child Application manifest updated to the reviewed dev-0003 promotion"
+revision_g=$(git -C "$scratch" rev-parse HEAD)
+
+set +e
+out_g=$("$render" --env-revision "$revision_g" "${common_render_args[@]}" 2>/dev/null); exit_g=$?
+set -e
+assert "child-pin update: render at the new, reviewed pin exits 0" "$([[ "$exit_g" -eq 0 ]]; echo $?)"
+assert "child-pin update: workload manifests now contain the NEW pinned api image digest" \
+  "$([[ "$out_g" == *"example.invalid/bedoux-api@${api_digest2}"* ]]; echo $?)"
+assert "child-pin update: workload manifests now contain the NEW pinned web image digest" \
+  "$([[ "$out_g" == *"example.invalid/bedoux-web@${web_digest2}"* ]]; echo $?)"
+assert "child-pin update: workload output actually changed from the previous render (not coincidentally identical)" \
+  "$([[ "$out_g" != "$out1" ]]; echo $?)"
+
+set +e
+out_a_again=$("$render" --env-revision "$revision_a" "${common_render_args[@]}" 2>/dev/null); exit_a_again=$?
+set -e
+assert "child-pin update: re-render at the PREVIOUS, already-reviewed root pin (revision A) after the promotion exits 0" \
+  "$([[ "$exit_a_again" -eq 0 ]]; echo $?)"
+assert "child-pin update: the previous root pin's workload output is byte-identical to its original render — a later promotion does not retroactively change it" \
+  "$([[ "$out1" == "$out_a_again" ]]; echo $?)"
+assert "child-pin update: the previous root pin's workload output still has the OLD digest, never the promoted one" \
+  "$([[ "$out_a_again" != *"$api_digest2"* && "$out_a_again" != *"$web_digest2"* ]]; echo $?)"
 
 echo
 if [[ "$fail_count" -eq 0 ]]; then

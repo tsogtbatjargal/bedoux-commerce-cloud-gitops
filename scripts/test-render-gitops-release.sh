@@ -62,6 +62,17 @@ spec:
       containers:
         - name: api
           image: "{{ .Values.api.image.repository }}@{{ .Values.api.image.digest }}"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bedoux-web
+spec:
+  template:
+    spec:
+      containers:
+        - name: web
+          image: "{{ .Values.web.image.repository }}@{{ .Values.web.image.digest }}"
 EOF
 
 git -C "$scratch" init -q
@@ -119,8 +130,12 @@ set +e
 out1=$(run_render 2>/tmp/render-pos.err); exit1=$?
 set -e
 assert "positive: consistent root/child render exits 0" "$([[ "$exit1" -eq 0 ]]; echo $?)"
-assert "positive: rendered output contains the pinned api digest" \
-  "$([[ "$out1" == *"$api_digest"* ]]; echo $?)"
+assert "positive: rendered output contains the pinned api image repository@digest" \
+  "$([[ "$out1" == *"example.invalid/bedoux-api@${api_digest}"* ]]; echo $?)"
+assert "positive: rendered output contains the pinned web image repository@digest (nonempty web template, not just api)" \
+  "$([[ "$out1" == *"example.invalid/bedoux-web@${web_digest}"* ]]; echo $?)"
+assert "positive: rendered output contains both Deployment workload kinds (api and web), not just a NOTES/empty banner" \
+  "$([[ "$out1" == *"name: bedoux-api"* && "$out1" == *"name: bedoux-web"* ]]; echo $?)"
 
 ### Working-tree independence: dirty the SCRATCH repo's own tracked file (never ###
 ### the real project repo) and prove the pinned render is unaffected. ###

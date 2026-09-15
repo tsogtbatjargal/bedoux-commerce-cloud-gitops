@@ -1,18 +1,56 @@
 # GO-1 design contract
 
-Status: **Reopened for correction a fifth time on 2026-09-14.** No repository has been created,
+Status: **Reopened for correction a sixth time on 2026-09-14.** No repository has been created,
 no controller installed, no cluster or AWS resource touched to produce this document. Every check
-below ran locally against this repository's existing files. Five independent review rounds have
-found and closed real defects — see all five "Corrections applied" sections below. The fourth
+below ran locally against this repository's existing files. Six independent review rounds have
+found and closed real defects — see all six "Corrections applied" sections below. The fourth
 round's DEF-006 fix was itself premature: it generated the child from a bespoke, non-Argo "pointer
-file" format that real Argo semantics cannot turn into a child Application — see the fifth-round
-section immediately below for the corrected fix, which uses App-of-Apps, Argo's own native
-mechanism for a root Application generating children. DEF-005 (the multi-source values lookup fix)
-was correct in the fourth round and is unchanged. These address `docs/DEFERRED-WORK.md`'s
-DEF-005/DEF-006 entries. **Still not marked COMPLETE** — GO-1 remains `IN PROGRESS` pending owner
-re-review; GO-2 remains inactive; ADR 0026/0027 remain Proposed.
+file" format that real Argo semantics cannot turn into a child Application — the fifth round fixed
+that using App-of-Apps, Argo's own native mechanism for a root Application generating children. The
+sixth round (immediately below) closes three further bounded gaps in that App-of-Apps mechanism:
+unsupported Helm/source overrides on the checked-in child manifest, a recursive/non-recursive
+mismatch between discovery and the emitted root config, and hollow (template-free) workload-manifest
+proof. DEF-005 (the multi-source values lookup fix) was correct in the fourth round and is
+unchanged. These address `docs/DEFERRED-WORK.md`'s DEF-005/DEF-006 entries. **Still not marked
+COMPLETE** — GO-1 remains `IN PROGRESS` pending owner re-review; GO-2 remains inactive; ADR
+0026/0027 remain Proposed.
 
-## Corrections applied — fifth round (DEF-006 re-fix: real Argo-supported generation mechanism, 2026-09-14, later same day)
+## Corrections applied — sixth round (three bounded gaps in the App-of-Apps mechanism, 2026-09-14, later same day)
+
+1. **Unsupported Helm/source overrides were neither rejected nor rendered.** The structural
+   validator checked only the fields it actively compared (repoURL/targetRevision/path/
+   helm.valueFiles on the chart source; repoURL/targetRevision/ref on the values-only source) but
+   never rejected anything else a checked-in manifest might declare — `helm.parameters`,
+   `helm.values`/`valuesObject`, `kustomize`, `directory`, `plugin`, a Helm-repo `chart` reference.
+   A real Argo sync would apply any of these; this tooling's own `helm template` proof step silently
+   ignored them, so a passing render could prove an effective output different from what Argo would
+   actually produce. `gob_validate_child_manifest` now enforces an explicit key allowlist on both
+   sources and refuses closed on anything outside it.
+2. **Root-file discovery did not match the emitted root Application's own configuration.**
+   Discovery used `git ls-tree -r` (recursive), but the rendered root Application carries no
+   `directory: {recurse: true}` — Argo's default for a directory-style source is non-recursive. A
+   nested child manifest this script found and rendered would, in reality, never be synced by Argo
+   at all. Discovery is now non-recursive (`git ls-tree` at exactly one level under `--root-path`),
+   refuses a nested subdirectory by name instead of silently traversing into or ignoring it, and
+   refuses ANY additional entry found alongside the one child manifest — not just additional
+   `kind: Application` files — since a real Argo sync of a non-recursive directory source applies
+   every resource it finds there, not only ones that happen to be Applications.
+3. **The workload-manifest proof was hollow.** Both renderer test suites' scratch Helm charts had no
+   templates (or, for `render-gitops-release.sh`, only a one-sided API template), so `helm template`
+   produced an empty/NOTES-only banner — "resolved pinned chart/values → workload manifests" was
+   proven only by exit code 0, never by actual rendered content. Both suites now render real API and
+   web `Deployment` templates and assert the workload manifests contain the pinned
+   `repository@digest` for both images. A new test in `scripts/test-render-gitops-applications.sh`
+   demonstrates a reviewed child-pin update (a fresh checked-in child manifest pointing at a new,
+   reviewed release with different image digests, same appRevision — modeling a real promotion)
+   changes the rendered workload output at the new pin, while re-rendering at the previous,
+   already-reviewed root pin remains byte-identical to its original render — a later promotion never
+   retroactively changes an earlier, already-approved render.
+4. Proven by `scripts/test-render-gitops-applications.sh` (54 assertions, up from 36:
+   unsupported-Helm-override, nested-directory, unexpected-resource, and the child-pin-update
+   demonstration are new) and `scripts/test-render-gitops-release.sh` (21 assertions, up from 19:
+   real web template plus workload-content assertions). Both suites remain wired into
+   `.github/workflows/pr-validation.yml` and green in CI.
 
 1. **The fourth round's DEF-006 fix did not use an actual Argo-supported generation mechanism.**
    `--root-path` pointed at a directory containing a bespoke YAML document

@@ -1,6 +1,6 @@
 # Deferred work and post-MVP improvements
 
-Last updated: 2026-09-14T18:24:47-06:00.
+Last updated: 2026-09-14T21:08:05-06:00.
 
 The owner requested a working local MVP first, then the unfinished GitOps improvements.
 This file keeps that work discoverable without treating it as fixed or requiring every future
@@ -155,6 +155,29 @@ the investigation history, including issues already fixed that should not be reo
   `scripts/test-render-gitops-release.sh`, both confirmed green in CI. Multi-child fan-out remains
   explicitly out of scope, per the original boundary above. This correction and both resolutions
   above are kept, not deleted, per this file's maintenance rule.
+- **Follow-up (2026-09-14T21:08:05-06:00): three bounded gaps closed in the same App-of-Apps fix.**
+  (1) The structural validator (`gob_validate_child_manifest`) previously checked only the fields it
+  actively used; a checked-in manifest could declare unsupported Helm/source override fields
+  (`helm.parameters`, `helm.values`/`valuesObject`, `kustomize`, `directory`, `plugin`, a Helm-repo
+  `chart` reference) that a real Argo sync WOULD apply but this tooling's own `helm template` proof
+  step silently ignored — proving a different effective output than Argo's own. Now refused via an
+  explicit key allowlist on both sources. (2) Discovery under `--root-path` was recursive
+  (`git ls-tree -r`) while the emitted root Application carries no `directory: {recurse: true}`
+  (Argo's default is non-recursive) — a mismatch: a nested child manifest this script found would
+  never actually be synced by real Argo. Discovery is now non-recursive (matching the emitted
+  config) and explicitly refuses a nested directory rather than silently traversing into or ignoring
+  it; it also now refuses ANY additional resource alongside the one child manifest (not just multiple
+  `kind: Application` files) — a real Argo sync applies everything it finds there, not just the
+  Application-kind ones. (3) The scratch chart used by both renderer test suites had no (or only a
+  one-sided API) template, so `helm template` produced an empty/NOTES-only banner — the
+  "resolved chart/values → workload manifests" proof asserted only exit code 0, not actual content.
+  Both suites now render real API+web Deployment templates and assert the rendered workload
+  manifests contain the pinned `repository@digest` for both images. A new test demonstrates a
+  reviewed child-pin update (new image digests via a fresh checked-in child manifest, modeling a
+  real release promotion) changes the workload output at the new pin while a re-render at the
+  previous, already-reviewed root pin remains byte-identical to its original render. See
+  `docs/PROGRESS.md` session log 2026-09-14T21:08:05-06:00 for full evidence. This follow-up and
+  everything above it in this entry are kept, not deleted, per this file's maintenance rule.
 
 ### DEF-007 — Progressive-delivery installation and router-specific evidence
 
