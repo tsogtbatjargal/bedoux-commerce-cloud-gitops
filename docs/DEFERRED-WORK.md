@@ -1,6 +1,6 @@
 # Deferred work and post-MVP improvements
 
-Last updated: 2026-09-15T19:24:39-06:00.
+Last updated: 2026-09-16T09:35:39-06:00.
 
 The owner requested a working local MVP first, then the unfinished GitOps improvements.
 This file keeps that work discoverable without treating it as fixed or requiring every future
@@ -93,6 +93,19 @@ the investigation history, including issues already fixed that should not be reo
   fixture content through the Application contract at a pinned commit. See `docs/PROGRESS.md`
   session log 2026-09-14T17:20:57-06:00 for full evidence. This entry and its gap/history above
   are kept, not deleted, per this file's maintenance rule.
+- **PR #95 review (2026-09-14T17:26:10-06:00, Codex):** emitted values-only source and full
+  repo-relative valueFiles reference are corrected at `0ded589e29e2938dec79a8070365b68b3cd822d0`.
+  Regression evidence still needs repair: the awk assertion starts at `ref: values`, so a
+  forbidden `path: env` immediately BEFORE ref passes (independently reproduced, exit 0).
+  Parse the complete source mapping and prove an injected path is rejected irrespective of
+  key order; resolve the selected nested values file and render the actual selected workload.
+  Both new renderer suites pass locally but are absent from CI workflow/Makefile invocations.
+  Wire the same commands into CI before treating its green status as source-binding evidence.
+- **PR #95 follow-up (2026-09-14T18:45:56-06:00, Codex):** at
+  `13b98ea525838a81470eb6817e9cbbe0ebbf5f9a`, the values-only path check is structural and
+  both renderer suites execute in CI (confirmed job log). Those previous findings are closed.
+  Remaining source-binding false acceptance is recorded under DEF-006 below; do not re-open
+  the now-fixed full-path/ref-only implementation or CI wiring.
 
 ### DEF-006 — Real root-to-child source generation and promotion
 
@@ -126,6 +139,18 @@ the investigation history, including issues already fixed that should not be reo
   promotion (GO-2/GO-3), per the original boundary above. See `docs/PROGRESS.md` session log
   2026-09-14T17:20:57-06:00 for full evidence. This entry and its gap/history above are kept,
   not deleted, per this file's maintenance rule.
+- **PR #95 review (2026-09-14T17:26:10-06:00, Codex):** NOT CLOSED at
+  `0ded589e29e2938dec79a8070365b68b3cd822d0`. Shared release/image validation is an improvement,
+  but the emitted root source only specifies repoURL/targetRevision/path. Its pinned apps/dev
+  directory contains a custom childAppName/releaseRecordPath/valuesPath YAML pointer, not a
+  Kubernetes Application, Helm root chart, Kustomization or configured plugin. The external
+  shell script emits the child; Argo is not instructed to execute it. Independently inspected
+  the test's pinned root: no generator, pointer is not an Application, child chart contains only
+  Chart.yaml (no workload template). Both suites passing does not prove the root can generate
+  the child. Require an actual Argo-supported root rendering path and a local root-source to
+  child to pinned-values/chart to workload test, including a broken-source negative and moving
+  branch independence. Keep this entry open and correct candidate closure claims meanwhile;
+  no live cluster or GO-2 activation needed for these bounded fixes.
 - **Correction — DEF-006 reopened (2026-09-14, later same day):** the resolution immediately
   above was premature. The "child-pointer YAML file" format it describes
   (`childAppName`/`releaseRecordPath`/`valuesPath`) is **not** something real Argo CD understands.
@@ -155,6 +180,21 @@ the investigation history, including issues already fixed that should not be reo
   `scripts/test-render-gitops-release.sh`, both confirmed green in CI. Multi-child fan-out remains
   explicitly out of scope, per the original boundary above. This correction and both resolutions
   above are kept, not deleted, per this file's maintenance rule.
+- **PR #95 follow-up (2026-09-14T18:45:56-06:00, Codex):** remains OPEN at
+  `13b98ea525838a81470eb6817e9cbbe0ebbf5f9a`. Actual checked-in child Applications replace
+  the unusable pointer, but independent local counterexamples still pass: (1) inject chart
+  helm.parameters overriding api.image.repository with example.invalid/unreviewed-api;
+  structural validation accepts and emits it while the proof renderer ignores the override;
+  (2) put the only child under apps/dev/nested: recursive git discovery accepts it, but the
+  emitted root lacks directory.recurse and Argo's default nonrecursive directory load skips it.
+  The root loader also filters away non-Application YAML and JSON instead of validating the
+  exact resource set Argo loads. Require matching selection semantics and reject unexpected
+  render-affecting Helm/source fields (or faithfully validate and render supported ones).
+  The positive chart still has no templates: output contains two Applications and zero
+  workloads, yet the workload assertion passes. Add nonempty API/web templates, assert exact
+  images and rendering context, and prove a reviewed child-pin advance changes workloads while
+  the previous root pin remains stable. No live cluster needed; both current suites and CI
+  pass but do not close these concrete gaps. Preserve the single-child/local-only boundary.
 - **Follow-up (2026-09-14T21:08:05-06:00): three bounded gaps closed in the same App-of-Apps fix.**
   (1) The structural validator (`gob_validate_child_manifest`) previously checked only the fields it
   actively used; a checked-in manifest could declare unsupported Helm/source override fields
@@ -178,6 +218,17 @@ the investigation history, including issues already fixed that should not be reo
   previous, already-reviewed root pin remains byte-identical to its original render. See
   `docs/PROGRESS.md` session log 2026-09-14T21:08:05-06:00 for full evidence. This follow-up and
   everything above it in this entry are kept, not deleted, per this file's maintenance rule.
+- **PR #95 follow-up (2026-09-15T19:14:32-06:00, Codex):** at
+  `55af6085570f106143df1dca877171f5ec6532e0`, source/Helm-key allowlists, strict single-file
+  nonrecursive discovery, nonempty API/web templates and child-pin image promotion address
+  the prior override, nested-discovery and empty-output findings. Both suites and four CI
+  checks pass. One requested rendering-context gap remains: the Application renderer passes
+  releaseId to Helm and omits --namespace, whereas its child uses Argo's default release name
+  (metadata.name) and destination.namespace. A fixture using .Release.Name/.Release.Namespace
+  yields dev-0001-api/default instead of dev-child-api/bedoux-dev while render exits 0.
+  Derive and validate that context from the child, pass it explicitly to the shared renderer,
+  and add context-sensitive template assertions. Keep this bounded correction on PR #95;
+  no diagram edit, broader GO-1 restart, GO-2 activation or cluster is needed.
 - **Follow-up (2026-09-15T19:24:39-06:00): rendering-context correction.** The shared workload
   renderer (`gob_render_workload_manifests`) previously called `helm template` with the release
   record's own `releaseId` as the Helm release name and no `--namespace` at all — so
@@ -203,6 +254,20 @@ the investigation history, including issues already fixed that should not be reo
   `scripts/test-render-gitops-release.sh` (23 assertions, up from 21). See `docs/PROGRESS.md` session
   log 2026-09-15T19:24:39-06:00 for full evidence. This follow-up and everything above it in this
   entry are kept, not deleted, per this file's maintenance rule.
+- **Review accepted (2026-09-15T21:37:42-06:00, Codex):** at PR #95 head
+  `5152ae0ed9279a09f9fb63cb59b627ae1dbc38ca`, the remaining Helm rendering-context mismatch
+  is fixed: the child name and validated destination namespace are passed explicitly, with
+  context-sensitive positive tests and a wrong-namespace refusal. Local renderer suites pass
+  58/58 and 23/23; GitHub reports all four checks SUCCESS (run `35044122307`). No blocking
+  finding remains in this bounded follow-up. PR is still OPEN, not merged; live reconciliation
+  remains later-phase evidence. Preserve the single-Application MVP boundary until separately
+  authorized adoption. Historical review findings below are retained, not reopened by this note.
+- **Merge recorded (2026-09-16T14:12:21Z, Claude):** PR #95 merged at the reviewed head above,
+  producing merge commit `c6af3b70a94bc397c42d789ea556ffd4e0210693` — the "PR is still OPEN, not
+  merged" line in the note immediately above is superseded by this merge, not deleted; it was
+  accurate when Codex wrote it. See `docs/PROGRESS.md` session log 2026-09-16T14:12:21Z for full
+  evidence. DEF-005 and DEF-006 are closed for this bounded slice; full GO-1 remains `IN PROGRESS`
+  and paused, GO-2 remains inactive, per every resolution above.
 
 ### DEF-007 — Progressive-delivery installation and router-specific evidence
 
