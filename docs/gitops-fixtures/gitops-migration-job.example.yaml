@@ -1,0 +1,134 @@
+# GO-1 design fixture — NOT wired into charts/bedoux and NOT applied to any cluster.
+#
+# Worked example of the GitOps-profile migration Job that Gate 2 (migration ordering)
+# proposes, rendered as a plain resource (no Helm hook annotations) ordered by an
+# Argo sync-wave, for the release pinned in dev-release-record.example.yaml. This
+# supersedes ADR 0005's Helm post-install/pre-upgrade hook ONLY for Argo-managed
+# environments; ADR 0005 stays Accepted and unchanged for the legacy P13/Helm path
+# (see docs/decisions/0027-gitops-profile-migration-jobs.md, Proposed).
+#
+# Corrected per Codex's GO-1 review (docs/PROGRESS.md session log
+# 2026-09-09T11:03:16-06:00): both containers now carry the actual database
+# credential env block (previously omitted, which would have made
+# resolve_database_url() fall back to the application's localhost default — the
+# fixture would not have actually worked). Wave -1 now explicitly includes the
+# ServiceAccount this Job's spec.serviceAccountName references, not just the
+# database. Failed-Job retention is stated explicitly below, matching ADR 0005's own
+# "kept around, not deleted" precedent rather than leaving it unaddressed.
+#
+# Wave plan for one Argo Application (Gate 2, single-environment topology):
+#   wave -1: DB/Secret/ServiceAccount prerequisites — the existing postgres
+#            StatefulSet/Service/Secret AND the bedoux-api ServiceAccount this Job's
+#            spec.serviceAccountName references. Argo's built-in health checks gate
+#            on StatefulSet/Pod readiness for postgres; a ServiceAccount has no
+#            meaningful "health" beyond existing, so Argo's default Synced state for
+#            it is sufficient — this wave's overall health must be green before
+#            wave 0 is applied.
+#   wave  0: this migration Job. Argo's built-in Job health check requires
+#            status.conditions[Complete]=True before the Application is Healthy at
+#            this wave, which blocks wave 1 from being applied. This claim is
+#            asserted from Argo CD's documented health-check behavior; T-GO-03
+#            (fresh install) is where it is verified against a real installation —
+#            not claimed proven here.
+#   wave  1: api/web Deployments (existing templates, unchanged).
+#
+# Job identity is releaseId, not .Release.Revision (Argo's Helm rendering has no
+# stable Release.Revision concept — this was the concrete bug Q6 flagged). Re-syncing
+# the same release record therefore targets the same Job name every time: if it
+# already succeeded, Argo sees no diff and does nothing; if it terminally failed
+# (backoffLimit exhausted), Argo shows the Application Degraded at wave 0 and does
+# NOT recreate or retry the Job — only a new reviewed release record (new releaseId)
+# produces a new Job name and a new attempt.
+#
+# Failed-Job retention (explicit design decision, not left open): a terminally
+# failed migration Job is NEVER automatically deleted by this design — no prune, no
+# hook-delete-policy equivalent, matching ADR 0005's "kept around after success, not
+# deleted" precedent extended to failure too. It stays inspectable indefinitely as
+# part of the rejected release's evidence trail (see Gate 6a's release-outcome
+# record, which is expected to reference it) until an operator explicitly cleans it
+# up as part of preparing the fix-forward/revert release — cleanup is a manual,
+# reviewed action, never an automatic one, consistent with "initially disable
+# automatic pruning."
+#
+# Self-heal interaction (explicit, per Codex's second GO-1 review): self-heal stays
+# ENABLED (Gate 6a). If an operator manually deletes this failed Job from the live
+# cluster WHILE its release record is still the current desired state (i.e. before
+# a new reviewed release record supersedes it), self-heal will see the desired
+# resource missing and RECREATE it — triggering an unintended retry of a migration
+# that was deliberately left failed for investigation. Cleanup of a failed Job is
+# therefore only safe AFTER a new reviewed release record (a different releaseId,
+# hence a different Job name) has superseded it in Git — at that point the old
+# Job's name is no longer part of any desired state, and deleting it is genuinely
+# inert. This must never be "worked around" by disabling self-heal for the
+# migration Job specifically; that would just reopen the drift-blindness GitOps is
+# meant to remove.
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: bedoux-migrate-dev-0001 # bedoux-migrate-{releaseId}
+  labels:
+    app.kubernetes.io/name: bedoux
+    app.kubernetes.io/component: migration
+    app.kubernetes.io/managed-by: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+    # No helm.sh/hook-* annotations: this is a plain Argo-synced resource, not a Helm
+    # hook. Argo does not run helm upgrade --atomic, so Helm's hook lifecycle does not
+    # apply here regardless.
+spec:
+  backoffLimit: 2 # matches charts/bedoux/values.yaml migration.backoffLimit today
+  activeDeadlineSeconds: 120 # matches migration.activeDeadlineSeconds today
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: bedoux
+        app.kubernetes.io/component: migration
+        app: bedoux-migrate
+    spec:
+      restartPolicy: Never
+      serviceAccountName: bedoux-api # provisioned in wave -1, see header comment
+      initContainers:
+        - name: wait-for-postgres
+          image: "<ACCOUNT_ID>.dkr.ecr.ca-central-1.amazonaws.com/bedoux-api@sha256:6860a9c73b350f802da0dc943c3eae12d1bad948db9d49ea70491014a6c9089d"
+          command:
+            - python
+            - -c
+            - |
+              import time
+              from sqlalchemy import create_engine, text
+              from app.database_credentials import resolve_database_url
+              engine = create_engine(resolve_database_url(), pool_pre_ping=True)
+              while True:
+                  try:
+                      with engine.connect() as connection:
+                          connection.execute(text("SELECT 1"))
+                      break
+                  except Exception:
+                      time.sleep(1)
+          # Matches charts/bedoux/templates/_helpers.tpl's bedoux.databaseCredentialEnv
+          # in kubernetes-secret mode (this repo's default,
+          # charts/bedoux/values.yaml database.credentialSource). Omitted in the
+          # earlier fixture version — Codex's review caught this; without it,
+          # resolve_database_url() falls back to the application's localhost default
+          # and this Job would not actually reach the real database.
+          env:
+            - name: BEDOUX_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: DATABASE_URL
+      containers:
+        - name: migrate
+          image: "<ACCOUNT_ID>.dkr.ecr.ca-central-1.amazonaws.com/bedoux-api@sha256:6860a9c73b350f802da0dc943c3eae12d1bad948db9d49ea70491014a6c9089d"
+          command: ["python", "-m", "alembic", "upgrade", "head"]
+          env:
+            - name: BEDOUX_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: DATABASE_URL
+          # Forward-only by construction: the GitOps profile's Alembic environment
+          # must never emit a downgrade command from this Job (Gate 2 "no automatic
+          # schema downgrade" requirement) — enforced by never invoking `alembic
+          # downgrade` anywhere in this path, not by a flag that could be flipped.

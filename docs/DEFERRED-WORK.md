@@ -1,6 +1,6 @@
 # Deferred work and post-MVP improvements
 
-Last updated: 2026-09-14T13:44:50-06:00.
+Last updated: 2026-09-15T19:24:39-06:00.
 
 The owner requested a working local MVP first, then the unfinished GitOps improvements.
 This file keeps that work discoverable without treating it as fixed or requiring every future
@@ -85,6 +85,14 @@ the investigation history, including issues already fixed that should not be reo
 - **Close with:** full repo-relative `$values/env/values.yaml`, no `path` on a values-only source,
   and tests resolving real nested files at the pinned commit through the Application contract.
 - **Artifact:** `scripts/render-gitops-applications.sh`; [Argo semantics](https://argo-cd.readthedocs.io/en/stable/user-guide/multiple_sources/).
+- **Resolution (2026-09-14T17:20:57-06:00):** fixed. The values-only source now carries only
+  `repoURL`/`targetRevision`/`ref` (no `path`, so it can no longer be treated as a second
+  manifest-generating source), and `helm.valueFiles` references the full repo-relative path
+  (`$values/env/values.yaml`), not a basename. Proven by
+  `scripts/test-render-gitops-applications.sh`'s two DEF-005 assertions, resolving real nested
+  fixture content through the Application contract at a pinned commit. See `docs/PROGRESS.md`
+  session log 2026-09-14T17:20:57-06:00 for full evidence. This entry and its gap/history above
+  are kept, not deleted, per this file's maintenance rule.
 
 ### DEF-006 — Real root-to-child source generation and promotion
 
@@ -99,6 +107,102 @@ the investigation history, including issues already fixed that should not be reo
   without requiring a static file to contain its own commit SHA.
 - **Artifacts:** `scripts/render-gitops-applications.sh`, `scripts/render-gitops-release.sh`,
   `docs/gitops-expansion-plan.md` release-binding requirements.
+- **Resolution (2026-09-14T17:20:57-06:00):** fixed for the one-root/one-child case (multi-child
+  fan-out/real App-of-Apps enumeration remains deferred — see below). `--root-path` is read as a
+  directory that, at the pinned `--env-revision`, must contain exactly one child-pointer YAML
+  file (`docs/gitops-fixtures/dev-root-child-pointer.example.yaml` is a worked example); the
+  renderer reads that pointer to discover the child's `releaseRecordPath`/`valuesPath`/
+  `childAppName` and generates the child from it — the root's own source now actually produces
+  the child, rather than the caller separately naming both. Release-record/values parsing,
+  appRevision/chart-path verification and the `pairedAppRevision`/image repository/digest
+  cross-check are now shared via `scripts/lib/gitops-release-binding.sh`, sourced by both
+  `render-gitops-release.sh` and `render-gitops-applications.sh` — actually reused, not just
+  documented as reused; the child renderer previously skipped this validation entirely. Proven
+  by `scripts/test-render-gitops-applications.sh` (33 assertions): zero/multiple pointer files
+  refused by name, a pointer missing a required field refused, and an image-digest mismatch
+  reached through the root/pointer path now refused (the pre-fix renderer would have rendered it
+  without error). Multi-child fan-out is still explicitly out of scope — this proves one root
+  producing one child, not enumeration across several; still revisit before multi-environment
+  promotion (GO-2/GO-3), per the original boundary above. See `docs/PROGRESS.md` session log
+  2026-09-14T17:20:57-06:00 for full evidence. This entry and its gap/history above are kept,
+  not deleted, per this file's maintenance rule.
+- **Correction — DEF-006 reopened (2026-09-14, later same day):** the resolution immediately
+  above was premature. The "child-pointer YAML file" format it describes
+  (`childAppName`/`releaseRecordPath`/`valuesPath`) is **not** something real Argo CD understands.
+  A genuine Argo App-of-Apps sync of the root Application (`source.path` = `--root-path`) applies
+  whatever it finds there as Kubernetes resources; that pointer file is not a valid `Application`
+  manifest, so nothing in actual Argo semantics turns it into the child. The root and child text
+  emitted by that revision of `render-gitops-applications.sh` were only two independently
+  parameterized renders that happened to agree with each other — not proof that the root's own
+  source produces the child through any mechanism Argo itself implements. DEF-006 is now
+  **re-resolved**, this time via an actual Argo-supported generation mechanism (real App-of-Apps):
+  `--root-path` must contain, at `--env-revision`, exactly one already-rendered, checked-in
+  `Application` manifest for the child (`docs/gitops-fixtures/dev-root-child-application.example.yaml`
+  is the current worked example — the prior pointer-file fixture is kept, with its own correction
+  note, not deleted). `scripts/render-gitops-applications.sh` discovers that manifest, independently
+  re-derives the release binding from two provenance annotations
+  (`gitops.bedoux/release-record-path`, `gitops.bedoux/values-path`) resolved at the manifest's OWN
+  values-source revision (never assumed equal to `--env-revision`; required to be a pinned, existing
+  commit that is an ancestor-or-equal of `--env-revision`), and structurally validates — via a real
+  YAML parse (`scripts/lib/gitops-release-binding.sh`'s `gob_validate_child_manifest`), not
+  line-adjacency — that the checked-in manifest's `spec.sources` match that independently-derived
+  binding field-for-field, including rejecting an injected `path` on the values-only source. It then
+  proves "resolved pinned chart/values → workload manifests" by running the same `helm template` step
+  `render-gitops-release.sh` uses (`gob_render_workload_manifests`, now shared by both scripts).
+  Broken-root (YAML present but not a valid `Application` manifest) and moving-branch negative tests
+  were added. Proven by `scripts/test-render-gitops-applications.sh` (36 assertions), now wired into
+  `.github/workflows/pr-validation.yml`'s "Terraform and Helm validation" job alongside
+  `scripts/test-render-gitops-release.sh`, both confirmed green in CI. Multi-child fan-out remains
+  explicitly out of scope, per the original boundary above. This correction and both resolutions
+  above are kept, not deleted, per this file's maintenance rule.
+- **Follow-up (2026-09-14T21:08:05-06:00): three bounded gaps closed in the same App-of-Apps fix.**
+  (1) The structural validator (`gob_validate_child_manifest`) previously checked only the fields it
+  actively used; a checked-in manifest could declare unsupported Helm/source override fields
+  (`helm.parameters`, `helm.values`/`valuesObject`, `kustomize`, `directory`, `plugin`, a Helm-repo
+  `chart` reference) that a real Argo sync WOULD apply but this tooling's own `helm template` proof
+  step silently ignored — proving a different effective output than Argo's own. Now refused via an
+  explicit key allowlist on both sources. (2) Discovery under `--root-path` was recursive
+  (`git ls-tree -r`) while the emitted root Application carries no `directory: {recurse: true}`
+  (Argo's default is non-recursive) — a mismatch: a nested child manifest this script found would
+  never actually be synced by real Argo. Discovery is now non-recursive (matching the emitted
+  config) and explicitly refuses a nested directory rather than silently traversing into or ignoring
+  it; it also now refuses ANY additional resource alongside the one child manifest (not just multiple
+  `kind: Application` files) — a real Argo sync applies everything it finds there, not just the
+  Application-kind ones. (3) The scratch chart used by both renderer test suites had no (or only a
+  one-sided API) template, so `helm template` produced an empty/NOTES-only banner — the
+  "resolved chart/values → workload manifests" proof asserted only exit code 0, not actual content.
+  Both suites now render real API+web Deployment templates and assert the rendered workload
+  manifests contain the pinned `repository@digest` for both images. A new test demonstrates a
+  reviewed child-pin update (new image digests via a fresh checked-in child manifest, modeling a
+  real release promotion) changes the workload output at the new pin while a re-render at the
+  previous, already-reviewed root pin remains byte-identical to its original render. See
+  `docs/PROGRESS.md` session log 2026-09-14T21:08:05-06:00 for full evidence. This follow-up and
+  everything above it in this entry are kept, not deleted, per this file's maintenance rule.
+- **Follow-up (2026-09-15T19:24:39-06:00): rendering-context correction.** The shared workload
+  renderer (`gob_render_workload_manifests`) previously called `helm template` with the release
+  record's own `releaseId` as the Helm release name and no `--namespace` at all — so
+  `.Release.Name`/`.Release.Namespace` inside any template never matched what a real Argo sync would
+  actually set (Argo uses the Application's own `metadata.name` as the Helm release name, and
+  `spec.destination.namespace` as `.Release.Namespace`; it has no knowledge of `releaseId`, an
+  internal release-record field). Fixed: `gob_render_workload_manifests` now takes an explicit
+  `release_name`/`namespace` pair (validated as DNS-1123 labels via new `gob_require_dns_label`)
+  instead of deriving a release name internally, and `render-gitops-applications.sh` derives that
+  pair from the (structurally validated) checked-in child manifest — `metadata.name` and
+  `spec.destination.namespace` — passing the child's own identity, not `releaseId`, into the
+  renderer. `gob_validate_child_manifest` also now validates `spec.destination.namespace` against
+  the `bedoux-<environment>` convention (derived from the release record) and
+  `spec.destination.server` against the expected in-cluster server, refusing a mismatch rather than
+  trusting the checked-in value blindly. `render-gitops-release.sh` (which has no Application to
+  derive a namespace from) passes an empty namespace through unchanged, matching `helm template`'s
+  own "default" default — its release name (`releaseId`) is unchanged, since there is no Application
+  identity to prefer over it there. Both renderer test suites now render API/web `Deployment`
+  templates using `.Release.Name`/`.Release.Namespace` and assert their EXACT rendered value (not
+  just "some namespace"), plus a new mismatched-namespace negative test proving the validation
+  actually rejects a wrong `spec.destination.namespace`. Proven by
+  `scripts/test-render-gitops-applications.sh` (58 assertions, up from 54) and
+  `scripts/test-render-gitops-release.sh` (23 assertions, up from 21). See `docs/PROGRESS.md` session
+  log 2026-09-15T19:24:39-06:00 for full evidence. This follow-up and everything above it in this
+  entry are kept, not deleted, per this file's maintenance rule.
 
 ### DEF-007 — Progressive-delivery installation and router-specific evidence
 
@@ -377,6 +481,13 @@ the full gap/fix history stays attached to each ID; each now carries a **Resolut
 
 ### DEF-016 — Refresh MVP runbook after verifier and PR closeout
 
+- **PR #94 review (2026-09-14T16:53:02-06:00):** requested post-sync documentation corrections
+  verified at `0809eb4681e09d759e0445d8efcb605ad527ed65`: checkpoint records PR #93 merged
+  and synchronization complete, duplicate history labeled, UTC/local timestamp corrected.
+  Four CI checks and local documentation component checks pass; 25 unaffected GO-1 files
+  match the backup manifest. No merge blocker found; PR #94 remains OPEN, pending owner
+  merge authorization. This supersedes the pending-fix recommendation in the review below,
+  without changing any advanced-work deferral or claiming the PR is already merged.
 - **Post-sync review (2026-09-14T13:44:50-06:00):** runbook fix remains RESOLVED and PR #93
   is verified merged at `932230b7be36522aad7241e829a977ea35558cb3`; local synchronization and
   saved-work preservation are accepted. Small checkpoint follow-up remains deferred: refresh

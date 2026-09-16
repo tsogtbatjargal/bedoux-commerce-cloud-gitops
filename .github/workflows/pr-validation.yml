@@ -105,6 +105,16 @@ jobs:
           bash scripts/test-gitops-mvp-down.sh
           bash scripts/test-gitops-mvp-up-ownership.sh
           bash scripts/test-gitops-mvp-up-inventory.sh
+      - name: Run GO-1 Gate 1 root/child binding renderer test suites (no cluster; isolated scratch git repos)
+        run: |
+          set -euo pipefail
+          bash -n scripts/lib/gitops-release-binding.sh
+          bash -n scripts/render-gitops-release.sh
+          bash -n scripts/render-gitops-applications.sh
+          scripts/render-gitops-release.sh --help >/dev/null
+          scripts/render-gitops-applications.sh --help >/dev/null
+          bash scripts/test-render-gitops-release.sh
+          bash scripts/test-render-gitops-applications.sh
       - name: Lint and render all Helm profiles
         run: |
           set -euo pipefail

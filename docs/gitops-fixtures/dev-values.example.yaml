@@ -1,0 +1,38 @@
+# GO-1 design fixture — NOT consumed by any live tooling yet except
+# scripts/render-gitops-release.sh, which actually renders this paired with the
+# chart pinned by dev-release-record.example.yaml's appRevision. See
+# docs/gitops-go1-design-contract.md Gate 1.
+#
+# pairedAppRevision below is a LOCAL FIXTURE-VALIDATION PROXY for the real
+# production guarantee (Gate 1): in the real design, this file and the release
+# record live in the SAME env-repo commit, so their pairing is guaranteed by Git
+# commit atomicity and no cross-reference field is needed. There is no env repo yet
+# (GO-2), so this field lets render-gitops-release.sh detect a deliberately
+# mismatched pairing locally today — it must equal the paired release record's
+# appRevision or the renderer refuses. Reproduced as a test in
+# scripts/test-render-gitops-release.sh (mixed-revision rejection).
+pairedAppRevision: "2c1ec6b0aab1f1ea8d9612367831270719841f03"
+
+api:
+  image:
+    repository: <ACCOUNT_ID>.dkr.ecr.ca-central-1.amazonaws.com/bedoux-api
+    tag: "dev-0001"
+    digest: "sha256:6860a9c73b350f802da0dc943c3eae12d1bad948db9d49ea70491014a6c9089d"
+    pullPolicy: IfNotPresent
+
+web:
+  image:
+    repository: <ACCOUNT_ID>.dkr.ecr.ca-central-1.amazonaws.com/bedoux-web
+    tag: "dev-0001"
+    digest: "sha256:17ad7c1067914f3af78748953a81410ff47c4067aeaca2e04cd13b00819d63ea"
+    pullPolicy: IfNotPresent
+
+# Legacy Helm-hook migration (ADR 0005) stays OFF under the GitOps profile per Gate 2;
+# the new sync-wave-ordered Job in gitops-migration-job.example.yaml is not part of
+# this chart yet (GO-3 wiring), so this flag only proves the legacy hook can be
+# cleanly disabled without breaking the rest of the chart's rendering.
+migration:
+  enabled: false
+
+canary:
+  enabled: false
