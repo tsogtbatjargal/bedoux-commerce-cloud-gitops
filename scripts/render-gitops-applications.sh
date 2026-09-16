@@ -144,8 +144,13 @@ mismatched; either image's repository or digest in the values file not matching
 the release record; the checked-in child manifest's spec.sources do not
 structurally match the independently-derived binding (including an injected
 'path' on the values-only source, or any unsupported Helm/source override field
-this tooling does not itself validate and render); helm template failing against
-the resolved chart/values.
+this tooling does not itself validate and render); spec.destination.server not
+the expected in-cluster server, or spec.destination.namespace not matching the
+'bedoux-<environment>' convention derived from the release record (this is also
+the Helm rendering-context namespace, .Release.Namespace, used below); the
+derived Helm release name (the child Application's own metadata.name) or
+namespace not a valid DNS-1123 label; helm template failing against the
+resolved chart/values in that exact rendering context.
 EOF
 }
 
@@ -277,13 +282,24 @@ app_revision="$gob_release_app_revision"
 chart_path="$gob_release_chart_path"
 environment="$gob_release_environment"
 release_id="$gob_release_id"
+expected_namespace="bedoux-${environment}"
 
 # --- Structural cross-check: the checked-in child manifest's own spec.sources ---
+# --- (and spec.destination, which supplies the Helm rendering context below) ---
 # --- must match this independently-derived binding field-for-field (real YAML ---
 # --- parse, not line-adjacency) -- proves the artifact a real Argo App-of-Apps ---
 # --- sync would apply is exactly what the reviewed release/values pairing binds. ---
 gob_validate_child_manifest "$child_manifest_content" "$app_repo_url" "$app_revision" "$chart_path" \
-  "$values_path" "$env_repo_url" "$child_values_revision" || exit 1
+  "$values_path" "$env_repo_url" "$child_values_revision" "$expected_namespace" || exit 1
+
+# --- Rendering context: a real Argo sync of this child renders its Helm chart ---
+# --- with .Release.Name = the Application's own metadata.name and ---
+# --- .Release.Namespace = spec.destination.namespace — NOT the release record's ---
+# --- releaseId, which Argo never sees. Both are derived from the (now ---
+# --- structurally validated) checked-in manifest itself and passed explicitly ---
+# --- into the shared renderer, so the workload-manifest proof below uses the ---
+# --- same context a real sync would. ---
+namespace=$(gob_yaml_get "$child_manifest_content" spec.destination.namespace)
 
 cat <<EOF
 # Root Application: its OWN source is pinned to --env-revision ($env_revision),
@@ -312,5 +328,5 @@ spec:
 EOF
 printf '%s\n' "$child_manifest_content"
 
-echo "Resolving pinned chart/values for releaseId '$release_id' (environment '$environment', child '$child_app_name') into workload manifests, proving the root-to-child-to-workload chain end to end:" >&2
-gob_render_workload_manifests "$app_repo" "$app_revision" "$chart_path" "$gob_values_content" "$release_id" || exit 1
+echo "Resolving pinned chart/values for releaseId '$release_id' (environment '$environment', child '$child_app_name', namespace '$namespace') into workload manifests, proving the root-to-child-to-workload chain end to end with the same rendering context a real Argo sync would use:" >&2
+gob_render_workload_manifests "$app_repo" "$app_revision" "$chart_path" "$gob_values_content" "$child_app_name" "$namespace" || exit 1

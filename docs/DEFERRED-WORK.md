@@ -1,6 +1,6 @@
 # Deferred work and post-MVP improvements
 
-Last updated: 2026-09-14T21:08:05-06:00.
+Last updated: 2026-09-15T19:24:39-06:00.
 
 The owner requested a working local MVP first, then the unfinished GitOps improvements.
 This file keeps that work discoverable without treating it as fixed or requiring every future
@@ -178,6 +178,31 @@ the investigation history, including issues already fixed that should not be reo
   previous, already-reviewed root pin remains byte-identical to its original render. See
   `docs/PROGRESS.md` session log 2026-09-14T21:08:05-06:00 for full evidence. This follow-up and
   everything above it in this entry are kept, not deleted, per this file's maintenance rule.
+- **Follow-up (2026-09-15T19:24:39-06:00): rendering-context correction.** The shared workload
+  renderer (`gob_render_workload_manifests`) previously called `helm template` with the release
+  record's own `releaseId` as the Helm release name and no `--namespace` at all — so
+  `.Release.Name`/`.Release.Namespace` inside any template never matched what a real Argo sync would
+  actually set (Argo uses the Application's own `metadata.name` as the Helm release name, and
+  `spec.destination.namespace` as `.Release.Namespace`; it has no knowledge of `releaseId`, an
+  internal release-record field). Fixed: `gob_render_workload_manifests` now takes an explicit
+  `release_name`/`namespace` pair (validated as DNS-1123 labels via new `gob_require_dns_label`)
+  instead of deriving a release name internally, and `render-gitops-applications.sh` derives that
+  pair from the (structurally validated) checked-in child manifest — `metadata.name` and
+  `spec.destination.namespace` — passing the child's own identity, not `releaseId`, into the
+  renderer. `gob_validate_child_manifest` also now validates `spec.destination.namespace` against
+  the `bedoux-<environment>` convention (derived from the release record) and
+  `spec.destination.server` against the expected in-cluster server, refusing a mismatch rather than
+  trusting the checked-in value blindly. `render-gitops-release.sh` (which has no Application to
+  derive a namespace from) passes an empty namespace through unchanged, matching `helm template`'s
+  own "default" default — its release name (`releaseId`) is unchanged, since there is no Application
+  identity to prefer over it there. Both renderer test suites now render API/web `Deployment`
+  templates using `.Release.Name`/`.Release.Namespace` and assert their EXACT rendered value (not
+  just "some namespace"), plus a new mismatched-namespace negative test proving the validation
+  actually rejects a wrong `spec.destination.namespace`. Proven by
+  `scripts/test-render-gitops-applications.sh` (58 assertions, up from 54) and
+  `scripts/test-render-gitops-release.sh` (23 assertions, up from 21). See `docs/PROGRESS.md` session
+  log 2026-09-15T19:24:39-06:00 for full evidence. This follow-up and everything above it in this
+  entry are kept, not deleted, per this file's maintenance rule.
 
 ### DEF-007 — Progressive-delivery installation and router-specific evidence
 

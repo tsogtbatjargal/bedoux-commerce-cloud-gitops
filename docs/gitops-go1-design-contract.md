@@ -1,19 +1,59 @@
 # GO-1 design contract
 
-Status: **Reopened for correction a sixth time on 2026-09-14.** No repository has been created,
+Status: **Reopened for correction a seventh time on 2026-09-15.** No repository has been created,
 no controller installed, no cluster or AWS resource touched to produce this document. Every check
-below ran locally against this repository's existing files. Six independent review rounds have
-found and closed real defects — see all six "Corrections applied" sections below. The fourth
+below ran locally against this repository's existing files. Seven independent review rounds have
+found and closed real defects — see all seven "Corrections applied" sections below. The fourth
 round's DEF-006 fix was itself premature: it generated the child from a bespoke, non-Argo "pointer
 file" format that real Argo semantics cannot turn into a child Application — the fifth round fixed
 that using App-of-Apps, Argo's own native mechanism for a root Application generating children. The
-sixth round (immediately below) closes three further bounded gaps in that App-of-Apps mechanism:
-unsupported Helm/source overrides on the checked-in child manifest, a recursive/non-recursive
-mismatch between discovery and the emitted root config, and hollow (template-free) workload-manifest
-proof. DEF-005 (the multi-source values lookup fix) was correct in the fourth round and is
-unchanged. These address `docs/DEFERRED-WORK.md`'s DEF-005/DEF-006 entries. **Still not marked
-COMPLETE** — GO-1 remains `IN PROGRESS` pending owner re-review; GO-2 remains inactive; ADR
-0026/0027 remain Proposed.
+sixth round closed three further bounded gaps in that App-of-Apps mechanism: unsupported
+Helm/source overrides on the checked-in child manifest, a recursive/non-recursive mismatch between
+discovery and the emitted root config, and hollow (template-free) workload-manifest proof. The
+seventh round (immediately below) corrects the workload-manifest rendering CONTEXT itself: the
+shared renderer used the release record's own `releaseId` as the Helm release name and no namespace
+at all, neither of which is what a real Argo sync would actually use. DEF-005 (the multi-source
+values lookup fix) was correct in the fourth round and is unchanged. These address
+`docs/DEFERRED-WORK.md`'s DEF-005/DEF-006 entries. **Still not marked COMPLETE** — GO-1 remains `IN
+PROGRESS` pending owner re-review; GO-2 remains inactive; ADR 0026/0027 remain Proposed.
+
+## Corrections applied — seventh round (rendering-context correction: Helm release name/namespace, 2026-09-15)
+
+1. **The workload-manifest rendering context did not match what a real Argo sync would use.**
+   `gob_render_workload_manifests` called `helm template` with the release record's own `releaseId`
+   as the Helm release name and no `--namespace` — but a real Argo sync of the child Application
+   renders its chart with `.Release.Name` set to the Application's own `metadata.name` and
+   `.Release.Namespace` set to `spec.destination.namespace`; Argo has no knowledge of `releaseId` at
+   all (it is a `render-gitops-*` release-record convention, not an Argo/Helm concept). Any template
+   using `.Release.Name`/`.Release.Namespace` (a very common pattern — resource naming, namespace
+   scoping, common labels) would therefore render under this tooling's proof step with a DIFFERENT
+   context than a real sync would use, silently.
+2. **Fixed by deriving and validating that context from the child Application itself.**
+   `gob_render_workload_manifests` now takes an explicit `release_name`/`namespace` pair (each
+   checked by a new `gob_require_dns_label` against real Helm/Kubernetes naming rules) instead of
+   assuming `releaseId` doubles as the release name. `render-gitops-applications.sh` derives that
+   pair from the checked-in child manifest — `metadata.name` and `spec.destination.namespace` — and
+   `gob_validate_child_manifest` now also validates `spec.destination.namespace` against the
+   `bedoux-<environment>` convention (derived from the release record) and `spec.destination.server`
+   against the expected in-cluster server, so neither is trusted blindly. `render-gitops-release.sh`,
+   which has no Application to derive a namespace from, passes an empty namespace through unchanged
+   (matching `helm template`'s own "default" default) and keeps `releaseId` as its release name,
+   since there is no Application identity to prefer there.
+3. **Proven with real `.Release.Name`/`.Release.Namespace` templates and exact-value assertions.**
+   Both renderer test suites' scratch charts now include those fields in their Deployment templates
+   (a `release:` label and a `namespace:` field) and assert the EXACT rendered value — for
+   `render-gitops-applications.sh`, `.Release.Name` is the child's own name (`dev-child`), explicitly
+   NOT the release record's `releaseId` (`dev-0001`), and `.Release.Namespace` is the child's
+   `spec.destination.namespace` (`bedoux-dev`); for `render-gitops-release.sh`, `.Release.Name` is
+   `releaseId` and `.Release.Namespace` is `helm template`'s own default `default`. A new
+   mismatched-namespace negative test proves the new validation actually rejects a
+   `spec.destination.namespace` that does not match the `bedoux-<environment>` convention.
+4. Proven by `scripts/test-render-gitops-applications.sh` (58 assertions, up from 54: the two exact
+   rendering-context assertions and the mismatched-namespace negative test are new) and
+   `scripts/test-render-gitops-release.sh` (23 assertions, up from 21: the two exact
+   rendering-context assertions are new). All previously accepted DEF-005/DEF-006/sixth-round fixes
+   are unchanged and still pass. Both suites remain wired into
+   `.github/workflows/pr-validation.yml` and green in CI.
 
 ## Corrections applied — sixth round (three bounded gaps in the App-of-Apps mechanism, 2026-09-14, later same day)
 

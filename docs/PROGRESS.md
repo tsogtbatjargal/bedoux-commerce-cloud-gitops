@@ -14,7 +14,7 @@ checked here and its evidence is recorded in the session log.
 | Last verified | 2026-09-14T09:46:43-06:00 — Documentation housekeeping: `docs/runbooks/gitops-mvp-demo.md`'s "Why a local snapshot" and "Verification" sections cross-checked directly against `scripts/gitops-mvp-verify.sh --help`'s live output; `git diff --check` and `make docs-check` (or its documented local-doc checks) rerun; DEF-016 marked RESOLVED with evidence. Prior: 2026-09-10T21:37:35-06:00 — PR #92 merge confirmed: `gh pr view 92` reports `state=MERGED`, `mergeCommit.oid=b7e52a9a14f2366609e6e733df0277872a5439b5`, `headRefOid=935b95cc7cacd49c1b86e4676b5644069ec038d1` (the exact reviewed head, unchanged since round 4). All four required checks were re-verified green on that head immediately before the merge was executed. GO-MVP-U1's verifier was hardened across four review rounds ending at 35/35 mock assertions on head `935b95c`. PR #91 (GO-MVP closeout) merged into `main` at `60e7d0757b1394f6d63a63530242eb7fed83eaf5`. No AWS verification. GO-1's third-round local checks (6 suites, 122 assertions, all passing) remain recorded further down this log, still uncommitted in the original checkout (preserved, GO-1 stays paused/deferred) — untouched by any of this. |
 | AWS resources currently live | Last recorded inventory, not refreshed by PH-A: no temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
-| Next operator action | Review and merge (or request changes on) the small follow-up documentation-closeout PR (present-tense checkpoint refresh recording PR #93's merge and completed synchronization; duplicate DEF-016 section in `docs/DEFERRED-WORK.md` labeled historical, text preserved; synchronization-note timezone corrected to 2026-09-14T16:30:03Z / 10:30:03-06:00). PR #93 itself is already merged (`932230b7be36522aad7241e829a977ea35558cb3`) and the original checkout is already synchronized to it — see this file's session log for full evidence; no further sync action is pending. Full GO-1 and the remaining advanced backlog stay deferred — unfinished findings and safe deferral boundaries remain tracked in `docs/DEFERRED-WORK.md` (DEF-001–011, DEF-015 subfinding 3); review that backlog with the owner before activating any of it. Do not mark the original full GO-1 contract complete, activate GO-2, or infer broader new-image/schema support than the one demonstrated update. No AWS session or cluster mutation occurred in this housekeeping item. **Addendum (2026-09-14T17:20:57-06:00):** a separate, focused PR fixing DEF-005 (multi-source values lookup) and DEF-006 (real root-to-child Application generation, shared release/image validation) is also open for review — see the 2026-09-14T17:20:57-06:00 session log entry below for full evidence. It does not change or supersede anything described in the rest of this row. **Addendum (2026-09-14T18:24:47-06:00):** that PR's DEF-006 fix was corrected the same day — the original fix did not use an actual Argo-supported generation mechanism; it now uses App-of-Apps. See the 2026-09-14T18:24:47-06:00 session log entry for full evidence. **Addendum (2026-09-14T21:08:05-06:00):** three further bounded gaps in that App-of-Apps mechanism (unsupported Helm/source overrides, recursive/non-recursive discovery mismatch, hollow workload-manifest proof) were closed on the same PR — see the 2026-09-14T21:08:05-06:00 session log entry for full evidence. PR #95 remains open, unmerged, awaiting review. |
+| Next operator action | Review and merge (or request changes on) the small follow-up documentation-closeout PR (present-tense checkpoint refresh recording PR #93's merge and completed synchronization; duplicate DEF-016 section in `docs/DEFERRED-WORK.md` labeled historical, text preserved; synchronization-note timezone corrected to 2026-09-14T16:30:03Z / 10:30:03-06:00). PR #93 itself is already merged (`932230b7be36522aad7241e829a977ea35558cb3`) and the original checkout is already synchronized to it — see this file's session log for full evidence; no further sync action is pending. Full GO-1 and the remaining advanced backlog stay deferred — unfinished findings and safe deferral boundaries remain tracked in `docs/DEFERRED-WORK.md` (DEF-001–011, DEF-015 subfinding 3); review that backlog with the owner before activating any of it. Do not mark the original full GO-1 contract complete, activate GO-2, or infer broader new-image/schema support than the one demonstrated update. No AWS session or cluster mutation occurred in this housekeeping item. **Addendum (2026-09-14T17:20:57-06:00):** a separate, focused PR fixing DEF-005 (multi-source values lookup) and DEF-006 (real root-to-child Application generation, shared release/image validation) is also open for review — see the 2026-09-14T17:20:57-06:00 session log entry below for full evidence. It does not change or supersede anything described in the rest of this row. **Addendum (2026-09-14T18:24:47-06:00):** that PR's DEF-006 fix was corrected the same day — the original fix did not use an actual Argo-supported generation mechanism; it now uses App-of-Apps. See the 2026-09-14T18:24:47-06:00 session log entry for full evidence. **Addendum (2026-09-14T21:08:05-06:00):** three further bounded gaps in that App-of-Apps mechanism (unsupported Helm/source overrides, recursive/non-recursive discovery mismatch, hollow workload-manifest proof) were closed on the same PR — see the 2026-09-14T21:08:05-06:00 session log entry for full evidence. **Addendum (2026-09-15T19:24:39-06:00):** a rendering-context correction (the shared renderer now derives/validates the Helm release name and namespace from the child Application, instead of the release record's `releaseId` and no namespace) was also applied on the same PR — see the 2026-09-15T19:24:39-06:00 session log entry for full evidence. PR #95 remains open, unmerged, awaiting review. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -999,6 +999,54 @@ tree.
 ## Session log
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
+
+### 2026-09-15T19:24:39-06:00 — Rendering-context correction: Helm release name/namespace from the child Application (PR #95, seventh round) — Claude
+
+- **Scope:** owner-requested bounded follow-up on the same PR (#95, branch `fix/def-005-006-source-binding`,
+  same isolated worktree). Only the remaining rendering-context gap; the accepted DEF-005/DEF-006 and
+  sixth-round fixes are unchanged.
+- **Problem:** `gob_render_workload_manifests` (`scripts/lib/gitops-release-binding.sh`) called
+  `helm template` with the release record's own `releaseId` as the Helm release name and no
+  `--namespace` at all. A real Argo sync of a child Application renders its chart with
+  `.Release.Name` = the Application's own `metadata.name` and `.Release.Namespace` =
+  `spec.destination.namespace` — Argo has no concept of `releaseId`. Any template referencing
+  `.Release.Name`/`.Release.Namespace` would render with a different context under this tooling's
+  proof step than a real sync would actually use.
+- **Fix:** `gob_render_workload_manifests` now takes an explicit `release_name`/`namespace` pair
+  (each validated via a new `gob_require_dns_label`, matching real Helm/Kubernetes naming rules)
+  instead of internally assuming `releaseId` doubles as the release name.
+  `scripts/render-gitops-applications.sh` derives that pair from the (already structurally
+  validated) checked-in child manifest — `metadata.name` and `spec.destination.namespace` — and
+  passes it explicitly into the shared renderer. `gob_validate_child_manifest` gained a new
+  parameter (`expected_namespace`, derived as `bedoux-<environment>` from the release record) and
+  now also validates `spec.destination.namespace` against it and `spec.destination.server` against
+  the expected in-cluster server, refusing a mismatch rather than trusting the checked-in manifest's
+  destination blindly. `scripts/render-gitops-release.sh` (no Application to derive a namespace
+  from) passes an empty namespace through unchanged — matching `helm template`'s own "default"
+  default — and keeps `releaseId` as its release name, since there is no Application identity to
+  prefer over it there.
+- **Proof:** both renderer test suites' scratch Deployment templates now include
+  `namespace: "{{ .Release.Namespace }}"` and `labels: {release: "{{ .Release.Name }}"}`, and assert
+  the EXACT rendered value. `test-render-gitops-applications.sh`: `.Release.Name` = `dev-child`
+  (explicitly asserted NOT `dev-0001`, the releaseId), `.Release.Namespace` = `bedoux-dev`; plus a
+  new mismatched-namespace negative test (a child manifest declaring `destination.namespace:
+  wrong-namespace` is refused, naming both the expected and actual values).
+  `test-render-gitops-release.sh`: `.Release.Name` = `scratch-0001` (the releaseId, correct there —
+  no Application to prefer), `.Release.Namespace` = `default` (helm template's own default, exact).
+- **Results:** `scripts/test-render-gitops-applications.sh`: 58/58 assertions pass (up from 54).
+  `scripts/test-render-gitops-release.sh`: 23/23 assertions pass (up from 21). `bash -n` clean on
+  all four shell files; `--help` clean on both renderer scripts; `scripts/check-github-actions.sh`
+  clean; `shellcheck` still unavailable on this host (noted, not silently skipped). Pushed to the
+  existing PR #95 branch; CI re-verified green on the updated head (see below).
+- **Docs corrected (append-only, nothing deleted):** `docs/gitops-go1-design-contract.md` gained a
+  "seventh round" corrections section (status line now says "a seventh time");
+  `docs/DEFERRED-WORK.md`'s DEF-006 entry gained a further follow-up note after its existing
+  correction/resolution text.
+- **Not done, deliberately:** no cluster, no remote env-repo, no Argo CD installation, no AWS
+  activity, no GO-2 activation, no resumption of full GO-1 beyond this DEF-005/DEF-006 slice, no
+  diagram/broader-GO-1-draft changes (per explicit instruction).
+- **Next action:** stop for owner review — do not merge, do not mark GO-1 complete, do not activate
+  GO-2.
 
 ### 2026-09-14T21:08:05-06:00 — Three bounded gaps closed in the App-of-Apps fix (PR #95, sixth round) — Claude
 

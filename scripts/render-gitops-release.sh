@@ -130,7 +130,7 @@ if [[ -z "$out_dir" ]]; then
 fi
 
 echo "Rendering release '$release_id': chart pinned at appRevision $app_revision ($chart_path in $app_repo), values pinned at envRevision $env_revision ($values_path in $env_repo), image digests cross-checked (api=$record_api_digest web=$record_web_digest)" >&2
-if ! gob_render_workload_manifests "$app_repo" "$app_revision" "$chart_path" "$gob_values_content" "$release_id" "$out_dir"; then
+if ! gob_render_workload_manifests "$app_repo" "$app_revision" "$chart_path" "$gob_values_content" "$release_id" "" "$out_dir"; then
   [[ "$keep_out_dir" == false ]] && rm -rf "$out_dir"
   exit 1
 fi

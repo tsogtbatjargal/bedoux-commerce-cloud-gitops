@@ -71,6 +71,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: bedoux-api
+  namespace: "{{ .Release.Namespace }}"
+  labels:
+    release: "{{ .Release.Name }}"
 spec:
   template:
     spec:
@@ -82,6 +85,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: bedoux-web
+  namespace: "{{ .Release.Namespace }}"
+  labels:
+    release: "{{ .Release.Name }}"
 spec:
   template:
     spec:
@@ -216,6 +222,16 @@ assert "positive: workload manifests contain the pinned web image repository@dig
   "$([[ "$out1" == *"example.invalid/bedoux-web@${web_digest}"* ]]; echo $?)"
 assert "positive: workload manifests contain both Deployment kinds (api and web), rendered in the full root+child+workload rendering context" \
   "$([[ "$out1" == *"name: bedoux-api"* && "$out1" == *"name: bedoux-web"* ]]; echo $?)"
+
+### RENDERING CONTEXT: a real Argo sync of this child renders Helm with ###
+### .Release.Name = the child Application's own metadata.name (NOT the release ###
+### record's releaseId, which Argo never sees) and .Release.Namespace = ###
+### spec.destination.namespace (validated by gob_validate_child_manifest against ###
+### the bedoux-<environment> convention). Asserted exactly, not just "some value". ###
+assert "rendering context: .Release.Name is the child Application's own name 'dev-child' (exact, via the 'release:' label), not the releaseId 'dev-0001'" \
+  "$([[ "$out1" == *'release: "dev-child"'* && "$out1" != *'release: "dev-0001"'* ]]; echo $?)"
+assert "rendering context: .Release.Namespace is the child's spec.destination.namespace 'bedoux-dev' (exact)" \
+  "$([[ "$out1" == *'namespace: "bedoux-dev"'* ]]; echo $?)"
 
 ### DEF-005: the checked-in child manifest's values-only source must carry NO ###
 ### 'path' field, and helm.valueFiles must reference the FULL repo-relative path. ###
@@ -509,6 +525,25 @@ set -e
 assert "unsupported-helm-override negative test: non-zero exit" "$([[ "$exit_override" -ne 0 ]]; echo $?)"
 assert "unsupported-helm-override negative test: error names the unsupported field" \
   "$([[ "$out_override" == *"unsupported Helm override field"* && "$out_override" == *"parameters"* ]]; echo $?)"
+
+### MISMATCHED-NAMESPACE negative test: the checked-in child manifest declares a ###
+### spec.destination.namespace that does NOT match the 'bedoux-<environment>' ###
+### convention derived from the release record. This is the Helm rendering-context ###
+### namespace (.Release.Namespace) a real Argo sync would use, so it must be ###
+### validated, not just trusted/derived blindly. ###
+mkdir -p "$scratch/apps/wrong-namespace"
+write_child_manifest wrong-ns-child env/release-record.yaml env/values.yaml "$revision_a0" wrong-namespace \
+  >"$scratch/apps/wrong-namespace/dev-child.yaml"
+git -C "$scratch" add -A && git -C "$scratch" commit -q -m "revision NS: child manifest with a mismatched destination namespace"
+revision_ns=$(git -C "$scratch" rev-parse HEAD)
+set +e
+out_ns=$("$render" --env-revision "$revision_ns" --app-repo "$scratch" --env-repo "$scratch" \
+  --root-app-name dev-root --env-repo-url "$env_repo_url" \
+  --app-repo-url "$app_repo_url" --root-path apps/wrong-namespace 2>&1); exit_ns=$?
+set -e
+assert "mismatched-namespace negative test: non-zero exit" "$([[ "$exit_ns" -ne 0 ]]; echo $?)"
+assert "mismatched-namespace negative test: error names the expected bedoux-<environment> namespace and what was found" \
+  "$([[ "$out_ns" == *"spec.destination.namespace"* && "$out_ns" == *"wrong-namespace"* && "$out_ns" == *"bedoux-dev"* ]]; echo $?)"
 
 ### CHILD-PIN UPDATE DEMONSTRATION: a reviewed release promotion updates the ###
 ### checked-in child manifest under the SAME --root-path to point at NEW, newer ###

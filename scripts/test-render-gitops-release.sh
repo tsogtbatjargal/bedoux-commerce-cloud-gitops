@@ -56,6 +56,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: bedoux-api
+  namespace: "{{ .Release.Namespace }}"
+  labels:
+    release: "{{ .Release.Name }}"
 spec:
   template:
     spec:
@@ -67,6 +70,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: bedoux-web
+  namespace: "{{ .Release.Namespace }}"
+  labels:
+    release: "{{ .Release.Name }}"
 spec:
   template:
     spec:
@@ -136,6 +142,16 @@ assert "positive: rendered output contains the pinned web image repository@diges
   "$([[ "$out1" == *"example.invalid/bedoux-web@${web_digest}"* ]]; echo $?)"
 assert "positive: rendered output contains both Deployment workload kinds (api and web), not just a NOTES/empty banner" \
   "$([[ "$out1" == *"name: bedoux-api"* && "$out1" == *"name: bedoux-web"* ]]; echo $?)"
+
+### RENDERING CONTEXT: this script has no Application/destination to derive a ###
+### namespace from, so it passes an empty namespace into the shared renderer, ###
+### which must then match `helm template`'s own default of "default" — exact ###
+### output, not just "some namespace". .Release.Name is the release record's own ###
+### releaseId (there is no Application identity to prefer it over here). ###
+assert "rendering context: .Release.Name is the releaseId (exact, via the 'release:' label)" \
+  "$([[ "$out1" == *'release: "scratch-0001"'* ]]; echo $?)"
+assert "rendering context: .Release.Namespace defaults to helm template's own default 'default' (exact) when no Application supplies one" \
+  "$([[ "$out1" == *'namespace: "default"'* ]]; echo $?)"
 
 ### Working-tree independence: dirty the SCRATCH repo's own tracked file (never ###
 ### the real project repo) and prove the pinned render is unaffected. ###

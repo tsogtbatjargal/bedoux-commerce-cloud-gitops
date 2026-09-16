@@ -105,14 +105,17 @@ gob_validate_child_manifest() {
   # $6 = env_repo_url, $7 = values_revision — the independently-derived expected
   # binding (from the release record + values cross-check, evaluated at the
   # manifest's OWN values-source revision — see gob_child_values_revision) this
-  # manifest must structurally match field-for-field. Prints nothing on success;
-  # on failure
-  # prints a REFUSE message and returns 1. This is the DEF-005/DEF-006
-  # structural check: it parses YAML (not raw text/line-adjacency) and fails
-  # closed on any injected/extra/missing field, including an injected 'path' on
-  # the values-only source.
+  # manifest must structurally match field-for-field. $8 = expected_namespace
+  # (bedoux-<environment>, derived from the release record) that
+  # spec.destination.namespace must equal — this IS the Helm rendering-context
+  # namespace (.Release.Namespace) a real Argo sync would use, so it is validated
+  # here, not just trusted. Prints nothing on success; on failure prints a REFUSE
+  # message and returns 1. This is the DEF-005/DEF-006 structural check: it parses
+  # YAML (not raw text/line-adjacency) and fails closed on any injected/extra/
+  # missing field, including an injected 'path' on the values-only source.
   GOB_CHILD_CONTENT="$1" GOB_APP_REPO_URL="$2" GOB_APP_REVISION="$3" GOB_CHART_PATH="$4" \
-  GOB_VALUES_PATH="$5" GOB_ENV_REPO_URL="$6" GOB_ENV_REVISION="$7" python3 <<'PYEOF'
+  GOB_VALUES_PATH="$5" GOB_ENV_REPO_URL="$6" GOB_ENV_REVISION="$7" \
+  GOB_EXPECTED_NAMESPACE="$8" python3 <<'PYEOF'
 import os, sys, yaml
 
 content = os.environ["GOB_CHILD_CONTENT"]
@@ -122,6 +125,7 @@ chart_path = os.environ["GOB_CHART_PATH"]
 values_path = os.environ["GOB_VALUES_PATH"]
 env_repo_url = os.environ["GOB_ENV_REPO_URL"]
 env_revision = os.environ["GOB_ENV_REVISION"]
+expected_namespace = os.environ["GOB_EXPECTED_NAMESPACE"]
 
 def refuse(msg):
     print("REFUSE: " + msg, file=sys.stderr)
@@ -187,19 +191,63 @@ if values_src.get("targetRevision") != env_revision:
 if values_src.get("ref") != "values":
     refuse("child Application values-only source ref %r is not 'values'" % (values_src.get("ref"),))
 
+# The rendering context (Helm's .Release.Name / .Release.Namespace) a real Argo
+# sync uses comes from the Application's own metadata.name and
+# spec.destination.namespace — never from the release record's releaseId, which
+# Argo has no knowledge of. metadata.name is already required non-empty by the
+# caller before this function runs; destination.namespace is validated here
+# against the same bedoux-<environment> convention the rest of this design uses.
+destination = (doc.get("spec") or {}).get("destination") or {}
+if destination.get("server") != "https://kubernetes.default.svc":
+    refuse("child Application spec.destination.server %r is not the expected in-cluster server 'https://kubernetes.default.svc'" % (destination.get("server"),))
+if destination.get("namespace") != expected_namespace:
+    refuse("child Application spec.destination.namespace %r does not match the expected 'bedoux-<environment>' namespace %r derived from the release record — this is the Helm rendering-context namespace (.Release.Namespace) a real Argo sync would use" % (destination.get("namespace"), expected_namespace))
+
 sys.exit(0)
 PYEOF
 }
 
+gob_require_dns_label() {
+  # $1 = flag/field name for error text, $2 = value, $3 = max length. A real Helm
+  # invocation (and, underneath it, Kubernetes) rejects a release name or
+  # namespace that is not a DNS-1123 label; refusing here means an invalid
+  # rendering-context value is caught with a clear message instead of an opaque
+  # helm/kubectl failure later.
+  local flag="$1" value="$2" max_len="$3"
+  if [[ -z "$value" ]]; then
+    echo "REFUSE: $flag is empty" >&2
+    return 1
+  fi
+  if ! [[ "$value" =~ ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$ ]]; then
+    echo "REFUSE: $flag '$value' is not a valid DNS-1123 label (lowercase alphanumeric and '-', must start/end alphanumeric)" >&2
+    return 1
+  fi
+  if [[ "${#value}" -gt "$max_len" ]]; then
+    echo "REFUSE: $flag '$value' is ${#value} characters, longer than the $max_len-character limit" >&2
+    return 1
+  fi
+  return 0
+}
+
 gob_render_workload_manifests() {
   # $1 = app_repo, $2 = app_revision, $3 = chart_path, $4 = values_content,
-  # $5 = release_id (helm release name), $6 = out_dir (optional; default mktemp
-  # -d, removed on return unless explicitly given). Prints rendered workload
-  # manifests (helm template output) to stdout. Shared by both render scripts so
-  # "resolved pinned chart/values -> workload manifests" goes through the exact
-  # same extraction + template step everywhere, never a second implementation.
-  local app_repo="$1" app_revision="$2" chart_path="$3" values_content="$4" release_id="$5"
-  local out_dir="${6:-}" keep_out_dir=true
+  # $5 = release_name (Helm's .Release.Name — the SAME identity a real Argo sync
+  # would use: the Application's own metadata.name, never an arbitrary internal
+  # releaseId Argo has no knowledge of), $6 = namespace (Helm's .Release.Namespace
+  # — the Application's spec.destination.namespace; pass an empty string to match
+  # `helm template`'s own default of "default", e.g. when there is no Application
+  # to derive one from), $7 = out_dir (optional; default mktemp -d, removed on
+  # return unless explicitly given). Prints rendered workload manifests (helm
+  # template output) to stdout. Shared by both render scripts so "resolved pinned
+  # chart/values -> workload manifests" goes through the exact same extraction +
+  # template step, in the exact same rendering context, everywhere.
+  local app_repo="$1" app_revision="$2" chart_path="$3" values_content="$4"
+  local release_name="$5" namespace="$6"
+  local out_dir="${7:-}" keep_out_dir=true
+  gob_require_dns_label "Helm release name" "$release_name" 53 || return 1
+  if [[ -n "$namespace" ]]; then
+    gob_require_dns_label "namespace" "$namespace" 63 || return 1
+  fi
   if [[ -z "$out_dir" ]]; then
     out_dir=$(mktemp -d)
     keep_out_dir=false
@@ -222,7 +270,11 @@ gob_render_workload_manifests() {
   local pinned_values_file="$out_dir/__pinned_values.yaml"
   printf '%s' "$values_content" > "$pinned_values_file"
 
-  if ! helm template "$release_id" "$pinned_chart_dir" -f "$pinned_chart_dir/values.yaml" -f "$pinned_values_file"; then
+  local helm_args=("$release_name" "$pinned_chart_dir" -f "$pinned_chart_dir/values.yaml" -f "$pinned_values_file")
+  if [[ -n "$namespace" ]]; then
+    helm_args+=(--namespace "$namespace")
+  fi
+  if ! helm template "${helm_args[@]}"; then
     echo "REFUSE: helm template failed for the pinned chart + paired values" >&2
     [[ "$keep_out_dir" == false ]] && rm -rf "$out_dir"
     return 1
