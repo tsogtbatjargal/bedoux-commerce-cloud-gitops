@@ -14,7 +14,7 @@ checked here and its evidence is recorded in the session log.
 | Last verified | 2026-09-14T09:46:43-06:00 — Documentation housekeeping: `docs/runbooks/gitops-mvp-demo.md`'s "Why a local snapshot" and "Verification" sections cross-checked directly against `scripts/gitops-mvp-verify.sh --help`'s live output; `git diff --check` and `make docs-check` (or its documented local-doc checks) rerun; DEF-016 marked RESOLVED with evidence. Prior: 2026-09-10T21:37:35-06:00 — PR #92 merge confirmed: `gh pr view 92` reports `state=MERGED`, `mergeCommit.oid=b7e52a9a14f2366609e6e733df0277872a5439b5`, `headRefOid=935b95cc7cacd49c1b86e4676b5644069ec038d1` (the exact reviewed head, unchanged since round 4). All four required checks were re-verified green on that head immediately before the merge was executed. GO-MVP-U1's verifier was hardened across four review rounds ending at 35/35 mock assertions on head `935b95c`. PR #91 (GO-MVP closeout) merged into `main` at `60e7d0757b1394f6d63a63530242eb7fed83eaf5`. No AWS verification. GO-1's third-round local checks (6 suites, 122 assertions, all passing) remain recorded further down this log, still uncommitted in the original checkout (preserved, GO-1 stays paused/deferred) — untouched by any of this. |
 | AWS resources currently live | Last recorded inventory, not refreshed by PH-A: no temporary AWS resource remains. EKS, node group/instances, add-ons, VPC/subnets/IGW, ALB/target groups, EBS volumes/snapshots, NAT/EIP, RDS, CloudFormation stacks, and temporary IAM/OIDC resources are absent. Only the approved persistent ECR/IAM, Route 53/ACM, and state-storage allowlist remains. |
 | Month-to-date estimated AWS spend | September budget actual USD 0.502 and forecast USD 4.185 at the 2026-09-02 read-only refresh. Final August whole-account usage was USD 8.374; both calendar months remain below USD 20. |
-| Next operator action | Review and merge (or request changes on) the small follow-up documentation-closeout PR (present-tense checkpoint refresh recording PR #93's merge and completed synchronization; duplicate DEF-016 section in `docs/DEFERRED-WORK.md` labeled historical, text preserved; synchronization-note timezone corrected to 2026-09-14T16:30:03Z / 10:30:03-06:00). PR #93 itself is already merged (`932230b7be36522aad7241e829a977ea35558cb3`) and the original checkout is already synchronized to it — see this file's session log for full evidence; no further sync action is pending. Full GO-1 and the remaining advanced backlog stay deferred — unfinished findings and safe deferral boundaries remain tracked in `docs/DEFERRED-WORK.md` (DEF-001–011, DEF-015 subfinding 3); review that backlog with the owner before activating any of it. Do not mark the original full GO-1 contract complete, activate GO-2, or infer broader new-image/schema support than the one demonstrated update. No AWS session or cluster mutation occurred in this housekeeping item. **Addendum (2026-09-14T17:20:57-06:00):** a separate, focused PR fixing DEF-005 (multi-source values lookup) and DEF-006 (real root-to-child Application generation, shared release/image validation) is also open for review — see the 2026-09-14T17:20:57-06:00 session log entry below for full evidence. It does not change or supersede anything described in the rest of this row. **Addendum (2026-09-14T18:24:47-06:00):** that PR's DEF-006 fix was corrected the same day — the original fix did not use an actual Argo-supported generation mechanism; it now uses App-of-Apps. See the 2026-09-14T18:24:47-06:00 session log entry for full evidence. **Addendum (2026-09-14T21:08:05-06:00):** three further bounded gaps in that App-of-Apps mechanism (unsupported Helm/source overrides, recursive/non-recursive discovery mismatch, hollow workload-manifest proof) were closed on the same PR — see the 2026-09-14T21:08:05-06:00 session log entry for full evidence. **Addendum (2026-09-15T19:24:39-06:00):** a rendering-context correction (the shared renderer now derives/validates the Helm release name and namespace from the child Application, instead of the release record's `releaseId` and no namespace) was also applied on the same PR — see the 2026-09-15T19:24:39-06:00 session log entry for full evidence. PR #95 remains open, unmerged, awaiting review. |
+| Next operator action | Review and merge (or request changes on) the small follow-up documentation-closeout PR (present-tense checkpoint refresh recording PR #93's merge and completed synchronization; duplicate DEF-016 section in `docs/DEFERRED-WORK.md` labeled historical, text preserved; synchronization-note timezone corrected to 2026-09-14T16:30:03Z / 10:30:03-06:00). PR #93 itself is already merged (`932230b7be36522aad7241e829a977ea35558cb3`) and the original checkout is already synchronized to it — see this file's session log for full evidence; no further sync action is pending. Full GO-1 and the remaining advanced backlog stay deferred — unfinished findings and safe deferral boundaries remain tracked in `docs/DEFERRED-WORK.md` (DEF-001–011, DEF-015 subfinding 3); review that backlog with the owner before activating any of it. Do not mark the original full GO-1 contract complete, activate GO-2, or infer broader new-image/schema support than the one demonstrated update. No AWS session or cluster mutation occurred in this housekeeping item. **Addendum (2026-09-14T17:20:57-06:00):** a separate, focused PR fixing DEF-005 (multi-source values lookup) and DEF-006 (real root-to-child Application generation, shared release/image validation) is also open for review — see the 2026-09-14T17:20:57-06:00 session log entry below for full evidence. It does not change or supersede anything described in the rest of this row. **Addendum (2026-09-14T18:24:47-06:00):** that PR's DEF-006 fix was corrected the same day — the original fix did not use an actual Argo-supported generation mechanism; it now uses App-of-Apps. See the 2026-09-14T18:24:47-06:00 session log entry for full evidence. **Addendum (2026-09-14T21:08:05-06:00):** three further bounded gaps in that App-of-Apps mechanism (unsupported Helm/source overrides, recursive/non-recursive discovery mismatch, hollow workload-manifest proof) were closed on the same PR — see the 2026-09-14T21:08:05-06:00 session log entry for full evidence. **Addendum (2026-09-15T19:24:39-06:00):** a rendering-context correction (the shared renderer now derives/validates the Helm release name and namespace from the child Application, instead of the release record's `releaseId` and no namespace) was also applied on the same PR — see the 2026-09-15T19:24:39-06:00 session log entry for full evidence. **Addendum (2026-09-15T21:37:42-06:00, Codex):** independent review of the rendering-context fix found no blocking finding; recommended merging only with explicit owner authorization and a fresh exact-head/check preflight — see that session log entry for full evidence. **Addendum (2026-09-16T14:12:21Z, Claude):** PR #95 merged by explicit owner authorization, verified at reviewed head `5152ae0ed9279a09f9fb63cb59b627ae1dbc38ca` with all four required checks green, producing merge commit `c6af3b70a94bc397c42d789ea556ffd4e0210693`. The original checkout was then synchronized to that commit via a checked fast-forward (`git merge --ff-only origin/main`, never `reset --hard`): a recorded `git stash` held the uncommitted work; the now-merged/superseded paths (the pre-App-of-Apps draft renderer scripts and design-contract draft, and Codex's parallel PR #95 review notes in this file and `docs/DEFERRED-WORK.md`) were selectively reconciled rather than blindly reapplied — Codex's review notes were interleaved into both files' existing history in chronological order (append-only, nothing deleted); the superseded draft scripts were left out of the working tree (recoverable from the stash) since the merged, tested versions are strictly more complete. All other unrelated uncommitted GO-1 drafts were restored unchanged. DEF-005 and DEF-006 are closed for this bounded slice. Full GO-1 remains `IN PROGRESS`/paused; GO-2 remains inactive. See the 2026-09-16T14:12:21Z session log entry for full evidence. |
 
 Allowed states: `NOT STARTED` / `IN PROGRESS` / `BLOCKED` / `COMPLETE`.
 
@@ -1000,6 +1000,95 @@ tree.
 
 Append newest entries immediately below this heading. Never include secrets or AWS account IDs.
 
+### 2026-09-16T10:18:27-06:00 — PR #95 reconciliation closeout prepared — Codex
+
+- **Scope:** isolated the already-reviewed documentation reconciliation for PR #95's merge and
+  checkout cleanup on branch `docs/pr95-merge-closeout`. Only `docs/PROGRESS.md` and
+  `docs/DEFERRED-WORK.md` are included; unrelated GO-1 drafts, the intentional broken-migration
+  fixture, the protective stash, and the diagram are preserved.
+- **Verified before publication:** PR #95 is merged at `c6af3b70a94bc397c42d789ea556ffd4e0210693`;
+  `main` and `origin/main` point to that commit; the old PR branch/worktree are absent; and the
+  intentional `demo-broken-migration` branch/worktree remains. The two documentation files carry
+  the append-only review/merge evidence and no whitespace errors.
+- **Next action:** publish this focused documentation PR, verify its required checks, merge it with
+  explicit owner authorization, then return local `main` to the merged tip. Keep the protective
+  stash until the final post-merge status check; no GO-1 resumption, GO-2 activation, cluster or
+  AWS activity is part of this closeout.
+
+### 2026-09-16T14:12:21Z — PR #95 merged; original checkout synchronized and reconciled — Claude
+
+- **Merge:** owner authorized merging PR #95 only if its head remained
+  `5152ae0ed9279a09f9fb63cb59b627ae1dbc38ca` and all four required checks stayed green. Verified
+  both immediately before merging (`gh pr view 95` reported `headRefOid` matching exactly,
+  `mergeable=MERGEABLE`, all four checks `pass`), then merged via `gh pr merge --match-head-commit`.
+  Result: `state=MERGED`, merge commit `c6af3b70a94bc397c42d789ea556ffd4e0210693`,
+  `mergedAt=2026-09-16T14:12:21Z`. DEF-005 and DEF-006 are closed for this bounded slice (see both
+  entries in `docs/DEFERRED-WORK.md`). Reported the verified SHA and stopped, per instruction — no
+  checkout sync, cleanup or further work performed in that turn.
+- **Cleanup (separate, later turn):** deleted the now-merged `fix/def-005-006-source-binding`
+  branch (local + `origin`) and removed its worktree (`../bedoux-go1-def005-006`), both fully clean
+  and merged. The `demo-broken-migration` branch/worktree was left untouched — it is a documented,
+  intentional "DO NOT MERGE" fixture (see `docs/runbooks/gitops-mvp-demo.md`), not stale.
+- **Original checkout synchronization:** the original checkout (this file's usual home) had real
+  uncommitted GO-1 work, some of it colliding by path with what PR #95 had just merged (the
+  pre-App-of-Apps draft `scripts/render-gitops-applications.sh`/`render-gitops-release.sh` and
+  their test suites, and an earlier `docs/gitops-go1-design-contract.md` draft — all now superseded
+  by the far more complete, tested, merged versions — plus this file and `docs/DEFERRED-WORK.md`
+  themselves, both independently modified locally by Codex's parallel review notes on the same
+  PR). To avoid any data loss: `git stash push -u` captured EVERYTHING first (tracked and
+  untracked), then `git merge --ff-only origin/main` fast-forwarded cleanly against a clean tree.
+  Afterward, each stashed path was reconciled individually rather than blindly popped:
+  - Files untouched by the merge (`START-HERE.md`, `docs/TEST-PLAN.md`,
+    `docs/decisions/README.md`, `docs/gitops-expansion-plan.md`, `docs/runbooks/gitops-recovery.md`,
+    `scripts/p13-canary-rollout.sh`, the ADR draft, the workflow diagram + autosave backup, and the
+    P13/paired-rollout-coordinator/bootstrap-precondition/release-attempt-claim scripts + tests)
+    were restored from the stash via targeted `git checkout stash@{0}[^3] -- <path>`. Six of the
+    "modified" files turned out to already be byte-identical to the new merged HEAD (their local
+    edits had already landed via an earlier PR93/94 merge this checkout had not yet fast-forwarded
+    to) — confirmed via diff before treating them as done, no restore needed.
+  - The five draft renderer/design-contract files that collided with PR #95's merged paths were
+    confirmed (via diff) to differ from — and be superseded by — the merged versions, so they were
+    deliberately left out of the working tree (not deleted: still fully recoverable from the stash,
+    which was not dropped).
+  - `docs/DEFERRED-WORK.md` and `docs/PROGRESS.md` (this file) both had local uncommitted content
+    that turned out to be Codex's own independent review notes on PR #95 (and, for some older
+    entries, content already superseded by earlier merges) — genuinely new, valuable, and not
+    redundant with anything in the merge. Each Codex note was individually inserted at its correct
+    chronological position among the existing (merged) entries in both files, append-only, crediting
+    Codex by name; none of my own or Codex's prior entries were altered or removed.
+  - The stash (`git stash list` → `stash@{0}`, message "pre-sync-PR95-merge...") is intentionally
+    kept, not dropped, until this reconciliation is reviewed.
+- **Verification:** `git log --oneline -1` on `main` reports `c6af3b7`, matching `origin/main`.
+  `git status --short` shows only the intentionally-preserved, still-unrelated GO-1 drafts as
+  untracked; no unexpected modifications. `git worktree list` / `git branch -vv` / `git branch -r`
+  show only `main`, the intentional `demo-broken-migration` fixture, and `origin/main` — no stale
+  branches remain.
+- **Not done, deliberately:** no direct push to `main` (this was a stash+fast-forward sync of an
+  already-merged PR, not a new change); no broader GO-1 implementation; no GO-2 activation; no
+  cluster or AWS activity.
+
+### 2026-09-15T21:37:42-06:00 — PR #95 rendering-context follow-up accepted — Codex
+
+- **Scope:** owner-requested review and next-step advice only; inspected the isolated PR
+  worktree and reran local Helm fixture tests. Required local review notes only; no source
+  implementation, commit, push, merge, checkout synchronization, cluster or AWS activity.
+- **Verified:** GitHub reports PR #95 OPEN/MERGEABLE at
+  `5152ae0ed9279a09f9fb63cb59b627ae1dbc38ca`, all four required checks SUCCESS in run
+  `35044122307`. Local PR worktree HEAD matches and is clean.
+- **DEF-006 finding closed:** the Application renderer passes the child's metadata.name and
+  validated destination.namespace explicitly into the shared Helm renderer. Context-sensitive
+  fixtures assert dev-child/bedoux-dev, and a wrong namespace is refused. The standalone release
+  renderer retains its releaseId/default context. All previously accepted fixes remain intact.
+- **Evidence:** applications suite 58/58 and release suite 23/23 pass locally; follow-up diff
+  whitespace check passes. Documentation component checks (tracked drawio XML/SVG siblings,
+  spine files, action pins) pass. Full toolbox docs-check not run: toolbox inventory cannot
+  obtain the Podman version on this host. No live Argo/cluster proof claimed.
+- **Recommendation:** no blocking finding in this bounded follow-up. Merge PR #95 only with
+  explicit owner authorization and a fresh exact-head/check preflight. Then separately authorize
+  a GO-1 design-closeout audit mapping required evidence to remaining deferred work; do not
+  implement every deferred runtime feature or activate GO-2 automatically. Preserve all drafts,
+  diagram/autosave, backups and remaining worktrees. DEF-006 review status updated locally.
+
 ### 2026-09-15T19:24:39-06:00 — Rendering-context correction: Helm release name/namespace from the child Application (PR #95, seventh round) — Claude
 
 - **Scope:** owner-requested bounded follow-up on the same PR (#95, branch `fix/def-005-006-source-binding`,
@@ -1047,6 +1136,31 @@ Append newest entries immediately below this heading. Never include secrets or A
   diagram/broader-GO-1-draft changes (per explicit instruction).
 - **Next action:** stop for owner review — do not merge, do not mark GO-1 complete, do not activate
   GO-2.
+
+### 2026-09-15T19:14:32-06:00 — PR #95 current-head review and next-step advice — Codex
+
+- **Scope:** owner asks for advice on another agent's status report and says continue.
+  Read-only PR/diff checks plus local fixture/Helm tests; required local review notes only.
+  No commit, publication, merge, cleanup, synchronization, cluster or AWS activity.
+- **Verified:** PR #95 OPEN/MERGEABLE at `55af6085570f106143df1dca877171f5ec6532e0`;
+  all four checks SUCCESS (run `34923947366`). Both renderer suites rerun successfully;
+  candidate diff whitespace passes; isolated PR worktree clean.
+- **Fixes credited:** explicit source/Helm-field allowlists prevent unsupported overrides;
+  strict single-file/nonrecursive root discovery refuses nested and unexpected files;
+  real API/web templates and child-pin promotion replace the empty-workload proof.
+- **Remaining P2 / DEF-006 rendering context:** shared helper line 225 uses releaseId as
+  Helm release name and supplies no namespace; applications renderer line 316 passes that
+  releaseId rather than the child's actual context. Injecting .Release.Name and
+  .Release.Namespace into the fixture template shows dev-0001-api/default, while the child
+  declares metadata.name=dev-child, destination.namespace=bedoux-dev and no releaseName
+  override. Renderer exits 0. Existing hardcoded template names hide this mismatch.
+  Request only context derivation/validation, explicit Helm arguments and regression proof.
+- **Advice:** finish this bounded PR before packaging broader GO-1 drafts. Diagram improvement
+  is optional separate work, not the next source-binding dependency. Older merged worktrees
+  are no longer listed; remaining worktrees are original main, active PR #95 and the intentional
+  broken-migration fixture. No removal performed. Preserve dirty drafts and diagram/autosave.
+  After accepted/merged binding work, reconcile GO-1 design requirements with the backlog;
+  GO-2 still needs its own owner gate. DEF-006 updated, other prior fixes not reopened.
 
 ### 2026-09-14T21:08:05-06:00 — Three bounded gaps closed in the App-of-Apps fix (PR #95, sixth round) — Claude
 
@@ -1097,6 +1211,38 @@ Append newest entries immediately below this heading. Never include secrets or A
 - **Next action:** push these commits to the existing PR #95 branch, confirm CI green on the
   updated head, and stop for owner review — do not merge, do not mark GO-1 complete, do not
   activate GO-2.
+
+### 2026-09-14T18:45:56-06:00 — PR #95 App-of-Apps follow-up: remaining binding gaps — Codex
+
+- **Scope:** bounded follow-up review at `13b98ea525838a81470eb6817e9cbbe0ebbf5f9a`;
+  local fixture/Helm tests and read-only GitHub checks. No implementation, commit, push,
+  merge, cluster, synchronization or phase activation. Required local review notes only.
+  AWS: none. Existing unrelated GO-1 work preserved.
+- **Verified:** PR OPEN/MERGEABLE; all four checks SUCCESS, run `34913190594`. Read the
+  Terraform/Helm job log and confirmed BOTH renderer suites actually ran with ALL PASS.
+  Both suites also pass independently here; candidate diff whitespace and actions-check pass.
+- **Previous fixes credited:** checked-in Application is a real App-of-Apps artifact; injected
+  values-only path is structurally rejected; CI wiring is present. DEF-005's prior test and
+  CI findings are closed, not recycled as new issues.
+- **P1 / image-binding bypass:** gob_validate_child_manifest checks selected source fields,
+  not extras despite its claim. Injected helm.parameters setting api.image.repository to
+  example.invalid/unreviewed-api is accepted and emitted (exit 0). Local Helm proof ignores
+  those parameters; real Argo gives them precedence over the validated valueFiles. Reject
+  unsupported render-affecting source/Helm keys or validate and render them faithfully.
+- **P2 / root-selection mismatch:** fixture with the only child under apps/dev/nested exits 0;
+  git ls-tree -r discovers it, but the emitted root has no directory.recurse. Argo's default
+  loader does not recurse. Also align YAML/JSON and extra-resource handling with the emitted
+  source configuration; do not discard objects Argo would load while asserting equivalence.
+- **P2 / empty workload proof:** parsed positive fixture output contains only two Applications,
+  no workloads: its chart has no templates. The claimed workload assertion only checks exit 0.
+  Add real API/web template output, assert exact images and release-name/namespace context,
+  and a child-pin promotion with changed workload output, keeping old-pin independence.
+- **Sources:** https://argo-cd.readthedocs.io/en/stable/user-guide/helm/ (parameter precedence
+  and default release name) and https://argo-cd.readthedocs.io/en/stable/user-guide/directory/
+  (default nonrecursive YAML/JSON loading). No live Argo behavior was executed or claimed.
+- **Next action:** keep DEF-006/PR #95 open for these bounded counterexamples and re-review;
+  no GO-2 activation or expansion into runtime controllers, canaries or AWS. DEF-005/006
+  backlog notes updated without altering the isolated PR worktree.
 
 ### 2026-09-14T18:24:47-06:00 — DEF-006 re-fix: real Argo-supported generation mechanism (App-of-Apps), correcting the entry below — Claude
 
@@ -1156,6 +1302,33 @@ Append newest entries immediately below this heading. Never include secrets or A
   of scope and untouched.
 - **Next action:** push these commits to the existing PR #95 branch, confirm CI green on the updated
   head, and stop for owner review — do not merge, do not mark GO-1 complete, do not activate GO-2.
+
+### 2026-09-14T17:26:10-06:00 — PR #95 source-binding review: DEF-006 still open — Codex
+
+- **Scope:** requested PR review using phase/PR workflow and local-only AWS/Kubernetes
+  guardrails. Only required local review notes changed; isolated PR worktree remains clean.
+  No implementation, commit, push, merge, live cluster, GO-2 activation or AWS activity.
+- **Verified:** PR #95 OPEN at `0ded589e29e2938dec79a8070365b68b3cd822d0`, all four checks
+  SUCCESS (run `34908582388`). Both renderer suites independently exit 0. Candidate whitespace,
+  actions-check (18 immutable references), tracked diagram XML/SVG and spine checks pass.
+  No full toolbox docs-check or live Argo run claimed.
+- **P1 / DEF-006:** root Application source (render-gitops-applications.sh:196) selects a
+  directory of custom pointer YAML, without an Argo-supported generator. Independent fixture
+  probe finds only childAppName/releaseRecordPath/valuesPath, no Application resource; no Helm,
+  Kustomize or plugin configuration. Printing root and child in the external script does not
+  make Argo's root produce the child. Applications test chart contains only Chart.yaml, so it
+  also never proves child-to-workload rendering. Shared validation is improved, but closure
+  requires the actual root rendering path plus selected child/values/chart/workload proof.
+  Source: https://argo-cd.readthedocs.io/en/stable/user-guide/directory/ (plain manifests).
+- **P2 / DEF-005 test:** test-render-gitops-applications.sh:140 scans only AFTER ref: values;
+  an injected forbidden path BEFORE ref still passes (independent assertion exits 0). Parse
+  the entire source object and add an asymmetric negative fixture. Full repo-relative values
+  reference and omission of path in the current emitted manifest are correct.
+- **CI gap:** neither renderer suite is referenced by .github workflows or Makefile; four
+  green checks do not run these new contracts. Invoke the same local suites in CI and confirm
+  their output. DEF-005/006 updated locally; no unrelated backlog implementation requested.
+- **Next action:** keep PR #95 open for these bounded corrections, revise its premature
+  DEF-006 resolution claims, then re-review. Preserve existing MVP and all dirty GO-1 work.
 
 ### 2026-09-14T17:20:57-06:00 — DEF-005/DEF-006 fix: real source binding and root-to-child rendering — Claude
 
